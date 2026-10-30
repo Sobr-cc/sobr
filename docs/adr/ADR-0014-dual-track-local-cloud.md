@@ -123,7 +123,7 @@ Le **backend** est identique partout. La différenciation managed se fait sur l'
 | Capacité | Self-hosted | Managed Sobr.ia |
 |---|---|---|
 | Binaire open-source | ✓ | ✓ |
-| Pairing perso 6 chiffres | ✓ | ✓ |
+| Pairing perso 6 chiffres (automatic, no code, since ADR-0013 Amendment 1, 2026-10-30) | ✓ | ✓ |
 | Mode Équipe (enrollment codes, JWT, dashboard admin) | ✓ | ✓ |
 | Exports CSRD/PROV-O/CSV | ✓ | ✓ |
 | Alertes seuils (webhook, log) | ✓ | ✓ |
