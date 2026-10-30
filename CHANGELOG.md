@@ -27,6 +27,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `TODO(SOB-123)`, footer `Refs: SOB-123`. `docs/ROADMAP.md` passe en
   document historique.
 
+### Added — Skill /orchestrate et règles de travail (2026-10-30)
+
+- **`.claude/skills/orchestrate/`** : la routine de l'orchestrateur (trier
+  Triage et proposer une action par tâche, écrire et découper les tâches,
+  poser les labels Role et Model, limite de trois tâches In Review,
+  mises à jour du vendredi).
+- **`.claude/skills/linear-issue-writing/`** : copie du skill d'équipe
+  pour écrire les tâches Linear (SOB-44).
+- **CLAUDE.md §11** : les règles de travail, alignées sur le document
+  Linear « How we work » (qui fait quoi, règles, « Prêt », « Terminé »,
+  estimation et modèle).
+
 ### Removed — Nettoyage du dépôt (2026-10-30)
 
 - **Docs** : prompts Claude Code, plans de commits et plans « superpowers »
