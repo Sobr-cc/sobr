@@ -25,6 +25,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
 
+### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
+
+- **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
+  (SOB-19). `tests/characterization/` fige les sorties actuelles (P5/P50/P95,
+  histogrammes, hypothèses, erreurs) de `MonteCarloEngine`, `EcoLogitsEngine`,
+  `simulate`, `forecast_yearly`, du registre de modèles (34 presets), des
+  tokens effectifs, des équivalents, des méthodologies et de `validation`,
+  avec seed 42 et horodatage fixe. Références dans `tests/golden/*.json`
+  (comparées à 1e-9 près, car la CI tourne sur 3 OS) ; régénération avec
+  `SOBRIA_UPDATE_GOLDEN=1`. Aucune dépendance ajoutée, aucun changement de
+  comportement.
+
 ### Added — Pilotage dans Linear (2026-10-30)
 
 - **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la
@@ -32,6 +44,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   CONTRIBUTING.md mis à jour : branches `feature/sob-123-<desc>`,
   `TODO(SOB-123)`, footer `Refs: SOB-123`. `docs/ROADMAP.md` passe en
   document historique.
+
+### Added — Skill /orchestrate et règles de travail (2026-10-30)
+
+- **`.claude/skills/orchestrate/`** : la routine de l'orchestrateur (trier
+  Triage et proposer une action par tâche, écrire et découper les tâches,
+  poser les labels Role et Model, limite de trois tâches In Review,
+  mises à jour du vendredi).
+- **`.claude/skills/linear-issue-writing/`** : copie du skill d'équipe
+  pour écrire les tâches Linear (SOB-44).
+- **CLAUDE.md §11** : les règles de travail, alignées sur le document
+  Linear « How we work » (qui fait quoi, règles, « Prêt », « Terminé »,
+  estimation et modèle).
 
 ### Removed — Nettoyage du dépôt (2026-10-30)
 

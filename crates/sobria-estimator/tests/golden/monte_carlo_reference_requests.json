@@ -1,0 +1,1585 @@
+{
+  "dense_70b": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00024188454599203096
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08599853884047935
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.02006632572944518
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 6.551080335043404,
+          "sigma": 0.3046235091389993,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 7.4673710669175595,
+          "sigma": 0.3043895046316714,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -4.045554398052668,
+          "sigma": 0.30467614153735706,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [5,10,31,41,79,133,191,294,381,462,596,583,632,670,707,610,648,596,548,433,403,365,300,256,188,150,138,120,86,67,71,52,31,28,24,14,8,8,8,9,6,4,2,3,2,4,1,1,0,1],
+          "max": 0.10138388862738677,
+          "min": 0.022255290967182664
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.033387594978768746,
+          "p50": 0.046441832830469945,
+          "p95": 0.06563720860005307
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [9,28,64,132,214,323,471,645,718,762,783,781,700,685,655,552,434,395,302,264,224,160,145,116,96,66,66,47,31,31,17,26,13,11,5,6,1,6,2,3,5,0,2,0,0,1,0,0,1,2],
+          "max": 1.47215047562571,
+          "min": 0.19203881715770887
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.32463002690688986,
+          "p50": 0.5016581432361296,
+          "p95": 0.7914867138355832
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [16,130,377,556,579,642,661,627,651,596,565,572,526,502,489,427,337,358,270,237,156,147,118,88,87,55,34,32,33,29,20,20,14,13,7,3,5,3,4,5,0,1,0,3,0,0,2,1,0,2],
+          "max": 0.0031346574601522196,
+          "min": 0.00009903926239699443
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.00027794929856748285,
+          "p50": 0.0007244742525788433,
+          "p95": 0.0014729884030744076
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "full_overhead": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.009224639687814304
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 5.105826927147313
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 1.1913596163343732
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.294049640102028,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.210340371976184,
+          "sigma": 0.3044299995840704,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.3025850929940455,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [6,21,41,96,167,246,364,520,683,701,741,788,764,682,698,602,533,432,365,308,234,200,172,137,109,74,76,52,33,39,21,23,22,11,6,7,5,2,4,4,5,2,0,0,0,1,0,0,2,1],
+          "max": 4.725709891907528,
+          "min": 0.7550418608912236
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 1.2128764433547008,
+          "p50": 1.7711308200603462,
+          "p95": 2.660110616954975
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [8,17,54,100,170,266,398,530,671,729,755,786,727,713,698,563,519,424,362,276,238,211,170,129,103,75,72,57,26,34,23,26,18,16,4,4,6,4,2,5,5,2,0,0,0,1,0,0,2,1],
+          "max": 82.45476886367327,
+          "min": 11.88346382953095
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 19.831527039851064,
+          "p50": 29.78399040835933,
+          "p95": 45.5752330910396
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [14,107,335,525,531,590,623,600,617,583,557,532,534,522,470,448,417,356,305,284,201,167,142,106,95,66,54,40,31,27,28,20,19,15,7,4,3,3,7,5,1,1,0,1,1,1,3,0,0,2],
+          "max": 0.17641892883645022,
+          "min": 0.006128602070234441
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.01667666232081644,
+          "p50": 0.04315389831151575,
+          "p95": 0.08571875709479868
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "claude-sonnet-4-6",
+      "overhead": {
+        "memory_tokens": 1500,
+        "system_prompt_tokens": 2000,
+        "thinking_tokens_p50": 0,
+        "tools_definition_tokens": 800
+      },
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 400,
+      "tokens_out_estimated": 600
+    },
+    "seed": 42
+  },
+  "large_chat": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.060604404090491726
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 34.033685691393984
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 7.94119332799193
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.903487552536127,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 10.819778284410283,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -0.6931471805599453,
+          "sigma": 0.3044801569005699,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [16,38,98,190,281,410,555,712,788,730,775,736,680,697,590,481,407,317,302,225,182,164,127,107,74,64,61,41,32,28,21,16,12,9,8,4,4,3,4,1,3,1,0,2,1,0,0,1,0,2],
+          "max": 35.827730809981155,
+          "min": 4.378734230445924
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 7.276546373754137,
+          "p50": 11.636045585374411,
+          "p95": 18.8387477991724
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [21,44,103,202,308,417,591,688,802,775,740,737,683,678,586,447,401,319,285,221,175,155,134,96,85,60,60,42,26,28,18,19,11,8,10,2,5,2,5,1,2,2,0,2,1,0,0,1,0,2],
+          "max": 630.116368433429,
+          "min": 70.88915280465666
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 120.77857429683377,
+          "p50": 198.52983319979825,
+          "p95": 326.72705587783184
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [22,186,453,590,655,707,716,661,694,593,630,579,507,487,441,343,334,281,218,163,126,142,101,75,58,31,28,39,32,22,17,12,14,12,6,3,3,3,5,2,0,0,3,1,0,1,1,0,1,2],
+          "max": 1.3362057967291747,
+          "min": 0.036590214981936646
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.10659728577362304,
+          "p50": 0.28448978802677216,
+          "p95": 0.6018739072929308
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "claude-opus-4-8",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 1000,
+      "tokens_out_estimated": 1000
+    },
+    "seed": 42
+  },
+  "long_context": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.23854230315791392
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 139.86876806361198
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 32.63604588150946
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.294049640102028,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.210340371976184,
+          "sigma": 0.3044299995840704,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.3025850929940455,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [8,25,62,117,200,296,444,615,706,759,765,768,743,674,668,562,476,393,328,258,235,180,145,122,96,70,70,50,24,33,22,23,18,10,5,6,2,5,2,4,5,1,1,0,0,1,0,0,1,2],
+          "max": 131.7590407882099,
+          "min": 17.841174741178644
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 30.01005151826957,
+          "p50": 45.80012220631947,
+          "p95": 71.51529602377026
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [8,26,62,118,201,295,445,613,709,762,761,769,742,675,668,563,473,390,327,259,236,182,142,121,98,70,70,49,25,33,21,24,18,10,5,6,2,5,2,4,5,1,1,0,0,1,0,0,1,2],
+          "max": 2350.907106297644,
+          "min": 316.9929795489492
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 534.0880847287499,
+          "p50": 815.9011470377366,
+          "p95": 1275.301666074637
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [16,124,363,549,545,633,649,632,637,576,571,546,548,501,487,431,375,352,283,249,171,154,124,95,88,57,41,36,29,26,25,20,16,15,7,2,4,5,5,3,1,1,0,1,2,0,2,1,0,2],
+          "max": 5.013560660475505,
+          "min": 0.16348127604728485
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.454228635296683,
+          "p50": 1.1780204436230926,
+          "p95": 2.383475331536933
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "gemini-3-1-pro",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 100000,
+      "tokens_out_estimated": 20000
+    },
+    "seed": 42
+  },
+  "minimal_tokens": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.000010404411779376335
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.000016931163615787298
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 3.950604843683703e-6
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 4.382026634673881,
+          "sigma": 0.3043547791235993,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 5.298317366548036,
+          "sigma": 0.30498218577761166,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -6.214608098422191,
+          "sigma": 0.3049821857776117,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [4,12,77,155,281,439,596,756,876,870,857,818,713,685,569,441,397,296,254,195,150,140,96,68,58,44,36,24,24,13,9,13,13,6,2,5,1,3,0,1,1,1,0,0,0,0,0,0,0,1],
+          "max": 0.006915106632503021,
+          "min": 0.0005981983473264601
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.0012201939029224825,
+          "p50": 0.0019976470616402562,
+          "p95": 0.003305051606623596
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [7,16,47,82,134,235,359,442,600,668,726,756,760,688,705,643,544,461,408,320,255,235,194,146,135,97,65,56,52,26,36,15,25,15,11,8,4,2,4,5,7,2,0,0,0,0,1,0,2,1],
+          "max": 0.00025992584506549814,
+          "min": 0.0000406998402991959
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.00006680918895694057,
+          "p50": 0.00009876512109209258,
+          "p95": 0.00014799090051376831
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [10,99,291,493,516,551,602,574,579,557,528,559,507,480,517,430,435,392,334,299,268,180,163,119,110,96,56,44,43,32,22,27,27,10,13,6,4,3,7,4,3,2,0,1,0,1,4,0,0,2],
+          "max": 5.586072258069825e-7,
+          "min": 2.0989934340188794e-8
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 5.576093138488344e-8,
+          "p50": 1.4312601266510205e-7,
+          "p95": 2.8071004558457066e-7
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "gpt-4o-mini",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 1,
+      "tokens_out_estimated": 1
+    },
+    "seed": 42
+  },
+  "moe": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00005873772100930609
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.020884768900043368
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.0048731127433434525
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 5.135798437050262,
+          "sigma": 0.30453917610587244,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 6.052089168924417,
+          "sigma": 0.3038411095476953,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -5.4608362960458114,
+          "sigma": 0.3038411095476953,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [5,10,30,42,78,133,191,292,379,459,595,586,632,671,697,612,654,593,554,432,404,363,301,258,188,150,137,124,85,68,71,51,31,29,24,14,8,8,8,9,6,4,2,3,2,4,1,1,0,1],
+          "max": 0.02458453332787164,
+          "min": 0.005412426883012477
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.008113524042648217,
+          "p50": 0.01127764243378677,
+          "p95": 0.015927189730359483
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [9,28,63,133,214,320,462,645,713,769,783,772,705,684,659,555,433,399,303,263,226,157,151,115,93,66,69,48,31,31,17,25,14,10,6,6,1,6,2,3,5,0,2,0,0,1,0,0,1,2],
+          "max": 0.3568745984762429,
+          "min": 0.04670426499951473
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.07887480169841385,
+          "p50": 0.12182781858358631,
+          "p95": 0.19207457807794695
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [16,130,376,555,575,645,650,638,645,592,567,569,530,499,493,426,339,355,274,240,159,145,117,88,90,54,35,32,34,26,22,21,14,13,7,3,5,3,4,5,0,1,0,3,0,0,2,1,0,2],
+          "max": 0.0007599384600243099,
+          "min": 0.000024086567626309823
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.00006751531043294272,
+          "p50": 0.00017593214288173336,
+          "p95": 0.0003576984387866748
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "llama-4-maverick",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "multimodal_anthropic": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00968608615088615
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 5.371889095805611
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 1.253440789021309
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.294049640102028,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.210340371976184,
+          "sigma": 0.3044299995840704,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.3025850929940455,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [6,17,38,86,145,228,340,479,605,710,719,770,751,712,708,607,556,479,385,309,268,209,183,151,111,94,72,59,41,34,30,17,23,15,8,6,7,2,3,6,4,3,0,0,0,0,1,1,1,1],
+          "max": 4.823631146424426,
+          "min": 0.8031636503391746
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 1.2805015343849666,
+          "p50": 1.859728540970141,
+          "p95": 2.7553919965549407
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [7,15,54,88,143,250,356,490,646,684,753,759,746,700,709,601,532,459,381,307,242,220,191,143,111,92,65,60,38,29,30,20,21,15,9,6,5,2,5,4,6,2,0,0,0,0,1,0,2,1],
+          "max": 84.20336269433216,
+          "min": 12.742781498244359
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 21.041523559037856,
+          "p50": 31.33601972553273,
+          "p95": 47.28520754655805
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [12,101,304,510,523,568,604,600,579,579,527,552,522,506,504,417,429,390,323,282,249,169,153,119,107,78,55,39,42,27,23,27,22,12,12,3,6,1,9,2,4,1,0,1,0,2,3,0,0,2],
+          "max": 0.18061669533936828,
+          "min": 0.006571773869216043
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.017585470816075595,
+          "p50": 0.04538314704678019,
+          "p95": 0.08941154350242347
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "modalities": [
+        {
+          "kind": "text"
+        },
+        {
+          "image_count": 2,
+          "kind": "vision_low"
+        },
+        {
+          "avg_height": 768,
+          "avg_width": 1024,
+          "image_count": 1,
+          "kind": "vision_high"
+        },
+        {
+          "kind": "document",
+          "page_count": 3
+        },
+        {
+          "duration_seconds": 30,
+          "kind": "audio_input"
+        }
+      ],
+      "model_id": "claude-sonnet-4-6",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 400,
+      "tokens_out_estimated": 600
+    },
+    "seed": 42
+  },
+  "multimodal_openai": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.001595236444681719
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.7753802393919921
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.1809220558581315
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 7.600902459542082,
+          "sigma": 0.30498218577761166,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.517193191416238,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.995732273553991,
+          "sigma": 0.307504842711553,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [3,6,30,68,125,184,296,412,516,640,683,664,759,726,662,665,586,517,478,389,288,283,208,178,127,112,86,59,57,42,33,30,29,14,5,8,6,3,6,7,3,5,1,0,0,0,0,0,0,1],
+          "max": 0.7346119550031226,
+          "min": 0.14211418803511522
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.2166612222789469,
+          "p50": 0.30628539737889005,
+          "p95": 0.43904758861019677
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [2,8,23,73,145,208,304,478,560,588,676,750,756,691,625,603,611,507,467,338,306,243,242,158,137,97,86,61,60,41,33,32,25,16,8,8,8,5,5,4,4,4,1,1,1,0,0,0,0,1],
+          "max": 11.886827643445782,
+          "min": 1.7665171774095434
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 3.0076834114913464,
+          "p50": 4.523051396453288,
+          "p95": 6.827257630335305
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [16,123,282,432,493,491,557,533,499,520,534,459,511,476,457,453,427,422,327,322,254,255,192,166,159,105,89,98,52,80,46,28,38,19,22,21,10,6,7,5,2,3,2,3,0,1,0,1,1,1],
+          "max": 0.02373660009201507,
+          "min": 0.0010871804727903176
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0025276260582061828,
+          "p50": 0.0065784832114758884,
+          "p95": 0.0130199365204373
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "modalities": [
+        {
+          "kind": "text"
+        },
+        {
+          "image_count": 2,
+          "kind": "vision_low"
+        },
+        {
+          "avg_height": 768,
+          "avg_width": 1024,
+          "image_count": 1,
+          "kind": "vision_high"
+        },
+        {
+          "kind": "document",
+          "page_count": 3
+        },
+        {
+          "duration_seconds": 30,
+          "kind": "audio_input"
+        }
+      ],
+      "model_id": "gpt-4o",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 400,
+      "tokens_out_estimated": 600
+    },
+    "seed": 42
+  },
+  "reasoning_auto_thinking": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.011382441630259704
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 6.372778357905414
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 1.4869816168445964
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.294049640102028,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.210340371976184,
+          "sigma": 0.3044299995840704,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.3025850929940455,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [12,36,84,185,266,408,522,690,784,745,782,749,686,686,606,484,418,334,297,234,185,167,123,113,84,66,58,41,32,32,19,17,12,8,9,3,5,2,5,1,2,2,0,2,1,0,0,1,0,2],
+          "max": 6.834347761690015,
+          "min": 0.771443935372765
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 1.3492921497291182,
+          "p50": 2.185428793009863,
+          "p95": 3.5707795661970643
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [17,44,99,184,296,411,561,704,795,766,768,729,699,662,599,466,403,321,292,226,167,163,133,98,86,64,61,40,23,34,17,17,14,7,9,3,4,2,5,2,1,2,0,3,0,0,0,1,0,2],
+          "max": 120.32183176546208,
+          "min": 12.315278583852402
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 22.19755766772115,
+          "p50": 37.17454042111491,
+          "p95": 61.92877945740102
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [27,198,468,605,685,738,690,705,689,611,619,569,518,475,404,323,338,269,208,155,129,120,97,74,51,33,32,35,32,21,13,15,15,9,6,2,3,6,2,2,0,2,1,1,0,1,1,0,1,2],
+          "max": 0.2546995637282088,
+          "min": 0.006727602009443312
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.01986095949759223,
+          "p50": 0.052976923377537566,
+          "p95": 0.113722292112724
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "o3",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 200,
+      "tokens_out_estimated": 800
+    },
+    "seed": 42
+  },
+  "reasoning_explicit_thinking": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.0044910616292972464
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 2.3160294791376868
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.5404068784654602
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 8.294049640102028,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 9.210340371976184,
+          "sigma": 0.3044299995840704,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -2.3025850929940455,
+          "sigma": 0.30448015690057,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [12,34,70,164,247,370,505,680,762,747,751,748,744,667,614,516,450,331,317,234,206,162,134,123,84,67,52,50,29,36,21,14,12,10,9,5,3,5,4,1,3,1,1,2,0,0,0,1,0,2],
+          "max": 2.5321796954312896,
+          "min": 0.3417518745886193
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.556207944462851,
+          "p50": 0.8622838328250713,
+          "p95": 1.36119917265827
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [20,44,96,200,298,407,581,693,799,755,775,731,690,667,590,464,400,322,287,226,170,157,136,96,88,61,62,41,24,29,19,17,12,9,9,3,4,2,5,1,2,2,0,2,1,0,0,1,0,2],
+          "max": 43.30595672721153,
+          "min": 4.642206069849801
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 8.121259361676506,
+          "p50": 13.510171961636505,
+          "p95": 22.367280955671212
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [25,190,459,602,672,712,707,701,665,612,628,572,506,494,418,336,343,269,213,151,128,134,95,80,51,33,30,38,29,23,15,13,13,13,5,3,3,4,4,2,0,2,1,1,0,1,1,0,1,2],
+          "max": 0.09178799134079534,
+          "min": 0.002466815278059582
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.007235014508202958,
+          "p50": 0.01931533826684583,
+          "p95": 0.04116150204818548
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "o3",
+      "overhead": {
+        "memory_tokens": 0,
+        "system_prompt_tokens": 0,
+        "thinking_tokens_p50": 3000,
+        "tools_definition_tokens": 0
+      },
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 200,
+      "tokens_out_estimated": 800
+    },
+    "seed": 42
+  },
+  "small_chat": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.000021813975340362788
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.006456821105041583
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.0015065915911763694
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 4.382026634673881,
+          "sigma": 0.3043547791235993,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 5.298317366548036,
+          "sigma": 0.30498218577761166,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -6.214608098422191,
+          "sigma": 0.3049821857776117,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [4,11,25,48,83,135,207,294,356,485,522,619,647,695,669,631,586,585,535,461,405,367,320,250,199,164,154,110,88,61,71,52,29,28,21,19,14,11,8,5,8,6,4,1,1,1,3,0,0,2],
+          "max": 0.009258394081549205,
+          "min": 0.0019504214227770485
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.0029651326772177798,
+          "p50": 0.0041882832653496556,
+          "p95": 0.005950075591170144
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [18,36,85,177,295,369,553,680,771,799,744,754,685,700,592,489,404,340,300,235,175,158,132,106,78,75,56,41,30,28,21,22,7,9,12,1,5,2,3,3,2,2,1,1,1,0,0,1,0,2],
+          "max": 0.11658976771255199,
+          "min": 0.013776426750039747
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.02340807038286604,
+          "p50": 0.037664789779409236,
+          "p95": 0.06116970431034964
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [19,167,432,566,624,700,690,659,660,614,603,575,515,517,438,366,361,299,227,194,128,141,102,86,70,29,32,35,32,28,22,10,15,12,6,4,2,4,5,2,0,0,2,2,0,1,1,0,1,2],
+          "max": 0.0002472367506404156,
+          "min": 7.1048508003965755e-6
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.00002048069946097575,
+          "p50": 0.000054060488980874144,
+          "p95": 0.00011292876351039579
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "model_id": "gpt-4o-mini",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 100,
+      "tokens_out_estimated": 500
+    },
+    "seed": 42
+  },
+  "with_datacenter": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.000021813975340362788
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.006456821105041583
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.0015065915911763694
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "epsilon_prefill_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 4.382026634673881,
+          "sigma": 0.3043547791235993,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "epsilon_decode_mj_per_token",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": 5.298317366548036,
+          "sigma": 0.30498218577761166,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "pue",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "embodied_g_per_request",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "mu": -6.214608098422191,
+          "sigma": 0.3049821857776117,
+          "type": "log_normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "bins": {
+          "counts": [4,11,25,48,83,135,207,294,356,485,522,619,647,695,669,631,586,585,535,461,405,367,320,250,199,164,154,110,88,61,71,52,29,28,21,19,14,11,8,5,8,6,4,1,1,1,3,0,0,2],
+          "max": 0.009258394081549205,
+          "min": 0.0019504214227770485
+        },
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.0029651326772177798,
+          "p50": 0.0041882832653496556,
+          "p95": 0.005950075591170144
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "bins": {
+          "counts": [18,36,85,177,295,369,553,680,771,799,744,754,685,700,592,489,404,340,300,235,175,158,132,106,78,75,56,41,30,28,21,22,7,9,12,1,5,2,3,3,2,2,1,1,1,0,0,1,0,2],
+          "max": 0.11658976771255199,
+          "min": 0.013776426750039747
+        },
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.02340807038286604,
+          "p50": 0.037664789779409236,
+          "p95": 0.06116970431034964
+        },
+        "unit": "Wh"
+      },
+      {
+        "bins": {
+          "counts": [19,167,432,566,624,700,690,659,660,614,603,575,515,517,438,366,361,299,227,194,128,141,102,86,70,29,32,35,32,28,22,10,15,12,6,4,2,4,5,2,0,0,2,2,0,1,1,0,1,2],
+          "max": 0.0002472367506404156,
+          "min": 7.1048508003965755e-6
+        },
+        "indicator": "water",
+        "interval": {
+          "p5": 0.00002048069946097575,
+          "p50": 0.000054060488980874144,
+          "p95": 0.00011292876351039579
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "afnor_sobria",
+    "request": {
+      "datacenter_id": "dc-fr-paris",
+      "model_id": "gpt-4o-mini",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 100,
+      "tokens_out_estimated": 500
+    },
+    "seed": 42
+  }
+}

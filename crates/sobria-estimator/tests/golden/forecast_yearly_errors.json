@@ -1,0 +1,46 @@
+{
+  "duplicate_label": {
+    "message": "schéma : label scénario en doublon : 'same'",
+    "variant": "Schema"
+  },
+  "growth_too_high": {
+    "message": "schéma : monthly_growth_pct 50.1 hors bornes [-50, 50] pour 'up'",
+    "variant": "Schema"
+  },
+  "growth_too_low": {
+    "message": "schéma : monthly_growth_pct -50.1 hors bornes [-50, 50] pour 'down'",
+    "variant": "Schema"
+  },
+  "negative_volume": {
+    "message": "schéma : base_volume_per_day -1 hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "no_scenarios": {
+    "message": "schéma : au moins un scénario de forecast requis",
+    "variant": "Schema"
+  },
+  "too_many_months": {
+    "message": "schéma : months 61 hors bornes [1, 60]",
+    "variant": "Schema"
+  },
+  "too_many_scenarios": {
+    "message": "schéma : trop de scénarios : 11 (max 10)",
+    "variant": "Schema"
+  },
+  "unknown_baseline_model": {
+    "message": "schéma : modèle inconnu : \"not-in-registry\"",
+    "variant": "Schema"
+  },
+  "volume_above_limit": {
+    "message": "schéma : base_volume_per_day 1000001 hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "volume_infinite": {
+    "message": "schéma : base_volume_per_day inf hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "zero_months": {
+    "message": "schéma : months 0 hors bornes [1, 60]",
+    "variant": "Schema"
+  }
+}

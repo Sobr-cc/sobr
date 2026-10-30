@@ -1,0 +1,122 @@
+[
+  {
+    "f_energy_per_token_wh": 0.00004107132545887292,
+    "f_latency_per_token_sec": 0.040046,
+    "n_gpu": 1,
+    "p_billions": 1.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.0032567211919632675,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00004028576402532375
+  },
+  {
+    "f_energy_per_token_wh": 0.000042671036743717076,
+    "f_latency_per_token_sec": 0.0419444,
+    "n_gpu": 1,
+    "p_billions": 3.8,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.0034111076353239792,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00004198715329623024
+  },
+  {
+    "f_energy_per_token_wh": 0.00004449927821211041,
+    "f_latency_per_token_sec": 0.044114,
+    "n_gpu": 1,
+    "p_billions": 7.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.003587549284879078,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00004393159817726624
+  },
+  {
+    "f_energy_per_token_wh": 0.00004507060367098332,
+    "f_latency_per_token_sec": 0.044792,
+    "n_gpu": 1,
+    "p_billions": 8.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.003642687300365047,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00004453923720258999
+  },
+  {
+    "f_energy_per_token_wh": 0.0000479272309653479,
+    "f_latency_per_token_sec": 0.048182,
+    "n_gpu": 1,
+    "p_billions": 13.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.00391837737779489,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00004757743232920873
+  },
+  {
+    "f_energy_per_token_wh": 0.00005992506560167911,
+    "f_latency_per_token_sec": 0.06242,
+    "n_gpu": 2,
+    "p_billions": 34.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.010152551406000456,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00012067570372201491
+  },
+  {
+    "f_energy_per_token_wh": 0.00008049278212110405,
+    "f_latency_per_token_sec": 0.086828,
+    "n_gpu": 4,
+    "p_billions": 70.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.02824497704198038,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.00032885142709064975
+  },
+  {
+    "f_energy_per_token_wh": 0.0001090590550647498,
+    "f_latency_per_token_sec": 0.120728,
+    "n_gpu": 4,
+    "p_billions": 120.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.03927258013917408,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.0004503792321553995
+  },
+  {
+    "f_energy_per_token_wh": 0.00014048195530276013,
+    "f_latency_per_token_sec": 0.15801800000000002,
+    "n_gpu": 8,
+    "p_billions": 175.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.10280588709217434,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.0011681196354532486
+  },
+  {
+    "f_energy_per_token_wh": 0.00027188681084353055,
+    "f_latency_per_token_sec": 0.31395799999999996,
+    "n_gpu": 16,
+    "p_billions": 405.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 0.4085196711727127,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.004572350884097893
+  },
+  {
+    "f_energy_per_token_wh": 0.00042385938290372593,
+    "f_latency_per_token_sec": 0.494306,
+    "n_gpu": 32,
+    "p_billions": 671.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 1.2863741301619895,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.014316925151751538
+  },
+  {
+    "f_energy_per_token_wh": 0.0010688858259712468,
+    "f_latency_per_token_sec": 1.259768,
+    "n_gpu": 64,
+    "p_billions": 1800.0,
+    "request_embodied_co2eq_g_0_tokens": 0.0,
+    "request_embodied_co2eq_g_500_tokens": 6.55680070727812,
+    "request_energy_kwh_0_tokens_pue_1_2": 0.0,
+    "request_energy_kwh_500_tokens_pue_1_2": 0.07253941571729589
+  }
+]
