@@ -95,6 +95,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   document Organisation de Linear (SOB-43). L'orchestrateur reste la
   session principale.
 
+### Added — Découpage en dépôts (2026-10-30)
+
+- **ADR-0019** (Proposed) : découper le code en plusieurs dépôts de
+  l'organisation Sobr-cc par unité de livraison, en trois vagues
+  (`.github`, `site` et `design-system`, puis `extension`, puis `data`),
+  le cœur (moteur, app de bureau, serveur, app Svelte, docs et ADR)
+  restant dans `sobr`. Table dossier → dépôt, partage de code et contrats,
+  ordre des déplacements et issues à créer. Attend l'approbation de
+  Thibault. Refs: SOB-65.
+
 ### Added — Pilotage dans Linear (2026-10-30)
 
 - **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la
