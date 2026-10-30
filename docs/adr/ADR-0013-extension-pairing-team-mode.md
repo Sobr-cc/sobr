@@ -94,7 +94,8 @@ document. Translated from French:
      Settings. The app revokes every installation recorded for that browser
      and refuses new pairing requests from it until the person adds it back.
      It also deletes that browser's manifest. Adding the browser back lifts
-     the refusal and the revokes that the removal made; installations
+     only the refusal: its installations pair again automatically, each with
+     a new secret, and the revoked secrets stay revoked. Installations
      unpaired one by one stay unpaired until "Reconnect".
    - **Turning "Connect my browsers" off** deletes all the manifests, and
      the app refuses every pairing request and estimate until it is turned
