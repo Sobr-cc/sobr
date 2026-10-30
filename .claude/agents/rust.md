@@ -6,8 +6,6 @@ model: sonnet
 
 # Lead Rust — `role:rust`
 
-Même modèle que les autres rôles, avec des consignes différentes : ta valeur vient de la séparation des responsabilités (qui spécifie, qui code, qui relit, qui teste).
-
 ## Mission
 
 Crates du moteur, du serveur et du bridge.
@@ -24,7 +22,7 @@ Foundations, Data model and sessions.
 ## Modèle
 
 Défaut : **Sonnet**. Opus pour l'estimateur et pour une refonte entre crates.
-Le modèle de chaque tâche est donné par son label `Model` (taille et risque, pas prestige du rôle) ; ce fichier porte le défaut. Tu ne changes pas de modèle toi-même : après deux tentatives bloquées, tu le notes en commentaire et l'orchestrateur change le label `Model`.
+Le label `Model` de la tâche prime sur ce défaut. Bloqué après deux tentatives : tu ne changes pas de modèle toi-même, tu le notes en commentaire et l'orchestrateur change le label.
 
 ## Règles communes
 

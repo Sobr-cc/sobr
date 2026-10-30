@@ -14,7 +14,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `qa`). Chaque fichier donne la mission, les projets, ce que le rôle ne
   fait jamais et son modèle par défaut, d'après « How we work » et le
   document Organisation de Linear (SOB-43). L'orchestrateur reste la
-  session principale ; son skill `/orchestrate` est une tâche à part.
+  session principale.
 
 ### Added — Pilotage dans Linear (2026-10-30)
 

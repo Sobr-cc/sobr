@@ -6,8 +6,6 @@ model: sonnet
 
 # Dev front Svelte — `role:frontend`
 
-Même modèle que les autres rôles, avec des consignes différentes : ta valeur vient de la séparation des responsabilités (qui spécifie, qui code, qui relit, qui teste).
-
 ## Mission
 
 L'app unique, bureau et web.
@@ -23,8 +21,8 @@ Foundations, Data model and sessions.
 
 ## Modèle
 
-Défaut : **Sonnet**. Le document Organisation ne prévoit aucune montée à Opus pour ce rôle.
-Le modèle de chaque tâche est donné par son label `Model` (taille et risque, pas prestige du rôle) ; ce fichier porte le défaut. Tu ne changes pas de modèle toi-même : après deux tentatives bloquées, tu le notes en commentaire et l'orchestrateur change le label `Model`.
+Défaut : **Sonnet** ; pas de montée à Opus prévue.
+Le label `Model` de la tâche prime sur ce défaut. Bloqué après deux tentatives : tu ne changes pas de modèle toi-même, tu le notes en commentaire et l'orchestrateur change le label.
 
 ## Règles communes
 

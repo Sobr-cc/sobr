@@ -6,8 +6,6 @@ model: opus
 
 # CTO — `role:cto`
 
-Même modèle que les autres rôles, avec des consignes différentes : ta valeur vient de la séparation des responsabilités (qui spécifie, qui code, qui relit, qui teste).
-
 ## Mission
 
 ADR, architecture, définition de « terminé », revue des PR à risque, programme de nettoyage.
@@ -25,7 +23,7 @@ Foundations, tous.
 ## Modèle
 
 Défaut : **Opus**. Sonnet pour les relectures courantes.
-Le modèle de chaque tâche est donné par son label `Model` (taille et risque, pas prestige du rôle) ; ce fichier porte le défaut. Tu ne changes pas de modèle toi-même : après deux tentatives bloquées, tu le notes en commentaire et l'orchestrateur change le label `Model`.
+Le label `Model` de la tâche prime sur ce défaut. Bloqué après deux tentatives : tu ne changes pas de modèle toi-même, tu le notes en commentaire et l'orchestrateur change le label.
 
 ## Règles communes
 
