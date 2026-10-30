@@ -18,7 +18,7 @@ Les ADR documentent les décisions structurantes du projet. Chaque ADR :
 | [ADR-0007](./ADR-0007-dvc.md) | DVC pour le versionnage du référentiel | Accepted |
 | [ADR-0008](./ADR-0008-observable-plot.md) | Observable Plot + D3 pour la dataviz | Accepted |
 | [ADR-0009](./ADR-0009-medallion-architecture.md) | Architecture médaillon Copper/Silver/Gold automatique | Accepted |
-| [ADR-0020](./ADR-0020-app-unique-bureau-et-web.md) | Une seule app Svelte, livrée en bureau et en web (amende la règle 2 de l'ADR-0017) | Proposed |
+| [ADR-0021](./ADR-0021-single-app-desktop-and-web.md) | One Svelte app, shipped on desktop and on the web (amends rule 2 of ADR-0017) | Proposed |
 
 ## Format à respecter
 

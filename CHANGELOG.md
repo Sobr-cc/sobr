@@ -7,19 +7,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
-### Added — App unique bureau et web (2026-10-30)
+### Added — Single app on desktop and web (2026-10-30, SOB-14)
 
-- **ADR-0020** (Proposed) : `web/` devient la seule interface. Un même
-  build est embarqué par l'app de bureau et par le serveur d'organisation,
-  à la place de `web-team/`. Trois contextes sont détectés au démarrage :
-  bureau, web servi par le serveur, démo. Sur le web, la fusion couvre
-  l'espace organisation ; la section Comprendre attend une décision sur la
-  confidentialité du prompt. Les données d'organisation passent par un
-  client `$lib/org`, relayé par le Rust sur le bureau pour que les jetons
-  ne sortent pas du webview. L'ADR donne la destination des 7 pages de
-  web-team (M2, Z6, Z7, Z9, B2, A6), la connexion dans chaque contexte et
-  les en-têtes de sécurité du HTML servi. Il amende la règle 2 de
-  l'ADR-0017. Attend l'approbation de Thibault. Refs: SOB-14.
+- **ADR-0021** (Proposed): `web/` becomes the only interface. One build is
+  embedded by the desktop app and by the organization server, in place of
+  `web-team/`. The app detects three contexts at start-up: desktop, web served
+  by the server, demo. On the web, the merge covers the organization space;
+  the Understand section waits for a decision on prompt privacy. Organization
+  data goes through a `$lib/org` client, relayed by Rust on desktop so tokens
+  never reach the webview. The ADR maps the 7 web-team pages to screens (M2,
+  Z6, Z7, Z9, B2, A6), sets sign-in per context and the security headers of
+  the served HTML, and amends rule 2 of ADR-0017. Waiting for Thibault's
+  approval.
 
 ### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
 
