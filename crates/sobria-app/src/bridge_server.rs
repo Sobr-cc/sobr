@@ -341,6 +341,7 @@ mod tests {
     }
 
     /// Message d'erreur d'un `Pair` qui doit être refusé.
+    #[track_caller]
     fn pair_error(state: &AppState, code: &str) -> String {
         let resp = dispatch_request(
             state,
@@ -458,7 +459,18 @@ mod tests {
     fn pair_with_malformed_code_gets_the_six_digits_message() {
         let (_tmp, state) = fresh_state();
         let _ = crate::logic::regenerate_pairing_code(&state).unwrap();
-        for malformed in ["", "12345", "1234567", "12345a", "abcdef"] {
+        // Pas de trim ni de chiffres Unicode : espaces, retour à la ligne et
+        // chiffres pleine chasse sont refusés comme mal formés.
+        for malformed in [
+            "",
+            "12345",
+            "1234567",
+            "12345a",
+            "abcdef",
+            " 123456",
+            "123456\n",
+            "１２３４５６",
+        ] {
             assert_eq!(
                 pair_error(&state, malformed),
                 "code à 6 chiffres requis",
