@@ -7,6 +7,20 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — App unique bureau et web (2026-10-30)
+
+- **ADR-0020** (Proposed) : `web/` devient la seule interface. Un même
+  build est embarqué par l'app de bureau et par le serveur d'organisation,
+  à la place de `web-team/`. Trois contextes sont détectés au démarrage :
+  bureau, web servi par le serveur, démo. Sur le web, la fusion couvre
+  l'espace organisation ; la section Comprendre attend une décision sur la
+  confidentialité du prompt. Les données d'organisation passent par un
+  client `$lib/org`, relayé par le Rust sur le bureau pour que les jetons
+  ne sortent pas du webview. L'ADR donne la destination des 7 pages de
+  web-team (M2, Z6, Z7, Z9, B2, A6), la connexion dans chaque contexte et
+  les en-têtes de sécurité du HTML servi. Il amende la règle 2 de
+  l'ADR-0017. Attend l'approbation de Thibault. Refs: SOB-14.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
