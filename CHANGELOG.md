@@ -7,6 +7,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
+
+- **ADR-0020** (Proposed) : renommer Sobr.ia en Sobr.cc selon quatre règles
+  par nature de nom, préfixe de crates `sobr-`, avec l'impact de chaque
+  élément pour les utilisateurs existants. Attend l'approbation de Thibault.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
