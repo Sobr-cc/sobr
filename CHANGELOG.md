@@ -25,6 +25,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `SOBRIA_UPDATE_GOLDEN=1`. Aucune dépendance ajoutée, aucun changement de
   comportement.
 
+### Added — Agents Claude Code par rôle (2026-10-30)
+
+- **`.claude/agents/`** : sept agents, un par rôle actif en novembre
+  (`po-individuals`, `designer`, `cto`, `rust`, `frontend`, `devops`,
+  `qa`). Chaque fichier donne la mission, les projets, ce que le rôle ne
+  fait jamais et son modèle par défaut, d'après « How we work » et le
+  document Organisation de Linear (SOB-43). L'orchestrateur reste la
+  session principale.
+
 ### Added — Pilotage dans Linear (2026-10-30)
 
 - **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la
