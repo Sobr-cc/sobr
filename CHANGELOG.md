@@ -16,6 +16,34 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   rewritten file. `assert_golden` is unchanged for single-file tests. Test
   code only: the estimator and the golden values are untouched.
 
+### Changed — ADR-0013 amended for automatic pairing (2026-10-30, SOB-34)
+
+- **ADR-0013, Amendment 1** (Accepted 2026-10-30): after one explicit
+  "Connect my browsers" choice in the app, the browser extension pairs
+  automatically, with no 6-digit code to type (screen E2, October 30
+  arbitration).
+  - The app writes native messaging manifests that allow only the published
+    Sobr extension IDs.
+  - Unpairing is done in the settings on either side and sticks for that
+    installation. A reinstalled extension pairs again, with a notice.
+    Removing a browser in the app's settings stops it until it is added
+    back: the app refuses that browser, since on Windows Edge falls back to
+    Chrome's and Chromium's manifests.
+  - The amendment keeps the original text and records that it reverses
+    alternative 4.
+  - It lists the conditions automatic pairing must meet before it ships:
+    - store IDs created;
+    - the bridge shipped with the app;
+    - channels restricted to the current OS user;
+    - one pairing per browser profile;
+    - a notice to the person;
+    - stopping a browser holds in the app;
+    - the offline spool checks the secret;
+    - nothing measured while the connection is off is kept;
+    - "Export JSON" leaves the secret out.
+  - ADR-0014 gets a note on its "Pairing perso 6 chiffres" row.
+  - Nothing is built yet (SOB-107).
+
 ### Changed — ADR-0018 amended to match the Linear organization (2026-10-30, SOB-36)
 
 - **ADR-0018, Amendment 1** (Accepted 2026-10-30): point 1 is replaced, and
