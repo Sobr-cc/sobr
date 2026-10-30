@@ -1,0 +1,38 @@
+{
+  "empty_model_id": {
+    "message": "validation : request: validation échouée : model_id vide",
+    "variant": "Validation"
+  },
+  "for_model_unknown": {
+    "message": "schéma : modèle inconnu : \"not-in-registry\"",
+    "variant": "Schema"
+  },
+  "invalid_pue_bounds": {
+    "message": "validation : pue: schéma : Uniform : low=2 > high=1",
+    "variant": "Validation"
+  },
+  "invalid_sigma": {
+    "message": "validation : epsilon_decode: schéma : LogNormal : σ doit être > 0 (reçu -1)",
+    "variant": "Validation"
+  },
+  "n_zero": {
+    "message": "schéma : N=0 — aucun tirage à effectuer",
+    "variant": "Schema"
+  },
+  "non_finite_wue": {
+    "message": "validation : wue: schéma : Point : valeur non finie (inf)",
+    "variant": "Validation"
+  },
+  "tokens_in_above_limit": {
+    "message": "validation : request: validation échouée : tokens absurdes : in=10000001, out=1",
+    "variant": "Validation"
+  },
+  "tokens_out_above_limit": {
+    "message": "validation : request: validation échouée : tokens absurdes : in=1, out=10000001",
+    "variant": "Validation"
+  },
+  "too_many_modalities": {
+    "message": "validation : request: validation échouée : trop de modalities : 33 > 32",
+    "variant": "Validation"
+  }
+}

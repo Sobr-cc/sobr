@@ -1,0 +1,58 @@
+{
+  "dense_70b": {
+    "in": 300,
+    "out": 700
+  },
+  "full_overhead": {
+    "in": 4700,
+    "out": 6600
+  },
+  "large_chat": {
+    "in": 1000,
+    "out": 11000
+  },
+  "long_context": {
+    "in": 100000,
+    "out": 193205
+  },
+  "minimal_tokens": {
+    "in": 1,
+    "out": 1
+  },
+  "moe": {
+    "in": 300,
+    "out": 700
+  },
+  "multimodal_anthropic": {
+    "in": 5746,
+    "out": 6600
+  },
+  "multimodal_openai": {
+    "in": 4935,
+    "out": 600
+  },
+  "reasoning_auto_thinking": {
+    "in": 200,
+    "out": 10597
+  },
+  "reasoning_explicit_thinking": {
+    "in": 200,
+    "out": 3800
+  },
+  "saturating_u32_max": {
+    "in": 4294967295,
+    "out": 4294967295
+  },
+  "small_chat": {
+    "in": 100,
+    "out": 500
+  },
+  "unknown_model": {
+    "in": 100,
+    "out": 500
+  },
+  "with_datacenter": {
+    "in": 100,
+    "out": 500
+  }
+}

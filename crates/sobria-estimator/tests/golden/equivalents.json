@@ -1,0 +1,146 @@
+[
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 0.0
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 0.0
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 0.0
+    },
+    "input": 0.0
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 5.208333333333333e-9
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 4e-8
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 1.7142857142857143e-7
+    },
+    "input": 1e-6
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 5.208333333333333e-6
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 0.00004
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 0.00017142857142857143
+    },
+    "input": 0.001
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 0.005208333333333333
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 0.04
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 0.17142857142857143
+    },
+    "input": 1.0
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 0.13020833333333334
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 1.0
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 4.285714285714286
+    },
+    "input": 25.0
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 1.0
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 7.68
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 32.91428571428571
+    },
+    "input": 192.0
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 9.114583333333334
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 70.0
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 300.0
+    },
+    "input": 1750.0
+  },
+  {
+    "co2eq_to_car_km": {
+      "label": "km en voiture thermique",
+      "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+      "value": 5208.333333333333
+    },
+    "energy_wh_to_screen_hours": {
+      "label": "heures d'écran 24\" (~25 W)",
+      "source": "ADEME — guide écrans 2023, 25 W moyens",
+      "value": 40000.0
+    },
+    "energy_wh_to_shower_seconds": {
+      "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+      "source": "ADEME — guide ECS 2023, douche 5 min standard",
+      "value": 171428.57142857142
+    },
+    "input": 1000000.0
+  }
+]

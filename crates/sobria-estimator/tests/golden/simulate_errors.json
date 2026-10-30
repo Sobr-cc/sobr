@@ -1,0 +1,42 @@
+{
+  "duplicate_label": {
+    "message": "schéma : label scénario en doublon : 'same'",
+    "variant": "Schema"
+  },
+  "forecast_growth_too_high": {
+    "message": "schéma : monthly_growth_pct 50.5 hors bornes [-50, 50]",
+    "variant": "Schema"
+  },
+  "forecast_growth_too_low": {
+    "message": "schéma : monthly_growth_pct -50.5 hors bornes [-50, 50]",
+    "variant": "Schema"
+  },
+  "forecast_negative_volume": {
+    "message": "schéma : base_volume_per_day -1 hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "forecast_too_many_months": {
+    "message": "schéma : months 61 hors bornes [1, 60]",
+    "variant": "Schema"
+  },
+  "forecast_volume_above_limit": {
+    "message": "schéma : base_volume_per_day 1000001 hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "forecast_volume_nan": {
+    "message": "schéma : base_volume_per_day NaN hors bornes [0, 10⁶]",
+    "variant": "Schema"
+  },
+  "forecast_zero_months": {
+    "message": "schéma : months 0 hors bornes [1, 60]",
+    "variant": "Schema"
+  },
+  "override_unknown_model": {
+    "message": "schéma : modèle inconnu : \"not-in-registry\"",
+    "variant": "Schema"
+  },
+  "too_many_scenarios": {
+    "message": "schéma : trop de scénarios : 21 (max 20)",
+    "variant": "Schema"
+  }
+}

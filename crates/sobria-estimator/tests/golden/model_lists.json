@@ -1,0 +1,8 @@
+{
+  "available_models": ["claude-opus-4-8","claude-opus-4-7","claude-sonnet-4-6","claude-haiku-4-5","claude-opus-4","claude-sonnet-4","claude-3-7-sonnet","gpt-5-5","gpt-5-5-thinking","gpt-5-5-pro","o3","gemini-3-5-flash","gemini-3-1-pro","gemini-2-5-pro","llama-4-scout","llama-4-maverick","llama-3-3-70b","mistral-medium-3-5","mistral-small-4","mistral-large-3","deepseek-v4-pro","deepseek-r1","grok-4","qwen-3-6-plus","phi-4-reasoning-vision","phi-4-reasoning","gpt-4o","gpt-4o-mini","claude-3-5-sonnet","mistral-large-2","mistral-medium-3","llama-3-1-70b","llama-3-1-8b","gemini-2-0-flash"],
+  "available_models_with_deprecated": ["claude-opus-4-8","claude-opus-4-7","claude-sonnet-4-6","claude-haiku-4-5","claude-opus-4","claude-sonnet-4","claude-3-7-sonnet","gpt-5-5","gpt-5-5-thinking","gpt-5-5-pro","o3","gemini-3-5-flash","gemini-3-1-pro","gemini-2-5-pro","llama-4-scout","llama-4-maverick","llama-3-3-70b","mistral-medium-3-5","mistral-small-4","mistral-large-3","deepseek-v4-pro","deepseek-r1","grok-4","qwen-3-6-plus","phi-4-reasoning-vision","phi-4-reasoning","gpt-4o","gpt-4o-mini","claude-3-5-sonnet","mistral-large-2","mistral-medium-3","llama-3-1-70b","llama-3-1-8b","gemini-2-0-flash"],
+  "available_models_without_deprecated": ["claude-opus-4-8","claude-opus-4-7","claude-sonnet-4-6","claude-haiku-4-5","claude-opus-4","claude-sonnet-4","claude-3-7-sonnet","gpt-5-5","gpt-5-5-thinking","gpt-5-5-pro","o3","gemini-3-5-flash","gemini-3-1-pro","gemini-2-5-pro","llama-4-scout","llama-4-maverick","llama-3-3-70b","mistral-medium-3-5","mistral-small-4","mistral-large-3","deepseek-v4-pro","deepseek-r1","grok-4","qwen-3-6-plus","phi-4-reasoning-vision","phi-4-reasoning"],
+  "find_is_case_sensitive": null,
+  "find_known": "gpt-4o-mini",
+  "find_unknown": null
+}

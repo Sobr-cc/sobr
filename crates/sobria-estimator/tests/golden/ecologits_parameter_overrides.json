@@ -1,0 +1,1001 @@
+{
+  "embodied_point_nonzero": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00034582899863459517
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.06639916773784227,
+          "p50": 0.06639916773784227,
+          "p95": 0.06639916773784227
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "embodied_point_zero": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00013987604103682152
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.02685619987906973,
+          "p50": 0.02685619987906973,
+          "p95": 0.02685619987906973
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "epsilon_decode_ignored": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00034582899863459517
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.06639916773784227,
+          "p50": 0.06639916773784227,
+          "p95": 0.06639916773784227
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "if_electrical_normal_mean": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.0009552888917236032
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "mean": 300.0,
+          "std": 50.0,
+          "type": "normal"
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.1834154672109318,
+          "p50": 0.1834154672109318,
+          "p95": 0.1834154672109318
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "if_electrical_point": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00025590868653949556
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 20.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.049134467815583144,
+          "p50": 0.049134467815583144,
+          "p95": 0.049134467815583144
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "pue_point": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00037380420684195935
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.09865542812719492
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.023019599896345482
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "type": "point",
+          "value": 1.5
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.0717704077136562,
+          "p50": 0.0717704077136562,
+          "p95": 0.0717704077136562
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.575489997408637,
+          "p50": 0.575489997408637,
+          "p95": 0.575489997408637
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0008632349961129555,
+          "p50": 0.0008632349961129555,
+          "p95": 0.0008632349961129555
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "pue_uniform_midpoint": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00037380420684195935
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.09865542812719492
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.023019599896345482
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 2.0,
+          "low": 1.0,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.0717704077136562,
+          "p50": 0.0717704077136562,
+          "p95": 0.0717704077136562
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.575489997408637,
+          "p50": 0.575489997408637,
+          "p95": 0.575489997408637
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0008632349961129555,
+          "p50": 0.0008632349961129555,
+          "p95": 0.0008632349961129555
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "registry_params": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00034582899863459517
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "high": 2.5,
+          "low": 0.5,
+          "type": "uniform"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.06639916773784227,
+          "p50": 0.06639916773784227,
+          "p95": 0.06639916773784227
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007193624967607963,
+          "p50": 0.0007193624967607963,
+          "p95": 0.0007193624967607963
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "wue_lognormal_median": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00034582899863459517
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "mu": 0.5,
+          "sigma": 0.2,
+          "type": "log_normal"
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.06639916773784227,
+          "p50": 0.06639916773784227,
+          "p95": 0.06639916773784227
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0007906854998356513,
+          "p50": 0.0007906854998356513,
+          "p95": 0.0007906854998356513
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  },
+  "wue_point": {
+    "computed_at": "<redacted>",
+    "equivalents": [
+      {
+        "label": "km en voiture thermique",
+        "source": "ADEME Base Empreinte 2024 — voiture essence moyenne (192 gCO₂eq/km)",
+        "value": 0.00034582899863459517
+      },
+      {
+        "label": "secondes de douche chaude (5 min ≈ 1 750 Wh)",
+        "source": "ADEME — guide ECS 2023, douche 5 min standard",
+        "value": 0.08221285677266242
+      },
+      {
+        "label": "heures d'écran 24\" (~25 W)",
+        "source": "ADEME — guide écrans 2023, 25 W moyens",
+        "value": 0.019182999913621233
+      }
+    ],
+    "hypotheses": [
+      {
+        "key": "method",
+        "source": "EcoLogits — doi:10.21105/joss.07471 (CC BY-SA 4.0)",
+        "value": "ecologits-2026-01"
+      },
+      {
+        "key": "model_params_billions",
+        "source": "Sobr.ia preset llama-3-1-70b",
+        "value": 70.0
+      },
+      {
+        "key": "n_gpu",
+        "source": "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))",
+        "value": 4
+      },
+      {
+        "key": "pue",
+        "source": "User param (réduit à la médiane pour EcoLogits déterministe)",
+        "value": {
+          "high": 1.4,
+          "low": 1.1,
+          "type": "uniform"
+        }
+      },
+      {
+        "key": "if_electrical_g_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 56.0
+        }
+      },
+      {
+        "key": "wue_l_per_kwh",
+        "source": "User param (réduit à la médiane)",
+        "value": {
+          "type": "point",
+          "value": 3.0
+        }
+      }
+    ],
+    "indicators": [
+      {
+        "indicator": "co2_eq",
+        "interval": {
+          "p5": 0.06639916773784227,
+          "p50": 0.06639916773784227,
+          "p95": 0.06639916773784227
+        },
+        "unit": "gCO2eq"
+      },
+      {
+        "indicator": "energy",
+        "interval": {
+          "p5": 0.47957499784053087,
+          "p50": 0.47957499784053087,
+          "p95": 0.47957499784053087
+        },
+        "unit": "Wh"
+      },
+      {
+        "indicator": "water",
+        "interval": {
+          "p5": 0.0014387249935215926,
+          "p50": 0.0014387249935215926,
+          "p95": 0.0014387249935215926
+        },
+        "unit": "L"
+      }
+    ],
+    "method": "ecologits",
+    "request": {
+      "model_id": "llama-3-1-70b",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "tokens_in": 300,
+      "tokens_out_estimated": 700
+    },
+    "seed": 42
+  }
+}
