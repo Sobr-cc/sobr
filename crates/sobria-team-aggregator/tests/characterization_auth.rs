@@ -165,7 +165,9 @@ async fn login() {
     server
         .record(
             "login: admin, wrong password",
-            login(json!({"username": ADMIN_USERNAME, "password": "wrong-password", "role": "admin"})),
+            login(
+                json!({"username": ADMIN_USERNAME, "password": "wrong-password", "role": "admin"}),
+            ),
         )
         .await;
     server
@@ -194,8 +196,15 @@ async fn login() {
 async fn refresh() {
     let server = Server::start().await;
     let enrolled = server.enroll("fp-alice", "Alice").await;
-    let first = enrolled["refresh_token"].as_str().expect("refresh").to_owned();
-    let refresh = |token: &str| server.post("/api/v1/refresh").json(&json!({"refresh_token": token}));
+    let first = enrolled["refresh_token"]
+        .as_str()
+        .expect("refresh")
+        .to_owned();
+    let refresh = |token: &str| {
+        server
+            .post("/api/v1/refresh")
+            .json(&json!({"refresh_token": token}))
+    };
 
     let (status, body) = server.record("refresh: user", refresh(&first)).await;
     assert_eq!(status, 200);
@@ -225,12 +234,18 @@ async fn refresh() {
             ),
         )
         .await;
-    let admin_refresh = admin["refresh_token"].as_str().expect("admin refresh").to_owned();
+    let admin_refresh = admin["refresh_token"]
+        .as_str()
+        .expect("admin refresh")
+        .to_owned();
     server
         .record("refresh: admin", refresh(&admin_refresh))
         .await;
     server
-        .record("refresh: admin, old token replayed", refresh(&admin_refresh))
+        .record(
+            "refresh: admin, old token replayed",
+            refresh(&admin_refresh),
+        )
         .await;
 
     server.assert_golden("auth_refresh");
@@ -248,12 +263,17 @@ async fn access_guards() {
         ("/api/v1/admin/users", "admin route"),
     ] {
         server
-            .record(&format!("GET {route}: no header ({label})"), server.get(route))
+            .record(
+                &format!("GET {route}: no header ({label})"),
+                server.get(route),
+            )
             .await;
         server
             .record(
                 &format!("GET {route}: Basic scheme ({label})"),
-                server.get(route).header(AUTHORIZATION, "Basic YWJjOmRlZg=="),
+                server
+                    .get(route)
+                    .header(AUTHORIZATION, "Basic YWJjOmRlZg=="),
             )
             .await;
         server

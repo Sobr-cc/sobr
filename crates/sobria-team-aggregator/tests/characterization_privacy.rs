@@ -62,7 +62,10 @@ fn assert_shown(body: &Value) {
         "series must be shown: {body}"
     );
     assert!(
-        !body["top_models"].as_array().expect("top_models").is_empty(),
+        !body["top_models"]
+            .as_array()
+            .expect("top_models")
+            .is_empty(),
         "top_models must be shown: {body}"
     );
 }
@@ -300,7 +303,10 @@ async fn user_alert_ignores_policy_and_consent() {
                     .bearer_auth(&token),
             )
             .await;
-        if body["triggers"].as_array().is_some_and(|rows| !rows.is_empty()) {
+        if body["triggers"]
+            .as_array()
+            .is_some_and(|rows| !rows.is_empty())
+        {
             triggers = body;
             break;
         }
@@ -410,14 +416,18 @@ async fn policies_on_analytics_users_and_user_detail() {
     server
         .record(
             "user detail: no auth",
-            server.get(&format!("/api/v1/admin/users/{opted_in}/analytics?{WINDOW}")),
+            server.get(&format!(
+                "/api/v1/admin/users/{opted_in}/analytics?{WINDOW}"
+            )),
         )
         .await;
     server
         .record(
             "user detail: user token",
             server
-                .get(&format!("/api/v1/admin/users/{opted_in}/analytics?{WINDOW}"))
+                .get(&format!(
+                    "/api/v1/admin/users/{opted_in}/analytics?{WINDOW}"
+                ))
                 .bearer_auth(&user_token),
         )
         .await;

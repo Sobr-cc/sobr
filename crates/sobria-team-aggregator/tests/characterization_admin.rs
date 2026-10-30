@@ -37,12 +37,20 @@ async fn enrollment_codes() {
     };
 
     let (status, batch) = server
-        .record("codes: three codes, default lifetime", create(json!({"count": 3})))
+        .record(
+            "codes: three codes, default lifetime",
+            create(json!({"count": 3})),
+        )
         .await;
     assert_eq!(status, 200);
-    let expires_at = DateTime::parse_from_rfc3339(batch["codes"][0]["expires_at"].as_str().expect("expires_at"))
-        .expect("RFC 3339");
-    let lifetime_days = ((expires_at.with_timezone(&Utc) - Utc::now()).num_minutes() as f64 / 1440.0).round();
+    let expires_at = DateTime::parse_from_rfc3339(
+        batch["codes"][0]["expires_at"]
+            .as_str()
+            .expect("expires_at"),
+    )
+    .expect("RFC 3339");
+    let lifetime_days =
+        ((expires_at.with_timezone(&Utc) - Utc::now()).num_minutes() as f64 / 1440.0).round();
     server.note("default lifetime in days", json!(lifetime_days));
     server
         .record(
@@ -77,7 +85,9 @@ async fn enrollment_codes() {
     server
         .record(
             "codes: no auth",
-            server.post("/api/v1/admin/codes").json(&json!({"count": 1})),
+            server
+                .post("/api/v1/admin/codes")
+                .json(&json!({"count": 1})),
         )
         .await;
     server
@@ -160,7 +170,10 @@ async fn exports() {
     };
 
     server
-        .record_download("csv: 2 employees, policy anonymous", post("csv", window.clone()))
+        .record_download(
+            "csv: 2 employees, policy anonymous",
+            post("csv", window.clone()),
+        )
         .await;
     server
         .record_download(
@@ -206,10 +219,7 @@ async fn exports() {
         server
             .record(
                 &format!("{kind}: from after to"),
-                post(
-                    kind,
-                    json!({"from": TO, "to": FROM}),
-                ),
+                post(kind, json!({"from": TO, "to": FROM})),
             )
             .await;
         server
@@ -412,10 +422,7 @@ async fn alert_thresholds() {
         )
         .await;
     server
-        .record(
-            "list: no auth",
-            server.get("/api/v1/admin/alerts"),
-        )
+        .record("list: no auth", server.get("/api/v1/admin/alerts"))
         .await;
     server
         .record(
@@ -474,7 +481,9 @@ async fn alert_triggers() {
         }
     }
 
-    server.record("triggers: all three, newest first", get("")).await;
+    server
+        .record("triggers: all three, newest first", get(""))
+        .await;
     server.record("triggers: limit 2", get("?limit=2")).await;
     server
         .record("triggers: limit 0 is raised to 1", get("?limit=0"))
@@ -507,7 +516,10 @@ async fn alert_triggers() {
         .record("triggers: limit is not a number", get("?limit=many"))
         .await;
     server
-        .record("triggers: no auth", server.get("/api/v1/admin/alerts/triggers"))
+        .record(
+            "triggers: no auth",
+            server.get("/api/v1/admin/alerts/triggers"),
+        )
         .await;
     server
         .record(

@@ -12,9 +12,9 @@ pub mod golden;
 
 use std::{net::TcpListener, sync::Mutex, time::Duration};
 
+use chrono::{DateTime, Utc};
 use reqwest::RequestBuilder;
 use serde_json::{json, Value};
-use chrono::{DateTime, Utc};
 use sobria_team_aggregator::{
     commands::{code, init, serve},
     config::DataPaths,
@@ -197,14 +197,15 @@ impl Server {
 
     /// Not recorded: an admin access token.
     pub async fn admin_token(&self) -> String {
-        let (status, body) = send_json(
-            self.post("/api/v1/login").json(
-                &json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "admin"}),
-            ),
-        )
+        let (status, body) = send_json(self.post("/api/v1/login").json(
+            &json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "admin"}),
+        ))
         .await;
         assert_eq!(status, 200, "admin login: {body}");
-        body["access_token"].as_str().expect("access_token").to_owned()
+        body["access_token"]
+            .as_str()
+            .expect("access_token")
+            .to_owned()
     }
 
     /// Not recorded: enrolls a user with a fresh code, returns the response.
@@ -336,7 +337,10 @@ async fn send(request: RequestBuilder) -> (u16, String, String) {
 
 async fn send_json(request: RequestBuilder) -> (u16, Value) {
     let (status, _, text) = send(request).await;
-    (status, serde_json::from_str(&text).unwrap_or(Value::String(text)))
+    (
+        status,
+        serde_json::from_str(&text).unwrap_or(Value::String(text)),
+    )
 }
 
 fn timestamp(rfc3339: &str) -> DateTime<Utc> {

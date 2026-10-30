@@ -252,10 +252,7 @@ async fn me_usage_and_sharing() {
         )
         .await;
     server
-        .record(
-            "me/sharing GET: no auth",
-            server.get("/api/v1/me/sharing"),
-        )
+        .record("me/sharing GET: no auth", server.get("/api/v1/me/sharing"))
         .await;
     server
         .record(

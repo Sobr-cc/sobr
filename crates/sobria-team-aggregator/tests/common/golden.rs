@@ -73,7 +73,11 @@ pub fn assert_golden(name: &str, actual: &Value) {
         let _ = writeln!(message, "  {diff}");
     }
     if diffs.len() > MAX_REPORTED_DIFFS {
-        let _ = writeln!(message, "  ... and {} more", diffs.len() - MAX_REPORTED_DIFFS);
+        let _ = writeln!(
+            message,
+            "  ... and {} more",
+            diffs.len() - MAX_REPORTED_DIFFS
+        );
     }
     let _ = write!(
         message,
@@ -139,7 +143,11 @@ fn compare(path: &str, expected: &Value, actual: &Value, diffs: &mut Vec<String>
         },
         (Value::Array(e), Value::Array(a)) => {
             if e.len() != a.len() {
-                diffs.push(format!("{path}: expected length {}, got {}", e.len(), a.len()));
+                diffs.push(format!(
+                    "{path}: expected length {}, got {}",
+                    e.len(),
+                    a.len()
+                ));
             }
             for (i, (e_child, a_child)) in e.iter().zip(a).enumerate() {
                 compare(&format!("{path}[{i}]"), e_child, a_child, diffs);
