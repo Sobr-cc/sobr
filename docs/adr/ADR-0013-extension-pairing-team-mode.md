@@ -1,15 +1,14 @@
 # ADR-0013 — Extension navigateur + pairing local + mode Équipe self-hosted
 
 - **Statut** : Phase 1 Implemented (v0.6.0, 2026-05-16) ; Phase 2 Implemented (v0.7.0, 2026-05-16, C28) ; Phase 3 Backlog (v0.8+)
-- **Amendment 1** (2026-10-30, Proposed until Thibault approves the PR): automatic pairing replaces the 6-digit code of stage 1. See the section below.
+- **Amendment 1** (Accepted 2026-10-30, SOB-34): automatic pairing replaces the 6-digit code of stage 1. See the section below.
 - **Date** : 2026-05-15
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : avant chantier C27 (v0.6.0 extension) et C28 (v0.7.0 mode équipe)
 
 ## Amendment 1 — Automatic pairing (2026-10-30)
 
-**Status.** Proposed. It becomes part of this ADR when Thibault approves the
-PR (SOB-34).
+**Status.** Accepted (2026-10-30), SOB-34.
 - The original text below is kept as it was, and notes mark the parts this
   amendment replaces.
 - The amendment is written in place because SOB-34 asks for it, although
@@ -75,17 +74,26 @@ document. Translated from French:
    - The Firefox manifest lists the Firefox ID in `allowed_extensions`.
    - The names (native host, Firefox ID) follow ADR-0020 if it is accepted,
      and stay as today otherwise.
-3. **Unpairing is done in the settings, on either side, and it sticks.**
+3. **Unpairing is done in the settings, on either side, and it sticks for
+   that installation.**
    - **In the app,** the Settings page lists paired browser profiles, each
      with an "Unpair" action. It revokes the secret and marks that
-     installation's identifier as revoked, so the extension is not paired
-     again automatically. Only "Reconnect" in the same list lets it pair
-     again.
-   - **In the extension,** "Disconnect" switches automatic pairing off on
-     that browser and sends the revoke. If the app is closed, the revoke
+     installation's identifier as revoked, so the same installation is not
+     paired again automatically. Only "Reconnect" in the same list lets it
+     pair again.
+   - **In the extension,** "Disconnect" switches automatic pairing off for
+     that installation and sends the revoke. If the app is closed, the revoke
      waits and is sent when the app is next reached.
    - **Either way,** once the app has the revoke, it accepts no more
-     estimates from that browser.
+     estimates from that installation.
+   - **After a reinstall or a reset of the extension's storage,** the
+     extension has a new identifier. While that browser's manifest is in
+     place, it pairs again, with the notice below and a new line in the
+     app's Settings, so it is never silent.
+   - **To stop a browser for good,** the person removes it in the app's
+     Settings, which deletes that browser's manifest. Turning "Connect my
+     browsers" off deletes all of them. Without a manifest, no installation
+     of that browser can reach the bridge.
 
 ### Why the code is no longer needed
 
@@ -136,21 +144,20 @@ Automatic pairing ships only with these conditions met:
 - **The person is told.** The extension shows "Connected to the Sobr app"
   the first time, and the browser appears in the app's Settings. No estimate
   is sent before the pairing exists.
-
-**Related audit findings, not conditions.** Two SOB-7 bugs exist with or
-without a code. Automatic pairing makes them easier to reach, so they should
-be fixed first:
-
-- the offline spool accepts any line that carries an estimate while a
-  pairing is active, without checking its secret;
-- the extension's "Export JSON" includes the secret.
+- **The secret is always checked.** Today the offline spool accepts any line
+  that carries an estimate while a pairing is active, without checking its
+  secret (SOB-7 audit). This bug exists with or without a code, but
+  automatic pairing makes it easier to reach.
+- **The secret never leaves storage.** Today the extension's "Export JSON"
+  includes the secret (SOB-7 audit). It must leave it out.
 
 ### Consequences
 
 - **Positive:**
   - no code and no extension ID to type, so E1 leads straight to E2;
   - one pairing per browser profile;
-  - unpairing that sticks;
+  - unpairing that sticks for each installation, and a way to stop a whole
+    browser;
   - expected: fewer support cases (expired code, wrong ID).
 - **Negative:**
   - protection against spoofing now rests on the store IDs, the manifest
@@ -160,7 +167,10 @@ be fixed first:
     cannot pair;
   - development builds need a pinned Chromium ID. The Firefox development
     and release builds already share one ID.
-  - browsers outside the allow-list (Opera, Vivaldi) cannot pair, so E2
+  - the app writes manifests only for the browsers it supports: today
+    Chrome, Edge, Brave, Chromium and Firefox. Opera and Vivaldi install from
+    the Chrome Web Store with the same ID, but they look for manifests in
+    other folders, so they cannot pair until the app supports them, and E2
     must not suggest the app there.
 - **Migration:** no outside user has a pairing, since nothing has been
   published (ADR-0020). Development pairings, all stored under the old fixed
@@ -169,8 +179,10 @@ be fixed first:
   extension, and the code tests (SOB-80, SOB-91, SOB-92) are replaced when
   the change is built.
 - **Scope:** the code changes belong to the Browser extension project, not
-  to this ADR. ADR-0014's "6-digit personal pairing" (line 90) is updated
-  with SOB-35.
+  to this ADR.
+- **ADR-0014:** this amendment adds a note to the row "Pairing perso 6
+  chiffres" of ADR-0014's capability table (an orchestrator decision; PR #10
+  for SOB-35 leaves that row to this PR).
 
 ## Contexte et énoncé du problème
 

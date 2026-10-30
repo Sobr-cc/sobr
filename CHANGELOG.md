@@ -15,9 +15,9 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   arbitration).
   - The app writes native messaging manifests that allow only the published
     Sobr extension IDs.
-  - Unpairing is done in the settings on either side. It sticks for that
-    installation; a reinstalled extension pairs again only after the person
-    accepts it in the app.
+  - Unpairing is done in the settings on either side and sticks for that
+    installation. A reinstalled extension pairs again, with a notice;
+    removing a browser in the app's settings stops it for good.
   - The amendment keeps the original text and records that it reverses
     alternative 4.
   - It lists the conditions automatic pairing must meet before it ships:
