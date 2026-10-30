@@ -17,6 +17,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   espaces ou chiffres pleine chasse) et un mauvais code à 6 chiffres reçoivent
   chacun leur message exact. Aucun code de production modifié.
 
+### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
+
+- **ADR-0020** (Proposed) : renommer Sobr.ia en Sobr.cc selon quatre règles
+  par nature de nom, préfixe de crates `sobr-`, avec l'impact de chaque
+  élément pour les utilisateurs existants. Attend l'approbation de Thibault.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
@@ -36,6 +42,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   CONTRIBUTING.md mis à jour : branches `feature/sob-123-<desc>`,
   `TODO(SOB-123)`, footer `Refs: SOB-123`. `docs/ROADMAP.md` passe en
   document historique.
+
+### Added — Skill /orchestrate et règles de travail (2026-10-30)
+
+- **`.claude/skills/orchestrate/`** : la routine de l'orchestrateur (trier
+  Triage et proposer une action par tâche, écrire et découper les tâches,
+  poser les labels Role et Model, limite de trois tâches In Review,
+  mises à jour du vendredi).
+- **`.claude/skills/linear-issue-writing/`** : copie du skill d'équipe
+  pour écrire les tâches Linear (SOB-44).
+- **CLAUDE.md §11** : les règles de travail, alignées sur le document
+  Linear « How we work » (qui fait quoi, règles, « Prêt », « Terminé »,
+  estimation et modèle).
 
 ### Removed — Nettoyage du dépôt (2026-10-30)
 
