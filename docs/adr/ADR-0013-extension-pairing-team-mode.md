@@ -87,13 +87,41 @@ document. Translated from French:
    - **Either way,** once the app has the revoke, it accepts no more
      estimates from that installation.
    - **After a reinstall or a reset of the extension's storage,** the
-     extension has a new identifier. While that browser's manifest is in
-     place, it pairs again, with the notice below and a new line in the
-     app's Settings, so it is never silent.
-   - **To stop a browser for good,** the person removes it in the app's
-     Settings, which deletes that browser's manifest. Turning "Connect my
-     browsers" off deletes all of them. Without a manifest, no installation
-     of that browser can reach the bridge.
+     extension has a new identifier. While that browser is still connected
+     in the app's Settings, it pairs again, with the notice below and a new
+     line in the app's Settings, so it is never silent.
+   - **To stop a whole browser,** the person removes it in the app's
+     Settings. The app revokes every installation recorded for that browser
+     and refuses new pairing requests from it until the person adds it back.
+     It also deletes that browser's manifest. Adding the browser back lifts
+     the refusal and the revokes that the removal made; installations
+     unpaired one by one stay unpaired until "Reconnect".
+   - **Turning "Connect my browsers" off** deletes all the manifests, and
+     the app refuses every pairing request and estimate until it is turned
+     on again. A bridge that a browser already started keeps running until
+     the browser closes the port, so deleting the manifests alone would not
+     stop it.
+   - **The refusal in the app is what stops the browser, not the deleted
+     manifest.** On Windows, Edge reads the Chromium and then the Chrome
+     registry keys when its own key has no manifest
+     ([Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/extensions/developer-guide/native-messaging)).
+     Those manifests allow Edge's ID (Decision 2), so while Chrome or Chromium
+     is connected, Edge still reaches the bridge after its own manifest is
+     deleted. Leaving Edge's ID out of them would not help: Edge can run the
+     Chrome Web Store build, which has Chrome's ID.
+   - **How the app knows the browser.** Each pairing request also names the
+     browser it comes from, since the extension ID does not tell Edge from
+     Chrome. The extension reads it from the browser: Edge lists "Microsoft
+     Edge" in `navigator.userAgentData.brands`
+     ([Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/user-agent-guidance)),
+     and Firefox has `runtime.getBrowserInfo()`. The implementation must
+     identify each supported browser this way.
+   - **The app accepts a pairing request only if it names a supported
+     browser that is connected in Settings.** A missing or unknown browser
+     is refused. The browser is self-reported, which is enough under the
+     threat model in "Why the code is no longer needed": only Sobr's own
+     extension reaches the bridge, and processes of the same OS user are out
+     of scope.
 
 ### Why the code is no longer needed
 
@@ -129,8 +157,14 @@ Automatic pairing ships only with these conditions met:
   installs it (SOB-7 audit).
 - **One manifest per browser.** Today Windows shares one file across
   browsers. The app removes the manifests when the person turns the
-  connection off, and so does an uninstaller where one exists. A leftover
-  manifest is harmless: the bridge it points to is gone.
+  connection off, and so does an uninstaller where one exists. A manifest
+  left after an uninstall is harmless: the bridge it points to is gone.
+- **Stopping a browser holds in the app.** The app records the browser of
+  each installation, accepts pairing requests only from a supported browser
+  that is connected, and revokes every installation recorded for a browser
+  the person removes (Decision 3). Deleting its manifest is not enough: on
+  Windows, Edge falls back to the Chromium and Chrome keys, and a bridge
+  already started keeps running.
 - **The app–bridge channels are reserved to the current OS user:**
   - on Windows, a pipe whose name includes the user and whose security
     descriptor is limited to that user; the bridge checks who owns it before
@@ -169,9 +203,10 @@ Automatic pairing ships only with these conditions met:
     and release builds already share one ID.
   - the app writes manifests only for the browsers it supports: today
     Chrome, Edge, Brave, Chromium and Firefox. Opera and Vivaldi install from
-    the Chrome Web Store with the same ID, but they look for manifests in
-    other folders, so they cannot pair until the app supports them, and E2
-    must not suggest the app there.
+    the Chrome Web Store with the same ID, but the app writes no manifest
+    for them and refuses a pairing request that names them, so they are not
+    supported until the app adds them, and E2 must not suggest the app
+    there.
 - **Migration:** no outside user has a pairing, since nothing has been
   published (ADR-0020). Development pairings, all stored under the old fixed
   fingerprint, are revoked at upgrade, and each browser then pairs again

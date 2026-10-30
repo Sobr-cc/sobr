@@ -16,8 +16,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - The app writes native messaging manifests that allow only the published
     Sobr extension IDs.
   - Unpairing is done in the settings on either side and sticks for that
-    installation. A reinstalled extension pairs again, with a notice;
-    removing a browser in the app's settings stops it for good.
+    installation. A reinstalled extension pairs again, with a notice.
+    Removing a browser in the app's settings stops it until it is added
+    back: the app refuses that browser, since on Windows Edge falls back to
+    Chrome's and Chromium's manifests.
   - The amendment keeps the original text and records that it reverses
     alternative 4.
   - It lists the conditions automatic pairing must meet before it ships:
@@ -26,6 +28,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     - channels restricted to the current OS user;
     - one pairing per browser profile;
     - a notice to the person;
+    - stopping a browser holds in the app;
     - the offline spool checks the secret;
     - "Export JSON" leaves the secret out.
   - ADR-0014 gets a note on its "Pairing perso 6 chiffres" row.
