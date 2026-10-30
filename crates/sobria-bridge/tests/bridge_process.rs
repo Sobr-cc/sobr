@@ -228,6 +228,7 @@ fn app_reply_to_a_pairing_reaches_the_extension_unchanged() {
     });
     let app = session.app(vec![Reply::Json(reply.clone())]);
     let out = session.run(&input(&[pair("p")]));
+    assert!(out.status.success());
 
     assert_eq!(app.join().unwrap(), [pair("p")]);
     assert_eq!(answers(&out), [reply]);
@@ -243,6 +244,7 @@ fn messages_answered_by_the_app_are_never_spooled() {
         let session = Session::new();
         let app = session.app(vec![Reply::Json(reply.clone())]);
         let out = session.run(&input(&[estimate("e", "s", &json!({}))]));
+        assert!(out.status.success());
         app.join().unwrap();
         assert_eq!(answers(&out), [reply]);
         assert!(!session.spool().exists(), "no fallback to the spool");
@@ -257,6 +259,7 @@ fn each_message_opens_its_own_connection_to_the_app() {
         Reply::Json(json!({"reqId": "p", "ok": false, "error": "code invalide ou expiré"})),
     ]);
     let out = session.run(&input(&[ping("1"), pair("p")]));
+    assert!(out.status.success());
 
     assert_eq!(app.join().unwrap(), [ping("1"), pair("p")]);
     assert_eq!(
@@ -275,6 +278,7 @@ fn unreadable_app_reply_falls_back_to_local_handling() {
     let session = Session::new();
     let app = session.app(vec![Reply::Raw(frame(b"not json"))]);
     let out = session.run(&input(&[ping("1")]));
+    assert!(out.status.success());
 
     assert_eq!(app.join().unwrap(), [ping("1")]);
     assert_eq!(answers(&out), [pong("1")]);
@@ -285,6 +289,7 @@ fn app_that_hangs_up_falls_back_to_local_handling() {
     let session = Session::new();
     let app = session.app(vec![Reply::Close]);
     let out = session.run(&input(&[pair("p")]));
+    assert!(out.status.success());
 
     app.join().unwrap();
     assert_eq!(
@@ -299,6 +304,7 @@ fn stale_socket_file_falls_back_to_local_handling() {
     drop(UnixListener::bind(session.socket()).unwrap());
     assert!(session.socket().exists());
     let out = session.run(&input(&[ping("1")]));
+    assert!(out.status.success());
     assert_eq!(answers(&out), [pong("1")]);
 }
 
