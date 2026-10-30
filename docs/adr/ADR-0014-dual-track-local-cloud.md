@@ -5,18 +5,18 @@
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : après v0.7.0 (Mode Équipe self-hosted shippé), avant la candidature data.gouv.fr v1.0
 - **Liens** : CLAUDE.md §7 (privacy by design), §13 (anti-patterns), ADR-0013 (extension + pairing + mode équipe)
-- **Amendment 1** (2026-10-30, Proposed): the managed cloud has a 30-day trial, then is paid per seat (condition 5); a personal space on the Sobr server is allowed (condition 1). See the section below.
+- **Amendment 1** (2026-10-30, Accepted): the managed cloud has a 30-day trial, then is paid per seat (condition 5); a personal space on the Sobr server is allowed (condition 1). See the section below.
 
 ---
 
 ## Amendment 1 — 30-day trial and personal space (2026-10-30)
 
-**Status.** Proposed. It becomes part of this ADR when Thibault approves the PR (SOB-35). The original text is unchanged; notes mark conditions 1 and 5.
+**Status.** Accepted (2026-10-30); merging the PR is Thibault's approval. The original text is unchanged; notes mark conditions 1 and 5.
 
 **What changes.**
 
-1. **Condition 5 is replaced.** The managed cloud has a 30-day trial, then is paid per seat, with a dedicated price for public bodies and research. Local and self-hosted stay free. A public price and no mandatory annual commitment stay as before. The previous version required a real free tier on the managed offer (example: 1,000 estimates per month and 5 users), with no payment card.
-2. **Condition 1 is clarified, not weakened.** A person can have a personal space on the Sobr server, which runs the same binary: it syncs between their machines, and the same account lets them join an organization. Guest mode, local, with no account and no signal to Sobr, stays the default and needs nothing from the server. The previous version described only that guest mode.
+1. **Condition 5 is replaced.** The managed cloud has a 30-day trial, then is paid per seat, with a dedicated price for public bodies and research. The trial needs a payment card to start (SOB-105). Local and self-hosted stay free. A public price and no mandatory annual commitment stay as before; pay-per-use, allowed before, is not part of the new offer, because the arbitration names only payment per seat. The previous version required a real free tier on the managed offer (example: 1,000 estimates per month and 5 users), with no payment card.
+2. **Condition 1 is clarified.** A person can have a personal space on the Sobr server, which runs the same binary: it syncs between their machines, and the same account lets them join an organization. Guest mode, local, with no account and no signal to Sobr, stays the default and needs nothing from the server. The previous version described only that guest mode.
 3. **The license stays MIT** for all the code (ADR-0006). The paid value comes from the service: managed cloud, support, commitments.
 
 **What does not change.** Conditions 2, 3 and 4 apply as written, including to the personal space: same binary, no prompt text (only metadata and results), hosting in the EU with the GDPR duties.
@@ -33,11 +33,12 @@ The Révision section asks for a separate "ADR-0014-amendement" document. This a
 
 **Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here.
 
-- The README says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes when the offer is announced.
-- Whether the trial needs a payment card: the arbitration does not say.
-- The "Modèle technique" diagram says "MIT/Apache"; the license is MIT (change 3).
-- The row "Pairing perso 6 chiffres" of the feature table follows the pairing change of ADR-0013 (SOB-34).
-- "Implémentation phasée" (phase 5 lists a free tier, cloud beta and GA at v1.3.0 and v2.0.0, and "no public cloud announcement before v1.3.0") and "Lien avec les chantiers" (the cloud "not mentioned" at the application) predate the calendar of October 30, which builds the cloud before the public V1 of March 2027. The row "Multi-device" (v1.2.0) is later than the personal space sync between machines.
+- The README says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes when the offer is announced (SOB-103).
+- The price of the personal space: it runs on the Sobr server, which change 1 makes trial-then-paid, but the arbitration does not say whether it is free or under the trial. Guest mode stays free either way. The screens Z1b, A1 and S3 depend on it (SOB-136).
+- The conflict with ADR-0013: its section "Ce qu'on ne fera PAS" says "Pas de comptes utilisateurs hébergés par nous" and `Pas de mode "synchro multi-postes du même utilisateur" en v1`, which the personal space of change 2 contradicts; the "Validation" section of this ADR still says "Cohérence ADR-0013 ✓" (SOB-136).
+- The "Modèle technique" diagram says "MIT/Apache"; the license is MIT (change 3; SOB-103).
+- The row "Pairing perso 6 chiffres" of the feature table gets its note from the ADR-0013 amendment (SOB-34).
+- "Implémentation phasée" (phase 5 lists a free tier, cloud beta and GA at v1.3.0 and v2.0.0, and "no public cloud announcement before v1.3.0") and "Lien avec les chantiers" (the cloud "not mentioned" at the application; the application is now off, SOB-104, so that rule no longer applies) predate the calendar of October 30, which builds the cloud before the public V1 of March 2027. The row "Multi-device" (v1.2.0) is later than the personal space sync between machines. SOB-103 owns these passages.
 
 ---
 
