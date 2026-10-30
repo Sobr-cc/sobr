@@ -340,6 +340,11 @@ mod tests {
         (tmp, state)
     }
 
+    /// Un code à 6 chiffres garanti différent de `code` (pas de collision possible).
+    fn wrong_code_for(code: &str) -> String {
+        format!("{:06}", (code.parse::<u32>().unwrap() + 1) % 1_000_000)
+    }
+
     /// Message d'erreur d'un `Pair` qui doit être refusé.
     #[track_caller]
     fn pair_error(state: &AppState, code: &str) -> String {
@@ -483,9 +488,69 @@ mod tests {
     fn pair_with_wrong_six_digit_code_gets_the_invalid_message() {
         let (_tmp, state) = fresh_state();
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
-        // Un code à 6 chiffres garanti différent du code en attente (pas de collision).
-        let wrong = format!("{:06}", (dto.code.parse::<u32>().unwrap() + 1) % 1_000_000);
+        let wrong = wrong_code_for(&dto.code);
         assert_eq!(pair_error(&state, &wrong), "code invalide ou expiré");
+    }
+
+    #[test]
+    fn pair_with_right_code_still_works_after_a_wrong_code() {
+        let (_tmp, state) = fresh_state();
+        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
+        assert_eq!(
+            pair_error(&state, &wrong_code_for(&dto.code)),
+            "code invalide ou expiré"
+        );
+
+        // Un refus ne consomme pas le code en attente : le bon code appaire encore.
+        let resp = dispatch_request(
+            &state,
+            BridgeRequest::Pair {
+                req_id: "r-retry".into(),
+                code: dto.code,
+            },
+        );
+        assert!(resp.ok, "got error: {:?}", resp.error);
+    }
+
+    #[test]
+    fn pair_with_expired_code_keeps_it_pending() {
+        let (_tmp, state) = fresh_state();
+        let expired = crate::pairing::PendingCode::with_expiry(
+            chrono::Utc::now() - chrono::Duration::minutes(10),
+        );
+        let code = expired.code.clone();
+        *state.pending_code.lock().unwrap() = Some(expired);
+
+        // Le code périmé reste en attente : le second essai reçoit le même message,
+        // et non « aucun code de pairing en attente ».
+        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
+        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
+    }
+
+    #[test]
+    fn refused_pair_records_no_pairing() {
+        let (_tmp, state) = fresh_state();
+        // Sans code en attente.
+        pair_error(&state, "123456");
+        // Avec un code en attente : mal formé, puis mauvais code.
+        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
+        pair_error(&state, "abc");
+        pair_error(&state, &wrong_code_for(&dto.code));
+        // Avec un code expiré.
+        let expired = crate::pairing::PendingCode::with_expiry(
+            chrono::Utc::now() - chrono::Duration::minutes(10),
+        );
+        let code = expired.code.clone();
+        *state.pending_code.lock().unwrap() = Some(expired);
+        pair_error(&state, &code);
+
+        let pairings = state
+            .extension_store
+            .lock()
+            .unwrap()
+            .list_pairings()
+            .unwrap();
+        assert_eq!(pairings.len(), 0, "un Pair refusé ne doit rien enregistrer");
     }
 
     #[test]
