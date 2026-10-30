@@ -97,13 +97,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — Split into several repos (2026-10-30, SOB-65)
 
-- **ADR-0019** (Proposed): split the code into several repos of the Sobr-cc
+- **ADR-0019** (Accepted): split the code into several repos of the Sobr-cc
   organization by delivery unit, in three waves (`.github`, `site` and
   `design-system`, then `extension`, then `data`). The engine, desktop app,
-  organization server, Svelte app, docs and ADRs stay in `sobr`. It maps
-  every folder to a repo, shares no Rust code across repos, and lists the
-  contracts, the order of the moves and the issues to create. Waiting for
-  Thibault's answers and approval.
+  organization server, Svelte app, ADRs and technical documentation stay in
+  `sobr`; the public documentation and the community files go to `.github`.
+  It maps every folder to a repo, shares no Rust code across repos, and
+  lists the contracts, the order of the moves and the issues to create.
+  Thibault's four answers are recorded (SOB-113).
 
 ### Added — Pilotage dans Linear (2026-10-30)
 

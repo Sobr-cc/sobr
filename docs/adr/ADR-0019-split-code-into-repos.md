@@ -1,22 +1,22 @@
 # ADR-0019 — Split the code into several repos of the Sobr-cc organization
 
-- **Status**: Proposed (becomes Accepted when Thibault answers the points below and approves the PR)
+- **Status**: Accepted (2026-10-30)
 - **Date**: 2026-10-30
-- **Deciders**: Thibault (decision); CTO recommendation
+- **Deciders**: Thibault (answers of 2026-10-30, recorded in SOB-113); CTO recommendation
 - **Technical context**: Foundations, Structure milestone (SOB-65)
 
-> **Summary.** The code leaves the single repo along delivery units, not folders. `sobr` keeps what is compiled and shipped together (engine, desktop app, organization server, Svelte app, docs and ADRs). Five pieces get their own repo in three waves: `.github`, `site` and `design-system`, then `extension`, then `data`. No Rust code is shared across repos; every other interface is a versioned contract. Each wave is a stopping point. Four questions for Thibault come first.
+> **Summary.** The code leaves the single repo along delivery units, not folders. `sobr` keeps what is compiled and shipped together (engine, desktop app, organization server, Svelte app, ADRs and technical documentation). Five pieces get their own repo in three waves: `.github`, `site` and `design-system`, then `extension`, then `data`. No Rust code is shared across repos; every other interface is a versioned contract. The public documentation and the community files go to `.github`. Each wave is a stopping point. Thibault's four answers come first.
 
-## Points to decide
+## Decisions of Thibault
 
-Four questions and one note for Thibault. The recommendations rest on the Decision section.
+Thibault answered the four points of the proposal on October 30, 2026, in his session with the orchestrator; the orchestrator recorded the answers in SOB-113.
 
-1. **The core stays in one repo (`sobr`).** Recommended: yes. The desktop app and the organization server both embed the same `web/` build (ADR-0021) and share the crates `core`, `audit` and `export`, so a change to the types between Rust and `web/` stays in one PR. This is the closest point to a monolith: `sobr` stays the biggest repo. Alternative: move `web/` into its own repo, at the price of a versioned artefact that the app and the server must fetch, and of DTOs kept in sync across two repos.
-2. **No Rust code is shared across repos.** Recommended: yes. `data` owns the datasets it ships (datacenter records, territory files, RTE mix) in a `datasets/` folder, and copies the seed constant (default 42, CLAUDE.md §6); `sobr` consumes the Gold artefact, one way. Alternative: `data` keeps a `git` dependency on `sobr`, pinned by tag. A change to one datacenter record then takes four steps, each PR reviewed by Thibault: a `sobr` tag, a bump PR in `data`, a `data` release, a consume PR in `sobr`.
-3. **All of `docs/` stays in `sobr` (a copy of `LICENSES-FONTS.md` goes with the fonts); the site rebuilds daily from `sobr@main`.** Recommended: yes. Docs can lag by up to a day and no cross-repo token is needed. Alternatives: a `repository_dispatch` from `sobr` at every docs change (a token secret in `sobr`), or docs per repo (one fetch per repo in the site).
-4. **Claude Code components.** Recommended: the log import is a crate of `sobr` (it runs in the app and writes to its session store); the plugin goes in `claude-code`; the MCP server goes in `claude-code` if it is a separate process that talks to the HTTP API, and in `sobr` if it is a module of the server. The ADR of the "Claude Code and MCP" project confirms.
+1. **The core stays in one repo (`sobr`).** Option 1a. The app and the panel (`web/`, the organization server and the engine) stay in `sobr`; the showcase site has its own repo, `site`. The desktop app and the organization server embed the same `web/` build (ADR-0021) and share the crates `core`, `audit` and `export`, so a change to the types between Rust and `web/` stays in one PR. `sobr` stays the biggest repo, the closest point to a monolith. Not retained: moving `web/` into its own repo, at the price of a versioned artefact that the app and the server must fetch, and of DTOs kept in sync across two repos.
+2. **No Rust code is shared across repos.** Option 2a. `data` owns the datasets it ships (datacenter records, territory files, RTE mix) in a `datasets/` folder, and copies the seed constant (default 42, CLAUDE.md §6); `sobr` consumes the Gold artefact, one way. Not retained: a `git` dependency of `data` on `sobr`, pinned by tag, where a change to one datacenter record takes four steps, each PR reviewed by Thibault.
+3. **Documentation.** None of the three options proposed (all of `docs/` in `sobr`, a trigger at every docs change, docs per repo). The public documentation (user documentation and the methodology pages shown on the site) and the community files of the organization go to the `.github` repo. ADRs and technical documentation stay in `sobr`. The site gets the public documentation from `.github`. The exact list of pages is set in the `.github` issue (§6), by the criterion of §3.
+4. **Claude Code components.** Option 4a. The log import is a crate of `sobr` (it runs in the app and writes to its session store); the plugin goes in `claude-code`; the MCP server goes in `claude-code` if it is a separate process that talks to the HTTP API, and in `sobr` if it is a module of the server. The ADR of the "Claude Code and MCP" project confirms.
 
-Note, no answer expected here: **delivery of data to the app** (model catalog, territory files, datacenter records). Today the Gold reaches the app only through an implicit file path and two table names (see Context). One ADR issue is planned in wave 3; it gates the "Model catalog" project, not the moves.
+Note, no answer needed: **delivery of data to the app** (model catalog, territory files, datacenter records). Today the Gold reaches the app only through an implicit file path and two table names (see Context). One ADR issue is planned in wave 3; it gates the "Model catalog" project, not the moves.
 
 ## Context and problem statement
 
@@ -46,7 +46,7 @@ Two rules, which also place future components:
 |--------|-----------|------|------|---------------|
 | A | Status quo: one repo | none | contradicts the October 30 decision | — (ruled out) |
 | B | One repo per folder or crate (about fifteen) | high | high | hard |
-| C | One repo per delivery unit, in 3 waves | about 59 points (§6) | medium, concentrated on `data` | good: each wave is a stopping point |
+| C | One repo per delivery unit, in 3 waves | about 62 points (§6) | medium, concentrated on `data` | good: each wave is a stopping point |
 | D | Only `site` and `.github` (current text of the routes document) | about 8 points | low | excellent |
 
 - **B**: splitting `web/` from the crates turns each DTO change into two PRs plus a version change, and the crossed versions among `core`, `estimator`, `audit` and `export` into a compatibility matrix. Merging repos back later is possible but long.
@@ -55,7 +55,7 @@ Two rules, which also place future components:
 
 ## Decision
 
-**Option C is proposed.**
+**Option C is retained.**
 
 ### 1. Target repos
 
@@ -63,15 +63,15 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 
 | Repo | Content | Owner role | Creation |
 |------|---------|------------|----------|
-| `sobr` (exists) | crates of the engine, the desktop app and the server; the Svelte app (`web/`); ADR register and `docs/`; test and research tooling (details in §2) | Lead Rust (`web/`: Svelte front end) | exists |
-| `.github` | organization profile, community files, issue and PR templates, reusable CI workflows | DevOps | wave 1 |
-| `site` | Astro site (S1 to S4, research) | Svelte front end | wave 1 |
+| `sobr` (exists) | crates of the engine, the desktop app and the server; the Svelte app (`web/`); ADR register and technical documentation; test and research tooling (details in §2) | Lead Rust (`web/`: Svelte front end) | exists |
+| `.github` | organization profile, community files, issue and PR templates, reusable CI workflows, and the public documentation (§3) | DevOps | wave 1 |
+| `site` | Astro site (S1 to S4, research); it fetches the public documentation from `.github` | Svelte front end | wave 1 |
 | `design-system` | design system, CSS tokens, one copy of the fonts and a copy of their licenses, logos, a `package.json`, tagged versions | Product designer | wave 1 |
 | `extension` | browser extension (Chrome, Firefox and Edge, per the October 30 decision of the routes document) | Dev extensions | wave 2 |
 | `data` | `sobria-ingest`, schemas, DVC pipeline, nightly workflow, model catalog, research dataset, and the datasets it ships (datacenter records, territory files, RTE mix) | Data and method | wave 3 |
 | `infra` | reserved: name and content set by SOB-73 (creation: SOB-74) | Infra | Infrastructure project |
 | `vscode` | VS Code extension | Dev extensions | when the "VS Code extension" project opens |
-| `claude-code` | Claude Code plugin (hooks, status line) and, per point 4, the MCP server | Dev integrations | when the "Claude Code and MCP" project opens |
+| `claude-code` | Claude Code plugin (hooks, status line) and, per decision 4, the MCP server | Dev integrations | when the "Claude Code and MCP" project opens |
 
 ### 2. Destination of each current folder
 
@@ -80,7 +80,7 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 | `crates/sobria-core`, `sobria-referentiel`, `sobria-estimator`, `sobria-audit`, `sobria-export`, `sobria-bridge`, `sobria-app`, `sobria-team-aggregator` | `sobr` | |
 | `crates/sobria-geoloc` | `sobr` | keeps its embedded copy of the datasets (datacenter records, territory files, RTE mix); their source of truth moves to `data` (wave 3), and the delivery ADR says how updates arrive |
 | `crates/sobria-ingest` | `data` | wave 3, with the layout of §4 |
-| `crates/sobria-import` | none | removed by SOB-67; the Claude Code log import follows point 4 |
+| `crates/sobria-import` | none | removed by SOB-67; the Claude Code log import follows decision 4 |
 | `web/` | `sobr` | |
 | `web-team/` | none | merged into `web/` then removed (ADR-0021, SOB-64); never moves |
 | `extension/` | `extension` | |
@@ -91,9 +91,11 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 | `tools/` (`fixturegen`) | `sobr` | generates the fixtures of `web/` from `core` and `estimator` (ADR-0017) |
 | `deploy/` | `sobr` | shipped with the binaries; Sobr's own hosting belongs to SOB-73 |
 | `scripts/bootstrap.sh`, `scripts/build-all.sh` | `sobr` | the steps of moved folders leave with them (§4) |
-| `scripts/sync-docs.mjs` | `site` | replaced by a fetch of `docs/` (§3) |
+| `scripts/sync-docs.mjs` | `site` | replaced by a fetch of the public documentation from `.github` and of the ADR pages from `sobr` (§3) |
 | `docs/LICENSES-FONTS.md` | `design-system` | copied in wave 1; the copy in `sobr` stays until the last font copy of `web/` and `extension/` is gone, because `web/static/fonts/README.md`, `extension/vite.config.ts` and `extension/src/styles/tokens.css` link to it |
-| `docs/` (the rest, with `docs/adr/`) | `sobr` | one tree that the site fetches; single ADR register, since a decision concerns the organization, not one repo |
+| `docs/` public documentation (§3) | `.github` | copied with its history into a `docs/` folder of `.github` in wave 1 and removed from `sobr` in the site move PR, so the site build never breaks; the list follows the criterion of §3 and is approved by Thibault in the `.github` docs issue (§6) |
+| `docs/adr/` | `sobr` | single ADR register, since a decision concerns the organization, not one repo |
+| `docs/` (the rest: technical documentation, project documents, archive) | `sobr` | |
 | `briefs/`, `research/`, `notebook/` | `sobr` | the notebook validates the estimator |
 | `.claude/` (agents, skills `orchestrate` and `linear-issue-writing`) | `sobr` | source of the working rules; the other repos get the part that concerns them (§4) |
 | `.github/workflows/ci.yml`, `app-release.yml`, `team-aggregator-release.yml`, `team-docker.yml`, `zenodo.yml` | `sobr` | the `ci.yml` jobs of the moved folders go with them |
@@ -102,20 +104,23 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 | `.github/workflows/dvc-nightly.yml`, `ingest-nightly.yml` | `data` | merged into one |
 | `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CONTRIBUTING.md` | `.github` | SOB-70; a repo keeps its own file if it needs a different one |
 | `LICENSE-DATA` | `data` | |
-| `LICENSE`, `LICENSE-DOCS`, `.zenodo.json`, `Cargo.toml`, `Cargo.lock`, `deny.toml`, `rust-toolchain.toml`, `rustfmt.toml`, `CLAUDE.md`, `CHANGELOG.md`, `README.md`, `.env.example`, `.gitattributes`, `.gitignore` | `sobr` | every other repo gets its own version; `LICENSE` is copied everywhere (ADR-0006) |
+| `LICENSE`, `LICENSE-DOCS`, `.zenodo.json`, `Cargo.toml`, `Cargo.lock`, `deny.toml`, `rust-toolchain.toml`, `rustfmt.toml`, `CLAUDE.md`, `CHANGELOG.md`, `README.md`, `.env.example`, `.gitattributes`, `.gitignore` | `sobr` | every other repo gets its own version; `LICENSE` is copied everywhere (ADR-0006), and `LICENSE-DOCS` also goes to `.github`, which now holds docs |
 
 ### 3. Code sharing and contracts
 
-No Rust code is shared across repos (point 2). Front-end assets and interfaces go through versioned contracts. There is no package registry for now: a crates.io or npm account is a human action and commits to the stability of a public API. Moving to a registry later changes only the dependency line.
+No Rust code is shared across repos (decision 2). Front-end assets and interfaces go through versioned contracts. There is no package registry for now: a crates.io or npm account is a human action and commits to the stability of a public API. Moving to a registry later changes only the dependency line.
 
 | Shared surface | Producer → consumers | Mechanism | Versioning |
 |----------------|----------------------|-----------|------------|
 | CSS tokens, fonts, logos | `design-system` → `web/`, `extension`, `site`, `vscode` | npm dependency `github:Sobr-cc/design-system#vX.Y.Z`, ready-to-use files in the repo; replaces the copies | SemVer; major = a token removed or renamed |
 | Bridge protocol (ADR-0013) | `sobr` → `extension` | JSON Schema generated from the Rust types, published with each release; contract test in the extension | protocol version in the messages |
 | HTTP API of the server | `sobr` → `extension`, `vscode`, `claude-code`, the app | OpenAPI published with each release | `/api/v1` prefix; a breaking change opens `/api/v2` in parallel |
-| Reference data (ADR-0007, ADR-0009) | `data` → `sobr` | artefact published as a `data` release (CalVer tag, `MANIFEST.sha256`); `data` adds a versioned schema of the Gold tables that `sobr` reads (Context 4), next to the datasheet schema, and `sobr` has a contract test against it; how the app receives the file: the note in Points to decide | schema version of the Gold tables + CalVer |
-| `docs/` | `sobr` → `site` | the site workflow clones `docs/` of `sobr@main` at build time; it runs on a push to `site`, daily, and by hand | none: always `main` |
+| Reference data (ADR-0007, ADR-0009) | `data` → `sobr` | artefact published as a `data` release (CalVer tag, `MANIFEST.sha256`); `data` adds a versioned schema of the Gold tables that `sobr` reads (Context 4), next to the datasheet schema, and `sobr` has a contract test against it; how the app receives the file: the note in Decisions | schema version of the Gold tables + CalVer |
+| Public documentation | `.github` → `site` | the site workflow clones the public documentation of `.github@main` at build time; it runs on a push to `site`, daily, and by hand | none: always `main` |
+| ADR pages | `sobr` → `site` | same mechanism, from `docs/adr/` of `sobr@main`; the site publishes them today and decision 3 does not change that | none: always `main` |
 | Common CI jobs | `.github` → all | reusable workflows | tag |
+
+Public documentation is written for users, operators and readers of the method (user and operator guides, methodology pages). Technical documentation is written for contributors (ADRs, component architecture, internal operations, QA, planning, archive). The docs pages the site links today (the methodology, the operator guides, the sources catalogs) are the candidates for the first list; a page that fits neither is settled in that list, with Thibault's approval.
 
 ### 4. History, open PRs, CI, DVC, releases
 
@@ -123,17 +128,17 @@ No Rust code is shared across repos (point 2). Front-end assets and interfaces g
 - **Open PRs**: a folder does not move while a PR touches it: the PR is merged, closed, or replayed in the new repo.
 - **CI**: each repo starts with a copy of the `ci.yml` jobs it needs, and switches to the reusable workflows when they exist. `sobr` drops the moved jobs in the same PR that removes the folder, so CI stays green.
 - **Scripts**: `scripts/build-all.sh` (the release command of CLAUDE.md §10) builds the extension, and `scripts/bootstrap.sh` installs DVC, runs `sobria-ingest fetch` and runs `npm ci` in `extension/`. Each move PR removes its steps, with their help lines and messages, so both scripts keep working after each wave.
-- **Links**: links from a moved folder to `../docs/...` (in `site/README.md` and `extension/README.md`) are rewritten to `Sobr-cc/sobr` URLs in the move PR, otherwise they return 404.
+- **Links**: links from a moved folder to `../docs/...` (in `site/README.md` and `extension/README.md`) are rewritten to the URL of the repo that holds the page (`Sobr-cc/sobr` or `Sobr-cc/.github`) in the move PR, otherwise they return 404. The same holds for links from files that stay in `sobr` (READMEs, `CLAUDE.md`, ADRs) to a page that moved: the docs issue rewrites them.
 - **Releases**: `sobr` keeps the `vX.Y.Z` tags, because the app and the server embed one `web/` build (ADR-0021); `extension` has its own tags. Each README holds a compatibility matrix (protocol version and `/api/v1`, §3).
-- **`data` and DVC**: `data` keeps the current relative layout: `crates/<ingest crate>/`, `schemas/`, `dvc.yaml` and `.dvc/` at the root, because `include_str!("../../../schemas/...")` and the `dvc.yaml` dependencies use these paths. The datasets it ships live in `datasets/`, listed in the `gold` stage dependencies; `sobria-ingest fetch` writes there by default (today `crates/sobria-geoloc/data/`). A root `Cargo.toml` holds the ingest crate only, with the workspace package and dependency entries it inherits today; `Cargo.lock` is copied, so versions match `sobr`. The `copper` stage of `dvc.yaml` depends today on `crates/sobria-core/src`; that dependency is dropped, because ingest no longer depends on `sobria-core` (point 2). The `dvc.lock` is committed in the move PR, and the single command of CLAUDE.md §3bis (`pipeline run`) runs in `data`. Success test of the move: `dvc repro` completes in `data` and `validate` passes. A "same `MANIFEST.sha256`" test cannot pass yet (Context 4); making the Gold reproducible is a separate fix in `sobria-ingest`.
+- **`data` and DVC**: `data` keeps the current relative layout: `crates/<ingest crate>/`, `schemas/`, `dvc.yaml` and `.dvc/` at the root, because `include_str!("../../../schemas/...")` and the `dvc.yaml` dependencies use these paths. The datasets it ships live in `datasets/`, listed in the `gold` stage dependencies; `sobria-ingest fetch` writes there by default (today `crates/sobria-geoloc/data/`). A root `Cargo.toml` holds the ingest crate only, with the workspace package and dependency entries it inherits today; `Cargo.lock` is copied, so versions match `sobr`. The `copper` stage of `dvc.yaml` depends today on `crates/sobria-core/src`; that dependency is dropped, because ingest no longer depends on `sobria-core` (decision 2). The `dvc.lock` is committed in the move PR, and the single command of CLAUDE.md §3bis (`pipeline run`) runs in `data`. Success test of the move: `dvc repro` completes in `data` and `validate` passes. A "same `MANIFEST.sha256`" test cannot pass yet (Context 4); making the Gold reproducible is a separate fix in `sobria-ingest`.
 - **Human actions per repo**: creation, protection of `main` (SOB-17), deploy or remote secrets, coverage of Linear's GitHub integration (SOB-46).
 - **Agents' working rules**: they stay in `sobr` (`.claude/`, SOB-43, SOB-44). Each new repo gets a short `CLAUDE.md` (scope, commands, pointer to the common rules). The wave 2 and wave 3 move issues also move the rules and commands of the moved folder out of the `CLAUDE.md` of `sobr` (the extension dev command; the medallion rules, `pipeline run` and `dvc repro`) into the one of the new repo, so that an agent in `sobr` is never told to run a missing command. The conventions of ADR-0018 are unchanged.
 
 ### 5. Order of the moves
 
-**Conditions common to every wave**: this ADR approved; CI green and `main` protected (SOB-8, SOB-17); GitHub links fixed (SOB-40, so that each folder leaves with the right URLs); the Deep cleanup of the folder done if it has one (Foundations rule).
+**Conditions common to every wave**: this ADR accepted; CI green and `main` protected (SOB-8, SOB-17); GitHub links fixed (SOB-40, so that each folder leaves with the right URLs); the Deep cleanup of the folder done if it has one (Foundations rule).
 
-1. **Wave 1: `.github`, `site`, `design-system`.** Outside the Deep cleanup, no code coupling; the only dependency is `docs/` for the site. Starts as soon as the common conditions are met and SOB-66 is done. It validates the procedure at the lowest risk. Its move issue also adds the fonts, icons, `package.json` and a copy of `LICENSES-FONTS.md` (§2), applies the `sobria-design` to `sobr-design` rename of ADR-0020 before the first tag, and repoints `extension/scripts/sync-logos.js` (a manual script; the extension build is unaffected). The extension move deletes that script in wave 2: its icons are committed and the tokens replace it.
+1. **Wave 1: `.github`, `site`, `design-system`.** Outside the Deep cleanup, no code coupling; the only dependency is the documentation the site shows: `.github` goes first in the wave, with a copy of the public documentation, then `site`, whose move removes the documentation from `sobr`; `design-system` runs in parallel. Starts as soon as the common conditions are met and SOB-66 is done. It validates the procedure at the lowest risk. Its move issue also adds the fonts, icons, `package.json` and a copy of `LICENSES-FONTS.md` (§2), applies the `sobria-design` to `sobr-design` rename of ADR-0020 before the first tag, and repoints `extension/scripts/sync-logos.js` (a manual script; the extension build is unaffected). The extension move deletes that script in wave 2: its icons are committed and the tokens replace it.
 2. **Wave 2: `extension`.** After its Deep cleanup (SOB-31) and after the contracts are published (§3), otherwise the hand-copied protocol drifts between two repos.
 3. **Wave 3: `data`.** After the Deep cleanup of ingest (SOB-21) and the rename of the crates (SOB-37), so that `data` is born with the final names. It is the riskiest wave (DVC, secrets, nightly workflow). Waves 2 and 3 do not depend on each other: the riskier one goes last.
 
@@ -143,16 +148,17 @@ Token adoption follows the move of each consumer; `web/` waits for the end of it
 
 **Single app (ADR-0021).** Rule 1 holds with one or two apps; ADR-0021 relies on it.
 
-### 6. Issues to create after approval
+### 6. Issues to create
 
-Titles in English, to be created in Linear by the orchestrator (SOB-66, SOB-69 and SOB-70 already exist), each of 8 points at most. Points are indicative; the official estimate is made at creation. Total: 59 points, not counting the `vscode` and `claude-code` repos.
+Titles in English, to be created in Linear by the orchestrator (SOB-66, SOB-69 and SOB-70 already exist), each of 8 points at most. Points are indicative; the official estimate is made at creation. Total: 62 points, not counting the `vscode` and `claude-code` repos.
 
 | When | Issue | Role | Points |
 |------|-------|------|--------|
 | Before the waves | Share the agent working rules across the Sobr-cc repos (after SOB-43 and SOB-44) | CTO | 3 |
 | Wave 1 | SOB-66 Create the site and .github repos in Sobr-cc (existing; add `design-system`) | DevOps | 1 |
 | Wave 1 | SOB-70 Set up the Sobr-cc/.github repo (existing) | DevOps | 2 |
-| Wave 1 | SOB-69 Move the site to the Sobr-cc/site repo (existing; add the daily docs fetch and the README links to Sobr-cc/sobr; re-estimated) | DevOps | 5 |
+| Wave 1 | Copy the public documentation, with its history, to Sobr-cc/.github from a list approved by Thibault | DevOps | 3 |
+| Wave 1 | SOB-69 Move the site to the Sobr-cc/site repo (existing; after the docs copy; add the daily fetch of the public documentation from .github and of the ADR pages from sobr, remove the documentation from sobr, and the README links; re-estimated) | DevOps | 5 |
 | Wave 1 | Move the design system to Sobr-cc/design-system (fonts, icons, package.json, LICENSES-FONTS.md copy, ADR-0020 rename), repoint sync-logos, and tag its tokens | DevOps | 5 |
 | Wave 1 | Add reusable CI workflows to Sobr-cc/.github (before wave 2) | DevOps | 3 |
 | Wave 1 | Use the design tokens by tag in the site | Svelte front end | 2 |
@@ -177,7 +183,7 @@ Other existing issues to adjust: SOB-38 (split per repo if the extension has alr
 
 ### 7. Text that replaces the "Repos" decision of the routes document
 
-> **Repos** — GitHub organization Sobr-cc, one repo per delivery unit: `sobr` (engine, desktop app, organization server, Svelte app, docs and ADRs), `extension`, `site`, `design-system`, `data`, `.github` and an infra repo (name set by SOB-73); `vscode` and `claude-code` when their projects open. See ADR-0019.
+> **Repos** — GitHub organization Sobr-cc, one repo per delivery unit: `sobr` (engine, desktop app, organization server, Svelte app, ADRs and technical documentation), `extension`, `site`, `design-system`, `data`, `.github` (community files and public documentation) and an infra repo (name set by SOB-73); `vscode` and `claude-code` when their projects open. See ADR-0019.
 
 ## Consequences
 
@@ -194,7 +200,8 @@ Other existing issues to adjust: SOB-38 (split per repo if the extension has alr
 - Contracts to maintain, and a compatibility matrix between `sobr`, `extension` and `data`.
 - Duplicated configuration (`deny.toml`, `rustfmt.toml`, lint): reduced by the reusable workflows of `.github`.
 - Human actions at each repo (§4).
-- `sobr` stays big (point 1).
+- `sobr` stays big (decision 1).
+- Documentation lives in two repos: a link between a technical page and a public one crosses repos (§4, Links).
 - The datasets exist twice for a while (source in `data`, embedded copy in `sobr`) until the delivery ADR.
 
 **Neutral**:

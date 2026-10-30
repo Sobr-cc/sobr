@@ -27,7 +27,7 @@ Les ADR documentent les décisions structurantes du projet. Chaque ADR :
 | [ADR-0016](./ADR-0016-politique-visibilite-deploiement.md) | Politique de visibilité par déploiement (étend ADR-0015) | Accepted |
 | [ADR-0017](./ADR-0017-contrat-demo-web.md) | Contrat démo web (fixtures du moteur réel hors Tauri) | Accepted |
 | [ADR-0018](./ADR-0018-pilotage-linear.md) | Piloter l'avancement dans Linear | Accepted |
-| [ADR-0019](./ADR-0019-split-code-into-repos.md) | Split the code into several repos of the Sobr-cc organization | Proposed |
+| [ADR-0019](./ADR-0019-split-code-into-repos.md) | Split the code into several repos of the Sobr-cc organization | Accepted (2026-10-30) |
 | [ADR-0020](./ADR-0020-renommage-sobr-cc.md) | Renommer Sobr.ia en Sobr.cc | Proposed |
 | [ADR-0021](./ADR-0021-single-app-desktop-and-web.md) | One Svelte app, shipped on desktop and on the web (amends rule 2 of ADR-0017) | Proposed |
 
