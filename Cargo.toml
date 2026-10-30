@@ -1,6 +1,6 @@
 # Workspace Cargo — Sobr.ia
 # Voir ADR-0001 (Rust + Tauri 2) et ADR-0009 (architecture médaillon).
-# 9 crates suivant le découpage par responsabilité du CDC §7.1.
+# Crates split by responsibility (CDC §7.1).
 
 [workspace]
 resolver = "2"
@@ -10,7 +10,6 @@ members = [
     "crates/sobria-estimator",
     "crates/sobria-ingest",
     "crates/sobria-geoloc",
-    "crates/sobria-import",
     "crates/sobria-export",
     "crates/sobria-audit",
     "crates/sobria-app",
