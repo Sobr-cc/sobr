@@ -96,7 +96,7 @@ Voir `ADR-0009-medallion-architecture.md` pour le détail (interface du trait, e
 - **Erreurs** : `thiserror` pour les erreurs publiques, `anyhow` pour les binaires
 - **Async** : `tokio` (multi-thread runtime), `async-trait` si nécessaire
 - **Sérialisation** : `serde` partout, formats stables (JSON, MessagePack, Parquet)
-- **Documentation** : `///` docs sur tout item public, exemples runnables
+- **Documentation** : `///` docs sur tout item public, exemples runnables ; les autres commentaires suivent la règle du §13
 
 ### 4.2 TypeScript / SvelteKit
 
@@ -121,7 +121,7 @@ Voir `ADR-0009-medallion-architecture.md` pour le détail (interface du trait, e
 Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
 Scopes : `core`, `estimator`, `referentiel`, `ingest`, `geoloc`, `import`, `export`, `audit`, `app`, `ui`, `ext`, `docs`, `ci`.
 
-Exemple : `feat(estimator): add Monte-Carlo uncertainty propagation`.
+Exemple : `feat(estimator): add Monte-Carlo uncertainty propagation`. Les messages de commit, les titres et les descriptions de PR sont en anglais (§13).
 
 Footer : `Refs: SOB-123` pour lier le commit au ticket Linear ; `Fixes SOB-123` dans la description de PR pour clore le ticket au merge (ADR-0018).
 
@@ -266,13 +266,13 @@ Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par r
 
 - Une tâche = une PR, 8 points au plus. Au-delà, découpage en sous-tâches avant Todo.
 - Chaque tâche cite les écrans concernés par leur identifiant de route (E1, Z2, V3…) et lie les deux documents de référence (routes et architecture).
-- Branches, commits et PR : §4.3 et §4.4 (ADR-0018). L'intégration GitHub relie la PR à la tâche et fait avancer l'état.
+- Branches, commits et PR : §4.3 et §4.4 (ADR-0018) ; commits, titres et descriptions de PR en anglais (§13). L'intégration GitHub relie la PR à la tâche et fait avancer l'état.
 - En passant une tâche In Review, un commentaire en trois parties, signé du rôle :
 
   ```
-  Done: ce qui a changé, en une à trois phrases.
-  Verified: la commande ou les étapes lancées, et le résultat.
-  Left: ce qui n'est pas fait, liens des tâches de suite, questions pour Thibault.
+  Done: what changed, in one to three sentences.
+  Verified: the command or steps run, and the result.
+  Left: anything not done, follow-up issue links, or questions for Thibault.
   -- role:rust (model:sonnet)
   ```
 
@@ -340,7 +340,8 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
 - ❌ Ne JAMAIS faire un `force push` sur `main` ou `develop`.
 - ❌ Ne JAMAIS skipper les tests pour "gagner du temps".
 - ❌ Ne JAMAIS introduire de tracking utilisateur silencieux.
-- ❌ Ne JAMAIS écrire de la doc en anglais uniquement (FR + EN obligatoire).
+- ❌ Ne JAMAIS écrire en français un commentaire de code, un message de commit, une PR ou une doc technique (ADR, CHANGELOG) : tout cela est en anglais. Seuls les textes visibles par l'utilisateur sont en français et en anglais.
+- ❌ Ne JAMAIS commenter ce que le code dit déjà : commentaires au strict minimum, une ligne courte pour une fonction complexe ou un choix non évident.
 - ❌ Ne JAMAIS résoudre une ambiguïté du CDC sans demander confirmation.
 
 ---
