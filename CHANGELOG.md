@@ -7,6 +7,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Characterization tests of the team server (2026-10-30, SOB-10)
+
+- **`sobria-team-aggregator`**: `tests/characterization_*.rs` pin the status code,
+  content type and body of every API endpoint, refusals included (enroll, login,
+  refresh, access guards, estimations, `/me/*`, enrollment codes, exports, alert
+  thresholds and triggers), and the privacy rules on aggregates: k-anonymity
+  (default of 5, floor of 3, unreadable value, `k - 1` / `k` boundary, identified
+  mode) checked as hidden below the threshold, and the three visibility policies
+  on analytics, users and user detail. Responses are recorded from a real HTTPS
+  server, random values are masked after a shape check, and the recordings are
+  compared with `tests/golden/*.json` (see the README there). No production code
+  changed, no dependency added.
+
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
 - **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what

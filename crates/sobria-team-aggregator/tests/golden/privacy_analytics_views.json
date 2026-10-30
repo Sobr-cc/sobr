@@ -796,7 +796,6 @@
   {
     "note": "default window",
     "value": {
-      "active_users": 0,
       "group_by": "day",
       "policy": "opt_in",
       "status": 200,

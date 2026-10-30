@@ -211,8 +211,8 @@ async fn analytics_views_and_errors() {
             .await;
     }
 
-    // Without `from` and `to` the window is the last 30 days: the seeded
-    // estimations (May 2026) are outside it, so only the shape is pinned.
+    // Without `from` and `to` the window is the last 30 days. What it contains
+    // depends on today's date, so only its length and the echoed settings are pinned.
     let (status, body) = server
         .fetch(server.get("/api/v1/admin/analytics").bearer_auth(&token))
         .await;
@@ -226,7 +226,6 @@ async fn analytics_views_and_errors() {
             "window_days": (parse("to") - parse("from")).num_days(),
             "group_by": body["group_by"],
             "policy": body["policy"],
-            "active_users": body["k_anonymity"]["active_users"],
         }),
     );
 
