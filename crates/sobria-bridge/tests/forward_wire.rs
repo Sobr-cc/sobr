@@ -1,14 +1,13 @@
-//! Caractérisation (SOB-11) du forward vers l'app desktop : ce que
-//! `try_forward_to` envoie exactement, comment il relaie les réponses de
-//! pairing, et quelles défaillances de transport il signale par `Err` (c'est
-//! ce `Err` qui fait retomber le binaire sur `handle_request`).
+//! Characterization of the forward to the desktop app (SOB-11): exact bytes
+//! sent by `try_forward_to`, relay of pairing replies, and which transport
+//! failures return `Err` (the binary falls back to `handle_request` on `Err`).
 //!
-//! Complète `socket_forward.rs`, qui ne couvre que le chemin heureux. Les
-//! réponses de pairing utilisées ici reprennent les textes réels de
-//! `sobria-app/src/bridge_server.rs`.
+//! Extends `socket_forward.rs`, which only covers the happy path. Pairing
+//! replies reuse the real texts of `sobria-app/src/bridge_server.rs`.
 //!
-//! Unix uniquement : sous Windows le forward passe par un named pipe, qu'on ne
-//! peut pas simuler sans dépendance supplémentaire.
+//! Unix only: on Windows the forward uses a named pipe that cannot be faked
+//! without an extra dependency. That Windows forward also has no read or write
+//! timeout, so a frozen app blocks it (SOB-96).
 #![cfg(unix)]
 
 mod common;
@@ -31,13 +30,12 @@ fn bind() -> (TempDir, PathBuf, UnixListener) {
     (dir, path, listener)
 }
 
-/// Forward `req` vers un faux serveur qui applique `reply` ; rend le résultat
-/// du forward et la requête telle que l'app l'a reçue.
+/// Returns the forward result and the request as the app received it.
 fn exchange(req: &BridgeRequest, reply: Reply) -> (anyhow::Result<BridgeResponse>, Value) {
     let (_dir, path, listener) = bind();
     let server = serve(listener, vec![reply]);
     let result = try_forward_to(&path, req);
-    let mut received = server.join().expect("faux serveur");
+    let mut received = server.join().expect("fake server");
     (result, received.remove(0))
 }
 
@@ -115,8 +113,8 @@ fn pairing_success_reply_is_relayed_field_for_field() {
 
 #[test]
 fn pairing_refusals_from_the_app_are_returned_as_ok_not_as_errors() {
-    // `main.rs` ne retombe sur `handle_request` que sur `Err` : un refus de
-    // l'app (`ok: false`) est donc définitif et arrive tel quel à l'extension.
+    // `main.rs` only falls back to `handle_request` on `Err`, so an app refusal
+    // (`ok: false`) is final and reaches the extension unchanged.
     let refusals = [
         "code invalide ou expiré",
         "code à 6 chiffres requis",
@@ -165,7 +163,7 @@ fn reply_over_one_megabyte_is_refused() {
 
 #[test]
 fn reply_of_exactly_one_megabyte_passes_the_size_gate() {
-    // Seuil strict (`>`) : 1 MiB pile passe le contrôle et échoue faute de corps.
+    // Strict threshold (`>`): exactly 1 MiB passes, then fails for lack of a body.
     let reply = Reply::Raw(MAX_MESSAGE_BYTES.to_le_bytes().to_vec());
     let message = err_text(exchange(&ping(), reply).0);
     assert!(message.contains("read response payload"), "{message}");
@@ -197,20 +195,20 @@ fn silent_app_makes_the_forward_fail_after_about_two_seconds() {
     let elapsed = started.elapsed();
 
     drop(release);
-    server.join().expect("faux serveur");
+    server.join().expect("fake server");
     let message = err_text(result);
     assert!(message.contains("read response length"), "{message}");
     assert!(
-        // Le faux serveur se libère seul à 10 s : sans délai de lecture côté
-        // bridge, la durée mesurée serait d'environ 10 s.
+        // The fake server releases itself after 10 s: without a bridge read
+        // timeout, the measured time would be about 10 s.
         elapsed >= Duration::from_millis(1500) && elapsed < Duration::from_secs(9),
-        "délai observé : {elapsed:?}"
+        "observed delay: {elapsed:?}"
     );
 }
 
 #[test]
 fn stale_socket_file_is_a_connection_error() {
-    // Cas réel après un crash de l'app : le fichier socket reste, plus personne n'écoute.
+    // Real case after an app crash: the socket file remains, nobody listens.
     let (_dir, path, listener) = bind();
     drop(listener);
     assert!(path.exists());

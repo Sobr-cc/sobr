@@ -1,21 +1,17 @@
-//! Caractérisation (SOB-11) du binaire `sobria-bridge` de bout en bout : il est
-//! lancé comme le ferait le navigateur, avec des trames sur stdin, et on lit
-//! ses trames sur stdout.
+//! End-to-end characterization of the `sobria-bridge` binary (SOB-11), run the
+//! way the browser runs it: frames on stdin, frames read back from stdout.
 //!
-//! Chaque lancement est isolé : `HOME` (donc le spool) et `XDG_RUNTIME_DIR`
-//! (donc le socket de l'app) pointent vers un dossier temporaire. Les autres
-//! variables sont héritées, pour que la mesure de couverture continue de
-//! suivre le binaire. Rien n'est écrit dans le vrai `~/.sobria` et aucune
-//! vraie app Sobr.ia ne peut répondre.
+//! Each run points `HOME` (spool) and `XDG_RUNTIME_DIR` (app socket) to a temp
+//! dir, so the real `~/.sobria` and a real app are never touched. Other env
+//! vars are inherited so coverage tooling keeps tracking the binary.
 //!
-//! Unix uniquement : sous Windows le spool suit le dossier utilisateur de
-//! l'API système (pas `HOME`) et le pipe de l'app porte un nom fixe, on ne
-//! peut donc pas isoler le processus.
+//! Unix only: on Windows the spool follows the OS user folder (not `HOME`) and
+//! the app pipe has a fixed name, so the process cannot be isolated.
 #![cfg(unix)]
 
 mod common;
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
@@ -49,7 +45,6 @@ impl Session {
         self.dir.path().join("sobria-bridge.sock")
     }
 
-    /// Faux serveur d'app à l'endroit où le bridge le cherche.
     fn app(&self, replies: Vec<Reply>) -> std::thread::JoinHandle<Vec<Value>> {
         serve(UnixListener::bind(self.socket()).unwrap(), replies)
     }
@@ -63,23 +58,40 @@ impl Session {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .expect("lancement du bridge");
-        // Le bridge peut quitter avant d'avoir tout lu (message invalide).
+            .expect("spawn bridge");
+        // Drain output while waiting: a reply larger than the pipe buffer would
+        // otherwise block the bridge on write.
+        let stdout = drain(child.stdout.take().expect("stdout"));
+        let stderr = drain(child.stderr.take().expect("stderr"));
+        // The bridge may exit before reading everything (invalid message).
         let _ = child.stdin.take().expect("stdin").write_all(input);
 
-        // Un bridge qui ne s'arrête pas ferait bloquer la CI jusqu'à son délai global.
-        // Les sorties tiennent en quelques centaines d'octets, très en dessous de
-        // la capacité d'un tube : inutile de les lire pendant l'attente.
+        // A bridge that never exits would hang CI until its global timeout.
         let deadline = Instant::now() + Duration::from_secs(30);
-        while child.try_wait().expect("état du bridge").is_none() {
+        let status = loop {
+            if let Some(status) = child.try_wait().expect("bridge status") {
+                break status;
+            }
             if Instant::now() >= deadline {
-                child.kill().expect("arrêt du bridge");
-                panic!("le bridge ne s'est pas arrêté en 30 s");
+                child.kill().expect("kill bridge");
+                panic!("the bridge did not exit within 30 s");
             }
             std::thread::sleep(Duration::from_millis(10));
+        };
+        Output {
+            status,
+            stdout: stdout.join().expect("read stdout"),
+            stderr: stderr.join().expect("read stderr"),
         }
-        child.wait_with_output().expect("fin du bridge")
     }
+}
+
+fn drain(mut pipe: impl Read + Send + 'static) -> std::thread::JoinHandle<Vec<u8>> {
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        pipe.read_to_end(&mut bytes).expect("read bridge output");
+        bytes
+    })
 }
 
 fn input(requests: &[Value]) -> Vec<u8> {
@@ -90,7 +102,6 @@ fn answers(output: &Output) -> Vec<Value> {
     parse_frames(&output.stdout)
 }
 
-/// Le bridge a quitté en code 1 en écrivant `needle` sur stderr.
 fn assert_exits_with_error(output: &Output, needle: &str) {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(1), "{stderr}");
@@ -101,7 +112,6 @@ fn ping(id: &str) -> Value {
     json!({"type": "ping", "reqId": id})
 }
 
-/// Réponse du bridge à `ping(id)`.
 fn pong(id: &str) -> Value {
     json!({"reqId": id, "ok": true, "pong": true})
 }
@@ -114,7 +124,7 @@ fn estimate(id: &str, secret: &str, payload: &Value) -> Value {
     json!({"type": "estimate", "reqId": id, "secret": secret, "payload": payload})
 }
 
-// ───────────────────── App desktop non joignable ─────────────────────
+// ───────────────────── Desktop app unreachable ─────────────────────
 
 #[test]
 fn empty_input_ends_cleanly_with_no_output() {
@@ -167,7 +177,7 @@ fn estimate_is_acknowledged_and_appended_to_the_spool() {
     let spool = std::fs::read_to_string(session.spool()).unwrap();
     assert!(
         !spool.contains(&secret),
-        "le secret ne doit pas être en clair"
+        "the secret must not be stored in clear"
     );
     let lines: Vec<Value> = spool
         .lines()
@@ -176,8 +186,8 @@ fn estimate_is_acknowledged_and_appended_to_the_spool() {
     assert_eq!(lines.len(), 2);
     for (line, payload) in lines.iter().zip([&first, &second]) {
         let received_at = line["received_at"].as_str().unwrap();
-        chrono::DateTime::parse_from_rfc3339(received_at).expect("received_at au format RFC 3339");
-        // Égalité complète : fige à la fois les clés présentes et leurs valeurs.
+        chrono::DateTime::parse_from_rfc3339(received_at).expect("received_at in RFC 3339 format");
+        // Full equality pins both the keys and their values.
         assert_eq!(
             line,
             &json!({
@@ -192,7 +202,7 @@ fn estimate_is_acknowledged_and_appended_to_the_spool() {
 #[test]
 fn spool_failure_is_reported_and_the_bridge_keeps_running() {
     let session = Session::new();
-    // `~/.sobria` est un fichier : le dossier du spool ne peut pas être créé.
+    // `~/.sobria` is a file, so the spool directory cannot be created.
     std::fs::write(session.dir.path().join(".sobria"), b"").unwrap();
     let out = session.run(&input(&[estimate("e", "s", &json!({})), ping("after")]));
 
@@ -207,7 +217,7 @@ fn spool_failure_is_reported_and_the_bridge_keeps_running() {
     assert_eq!(replies[1], pong("after"));
 }
 
-// ───────────────────── App desktop joignable ─────────────────────
+// ───────────────────── Desktop app reachable ─────────────────────
 
 #[test]
 fn app_reply_to_a_pairing_reaches_the_extension_unchanged() {
@@ -235,7 +245,7 @@ fn messages_answered_by_the_app_are_never_spooled() {
         let out = session.run(&input(&[estimate("e", "s", &json!({}))]));
         app.join().unwrap();
         assert_eq!(answers(&out), [reply]);
-        assert!(!session.spool().exists(), "pas de repli sur le spool");
+        assert!(!session.spool().exists(), "no fallback to the spool");
     }
 }
 
@@ -258,7 +268,7 @@ fn each_message_opens_its_own_connection_to_the_app() {
     );
 }
 
-// ───────────── App desktop défaillante : repli sur le traitement local ─────────────
+// ───────────── Faulty desktop app: fallback to local handling ─────────────
 
 #[test]
 fn unreadable_app_reply_falls_back_to_local_handling() {
@@ -292,12 +302,12 @@ fn stale_socket_file_falls_back_to_local_handling() {
     assert_eq!(answers(&out), [pong("1")]);
 }
 
-// ───────────────────── Entrées invalides ─────────────────────
+// ───────────────────── Invalid input ─────────────────────
 
 #[test]
 fn undecodable_message_ends_the_session_without_a_reply() {
-    // Particularité : aucune réponse d'erreur n'est envoyée, le bridge quitte
-    // en code 1 et les messages suivants ne sont jamais traités.
+    // Quirk: no error reply is sent, the bridge exits with code 1 and later
+    // messages are never handled.
     let bad = json!({"type": "nope", "reqId": "x"});
     let out = Session::new().run(&input(&[ping("1"), bad, ping("3")]));
 

@@ -1,14 +1,12 @@
-//! Caractérisation (SOB-11) du manifest Native Messaging fourni par le crate.
+//! Characterization of the Native Messaging manifest shipped by the crate (SOB-11).
 //!
-//! Le crate ne contient aucun code de vérification de manifest : ce qu'il
-//! livre, c'est `manifest.template.json` et les scripts `install-dev.*` qui
-//! le remplissent. Ces tests figent la forme du modèle et les noms des jetons
-//! que les scripts remplacent ; ils n'exécutent pas les scripts. L'installation
-//! réelle dans les navigateurs (chemins par OS, registre Windows) est dans
-//! `sobria-app` (`bridge_install.rs`).
+//! The crate ships `manifest.template.json` and the `install-dev.*` scripts
+//! that fill it. These tests pin the template shape and the placeholder names
+//! without running the scripts. Real browser installation (per-OS paths,
+//! Windows registry) lives in `sobria-app` (`bridge_install.rs`).
 //!
-//! `manifest/com.sobria.bridge.json.tmpl` n'est référencé par aucun script ni
-//! aucun code Rust : il n'est donc pas figé ici.
+//! `manifest/com.sobria.bridge.json.tmpl` is not referenced by any script or
+//! Rust code, so it is not pinned here.
 
 use std::collections::BTreeSet;
 
@@ -22,8 +20,7 @@ const INSTALL_PS1: &str = include_str!("../scripts/install-dev.ps1");
 const EXTENSION_ID: &str = "abcdefghijklmnopabcdefghijklmnop";
 const BRIDGE_PATH: &str = "/opt/sobria/sobria-bridge";
 
-/// Noms des jetons `{{NOM}}` présents dans `text`, triés (l'ordre des clés du
-/// modèle n'a pas d'importance).
+/// Sorted `{{NAME}}` placeholder names: template key order does not matter.
 fn placeholders(text: &str) -> Vec<&str> {
     let mut found: Vec<&str> = text
         .split("{{")
@@ -35,8 +32,8 @@ fn placeholders(text: &str) -> Vec<&str> {
     found
 }
 
-/// Lignes de `script` hors commentaires : les en-têtes des scripts citent déjà
-/// les jetons, ce qui ne prouve pas qu'ils les remplissent.
+/// Drops comment lines: script headers mention the placeholders, which does
+/// not prove the code fills them.
 fn code_of(script: &str) -> String {
     script
         .lines()
@@ -49,7 +46,7 @@ fn filled_manifest() -> Value {
     let text = TEMPLATE
         .replace("{{BRIDGE_PATH}}", BRIDGE_PATH)
         .replace("{{EXTENSION_ID}}", EXTENSION_ID);
-    serde_json::from_str(&text).expect("le modèle rempli est un JSON valide")
+    serde_json::from_str(&text).expect("filled template is valid JSON")
 }
 
 #[test]
@@ -59,8 +56,6 @@ fn template_has_exactly_the_two_placeholders_the_install_scripts_fill() {
 
 #[test]
 fn both_install_scripts_fill_the_template_by_those_placeholders() {
-    // Chaque script lit le modèle puis substitue les deux jetons dans son code
-    // (`sed` côté shell, `-replace` côté PowerShell), commentaires exclus.
     let sh = code_of(INSTALL_SH);
     assert!(sh.contains("manifest.template.json"), "install-dev.sh");
     assert!(sh.contains("s|{{BRIDGE_PATH}}|"), "install-dev.sh");
@@ -83,7 +78,7 @@ fn filled_template_is_a_chrome_style_stdio_manifest() {
     let manifest = filled_manifest();
     let keys: BTreeSet<&str> = manifest
         .as_object()
-        .expect("objet JSON")
+        .expect("JSON object")
         .keys()
         .map(String::as_str)
         .collect();
@@ -107,17 +102,18 @@ fn allowed_origins_lists_the_single_extension_with_a_trailing_slash() {
 
 #[test]
 fn template_has_no_firefox_allowed_extensions_key() {
-    // Particularité actuelle : les deux scripts écrivent ce même modèle dans le
-    // dossier Chrome et dans le dossier Firefox, qui ne reçoit donc que
-    // `allowed_origins` (clé Chrome).
+    // Both scripts write this same template to the Chrome and Firefox folders,
+    // so Firefox only gets the Chrome key `allowed_origins`.
+    // Known defect: Firefox requires `allowed_extensions`. The fix (SOB-82)
+    // will change this test.
     assert!(filled_manifest().get("allowed_extensions").is_none());
 }
 
 #[test]
 fn native_host_name_follows_the_chrome_naming_rules() {
     // https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging
-    // « lowercase alphanumeric, underscores and dots; no leading or trailing
-    // dot; no two consecutive dots ».
+    // "lowercase alphanumeric, underscores and dots; no leading or trailing
+    // dot; no two consecutive dots".
     assert!(!NATIVE_HOST_NAME.is_empty());
     assert!(NATIVE_HOST_NAME
         .bytes()

@@ -1,17 +1,13 @@
-//! Caractérisation (SOB-11) de la couche message du bridge : quelles requêtes
-//! sont acceptées ou refusées, comment elles sont cadrées sur stdin/stdout,
-//! et ce que `handle_request` répond quand l'app desktop n'est pas joignable.
+//! Characterization of the bridge message layer (SOB-11): accepted and refused
+//! requests, stdin/stdout framing, and `handle_request` replies when the
+//! desktop app is unreachable.
 //!
-//! Ces tests figent le comportement actuel, particularités comprises, sans le
-//! juger. Un test qui casse signale un changement de comportement à décider,
-//! pas forcément une régression.
+//! These tests pin current behavior, quirks included. A failing test flags a
+//! behavior change to decide on, not necessarily a regression.
 //!
-//! `Estimate` n'est volontairement pas passé par `handle_request` ici : il
-//! écrit dans le vrai `~/.sobria/spool`. Il est couvert, avec un `HOME`
-//! isolé, par `bridge_process.rs`.
-//!
-//! Le format à 6 chiffres du code de pairing n'est pas vérifié par le bridge
-//! mais par l'app (`sobria-app/src/pairing.rs`) : ici le code est opaque.
+//! `Estimate` is not sent through `handle_request` here because it writes to
+//! the real `~/.sobria/spool`; `bridge_process.rs` covers it with an isolated
+//! `HOME`.
 
 mod common;
 
@@ -36,36 +32,33 @@ fn read_json(body: &str) -> anyhow::Result<Option<BridgeRequest>> {
 
 fn accepted(body: &str) -> BridgeRequest {
     read_json(body)
-        .unwrap_or_else(|e| panic!("message refusé : {e:#}\n{body}"))
-        .expect("flux vide")
+        .unwrap_or_else(|e| panic!("message refused: {e:#}\n{body}"))
+        .expect("empty stream")
 }
 
-/// Message d'erreur complet (chaîne de contextes) d'un flux refusé.
 fn refused(bytes: Vec<u8>) -> String {
     err_text(read_bytes(bytes))
 }
 
-/// Idem pour un corps JSON correctement cadré.
 fn refusal(body: &str) -> String {
     refused(frame(body.as_bytes()))
 }
 
-/// Sérialisation sur le fil d'une réponse, relue trame par trame.
 fn wire(resp: &BridgeResponse) -> Value {
     let mut buf = Vec::new();
     write_message(&mut buf, resp).unwrap();
     let mut frames = parse_frames(&buf);
-    assert_eq!(frames.len(), 1, "une réponse = une trame");
+    assert_eq!(frames.len(), 1, "one response = one frame");
     frames.remove(0)
 }
 
-// ───────────────────────── Messages acceptés ─────────────────────────
+// ───────────────────────── Accepted messages ─────────────────────────
 
 #[test]
 fn ping_message_is_accepted() {
     match accepted(r#"{"type":"ping","reqId":"r1"}"#) {
         BridgeRequest::Ping { req_id } => assert_eq!(req_id, "r1"),
-        other => panic!("attendu Ping, reçu {other:?}"),
+        other => panic!("expected Ping, got {other:?}"),
     }
 }
 
@@ -76,7 +69,7 @@ fn pair_message_is_accepted() {
             assert_eq!(req_id, "r2");
             assert_eq!(code, "123456");
         },
-        other => panic!("attendu Pair, reçu {other:?}"),
+        other => panic!("expected Pair, got {other:?}"),
     }
 }
 
@@ -94,7 +87,7 @@ fn estimate_message_is_accepted() {
             assert_eq!(secret, "s3");
             assert_eq!(payload, json!({"estimate": {"tokensIn": 7}}));
         },
-        other => panic!("attendu Estimate, reçu {other:?}"),
+        other => panic!("expected Estimate, got {other:?}"),
     }
 }
 
@@ -105,7 +98,7 @@ fn revoke_message_is_accepted() {
             assert_eq!(req_id, "r4");
             assert_eq!(secret, "s4");
         },
-        other => panic!("attendu Revoke, reçu {other:?}"),
+        other => panic!("expected Revoke, got {other:?}"),
     }
 }
 
@@ -124,7 +117,7 @@ fn req_id_accessor_returns_the_id_of_every_message_type() {
     }
 }
 
-// ─────────────── Particularités acceptées (comportement actuel) ───────────────
+// ─────────────── Accepted quirks (current behavior) ───────────────
 
 #[test]
 fn unknown_extra_fields_are_ignored() {
@@ -139,8 +132,8 @@ fn empty_req_id_is_accepted() {
 
 #[test]
 fn pair_code_is_opaque_to_the_bridge() {
-    // La forme du code (6 chiffres, TTL 5 min, usage unique) est jugée par
-    // l'app, pas par le bridge : il transmet tout code tel quel.
+    // The app (`sobria-app/src/pairing.rs`) validates the code (6 digits,
+    // 5 min TTL, single use); the bridge passes any code through.
     for code in [
         "123456",
         "000000",
@@ -153,7 +146,7 @@ fn pair_code_is_opaque_to_the_bridge() {
         let body = json!({"type": "pair", "reqId": "r", "code": code}).to_string();
         match accepted(&body) {
             BridgeRequest::Pair { code: kept, .. } => assert_eq!(kept, code),
-            other => panic!("attendu Pair, reçu {other:?}"),
+            other => panic!("expected Pair, got {other:?}"),
         }
     }
 }
@@ -165,16 +158,16 @@ fn estimate_payload_accepts_any_json_value() {
             .to_string();
         match accepted(&body) {
             BridgeRequest::Estimate { payload: kept, .. } => assert_eq!(kept, payload),
-            other => panic!("attendu Estimate, reçu {other:?}"),
+            other => panic!("expected Estimate, got {other:?}"),
         }
     }
 }
 
-// ───────────────────────── Messages refusés ─────────────────────────
+// ───────────────────────── Refused messages ─────────────────────────
 
 #[test]
 fn unknown_message_types_are_refused() {
-    // Seuls `ping`, `pair`, `estimate` et `revoke` existent, en minuscules.
+    // Only lowercase `ping`, `pair`, `estimate` and `revoke` exist.
     for kind in ["hello", "Ping", "PING", "", "pair ", "estimates", "pairing"] {
         let body = json!({"type": kind, "reqId": "r"}).to_string();
         let message = refusal(&body);
@@ -209,8 +202,8 @@ fn messages_missing_a_required_field_are_refused() {
 
 #[test]
 fn fields_with_the_wrong_json_type_are_refused() {
-    // Un code de pairing envoyé comme nombre est refusé : « 000123 » perdrait
-    // ses zéros de tête, l'extension doit donc l'envoyer comme chaîne.
+    // A numeric pairing code is refused: "000123" would lose its leading
+    // zeros, so the extension must send a string.
     let cases = [
         r#"{"type":"ping","reqId":7}"#,
         r#"{"type":"pair","reqId":"r","code":123456}"#,
@@ -242,7 +235,7 @@ fn payload_that_is_not_utf8_is_refused() {
     assert!(message.contains("decode JSON (3 bytes)"), "{message}");
 }
 
-// ───────────────────────── Cadrage des messages ─────────────────────────
+// ───────────────────────── Message framing ─────────────────────────
 
 #[test]
 fn length_prefix_is_u32_little_endian() {
@@ -270,10 +263,10 @@ fn empty_stream_is_a_clean_end() {
 
 #[test]
 fn truncated_length_prefix_is_treated_as_a_clean_end() {
-    // Particularité : 1 à 3 octets de préfixe puis EOF ne sont pas une erreur,
-    // le message est abandonné en silence comme à la fin normale du flux.
+    // Quirk: 1 to 3 prefix bytes then EOF is not an error; the message is
+    // dropped silently like a normal end of stream.
     for n in 1..=3 {
-        assert!(read_bytes(vec![27; n]).unwrap().is_none(), "{n} octet(s)");
+        assert!(read_bytes(vec![27; n]).unwrap().is_none(), "{n} byte(s)");
     }
 }
 
@@ -290,8 +283,8 @@ fn truncated_payload_is_an_error() {
 
 #[test]
 fn message_over_one_megabyte_is_refused_before_its_payload_is_read() {
-    // Seul l'en-tête est fourni : le refus ne dépend donc pas de la lecture
-    // du corps, et aucun tampon de cette taille n'est alloué.
+    // Only the header is given, so the refusal does not depend on reading the
+    // body and no buffer of that size is allocated.
     for len in [MAX_MESSAGE_BYTES + 1, u32::MAX] {
         let message = refused(len.to_le_bytes().to_vec());
         assert!(
@@ -303,8 +296,7 @@ fn message_over_one_megabyte_is_refused_before_its_payload_is_read() {
 
 #[test]
 fn message_of_exactly_one_megabyte_passes_the_size_gate() {
-    // Le seuil est strict (`>`) : 1 MiB pile passe le contrôle de taille et
-    // échoue plus loin, faute de corps.
+    // Strict threshold (`>`): exactly 1 MiB passes, then fails for lack of a body.
     let message = refused(MAX_MESSAGE_BYTES.to_le_bytes().to_vec());
     assert!(
         message.contains("read native messaging payload"),
@@ -339,9 +331,9 @@ fn messages_are_read_in_order_until_the_end_of_the_stream() {
 
 #[test]
 fn reading_can_continue_after_an_undecodable_message() {
-    // Comportement de `read_message` seul : le corps du message refusé est
-    // consommé en entier, le suivant reste lisible. Le binaire, lui, s'arrête
-    // au premier échec (voir `undecodable_message_ends_the_session_without_a_reply`).
+    // `read_message` alone consumes the whole refused body, so the next message
+    // stays readable. The binary stops at the first failure instead (see
+    // `undecodable_message_ends_the_session_without_a_reply`).
     let mut bytes = frame(br#"{"type":"nope","reqId":"x"}"#);
     bytes.extend(frame(br#"{"type":"ping","reqId":"next"}"#));
     let mut cursor = Cursor::new(bytes);
@@ -349,7 +341,7 @@ fn reading_can_continue_after_an_undecodable_message() {
     assert_eq!(read_message(&mut cursor).unwrap().unwrap().req_id(), "next");
 }
 
-// ─────────── Réponses locales de `handle_request` (app non joignable) ───────────
+// ─────────── Local `handle_request` replies (app unreachable) ───────────
 
 #[test]
 fn ping_is_answered_locally_with_a_pong() {
@@ -406,7 +398,7 @@ fn local_answers_echo_the_request_id() {
     }
 }
 
-// ───────────────────────── Forme des réponses ─────────────────────────
+// ───────────────────────── Response shape ─────────────────────────
 
 #[test]
 fn ok_response_carries_only_req_id_and_ok() {
@@ -482,12 +474,12 @@ fn write_message_reports_a_closed_pipe() {
     assert!(write_message(&mut ClosedPipe, &BridgeResponse::ok("x")).is_err());
 }
 
-// ───────────────────────── Empreinte du secret ─────────────────────────
+// ───────────────────────── Secret hash ─────────────────────────
 
 #[test]
 fn short_hash_matches_reference_vectors() {
-    // Vecteurs calculés indépendamment : acc = acc * 31 + octet (wrapping u64),
-    // sur les octets UTF-8, affiché en 16 chiffres hexadécimaux.
+    // Independently computed: acc = acc * 31 + byte (wrapping u64) over the
+    // UTF-8 bytes, printed as 16 hex digits.
     let vectors = [
         ("", "0000000000000000"),
         ("a", "0000000000000061"),
@@ -503,14 +495,15 @@ fn short_hash_matches_reference_vectors() {
 
 #[test]
 fn short_hash_is_sixteen_lowercase_hex_digits_and_depends_on_the_input() {
-    // Le secret n'apparaît jamais en clair dans le spool : voir `bridge_process.rs`.
+    // Known gap: the `short_hash` doc (lib.rs) says 8 "FNV-like" characters;
+    // the code returns 16 digits of a ×31 polynomial hash (SOB-81).
     let hash = short_hash(&"0123abcdef".repeat(6));
     assert_eq!(hash.len(), 16);
     assert!(hash.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')));
     assert_ne!(short_hash("a"), short_hash("b"));
 }
 
-// ───────────────────────── Spool (chemin Estimate) ─────────────────────────
+// ───────────────────────── Spool (Estimate path) ─────────────────────────
 
 #[test]
 fn spool_creates_missing_parent_directories() {
@@ -522,7 +515,6 @@ fn spool_creates_missing_parent_directories() {
 
 #[test]
 fn spool_rotation_threshold_is_strict() {
-    // Rotation seulement si la taille du fichier dépasse le seuil.
     let temp = tempfile::tempdir().unwrap();
     let spool = temp.path().join("incoming.jsonl");
     let bak = temp.path().join("incoming.jsonl.bak");
@@ -531,11 +523,11 @@ fn spool_rotation_threshold_is_strict() {
     let line_len = std::fs::metadata(&spool).unwrap().len();
 
     append_to_spool_at(&spool, &json!({"a": 1}), line_len).unwrap();
-    assert!(!bak.exists(), "taille == seuil : pas de rotation");
+    assert!(!bak.exists(), "size == threshold: no rotation");
     assert_eq!(std::fs::read_to_string(&spool).unwrap().lines().count(), 2);
 
     append_to_spool_at(&spool, &json!({"a": 1}), 2 * line_len - 1).unwrap();
-    assert!(bak.exists(), "taille > seuil : rotation");
+    assert!(bak.exists(), "size > threshold: rotation");
     assert_eq!(std::fs::read_to_string(&spool).unwrap().lines().count(), 1);
 }
 
@@ -551,7 +543,7 @@ fn spool_rotation_replaces_the_previous_backup() {
     assert_eq!(std::fs::read_to_string(&spool).unwrap(), "{\"n\":3}\n");
 }
 
-// ───────────────────────── Constantes publiques ─────────────────────────
+// ───────────────────────── Public constants ─────────────────────────
 
 #[test]
 fn public_constants_keep_their_values() {
