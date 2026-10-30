@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Pilotage dans Linear (2026-10-30)
+
+- **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la
+  source de vérité de l'avancement. CLAUDE.md §2/§4.3/§4.4/§11/§14 et
+  CONTRIBUTING.md mis à jour : branches `feature/sob-123-<desc>`,
+  `TODO(SOB-123)`, footer `Refs: SOB-123`. `docs/ROADMAP.md` passe en
+  document historique.
+
 ### Removed — Nettoyage du dépôt (2026-10-30)
 
 - **Docs** : prompts Claude Code, plans de commits et plans « superpowers »

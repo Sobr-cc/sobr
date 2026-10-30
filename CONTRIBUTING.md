@@ -15,7 +15,8 @@ Merci de l'intérêt que vous portez au projet. Sobr.ia est open-source (MIT, Et
 ## Cycle de contribution
 
 1. **Discuter d'abord** — ouvrir une issue GitHub pour décrire l'idée avant de coder.
-2. **Forker / brancher** — branche `feature/<scope>-<short-desc>` ou `fix/<short-desc>`.
+2. **Forker / brancher** — branche `feature/<scope>-<short-desc>` ou `fix/<short-desc>`
+   (mainteneurs : préfixer avec l'identifiant Linear, ex. `feature/sob-123-<short-desc>` — ADR-0018).
 3. **Coder en respectant** la [Definition of Done](CLAUDE.md#5-definition-of-done-dod).
 4. **Commits** au format Conventional Commits (voir CLAUDE.md §4.3).
 5. **Pull Request** — référencer l'issue + ADR concernés.

@@ -16,10 +16,11 @@
 | Document | Quand le lire |
 |----------|---------------|
 | `docs/CAHIER-DES-CHARGES-v1.0.md` | Toujours en premier, donne le périmètre complet |
-| `docs/ROADMAP.md` | Pour comprendre dans quel sprint tu es |
+| Linear (`linear.app/sobrcc`, équipe `SOB`) | Pour savoir ce qui est en cours — source de vérité des statuts (ADR-0018) |
+| `docs/ROADMAP.md` | Plan initial, conservé pour l'historique (statuts plus tenus) |
 | `docs/adr/*.md` | Pour respecter les décisions architecturales |
 | `docs/adr/ADR-0009-medallion-architecture.md` | **Avant tout travail d'ingestion** — pattern Copper/Silver/Gold imposé |
-| `briefs/sprints/Sx-*.md` | Le brief de la semaine en cours |
+| `briefs/chantiers/Cxx-*.md` | Le brief du chantier lié au ticket Linear en cours |
 | `docs/sources/CATALOGUE-SOURCES.md` | Avant tout travail sur l'ingestion |
 | `docs/methodology/AFNOR-SPEC-2314-synthese.md` | Avant tout travail sur l'estimateur |
 
@@ -122,13 +123,17 @@ Scopes : `core`, `estimator`, `referentiel`, `ingest`, `geoloc`, `import`, `expo
 
 Exemple : `feat(estimator): add Monte-Carlo uncertainty propagation`.
 
+Footer : `Refs: SOB-123` pour lier le commit au ticket Linear ; `Fixes SOB-123` dans la description de PR pour clore le ticket au merge (ADR-0018).
+
 ### 4.4 Branching
 
 - `main` : protégée, releases uniquement
 - `develop` : intégration
-- `feature/<scope>-<short-desc>` : features
-- `fix/<short-desc>` : corrections
-- `docs/<short-desc>` : docs only
+- `feature/sob-123-<short-desc>` : features
+- `fix/sob-123-<short-desc>` : corrections
+- `docs/sob-123-<short-desc>` : docs only
+
+`sob-123` est l'identifiant du ticket Linear : Linear rattache la branche et la PR au ticket (ADR-0018).
 
 ---
 
@@ -247,7 +252,7 @@ quarto render notebook/validation.qmd
 À chaque nouvelle session :
 
 1. Lire `CLAUDE.md` (ce fichier).
-2. Lire le brief de sprint actif (`briefs/sprints/Sx-*.md`).
+2. Identifier le ticket Linear (`SOB-123`) de la tâche et lire le brief du chantier lié (`briefs/chantiers/Cxx-*.md`).
 3. Lire les ADR pertinents pour la tâche.
 4. Pour chaque tâche :
    a. Comprendre — relire CDC §pertinent + ADR + research/biblio si scientifique.
@@ -255,7 +260,7 @@ quarto render notebook/validation.qmd
    c. Implémenter — petit commit par sous-étape si possible.
    d. Tester — ajouter tests + faire passer linters.
    e. Documenter — code docs + doc utilisateur si visible.
-   f. PR description : référence CDC + ADR + lien brief.
+   f. PR description : référence CDC + ADR + lien brief + `Fixes SOB-123`.
 
 ---
 
@@ -288,7 +293,7 @@ quarto render notebook/validation.qmd
 
 - ✅ Citer la source de toute formule, hypothèse, valeur numérique.
 - ✅ Ajouter `#[cfg(test)]` mod tests à chaque module Rust non trivial.
-- ✅ Préfixer les TODOs : `// TODO(sobria-XXX):` avec issue GitHub.
+- ✅ Préfixer les TODOs : `// TODO(SOB-123):` avec un ticket Linear existant (ADR-0018).
 - ✅ Mesurer la taille des binaires à chaque build de release.
 - ✅ Mettre à jour CHANGELOG.md à chaque feature/fix.
 - ✅ Demander si une ambiguïté apparaît dans le CDC ou le brief.

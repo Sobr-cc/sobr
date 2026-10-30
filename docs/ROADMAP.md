@@ -1,5 +1,9 @@
 # Roadmap Sobr.ia — 16 semaines (v2)
 
+> **Document historique (2026-10-30)** : ce plan n'est plus tenu à jour.
+> L'avancement se suit dans Linear (`linear.app/sobrcc`, équipe `SOB`) — voir
+> [ADR-0018](adr/ADR-0018-pilotage-linear.md).
+
 > **Période cible** : S0 démarrage 12 mai 2026 → soumission S16 (début septembre 2026).
 > **Cadence** : 1 sprint = 1 semaine. Revue chaque vendredi.
 > **Format des sprints** : brief détaillé dans `briefs/sprints/Sx-*.md`.
