@@ -16,6 +16,21 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   list now matches the workspace, and the README and `Cargo.toml` no longer
   hard-code a crate count.
 
+### Changed — ADR-0018 amended to match the Linear organization (2026-10-30, SOB-36)
+
+- **ADR-0018, Amendment 1** (Accepted 2026-10-30): point 1 is replaced, and
+  the rest stands.
+  - Projects are thematic, not one per chantier: 13 today, including Model
+    catalog and Infrastructure.
+  - Briefs stay as specs only where they exist (C31, C35, C36).
+  - Cycles last two weeks and start on Monday.
+  - Labels come in five groups: Type, Area, Agent, Role, Model.
+  - Only Claude agents do the work; Linear AI features stay off.
+  - The branch format from SOB-12 is confirmed.
+  - The working rules stay in "How we work", which the ADR links.
+  - CLAUDE.md §2 and §11, CONTRIBUTING.md and the label lists of the issue
+    skill follow in SOB-138.
+
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
 - **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what
@@ -43,6 +58,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   réponses de l'app ; ceux de `sobria-app` restent à compléter (SOB-80).
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
+
+### Changed — 30-day trial and personal space (2026-10-30, SOB-35)
+
+- **ADR-0014, Amendment 1** (Accepted): the managed cloud has a 30-day
+  trial that needs a payment card to start, and is then paid per seat,
+  replacing the real free tier of condition 5; local and self-hosted stay
+  free. A personal space on the Sobr server is allowed (condition 1
+  clarified, guest mode stays the default). MIT stays for all the code. The
+  price of the personal space and its conflict with ADR-0013 are left open
+  (SOB-136).
 
 ### Added — Single app on desktop and web (2026-10-30, SOB-14)
 
