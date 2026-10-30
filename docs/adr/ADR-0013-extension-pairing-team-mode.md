@@ -115,7 +115,7 @@ Plus simple mais aucune protection contre une extension malveillante installée 
 | Phase | Version | Chantier | Périmètre |
 |-------|---------|----------|-----------|
 | Phase 1 | v0.6.0 | C27 | Extension + pairing perso 6 chiffres + bridge natif + ingestion Journal/Dashboard |
-| Phase 2 | v0.7.0 | C28 | `sobria-team-aggregator` (binaire HTTPS standalone) + JWT 24h/refresh 7j + Argon2id partout + dashboard Svelte embedded (4 cards + 3 charts SVG) + exports CSRD PDF + PROV-O JSON-LD + CSV + mode Équipe extension/app (URL + ping + enroll + dispatch local/team/both + logout). Voir `briefs/chantiers/C28-mode-equipe-self-hosted.md` et `docs/operations/team-aggregator.md`. |
+| Phase 2 | v0.7.0 | C28 | `sobria-team-aggregator` (binaire HTTPS standalone) + JWT 24h/refresh 7j + Argon2id partout + dashboard Svelte embedded (4 cards + 3 charts SVG) + exports CSRD PDF + PROV-O JSON-LD + CSV + mode Équipe extension/app (URL + ping + enroll + dispatch local/team/both + logout). Voir `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` et `docs/operations/team-aggregator.md`. |
 | Phase 3 | v0.8.0 | C29 (TBD) | SSO entreprise (SAML/OIDC), multi-device, RBAC fin |
 
 ## Liens
@@ -123,7 +123,7 @@ Plus simple mais aucune protection contre une extension malveillante installée 
 - CLAUDE.md §7 (privacy by design), §13 (anti-patterns).
 - CDC §M6 (Extension navigateur).
 - ADR-0012 (multi-méthodologie) — l'extension respecte le catalogue méthodo.
-- Brief C27 `briefs/chantiers/C27-extension-navigateur.md`.
+- Brief C27 `docs/archive/chantiers/C27-extension-navigateur.md`.
 - Brief C28 (à rédiger pour v0.7.0).
 
 ## Validation

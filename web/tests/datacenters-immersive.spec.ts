@@ -71,6 +71,6 @@ test.describe('C25 /datacenters immersive layout', () => {
   // la démo (`desktopOnly`). L'interaction est donc vérifiée dans la suite
   // Tauri dédiée (C09.5) avec le runtime réel.
   test.skip('tauri-only : drill-down marker/pays alimenté par get_datacenter_detail', async () => {
-    // Voir briefs/chantiers/C25-*.md pour le plan complet.
+    // Voir docs/archive/chantiers/C25-*.md pour le plan complet.
   });
 });

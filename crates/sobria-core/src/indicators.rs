@@ -104,7 +104,7 @@ impl UncertaintyInterval {
 /// que la traçabilité réglementaire CSRD inclue la distribution complète,
 /// pas uniquement les quantiles agrégés.
 ///
-/// Voir `briefs/chantiers/C09-tauri-integration.md` (option A1).
+/// Voir `docs/archive/chantiers/C09-tauri-integration.md` (option A1).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct DistributionBins {
     /// Borne basse de l'histogramme (≤ tous les samples).

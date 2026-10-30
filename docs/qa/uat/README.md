@@ -77,7 +77,7 @@ Ne pas en dire plus — le premier contact fait partie du test.
 
 - [ ] **Poste de test** avec Sobr.ia desktop v0.9.x installée et lancée une fois,
   puis **base locale réinitialisée** + localStorage WebView vidé (procédure exacte :
-  `docs/qa/smoke-test-v0.8.0-2026-05.md` § Pré-vol). Le testeur doit voir l'onboarding vierge.
+  `docs/archive/smoke-test-v0.8.0-2026-05.md` § Pré-vol). Le testeur doit voir l'onboarding vierge.
 - [ ] **Navigateur propre** (profil Chrome dédié) avec accès au site
   `https://sobria.brilliantstudio.co/` (phase 1) et l'archive de l'extension
   `sobria-extension-chrome-v0.6.x.zip` déjà téléchargée (persona Pro tech).

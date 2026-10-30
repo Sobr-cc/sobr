@@ -4,7 +4,7 @@
 > **Crates touchées** : `sobria-app` (préférences + IPC), `sobria-core` (Persona/ModuleId enums).
 > **Frontend** : `web/` (route `/onboarding`, store `preferences.ts`, garde de layout, garde de routes).
 > **Durée cible** : 2-3 jours.
-> **Référence ADR** : [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md).
+> **Référence ADR** : [ADR-0010](../../adr/ADR-0010-personas-and-module-gating.md).
 > **Référence CDC** : v1.3 §3 (personas) + §4 (25 modules).
 
 ---
@@ -290,7 +290,7 @@ La page d'accueil `/` affiche, si `?disabled=mXX` :
 
 ### Doc
 - [ ] CHANGELOG : entrée v0.3.0 « Onboarding personas + module gating (ADR-0010) ».
-- [ ] `briefs/chantiers/C10-RETROSPECTIVE.md` après livraison.
+- [ ] `docs/archive/chantiers/C10-RETROSPECTIVE.md` après livraison.
 
 ## 5. Non-objectifs (différés)
 

@@ -7,6 +7,52 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Removed — Nettoyage du dépôt (2026-10-30)
+
+- **Docs** : prompts Claude Code, plans de commits et plans « superpowers »
+  supprimés (doublons des briefs, conservés dans l'historique git).
+  Chantiers clos C01-C45, état des lieux 2026-05-17, audit produit C32.0,
+  maquette textuelle et smoke test v0.8.0 déplacés dans `docs/archive/`
+  (index `docs/archive/README.md`), **désormais exclu du site** — tout
+  `docs/**` y était publié, archives internes comprises. `briefs/` ne garde
+  que le travail ouvert (C31, C35, C36, S0).
+- **Fichiers parasites** : copie périmée `web/crates/sobria-geoloc/data/`
+  (sortie d'un `fetch` lancé depuis `web/`), `package.json` racine
+  (leaflet installé par erreur), verrou `.claude/scheduled_tasks.lock`.
+- **Code mort** : sections/three/ui du site (index v1, orphelines) et deps
+  `three`, `@types/three`, `motion` ; `ComingSoon.svelte`, `moduleInfo`,
+  `isModuleEnabled`, alias `$stores`/`$ipc`/`$components`, dep
+  `@tauri-apps/plugin-shell` (web) ; `thread-finder.ts`,
+  `find-chat-thread.ts`, `pickTone`, `gradeColor`, `AVAILABLE_*`,
+  `availablePresets` et un MutationObserver no-op (extension).
+- **Deps Rust inutilisées** : `serde_with`, `arrow`, `arrow-schema`,
+  `blake3`, `criterion`, `geo` (workspace) et `[profile.bench]` sans bench ;
+  `tokio`/`anyhow`/`tracing`/`sobria-core` dans export, geoloc, referentiel.
+
+### Changed — Factorisation (audit de propreté 2026-10-30)
+
+- **`web/src/lib/format.ts`** (+ tests Vitest) : `fmtSig`, `pickScale`,
+  `fmtTotal`… remplacent les copies de ResultBlock, comparateur, Verdict,
+  suivi, datasheets et rapport CSRD (chaînes d'unités déjà divergentes).
+  `npm test` (web) limité à `src/**/*.test.ts` — il ramassait les specs
+  Playwright.
+- **Extension** : `lib/format.ts` (`fmtFr`), `toneOf` dans `grade.ts`,
+  facteur voiture 192 g/km exporté une seule fois (3 copies).
+- **Rust** : hex SHA-256 via `format!("{:x}")` / `hash::hex_encode` au lieu
+  de 5 encodeurs maison ; spool via `sobria_bridge::spool_path()` ; exports
+  Mode Équipe : verrou global relâché avant la génération PDF/CSV/PROV-O.
+
+### Fixed — Audits exécutables sur un clone frais / sous Windows
+
+- `sobria-team-aggregator` compile sans `web-team/build` (`allow_missing`
+  rust-embed) : le repli « bundle absent » documenté devient réel, clippy
+  et `cargo test` passent sur un clone propre.
+- `.gitattributes` (`eol=lf`) : avec `core.autocrlf=true`, Prettier
+  rejetait chaque fichier sous Windows.
+- Lints clippy 1.99 (`assert_is_empty`), lint du site (three.js vendorisé
+  ignoré, script inline), formatage Prettier site/web-team, `.gitignore`
+  (règle à commentaire inline qui ne matchait rien).
+
 ### Added — C46 CI réparée + gate a11y réel
 
 - **Suite a11y réelle** (`web/tests/a11y/`) : audit axe-core (WCAG 2A/AA)
@@ -73,7 +119,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   Amélioration progressive stricte : page complète sans JS,
   `prefers-reduced-motion` intégral, zéro dépendance.
 - Entrées : lien hero de l'accueil + footer. DA + storyboard :
-  `briefs/chantiers/C45-manifeste-immersif.md`.
+  `docs/archive/chantiers/C45-manifeste-immersif.md`.
 
 > ⚠ C45 : v1 écrite SANS rendu écran (environnement indisponible) —
 > itération visuelle obligatoire avant mise en avant (brief §5).
@@ -99,7 +145,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `/cloud` → `/equipe` ; topbar/footer réécrits (51 pages, build vert).
 
 > ⚠ C44 : vérification partielle (panne de l'environnement en cours de
-> chantier) — voir `briefs/chantiers/C44-politique-projets-site.md` §5
+> chantier) — voir `docs/archive/chantiers/C44-politique-projets-site.md` §5
 > pour la frontière vérifié/non-vérifié et les commandes à lancer.
 
 ### Changed — C43 Vitrine : extension + site de présentation
@@ -240,7 +286,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   « (démo) ». Chargement paresseux : le bundle desktop n'embarque rien.
   Bannière « Mode démo » + hypothèse `mode_demo` sur chaque résultat.
   Générateur reproductible : `tools/fixturegen/`. Voir
-  `briefs/chantiers/C37-mode-demo-web.md`.
+  `docs/archive/chantiers/C37-mode-demo-web.md`.
 - **`tools/fixturegen/`** : crate hors-workspace générant les fixtures
   depuis le vrai moteur (models/methodologies/estimates JSON).
 
@@ -476,7 +522,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - Phi-4 reasoning : Microsoft Research technical report (P5=5, P95=15)
 - **Cutoff** : shortlist validée par 10 WebSearch officiels au
   2026-05-20. Zéro preset fantôme (modèles non sortis exclus).
-  Documentation : `briefs/chantiers/C34-shortlist-models-validated.md`.
+  Documentation : `docs/archive/chantiers/C34-shortlist-models-validated.md`.
 
 ## [0.8.0] — 2026-05-17 — Clarté produit (C32)
 
@@ -484,7 +530,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 > data.gouv.fr v1.0. Aucun nouveau module métier — mais le produit
 > raconte enfin son histoire pour les 5 personas (student / pro_tech /
 > enterprise / public_sector / researcher) identifiées dans
-> `docs/product/AUDIT-PRODUIT-2026-Q3.md`. Score moyen clarté UX
+> `docs/archive/AUDIT-PRODUIT-2026-Q3.md`. Score moyen clarté UX
 > 6/10 → cible 8/10 minimum sur les 5 personas.
 
 ### Added — C32.1 Messaging + labels + nettoyage
@@ -500,7 +546,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   — ~1 page chacun avec pitch, top use cases, modules pertinents et
   quickstart copy-paste.
 - **Audit produit C32.0** versionné dans
-  `docs/product/AUDIT-PRODUIT-2026-Q3.md`.
+  `docs/archive/AUDIT-PRODUIT-2026-Q3.md`.
 
 ### Changed — C32.1 Labels modules clarifiés
 
@@ -620,7 +666,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   effectif est généré par Zenodo à la première release v0.8.0
   publiée sur GitHub.
 - **Smoke-test 5 personas** : runbook structuré dans
-  `docs/qa/smoke-test-v0.8.0-2026-05.md` qui couvre le walkthrough
+  `docs/archive/smoke-test-v0.8.0-2026-05.md` qui couvre le walkthrough
   complet par persona (Splash → Intro 30 sec → Persona → Bundle →
   Ready → 1er prompt → bannière « Et après ? »). Sert de check-list
   manuelle avant publication GitHub.
@@ -662,7 +708,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 > Patch release qui ferme les 4 manques honnêtement notés en C28 :
 > UI Mode Équipe côté app Tauri (les 8 IPC `team_*` étaient prêts mais
 > non câblés au front), reset-password admin, rotation TLS, et alertes
-> seuils CSRD. Voir `briefs/chantiers/C29-v0.7.1-polish-mode-equipe.md`
+> seuils CSRD. Voir `docs/archive/chantiers/C29-v0.7.1-polish-mode-equipe.md`
 > et `docs/operations/team-aggregator.md` § « Opérations courantes ».
 
 ### Added — C29.1 UI Mode Équipe (app Tauri)
@@ -798,7 +844,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 > Binaire Rust standalone `sobria-team-aggregator` déployable par une
 > entreprise sur son infrastructure (poste admin, NAS, VPS interne).
 > **Aucun cloud Sobr.ia n'est impliqué.** Voir
-> `briefs/chantiers/C28-mode-equipe-self-hosted.md`, ADR-0013 Phase 2, et
+> `docs/archive/chantiers/C28-mode-equipe-self-hosted.md`, ADR-0013 Phase 2, et
 > `docs/operations/team-aggregator.md`.
 
 ### Added — C28.1 Bootstrap + TLS
@@ -1064,7 +1110,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **`crates/sobria-bridge/README.md`** : guide d'installation manuelle
   du manifest natif sur macOS / Linux / Windows pour Chrome / Firefox /
   Chromium / Brave / Edge.
-- **`briefs/chantiers/C27-extension-navigateur.md`** + **`C27-PROMPT-CLAUDE-CODE.md`** :
+- **`docs/archive/chantiers/C27-extension-navigateur.md`** + **`C27-PROMPT-CLAUDE-CODE.md`** :
   brief chantier + prompt structuré utilisé pour piloter Claude Code.
 
 ### Quality gates v0.6.0
@@ -1388,7 +1434,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — Chantier C10 : Onboarding personas + module gating (S6 / S7) — `v0.3.0-onboarding`
 
-> ADR-0010 « Personas et gating modulaire par préférences utilisateur ». Brief `briefs/chantiers/C10-onboarding-personas.md`. Bundle Tauri + frontend.
+> ADR-0010 « Personas et gating modulaire par préférences utilisateur ». Brief `docs/archive/chantiers/C10-onboarding-personas.md`. Bundle Tauri + frontend.
 
 #### Backend Rust (par Cowork — déjà mergé en `feat(app): C09 Estimer screen + C10 personas/gating IPC`)
 
@@ -1483,7 +1529,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - `npm run lint` : OK (prettier + eslint).
 - `npx playwright test` : **12 passed (5 s)** — contrat « no-mock » verrouillé sur les 6 écrans fonctionnels + 4 smoke tests sur les stubs.
 
-Voir `briefs/chantiers/C09-RETROSPECTIVE.md` pour le détail des décisions méthodologiques et la feuille de route C10+.
+Voir `docs/archive/chantiers/C09-RETROSPECTIVE.md` pour le détail des décisions méthodologiques et la feuille de route C10+.
 
 ### Added — Cadrage et bootstrap (S0-S1)
 - Pack de cadrage initial : CDC v1.2, 9 ADR, roadmap 12 semaines, brief S0, catalogue sources, maquette UI textuelle.

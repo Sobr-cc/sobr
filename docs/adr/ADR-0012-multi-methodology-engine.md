@@ -17,7 +17,7 @@
 ### Le bug de calibration AFNOR (audit B)
 
 Pendant l'audit honnête demandé par Thibault en mai 2026 (cf.
-`briefs/chantiers/C24-multi-methodologie-ecologits.md` §1), trois
+`docs/archive/chantiers/C24-multi-methodologie-ecologits.md` §1), trois
 problèmes ont été détectés simultanément dans le moteur historique
 *Sobr.ia AFNOR SPEC 2314* :
 
@@ -269,7 +269,7 @@ package Python.
 
 ## Références
 
-- `briefs/chantiers/C24-multi-methodologie-ecologits.md` — brief
+- `docs/archive/chantiers/C24-multi-methodologie-ecologits.md` — brief
   complet du chantier.
 - `notebook/validation.qmd` — validation reproductible Python.
 - `crates/sobria-core/src/methodology.rs` — `EmpreinteMethod`.

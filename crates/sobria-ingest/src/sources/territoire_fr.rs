@@ -22,6 +22,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tracing::{debug, info};
 
+use crate::hash::hex_encode;
+
 /// Dataset slug pour la consommation annuelle (élec + gaz) par IRIS des
 /// sites industriels raccordés aux réseaux NaTran / RTE / Teréga.
 /// Confirmé via `discover` le 2026-05-13.
@@ -415,14 +417,7 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
         );
     }
 
-    let sha = {
-        let digest = combined_sha.finalize();
-        let mut s = String::with_capacity(64);
-        for b in digest {
-            let _ = write!(s, "{b:02x}");
-        }
-        s
-    };
+    let sha = hex_encode(&combined_sha.finalize());
     let url_for_meta =
         first_url.unwrap_or_else(|| format!("{ODRE_API_BASE}/{ODRE_IRIS_DATASET}/records"));
     let meta = ArtifactMeta {
@@ -699,12 +694,7 @@ fn parse_industrial_record(rec: &Value) -> Option<IndustrialSite> {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut s = String::with_capacity(64);
-    for b in digest {
-        let _ = write!(s, "{b:02x}");
-    }
-    s
+    hex_encode(&Sha256::digest(bytes))
 }
 
 fn round3(x: f64) -> f64 {

@@ -1,5 +1,5 @@
 //! Tests d'intégration de l'auto-install des manifests Native Messaging
-//! (patch C27 v0.6.0). Voir `briefs/chantiers/C27-PATCH-v0.6.0.md` §"Patch 1".
+//! (patch C27 v0.6.0). Voir `docs/archive/chantiers/C27-PATCH-v0.6.0.md` §"Patch 1".
 //!
 //! Couvre :
 //!   - install Chrome macOS → fichier écrit + JSON valide

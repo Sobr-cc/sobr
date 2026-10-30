@@ -19,7 +19,7 @@
 //!
 //! Le mapping métier précis (extraction de `co2_eq`, `tokens`, `model_id`
 //! typés) interviendra dans une v2 du schéma Silver une fois la spec
-//! ComparIA validée. Voir `briefs/chantiers/C02-source-comparia.md`.
+//! ComparIA validée. Voir `docs/archive/chantiers/C02-source-comparia.md`.
 //!
 //! ## Polars en contexte async
 //!
@@ -257,10 +257,9 @@ impl DataLayer for ComparIASource {
             notes: vec![
                 "ComparIA — Ministère de la Culture (Beta.gouv).".into(),
                 "Méthodologie environnementale : EcoLogits (ISO 14044), intégrée en amont par la plateforme.".into(),
-                format!(
-                    "Snapshot Silver v1 = passthrough Parquet + colonnes _copper_sha256 et _ingested_at. \
-                     Mapping métier typé en v2."
-                ),
+                "Snapshot Silver v1 = passthrough Parquet + colonnes _copper_sha256 et _ingested_at. \
+                 Mapping métier typé en v2."
+                    .into(),
             ],
         })
     }

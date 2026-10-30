@@ -166,7 +166,13 @@
     </p>
     {#if data}
       <p class="policy-badge" data-policy={data.policy} title={POLICY_LABEL[data.policy]}>
-        Politique : <strong>{data.policy === 'identified' ? 'Nominatif (attesté)' : data.policy === 'anonymous' ? 'Anonyme strict' : 'Opt-in (défaut)'}</strong>
+        Politique : <strong
+          >{data.policy === 'identified'
+            ? 'Nominatif (attesté)'
+            : data.policy === 'anonymous'
+              ? 'Anonyme strict'
+              : 'Opt-in (défaut)'}</strong
+        >
       </p>
     {/if}
   </div>
@@ -278,9 +284,9 @@
   <div class="card">
     <h3>Lecture</h3>
     <p class="muted">
-      Les projets comptant moins de contributeurs que le seuil k sont repliés dans « Autres
-      projets » (modes anonyme et opt-in) : un projet d'une seule personne est une personne. En
-      mode nominatif attesté, tous les projets sont détaillés.
+      Les projets comptant moins de contributeurs que le seuil k sont repliés dans « Autres projets
+      » (modes anonyme et opt-in) : un projet d'une seule personne est une personne. En mode
+      nominatif attesté, tous les projets sont détaillés.
     </p>
   </div>
 </section>

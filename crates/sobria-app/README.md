@@ -23,7 +23,7 @@ Binaire Tauri 2 — point d'entrée de l'application native Sobr.ia.
 | `list_audit_entries` | `limit, offset` | `Vec<AuditEntrySummaryDto>` |
 | `export_audit_ndjson` | `path` | `usize` (nb lignes) |
 
-Voir [`briefs/chantiers/C09-tauri-integration.md`](../../briefs/chantiers/C09-tauri-integration.md)
+Voir [`docs/archive/chantiers/C09-tauri-integration.md`](../../docs/archive/chantiers/C09-tauri-integration.md)
 pour les contrats détaillés.
 
 ## Dev

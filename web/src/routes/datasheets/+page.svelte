@@ -4,8 +4,7 @@
   // `update_project`, `delete_project`, `generate_project_datasheet`.
   // Contrat no-mock : hors Tauri, la coque pédagogique reste rendue (header +
   // bannière) mais aucune liste / formulaire actif. Voir :
-  //   - briefs/chantiers/C20-empreinte-projet-datasheet.md
-  //   - briefs/chantiers/C20-PROMPT-CLAUDE-CODE-M17.md
+  //   - docs/archive/chantiers/C20-empreinte-projet-datasheet.md
   //   - crates/sobria-app/src/dto.rs (bloc "projects + datasheet")
 
   import { onMount } from 'svelte';
@@ -48,6 +47,7 @@
     type DatasheetDto,
     type IpcErrorCode
   } from '$lib/api';
+  import { fmtInt, fmtTotal } from '$lib/format';
   import { preferences, type ModuleId } from '$lib/preferences';
 
   const MODULE_ID: ModuleId = 'm17';
@@ -162,36 +162,6 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
     if (!m) return iso;
     return `${m[3]}/${m[2]}/${m[1]}`;
-  }
-
-  function fmtNum(n: number, digits = 2): string {
-    if (!Number.isFinite(n)) return '—';
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: digits }).format(n);
-  }
-
-  function fmtInt(n: number): string {
-    if (!Number.isFinite(n)) return '—';
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
-  }
-
-  type AutoScale = { v: string; u: string };
-  function fmtCo2(g: number): AutoScale {
-    if (!Number.isFinite(g)) return { v: '—', u: 'g CO₂eq' };
-    if (g >= 1e6) return { v: fmtNum(g / 1e6), u: 't CO₂eq' };
-    if (g >= 1e3) return { v: fmtNum(g / 1e3), u: 'kg CO₂eq' };
-    return { v: fmtNum(g), u: 'g CO₂eq' };
-  }
-  function fmtEnergy(wh: number): AutoScale {
-    if (!Number.isFinite(wh)) return { v: '—', u: 'Wh' };
-    if (wh >= 1e6) return { v: fmtNum(wh / 1e6), u: 'MWh' };
-    if (wh >= 1e3) return { v: fmtNum(wh / 1e3), u: 'kWh' };
-    return { v: fmtNum(wh), u: 'Wh' };
-  }
-  function fmtWater(l: number): AutoScale {
-    if (!Number.isFinite(l)) return { v: '—', u: 'L' };
-    if (l >= 1000) return { v: fmtNum(l / 1000), u: 'm³' };
-    if (l >= 1) return { v: fmtNum(l), u: 'L' };
-    return { v: fmtNum(l * 1000, 1), u: 'mL' };
   }
 
   // ─── Form helpers ───────────────────────────────────────────────────────
@@ -1100,9 +1070,9 @@
           </p>
         {:else if datasheet}
           {@const c = datasheet.composition}
-          {@const co2 = fmtCo2(c.total_co2eq_g_p50)}
-          {@const en = fmtEnergy(c.total_energy_wh_p50)}
-          {@const wa = fmtWater(c.total_water_l_p50)}
+          {@const co2 = fmtTotal(c.total_co2eq_g_p50, 'gCO2eq')}
+          {@const en = fmtTotal(c.total_energy_wh_p50, 'Wh')}
+          {@const wa = fmtTotal(c.total_water_l_p50, 'L')}
 
           <!-- Composition card -->
           <section class="composition" aria-label="Composition agrégée">

@@ -3,7 +3,7 @@
 //! Génération de rapports PDF et JSON-LD PROV-O pour la conformité CSRD,
 //! AGEC et AFNOR SPEC 2314.
 //!
-//! Voir `briefs/chantiers/C14-rapport-csrd-agec.md` et CDC v1.3 §4 M22.
+//! Voir `docs/archive/chantiers/C14-rapport-csrd-agec.md` et CDC v1.3 §4 M22.
 //!
 //! **Politique** : toutes les valeurs proviennent de l'audit ledger
 //! Sobr.ia (entrées chaînées SHA-256, déjà produites par l'estimateur

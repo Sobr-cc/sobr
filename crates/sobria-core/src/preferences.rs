@@ -57,7 +57,7 @@ impl Persona {
     /// **Retrait M14 des bundles (C32.1)** : M14 « À propos » est une
     /// page documentaire, pas un module fonctionnel. Il reste accessible
     /// via le menu footer / paramètres mais ne pollue plus les bundles
-    /// pré-cochés des personas. Cf. `briefs/chantiers/C32-clarte-produit.md`.
+    /// pré-cochés des personas. Cf. `docs/archive/chantiers/C32-clarte-produit.md`.
     ///
     /// **Invariants garantis par les tests** :
     /// - le bundle est non vide,

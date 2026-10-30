@@ -4,7 +4,7 @@
 //! d'incertitude P5/P50/P95** propagée mensuellement, et superposition
 //! de plusieurs scénarios de croissance d'adoption.
 //!
-//! Voir `briefs/chantiers/C15-forecaster-12-mois.md`.
+//! Voir `docs/archive/chantiers/C15-forecaster-12-mois.md`.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -3,7 +3,7 @@
 > Cible : un admin d'entreprise qui veut déployer le serveur Sobr.ia
 > chez lui pour agréger les estimations carbone de ses N employés.
 > **Aucun cloud Sobr.ia n'est impliqué.** Voir ADR-0013 Phase 2 et
-> `briefs/chantiers/C28-mode-equipe-self-hosted.md`.
+> `docs/archive/chantiers/C28-mode-equipe-self-hosted.md`.
 
 ## TL;DR — En 5 minutes (C32.3)
 
@@ -587,7 +587,7 @@ Format JSON disponible via `RUST_LOG_FORMAT=json`.
 - `deploiement-equipe.md` — déploiement Docker / Compose (kit PME, C40),
   avec `modeles-communication.md` (emails CSE / salariés).
 - ADR-0013 — décision d'architecture (extension + pairing + mode équipe).
-- `briefs/chantiers/C28-mode-equipe-self-hosted.md` — brief du chantier.
+- `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` — brief du chantier.
 - README `crates/sobria-team-aggregator/`.
 - CLAUDE.md §7 (privacy by design).
 

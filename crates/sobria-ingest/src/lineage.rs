@@ -346,7 +346,7 @@ mod tests {
         let g = sample_gold();
         let ld = g.to_jsonld();
         let silver_array = ld["prov:wasDerivedFrom"].as_array().unwrap();
-        assert!(!silver_array.is_empty());
+        assert_ne!(*silver_array, Vec::<serde_json::Value>::new());
         for s in silver_array {
             assert!(s["prov:wasDerivedFrom"].is_array());
         }

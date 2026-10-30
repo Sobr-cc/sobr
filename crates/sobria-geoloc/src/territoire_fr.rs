@@ -1,7 +1,7 @@
 //! Chargement du dataset Territoire FR (sites industriels par IRIS) produit
 //! par `sobria-ingest fetch territoire-fr`.
 //!
-//! Voir `briefs/chantiers/C13-territoire-fr-sankey.md` et ADR-0009.
+//! Voir `docs/archive/chantiers/C13-territoire-fr-sankey.md` et ADR-0009.
 //!
 //! **Contrat de données** : ce module lit strictement le JSON produit par
 //! l'ingest. Le schéma est figé sur la réponse réelle de l'API ODRÉ
@@ -282,7 +282,7 @@ mod tests {
         let a = fixture();
         assert_eq!(a.regions.len(), 2);
         assert_eq!(a.industrial_sites.len(), 2);
-        assert!(!a.meta.source_sha256.is_empty());
+        assert_ne!(a.meta.source_sha256, "");
     }
 
     #[test]

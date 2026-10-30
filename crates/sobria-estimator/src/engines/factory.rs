@@ -39,7 +39,7 @@ mod tests {
             let eng = engine_for(method);
             let info = eng.methodology_info();
             assert_eq!(info.method, method);
-            assert!(!info.display_name.is_empty());
+            assert_ne!(info.display_name, "");
         }
     }
 }

@@ -167,5 +167,5 @@ Toute violation → `IpcError { code: "invalid_request", ... }`.
 ## Références
 
 - CDC v1.3 §3 (personas v2) et §4 (25 modules).
-- Brief `briefs/chantiers/C10-onboarding-personas.md`.
+- Brief `docs/archive/chantiers/C10-onboarding-personas.md`.
 - ADR-0001 (Rust + Tauri 2), ADR-0002 (SvelteKit), ADR-0003 (SQLite/DuckDB).

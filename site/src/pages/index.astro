@@ -2,14 +2,12 @@
 // C33.8 — Refonte home Sobr.ia (handoff bundle Anthropic Design).
 //
 // Page self-contained : @font-face vers /public/fonts/, CSS et JS inlines,
-// Three.js charge via unpkg CDN. Pas de BaseLayout (la nav + footer du
-// design sont integres). Les sections Hero / PourQui / CommentCaMarche /
-// Methodologies / VendorDisclosure / TerritoireFR / Entreprises issues de
-// C33.3-C33.5 restent disponibles dans src/components/sections/ pour
-// reusage sur d'autres routes ; git pre-C33.8 conserve l'index v1.
+// Three.js auto-heberge dans /public/lib (C33.10). Pas de BaseLayout (la nav
+// + footer du design sont integres). Les sections C33.3-C33.5 de l'index v1
+// ont ete retirees (orphelines) : voir l'historique git pre-C33.8.
 //
-// Source design : sobr-ia-design-system/project/site/index.html (handoff
-// 2026-05-12 via claude.ai/design). Adaptations apportees :
+// Source design : maquette site/index.html du handoff claude.ai/design
+// (2026-05-12, non versionnée). Adaptations apportees :
 //   - hrefs index.html / cloud.html / download.html / docs.html mappes
 //     vers les routes Astro (/, /cloud, /telecharger, /docs/).
 //   - @font-face inline pointant vers /fonts/*.woff2 (deja auto-heberges
@@ -1450,7 +1448,9 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
               ><span>Suivi perso</span><span>·</span><span>28 datacenters documentés</span>
             </div>
             <p class="rise lit d3" style="margin-top:22px">
-              <a href="/manifeste" style="color:var(--lime);text-decoration:none;border-bottom:1px dashed rgba(197,240,74,0.4)"
+              <a
+                href="/manifeste"
+                style="color:var(--lime);text-decoration:none;border-bottom:1px dashed rgba(197,240,74,0.4)"
                 >Lire le manifeste — « Le poids invisible » →</a
               >
             </p>
@@ -1934,9 +1934,9 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
          Fail-safe : apres 2,5s tous les .rise sont forcees visibles. -->
     <script is:inline>
       (function () {
-        var rises = document.querySelectorAll('.rise');
+        const rises = document.querySelectorAll('.rise');
         try {
-          var io = new IntersectionObserver(
+          const io = new IntersectionObserver(
             function (entries) {
               entries.forEach(function (e) {
                 if (e.isIntersecting) e.target.classList.add('lit');
@@ -1947,7 +1947,7 @@ const ogImage = new URL('/og-image.png', Astro.site).href;
           rises.forEach(function (el) {
             io.observe(el);
           });
-        } catch (err) {
+        } catch {
           rises.forEach(function (el) {
             el.classList.add('lit');
           });

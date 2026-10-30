@@ -5,8 +5,8 @@
   // switch périodes désactivés + bannière), mais aucune métrique mockée.
   //
   // Voir :
-  //   - briefs/chantiers/C19-dashboard-eco-budget.md §1 M15
-  //   - briefs/chantiers/C19-PROMPTS-CLAUDE-CODE-M15-M25.md
+  //   - docs/archive/chantiers/C19-dashboard-eco-budget.md §1 M15
+  //   - docs/archive/chantiers/C19-PROMPTS-CLAUDE-CODE-M15-M25.md
   //   - crates/sobria-app/src/dto.rs (bloc "dashboard + eco-budget")
 
   import { onMount } from 'svelte';
@@ -38,6 +38,7 @@
     type Calibration,
     type IpcErrorCode
   } from '$lib/api';
+  import { fmtFixed as fmt, fmtInt, fmtTotal } from '$lib/format';
   import { preferences, type ModuleId } from '$lib/preferences';
   import EquivalenceCarbon from '$lib/components/EquivalenceCarbon.svelte';
 
@@ -146,39 +147,6 @@
   }
 
   // ─── Formatage numérique ────────────────────────────────────────────────
-
-  function fmt(n: number, digits = 1): string {
-    if (!Number.isFinite(n)) return '—';
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: digits }).format(n);
-  }
-
-  function fmtInt(n: number): string {
-    if (!Number.isFinite(n)) return '—';
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
-  }
-
-  type AutoScale = { v: string; u: string };
-
-  function fmtCo2(g: number): AutoScale {
-    if (!Number.isFinite(g)) return { v: '—', u: 'gCO₂eq' };
-    if (g >= 1e6) return { v: fmt(g / 1e6, 2), u: 't CO₂eq' };
-    if (g >= 1e3) return { v: fmt(g / 1e3, 2), u: 'kg CO₂eq' };
-    return { v: fmt(g, 2), u: 'g CO₂eq' };
-  }
-
-  function fmtEnergy(wh: number): AutoScale {
-    if (!Number.isFinite(wh)) return { v: '—', u: 'Wh' };
-    if (wh >= 1e6) return { v: fmt(wh / 1e6, 2), u: 'MWh' };
-    if (wh >= 1e3) return { v: fmt(wh / 1e3, 2), u: 'kWh' };
-    return { v: fmt(wh, 2), u: 'Wh' };
-  }
-
-  function fmtWater(l: number): AutoScale {
-    if (!Number.isFinite(l)) return { v: '—', u: 'L' };
-    if (l >= 1000) return { v: fmt(l / 1000, 2), u: 'm³' };
-    if (l >= 1) return { v: fmt(l, 2), u: 'L' };
-    return { v: fmt(l * 1000, 1), u: 'mL' };
-  }
 
   function fmtDateShort(yyyymmdd: string): string {
     // Reçoit "YYYY-MM-DD" depuis daily_series. Renvoie "DD MMM" en FR.
@@ -474,7 +442,7 @@
           <Leaf size={11} strokeWidth={1.8} /> CO₂eq cumulé (P50)
         </div>
         {#if summary}
-          {@const co2 = fmtCo2(summary.total_co2eq_g_p50)}
+          {@const co2 = fmtTotal(summary.total_co2eq_g_p50, 'gCO2eq')}
           <div class="stat-v">{co2.v}<span class="u">{co2.u}</span></div>
           {#if summary.vs_previous}
             {@const d = summary.vs_previous.delta_co2eq_pct}
@@ -500,7 +468,7 @@
           <Zap size={11} strokeWidth={1.8} /> Énergie cumulée (P50)
         </div>
         {#if summary}
-          {@const en = fmtEnergy(summary.total_energy_wh_p50)}
+          {@const en = fmtTotal(summary.total_energy_wh_p50, 'Wh')}
           <div class="stat-v">{en.v}<span class="u">{en.u}</span></div>
         {:else}
           <div class="stat-v skel">—</div>
@@ -512,7 +480,7 @@
           <Droplet size={11} strokeWidth={1.8} /> Eau cumulée (P50)
         </div>
         {#if summary}
-          {@const w = fmtWater(summary.total_water_l_p50)}
+          {@const w = fmtTotal(summary.total_water_l_p50, 'L')}
           <div class="stat-v">{w.v}<span class="u">{w.u}</span></div>
         {:else}
           <div class="stat-v skel">—</div>
@@ -553,9 +521,9 @@
         </header>
         <div class="mb-grid">
           {#each summary.method_breakdown as mt (mt.method)}
-            {@const co2 = fmtCo2(mt.total_co2eq_g_p50)}
-            {@const en = fmtEnergy(mt.total_energy_wh_p50)}
-            {@const wa = fmtWater(mt.total_water_l_p50)}
+            {@const co2 = fmtTotal(mt.total_co2eq_g_p50, 'gCO2eq')}
+            {@const en = fmtTotal(mt.total_energy_wh_p50, 'Wh')}
+            {@const wa = fmtTotal(mt.total_water_l_p50, 'L')}
             <article class="mb-card" data-method={mt.method}>
               <header class="mb-card-head">
                 <span class="mb-method-name">
@@ -677,9 +645,11 @@
                   onblur={onBarLeave}
                 >
                   <title>
-                    {fmtDateLong(d.date)} — {fmtInt(d.request_count)} req · {fmtCo2(d.co2eq_g_p50)
-                      .v}
-                    {fmtCo2(d.co2eq_g_p50).u}
+                    {fmtDateLong(d.date)} — {fmtInt(d.request_count)} req · {fmtTotal(
+                      d.co2eq_g_p50,
+                      'gCO2eq'
+                    ).v}
+                    {fmtTotal(d.co2eq_g_p50, 'gCO2eq').u}
                   </title>
                 </rect>
               {/each}
@@ -702,9 +672,9 @@
             {#if hoverIdx !== null}
               {@const d = summary.daily_series[hoverIdx]}
               {#if d}
-                {@const co2 = fmtCo2(d.co2eq_g_p50)}
-                {@const en = fmtEnergy(d.energy_wh_p50)}
-                {@const wa = fmtWater(d.water_l_p50)}
+                {@const co2 = fmtTotal(d.co2eq_g_p50, 'gCO2eq')}
+                {@const en = fmtTotal(d.energy_wh_p50, 'Wh')}
+                {@const wa = fmtTotal(d.water_l_p50, 'L')}
                 {@const xPct = (((hoverIdx + 0.5) * (BAR_W + BAR_GAP)) / chartWidth) * 100}
                 <div class="tooltip" style="left: {xPct}%" aria-hidden="true">
                   <div class="tt-date mono">{fmtDateLong(d.date)}</div>
@@ -790,7 +760,7 @@
       {:else}
         <ol class="top-list">
           {#each summary.top_models as m, i (m.model_id)}
-            {@const co2 = fmtCo2(m.total_co2eq_g_p50)}
+            {@const co2 = fmtTotal(m.total_co2eq_g_p50, 'gCO2eq')}
             {@const pct = topMax > 0 ? (m.total_co2eq_g_p50 / topMax) * 100 : 0}
             {@const cal = modelCalibration(m.model_id)}
             <li class="top-row">

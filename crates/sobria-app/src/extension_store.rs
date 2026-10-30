@@ -19,7 +19,7 @@
 //! La lecture du spool `~/.sobria/spool/incoming.jsonl` est intégrée dans
 //! `drain_spool` qui valide le secret puis insère dans `extension_events`.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
@@ -482,12 +482,6 @@ fn ulid() -> String {
 
     // SAFETY : tous les bytes viennent de CROCKFORD (ASCII alphanumérique).
     String::from_utf8(out.to_vec()).expect("ULID chars are ASCII by construction")
-}
-
-#[allow(dead_code)]
-fn _spool_default_path() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("home_dir introuvable")?;
-    Ok(home.join(".sobria").join("spool").join("incoming.jsonl"))
 }
 
 /// Migration v2 → v3 du schéma `device_pairings` (patch C27 v0.6.0).

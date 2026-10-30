@@ -4,7 +4,7 @@
 # crate produit. Usage :
 #   cd tools/fixturegen
 #   OUT_DIR_FIXTURES=../../web/src/lib/demo/fixtures cargo run --release
-# puis minifier les JSON (cf. briefs/chantiers/C37-mode-demo-web.md §4).
+# puis minifier les JSON (cf. docs/archive/chantiers/C37-mode-demo-web.md §4).
 [package]
 name = "fixturegen"
 version = "0.1.0"

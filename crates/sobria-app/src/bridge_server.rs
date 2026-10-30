@@ -381,7 +381,7 @@ mod tests {
             },
         );
         assert!(resp.ok, "got error: {:?}", resp.error);
-        assert!(resp.secret.as_deref().unwrap_or("").len() == 64);
+        assert_eq!(resp.secret.as_deref().unwrap_or("").len(), 64);
         assert!(resp.pairing_id.is_some());
         assert_eq!(resp.fingerprint.as_deref(), Some(bridge_fingerprint()));
     }

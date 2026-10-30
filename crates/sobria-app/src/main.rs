@@ -1,5 +1,5 @@
 //! Binaire de l'application Tauri Sobr.ia — voir ADR-0001 et
-//! `briefs/chantiers/C09-tauri-integration.md`.
+//! `docs/archive/chantiers/C09-tauri-integration.md`.
 //!
 //! Le runtime Tauri se contente d'enregistrer les commandes IPC et de
 //! charger le bundle frontend (SvelteKit produit par `web/`). Toute la

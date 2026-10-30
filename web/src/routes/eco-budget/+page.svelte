@@ -5,8 +5,8 @@
   // Contrat no-mock : hors Tauri, formulaire désactivé + bannière.
   //
   // Voir :
-  //   - briefs/chantiers/C19-dashboard-eco-budget.md §2 M25
-  //   - briefs/chantiers/C19-PROMPTS-CLAUDE-CODE-M15-M25.md
+  //   - docs/archive/chantiers/C19-dashboard-eco-budget.md §2 M25
+  //   - docs/archive/chantiers/C19-PROMPTS-CLAUDE-CODE-M15-M25.md
   //   - crates/sobria-app/src/dto.rs (bloc "dashboard + eco-budget")
 
   import {

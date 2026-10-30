@@ -1152,7 +1152,7 @@ pub struct CsrdReportResultDto {
 
 /// Payload de simulation envoyé par le frontend.
 ///
-/// Voir `briefs/chantiers/C11-simulateur-et-si.md`.
+/// Voir `docs/archive/chantiers/C11-simulateur-et-si.md`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationRequestDto {
     pub baseline: EstimationRequestDto,
@@ -1407,7 +1407,7 @@ impl From<&CountryAggregate> for CountryAggregateDto {
 /// Préférences utilisateur partagées entre Rust et le frontend SvelteKit.
 ///
 /// Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md) et
-/// `briefs/chantiers/C10-onboarding-personas.md` §2.2.
+/// `docs/archive/chantiers/C10-onboarding-personas.md` §2.2.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppPreferencesDto {
     /// Persona courant (`null` tant que l'utilisateur n'a pas validé l'onboarding).

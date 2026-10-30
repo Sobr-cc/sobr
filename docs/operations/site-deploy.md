@@ -719,8 +719,7 @@ Si Thibault change de VPS :
 
 ## 12. Liens utiles
 
-- Brief chantier : `briefs/chantiers/C33-site-internet.md`
-- Prompt Claude Code : `briefs/chantiers/C33-PROMPT-CLAUDE-CODE.md`
+- Brief chantier : `docs/archive/chantiers/C33-site-internet.md`
 - ADR souveraineté : `docs/adr/ADR-0014-dual-track-local-cloud.md`
 - Documentation nginx : <https://nginx.org/en/docs/>
 - Documentation certbot : <https://certbot.eff.org/instructions>

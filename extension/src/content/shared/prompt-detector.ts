@@ -94,20 +94,12 @@ export function observePromptSubmission(config: PromptDetectorConfig): () => voi
   document.addEventListener('click', onClickCapture, { capture: true, passive: true });
   document.addEventListener('keydown', onKeydownCapture, { capture: true });
 
-  // MutationObserver : utile pour les sites SPA où textarea / bouton n'existent
-  // pas immédiatement au document_idle. Pas d'action directe — on relit les
-  // sélecteurs à chaque évènement utilisateur. L'observer reste connecté pour
-  // que l'on puisse débrancher proprement avec dispose().
-  const observer = new MutationObserver(() => {
-    /* no-op : on relit les sélecteurs à chaque interaction utilisateur */
-  });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-
+  // Pas de MutationObserver : les sélecteurs sont relus à chaque évènement
+  // utilisateur, ce qui suffit pour les SPA où le composer apparaît tard.
   return function dispose(): void {
     disposed = true;
     document.removeEventListener('click', onClickCapture, { capture: true });
     document.removeEventListener('keydown', onKeydownCapture, { capture: true });
-    observer.disconnect();
   };
 }
 

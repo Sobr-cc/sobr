@@ -26,6 +26,14 @@ export function pickGrade(gco2eq: number): Grade {
   return 'F';
 }
 
+/** Ton couleur selon la note A-F (popup, composer et badge in-page). */
+export function toneOf(gco2eq: number): 'lime' | 'amber' | 'coral' {
+  const g = pickGrade(gco2eq);
+  if (g === 'A' || g === 'B') return 'lime';
+  if (g === 'C' || g === 'D') return 'amber';
+  return 'coral';
+}
+
 /**
  * Ratio circonférentiel de la jauge (0 = vide, 1 = plein).
  *
@@ -38,26 +46,4 @@ export function gaugeRatio(gco2eq: number): number {
   if (gco2eq >= max) return 1;
   // Mapping log doux : note A reste visible, F arrive vite.
   return Math.min(1, Math.log10(1 + gco2eq * 9) / Math.log10(1 + max * 9));
-}
-
-/**
- * Couleur du score (mirror tokens design system).
- *
- * A/B → lime, C → ambre clair, D → ambre, E → corail, F → coral foncé.
- */
-export function gradeColor(grade: Grade): string {
-  switch (grade) {
-    case 'A':
-      return '#c5f04a';
-    case 'B':
-      return '#a4dc4a';
-    case 'C':
-      return '#f5b769';
-    case 'D':
-      return '#f08c5a';
-    case 'E':
-      return '#f06c5a';
-    case 'F':
-      return '#d8453a';
-  }
 }

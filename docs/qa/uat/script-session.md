@@ -11,7 +11,7 @@
 
 - [ ] Poste de test : app desktop lancée puis fermée, base réinitialisée,
   localStorage WebView vidé → l'onboarding doit repartir de zéro
-  (procédure : `docs/qa/smoke-test-v0.8.0-2026-05.md` § Pré-vol).
+  (procédure : `docs/archive/smoke-test-v0.8.0-2026-05.md` § Pré-vol).
 - [ ] Navigateur propre, onglet vierge (ne PAS pré-ouvrir le site).
 - [ ] Préparation spécifique persona faite (voir `taches-personas.md` § Préparation).
 - [ ] Enregistrement testé (micro + écran). Chronomètre prêt.

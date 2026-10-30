@@ -118,10 +118,10 @@
   <div class="card forbidden" role="status">
     <h3>Détail individuel non accessible</h3>
     <p class="muted">
-      La politique de visibilité de votre organisation ne permet pas cette vue : soit le mode est
-      « anonyme strict » (aucune identification, ADR-0016), soit cet employé n'a pas activé son
-      partage identifié (ADR-0015). Le consentement appartient au salarié — il peut l'activer
-      depuis son espace « Mon usage ».
+      La politique de visibilité de votre organisation ne permet pas cette vue : soit le mode est «
+      anonyme strict » (aucune identification, ADR-0016), soit cet employé n'a pas activé son
+      partage identifié (ADR-0015). Le consentement appartient au salarié — il peut l'activer depuis
+      son espace « Mon usage ».
     </p>
   </div>
 {:else if error}

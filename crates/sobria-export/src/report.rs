@@ -1,9 +1,9 @@
 //! Génération du rapport PDF CSRD/AGEC/AFNOR SPEC 2314.
 //!
-//! Voir `briefs/chantiers/C14-rapport-csrd-agec.md` §1 pour la
+//! Voir `docs/archive/chantiers/C14-rapport-csrd-agec.md` §1 pour la
 //! structure complète.
 
-use std::{fmt::Write as _, io::BufWriter};
+use std::io::BufWriter;
 
 use chrono::{DateTime, Utc};
 use printpdf::{BuiltinFont, Mm, PdfDocument};
@@ -347,14 +347,9 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
     Ok(bytes)
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut s = String::with_capacity(64);
-    for b in digest {
-        // `write!` sur String est infaillible (impl `fmt::Write`).
-        let _ = write!(s, "{b:02x}");
-    }
-    s
+/// SHA-256 en hexadécimal minuscule (partagé avec `datasheet`).
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 //! Dataset embarqué des 28 datacenters européens de référence.
 //!
-//! Voir `briefs/chantiers/C12-datacenters-europe.md` et
+//! Voir `docs/archive/chantiers/C12-datacenters-europe.md` et
 //! `docs/sources/CATALOGUE-DATACENTERS.md`.
 //!
 //! Le dataset est chargé une seule fois via [`OnceLock`] depuis le fichier

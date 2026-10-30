@@ -1,4 +1,4 @@
-//! Ledger ACID chaîné — voir `briefs/chantiers/C08-audit-ledger.md`.
+//! Ledger ACID chaîné — voir `docs/archive/chantiers/C08-audit-ledger.md`.
 
 use std::{io::Write, path::Path};
 

@@ -21,6 +21,8 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "../../web-team/build"]
+// Bundle absent (clone frais, CI Rust) → embed vide et `bundle_missing_response`.
+#[allow_missing = true]
 #[include = "*.html"]
 #[include = "*.js"]
 #[include = "*.css"]

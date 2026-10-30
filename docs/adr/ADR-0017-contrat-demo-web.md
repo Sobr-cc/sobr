@@ -26,7 +26,7 @@ Le contrat no-mock devient un **contrat démo**, aux règles suivantes :
    complets (intervalles, bins, équivalents sourcés, hypothèses). Le
    catalogue (34 modèles), les méthodologies et les 28 datacenters sont
    les données embarquées réelles. Régénération documentée
-   (`briefs/chantiers/C37-mode-demo-web.md` §2).
+   (`docs/archive/chantiers/C37-mode-demo-web.md` §2).
 2. **Jamais dans l'application de bureau.** Activation uniquement quand
    `isTauriContext()` est faux ; le module démo et ses fixtures sont
    chargés par `import()` paresseux — le bundle Tauri ne les contient

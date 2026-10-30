@@ -1,6 +1,6 @@
 // Sobr.ia extension — badge bouton + popout (design 38, C27.3 v3).
 //
-// Implémente `sobr-ia-design-system/project/preview/38-extension-chatgpt.html` :
+// Implémente la maquette « 38 — extension ChatGPT » (handoff design, non versionnée) :
 //   - **Button compact** « [leaf] 2,14 g CO₂eq | Sobr.ia ▾ » conçu pour
 //     s'intégrer dans la **rangée d'actions du message bot** (à côté des
 //     boutons natifs copier/like/dislike/etc.).
@@ -14,6 +14,8 @@
 import type { Estimate, EmpreinteMethod, EquivalentIcon } from '../../lib/types.js';
 import type { DailyTotal } from '../../lib/messages.js';
 import { unsupportedModelTooltip } from '../../lib/registry-meta.js';
+import { CAR_G_CO2EQ_PER_KM } from '../../lib/empreinte/equivalents.js';
+import { fmtFr } from '../../lib/format.js';
 import {
   FONT_UI,
   FONT_DISPLAY,
@@ -31,11 +33,6 @@ function pickGrade(gco2eq: number): { letter: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
   if (gco2eq < 10.0) return { letter: 'D', ratio: 0.6 };
   if (gco2eq < 20.0) return { letter: 'E', ratio: 0.78 };
   return { letter: 'F', ratio: 0.92 };
-}
-
-/** Formatage FR à `digits` chiffres significatifs (défaut 3 → "2,14"). */
-function fmt(n: number, digits = 3): string {
-  return new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: digits }).format(n);
 }
 
 function shortMethodLabel(method: EmpreinteMethod): string {
@@ -79,11 +76,11 @@ const EQ_ICONS: Record<EquivalentIcon, string> = {
 /** Construit l'HTML interne du host shadow root selon design 38. */
 function renderBadgeMarkup(estimate: Estimate, session: DailyTotal | null): string {
   const methodLabel = shortMethodLabel(estimate.method);
-  const gco2 = fmt(estimate.gco2eq);
-  const water = fmt(estimate.waterMl);
-  const energy = fmt(estimate.energyWh, 3);
-  const usage = fmt(estimate.gco2eqUsage);
-  const embodied = fmt(estimate.gco2eqEmbodied);
+  const gco2 = fmtFr(estimate.gco2eq, 3);
+  const water = fmtFr(estimate.waterMl, 3);
+  const energy = fmtFr(estimate.energyWh, 3);
+  const usage = fmtFr(estimate.gco2eqUsage, 3);
+  const embodied = fmtFr(estimate.gco2eqEmbodied, 3);
   const tokensIn = estimate.tokensIn;
   const tokensOut = estimate.tokensOut;
 
@@ -92,12 +89,12 @@ function renderBadgeMarkup(estimate: Estimate, session: DailyTotal | null): stri
   const gaugeOffset = Math.round(gaugeCircumference * (1 - ratio));
 
   // Hypothèse IC ±28 % (P5/P95) ~ équivalent log-normal σ ≈ 0.30 — cf. ADR-0004.
-  const p5 = fmt(estimate.gco2eq * 0.72);
-  const p95 = fmt(estimate.gco2eq * 1.28);
+  const p5 = fmtFr(estimate.gco2eq * 0.72, 3);
+  const p95 = fmtFr(estimate.gco2eq * 1.28, 3);
 
   const equivTiles = estimate.equivalents
     .map((eq) => {
-      const valueDisplay = eq.display ?? fmt(eq.value);
+      const valueDisplay = eq.display ?? fmtFr(eq.value, 3);
       return `<div class="eq">
   <div class="ic">${EQ_ICONS[eq.icon]}</div>
   <div class="body-eq">
@@ -114,12 +111,12 @@ function renderBadgeMarkup(estimate: Estimate, session: DailyTotal | null): stri
     waterMl: estimate.waterMl,
     energyWh: estimate.energyWh
   };
-  const sessionGco2 = fmt(sessionTotal.gco2eq);
-  const sessionWater = fmt(sessionTotal.waterMl);
-  const sessionEnergy = fmt(sessionTotal.energyWh, 3);
+  const sessionGco2 = fmtFr(sessionTotal.gco2eq, 3);
+  const sessionWater = fmtFr(sessionTotal.waterMl, 3);
+  const sessionEnergy = fmtFr(sessionTotal.energyWh, 3);
   const sessionTokensIn = tokensIn * sessionTotal.count;
   const sessionTokensOut = tokensOut * sessionTotal.count;
-  const sessionKmCar = fmt(sessionTotal.gco2eq / 192);
+  const sessionKmCar = fmtFr(sessionTotal.gco2eq / CAR_G_CO2EQ_PER_KM, 3);
 
   return `
 <style>
@@ -974,10 +971,3 @@ export function removeAllBadges(root: Element | Document = document): void {
 
 /** Exposé pour les tests / debug : ratio gauge selon gco2eq. */
 export { pickGrade };
-
-/** @deprecated alias historique pour compat tests existants (jusqu'à C27.4). */
-export function pickTone(gco2eq: number): 'lime' | 'amber' | 'coral' {
-  if (gco2eq < 1.0) return 'lime';
-  if (gco2eq < 5.0) return 'amber';
-  return 'coral';
-}

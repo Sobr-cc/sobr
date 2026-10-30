@@ -15,7 +15,7 @@
 //! - [`InputModality`] qualifie le **type d'input d'un prompt unitaire**
 //!   sur un LLM multimodal (texte, images, documents, audio).
 //!
-//! Voir `briefs/chantiers/C34-catalogue-modalites-overhead.md` §2.
+//! Voir `docs/archive/chantiers/C34-catalogue-modalites-overhead.md` §2.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

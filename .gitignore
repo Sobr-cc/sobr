@@ -27,7 +27,6 @@ src-tauri/target/
 /data/gold/
 *.parquet
 *.duckdb
-!docs/**/*.parquet  # exception pour samples docs
 
 # Notebooks rendus (sources versionnées, sorties non)
 notebook/_freeze/
@@ -44,9 +43,10 @@ logs/
 Thumbs.db
 desktop.ini
 
-# IDE
+# IDE / assistants
 .vscode/
 .idea/
+.claude/scheduled_tasks.lock
 *.swp
 *.swo
 

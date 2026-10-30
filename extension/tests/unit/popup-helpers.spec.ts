@@ -7,9 +7,9 @@ import {
   fmtRelative,
   linkLabel,
   resolveLinkState,
-  todaySubline,
-  toneOf
+  todaySubline
 } from '../../src/popup/main.js';
+import { toneOf } from '../../src/lib/empreinte/grade.js';
 import type { DailyTotal } from '../../src/lib/messages.js';
 
 function total(overrides: Partial<DailyTotal> = {}): DailyTotal {

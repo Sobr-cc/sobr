@@ -1,7 +1,7 @@
 //! # sobria-audit
 //!
 //! Ledger ACID SQLite WAL chaîné SHA-256 pour la traçabilité réglementaire
-//! (voir CDC §5.7 et `briefs/chantiers/C08-audit-ledger.md`).
+//! (voir CDC §5.7 et `docs/archive/chantiers/C08-audit-ledger.md`).
 //!
 //! ## Exemple
 //!

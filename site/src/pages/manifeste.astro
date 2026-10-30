@@ -10,7 +10,7 @@
 // Tous les chiffres sont les valeurs réelles du moteur Monte-Carlo
 // (fixtures seed 42 — C37/C40) : le manifeste est factuel, c'est sa force.
 //
-// DA + storyboard : briefs/chantiers/C45-manifeste-immersif.md.
+// DA + storyboard : docs/archive/chantiers/C45-manifeste-immersif.md.
 // ⚠ v1 écrite sans rendu écran (env indisponible) — itération visuelle
 // à faire sur captures avant mise en avant.
 import Footer from '../components/Footer.astro';
@@ -38,9 +38,7 @@ const description =
     <nav class="rail" id="rail" aria-label="Progression du manifeste">
       {
         ['Invisible', 'Mesurer', 'Douter', 'Choisir', 'Ensemble', 'Ouvrir', 'Commencer'].map(
-          (label, i) => (
-            <span class={`dot${i === 0 ? ' on' : ''}`} data-i={i} title={label} />
-          )
+          (label, i) => <span class={`dot${i === 0 ? ' on' : ''}`} data-i={i} title={label} />,
         )
       }
     </nav>
@@ -56,8 +54,8 @@ const description =
             <span class="line em">Personne ne le voit.</span>
           </h1>
           <p class="body">
-            Une question posée à une IA traverse un datacenter, consomme de l'électricité, de
-            l'eau — et n'affiche jamais sa facture.
+            Une question posée à une IA traverse un datacenter, consomme de l'électricité, de l'eau
+            — et n'affiche jamais sa facture.
           </p>
         </div>
         <div class="marquee" aria-hidden="true">
@@ -84,8 +82,8 @@ const description =
             <span class="metric__unit">g CO₂eq</span>
           </p>
           <p class="body">
-            Un prompt moyen sur un modèle courant. Calculé en local, par 10 000 tirages
-            Monte-Carlo — pas une estimation de coin de table.
+            Un prompt moyen sur un modèle courant. Calculé en local, par 10 000 tirages Monte-Carlo
+            — pas une estimation de coin de table.
           </p>
         </div>
       </section>
@@ -99,7 +97,11 @@ const description =
             <span class="line">intervalle est un</span>
             <span class="line em">mensonge confortable.</span>
           </h2>
-          <div class="range" role="img" aria-label="Intervalle d'incertitude : de 0,31 à 0,67 gramme, médiane 0,45">
+          <div
+            class="range"
+            role="img"
+            aria-label="Intervalle d'incertitude : de 0,31 à 0,67 gramme, médiane 0,45"
+          >
             <span class="range__tick range__tick--p5"><b>0,31</b> P5</span>
             <span class="range__bar"><i id="rangeFill"></i><em class="range__mid"></em></span>
             <span class="range__tick range__tick--p95"><b>0,67</b> P95</span>
@@ -142,7 +144,11 @@ const description =
             <span class="line">sans</span>
             <span class="line em">surveiller.</span>
           </h2>
-          <div class="kfold" id="kfold" aria-label="Cinq personnes fondues dans un agrégat k-anonyme">
+          <div
+            class="kfold"
+            id="kfold"
+            aria-label="Cinq personnes fondues dans un agrégat k-anonyme"
+          >
             <span class="kfold__av">A</span>
             <span class="kfold__av">B</span>
             <span class="kfold__av">C</span>
@@ -151,9 +157,9 @@ const description =
             <span class="kfold__agg">k&nbsp;=&nbsp;5</span>
           </div>
           <p class="body">
-            Votre équipe mesurée en agrégats k-anonymes, appliqués côté serveur. Personne
-            n'apparaît nommément sans l'avoir décidé — et votre organisation choisit sa politique,
-            attestation à l'appui.
+            Votre équipe mesurée en agrégats k-anonymes, appliqués côté serveur. Personne n'apparaît
+            nommément sans l'avoir décidé — et votre organisation choisit sa politique, attestation
+            à l'appui.
           </p>
         </div>
       </section>
@@ -174,9 +180,18 @@ const description =
         </div>
         <div class="marquee marquee--alt" aria-hidden="true">
           <div class="marquee__track">
-            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
-            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
-            <span>MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed 42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span>
+            <span
+              >MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed
+              42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span
+            >
+            <span
+              >MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed
+              42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span
+            >
+            <span
+              >MIT&nbsp;•&nbsp;AFNOR SPEC 2314&nbsp;•&nbsp;seed
+              42&nbsp;•&nbsp;ComparIA&nbsp;•&nbsp;RTE IRIS&nbsp;•&nbsp;EcoLogits&nbsp;•&nbsp;</span
+            >
           </div>
         </div>
       </section>
@@ -414,7 +429,12 @@ const description =
         position: absolute;
         inset: 0;
         border-radius: 3px;
-        background: linear-gradient(90deg, rgba(197, 240, 74, 0.25), var(--lime), rgba(197, 240, 74, 0.25));
+        background: linear-gradient(
+          90deg,
+          rgba(197, 240, 74, 0.25),
+          var(--lime),
+          rgba(197, 240, 74, 0.25)
+        );
         transform: scaleX(0);
         transform-origin: center;
         transition: transform 900ms 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -494,11 +514,26 @@ const description =
         opacity: 0;
         transform: translateX(var(--fold, 0)) scale(0.4);
       }
-      .scene.on .kfold__av:nth-child(1) { --fold: 104px; transition-delay: 250ms; }
-      .scene.on .kfold__av:nth-child(2) { --fold: 52px; transition-delay: 330ms; }
-      .scene.on .kfold__av:nth-child(3) { --fold: 0px; transition-delay: 410ms; }
-      .scene.on .kfold__av:nth-child(4) { --fold: -52px; transition-delay: 490ms; }
-      .scene.on .kfold__av:nth-child(5) { --fold: -104px; transition-delay: 570ms; }
+      .scene.on .kfold__av:nth-child(1) {
+        --fold: 104px;
+        transition-delay: 250ms;
+      }
+      .scene.on .kfold__av:nth-child(2) {
+        --fold: 52px;
+        transition-delay: 330ms;
+      }
+      .scene.on .kfold__av:nth-child(3) {
+        --fold: 0px;
+        transition-delay: 410ms;
+      }
+      .scene.on .kfold__av:nth-child(4) {
+        --fold: -52px;
+        transition-delay: 490ms;
+      }
+      .scene.on .kfold__av:nth-child(5) {
+        --fold: -104px;
+        transition-delay: 570ms;
+      }
       .kfold__agg {
         position: absolute;
         opacity: 0;
@@ -594,7 +629,11 @@ const description =
         color: var(--ink);
       }
       .scene--last {
-        background: radial-gradient(ellipse 70% 50% at 50% 60%, rgba(197, 240, 74, 0.06), transparent);
+        background: radial-gradient(
+          ellipse 70% 50% at 50% 60%,
+          rgba(197, 240, 74, 0.06),
+          transparent
+        );
       }
 
       /* ── Reduced motion : tout statique, tout visible ─────────────── */
@@ -664,7 +703,7 @@ const description =
             }
           }
         },
-        { threshold: 0.45 }
+        { threshold: 0.45 },
       );
       scenes.forEach((s) => io.observe(s));
 

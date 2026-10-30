@@ -5,7 +5,7 @@
 //! de projeter ces variations sur 12 mois avec une hypothèse géométrique
 //! de croissance d'adoption.
 //!
-//! Voir `briefs/chantiers/C11-simulateur-et-si.md` pour la spec.
+//! Voir `docs/archive/chantiers/C11-simulateur-et-si.md` pour la spec.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -377,10 +377,6 @@ export function moduleCategory(id: ModuleId): ModuleCategory {
   return MODULES[id].category;
 }
 
-export function moduleInfo(id: ModuleId): ModuleInfo {
-  return MODULES[id];
-}
-
 // ─── C32.2 — Pourquoi ce module est dans le bundle de ce persona ? ──────
 // Tooltip pédagogique affiché au survol des modules pré-cochés dans
 // l'onboarding (étape 4 Bundle) et dans /parametres. Le texte est
@@ -450,8 +446,3 @@ export const CATEGORY_LABELS: Record<ModuleCategory, string> = {
   reporting: 'Reporting',
   pedagogie: 'Pédagogie'
 };
-
-/** Helper de garde de route : true si le module est dans le bundle actif. */
-export function isModuleEnabled(id: ModuleId): boolean {
-  return get(preferences).enabled_modules.includes(id);
-}

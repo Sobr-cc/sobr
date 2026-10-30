@@ -16,10 +16,7 @@ const config = {
       strict: true
     }),
     alias: {
-      $lib: './src/lib',
-      $components: './src/lib/components',
-      $stores: './src/lib/stores',
-      $ipc: './src/lib/ipc'
+      $lib: './src/lib'
     },
     typescript: {
       config: (config) => ({

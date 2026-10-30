@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (sobria-app, sobria-core, sobria-geoloc, sobria-estimator), Tauri 2 IPC, SvelteKit 2 + Svelte 5 runes, Playwright, rusqlite.
 
-**Spec:** [briefs/chantiers/C25-datacenter-selection.md](C25-datacenter-selection.md)
+**Spec:** [docs/archive/chantiers/C25-datacenter-selection.md](C25-datacenter-selection.md)
 
 ---
 
@@ -1711,7 +1711,7 @@ All four must be clean.
 
 - [ ] Add a screenshot of `/estimate` with the picker open and `/datacenters` with the map immersive, attach to the PR description.
 
-- [ ] Reference the spec (`briefs/chantiers/C25-datacenter-selection.md`) in the PR description.
+- [ ] Reference the spec (`docs/archive/chantiers/C25-datacenter-selection.md`) in the PR description.
 
 ---
 

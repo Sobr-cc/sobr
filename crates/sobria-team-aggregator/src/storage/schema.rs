@@ -1,6 +1,6 @@
 //! Schéma SQLite v1 du `sobria-team-aggregator`.
 //!
-//! Voir `briefs/chantiers/C28-mode-equipe-self-hosted.md` §2 pour le détail.
+//! Voir `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2 pour le détail.
 //! La migration est idempotente (`CREATE TABLE IF NOT EXISTS`) et pilotée par
 //! la `PRAGMA user_version` SQLite. C28.1 installe la **totalité** des tables
 //! v1 ; les sous-chantiers suivants n'auront qu'à les peupler.

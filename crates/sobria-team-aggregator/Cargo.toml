@@ -1,6 +1,6 @@
 # sobria-team-aggregator — binaire HTTPS self-hosted "mode Équipe" (C28, v0.7.0).
 #
-# Voir ADR-0013 Phase 2 et `briefs/chantiers/C28-mode-equipe-self-hosted.md`.
+# Voir ADR-0013 Phase 2 et `docs/archive/chantiers/C28-mode-equipe-self-hosted.md`.
 # Pas d'OpenSSL : rustls + ring uniquement (sécurité + portabilité Windows
 # sans nasm/aws-lc-sys). Argon2id pour tous les hashs (passwords, codes,
 # refresh tokens), aligné sur la décision C27 v0.6.0 (cf. `crates/sobria-app/src/pairing.rs`).

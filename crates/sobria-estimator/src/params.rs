@@ -1,7 +1,7 @@
 //! Paramètres distributionnels du modèle de calcul.
 //!
 //! Voir CDC §9 et ADR-0004 pour la formule de référence.
-//! Voir `briefs/chantiers/C05-estimator-monte-carlo.md` §4.
+//! Voir `docs/archive/chantiers/C05-estimator-monte-carlo.md` §4.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

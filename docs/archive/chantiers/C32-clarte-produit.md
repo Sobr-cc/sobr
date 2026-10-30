@@ -2,7 +2,7 @@
 
 > **Version cible** : v0.8.0 — release intermédiaire « Clarté produit »
 > **Sprint** : 4-5 jours focalisés UX, copy, narratif
-> **Pré-requis** : v0.7.1 shippée, **audit produit C32.0 livré** (`docs/product/AUDIT-PRODUIT-2026-Q3.md`)
+> **Pré-requis** : v0.7.1 shippée, **audit produit C32.0 livré** (`docs/archive/AUDIT-PRODUIT-2026-Q3.md`)
 > **Objectif** : combler le gap de clarté UX identifié par l'audit avant la candidature data.gouv.fr v1.0. Score clarté moyen actuel 6/10 → cible **8/10 minimum** sur les 5 personas.
 
 ---

@@ -293,6 +293,6 @@ mod tests {
         );
 
         let v = serde_json::json!({ "description": "no type" });
-        assert!(collect_allowed_json_types(&v).is_empty());
+        assert_eq!(collect_allowed_json_types(&v), Vec::<String>::new());
     }
 }

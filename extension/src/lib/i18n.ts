@@ -66,6 +66,3 @@ export function t(key: string, locale: Locale = DEFAULT_LOCALE): string {
   if (!entry) return key;
   return entry[locale];
 }
-
-/** Toutes les locales supportées (pour le sélecteur options). */
-export const AVAILABLE_LOCALES: readonly Locale[] = ['fr', 'en'];

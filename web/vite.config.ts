@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 // Version unique, lue depuis package.json au build (synchronisée sur le
 // workspace Cargo par la release). Injectée en constante compile-time —
@@ -16,6 +16,11 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 
 export default defineConfig({
   plugins: [sveltekit()],
+
+  // Tests unitaires Vitest dans src/ ; tests/ = specs Playwright (e2e, a11y).
+  test: {
+    include: ['src/**/*.test.ts']
+  },
 
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version)

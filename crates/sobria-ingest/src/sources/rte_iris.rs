@@ -15,7 +15,7 @@
 //! systématiques `_copper_sha256` et `_ingested_at`. Une seule entité Silver
 //! produite : `rte_iris_consommation`.
 //!
-//! Voir `briefs/chantiers/C03-source-rte-iris.md` pour la rationale complète.
+//! Voir `docs/archive/chantiers/C03-source-rte-iris.md` pour la rationale complète.
 
 use std::path::PathBuf;
 

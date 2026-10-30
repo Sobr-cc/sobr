@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Synchronise docs/ → site/src/content/.
- * - docs/*.md (sauf docs/adr/ et docs/superpowers/) → site/src/content/docs/<path>
+ * - docs/*.md (sauf docs/adr/ et docs/archive/) → site/src/content/docs/<path>
  * - docs/adr/*.md → site/src/content/adrs/<filename>
  * Injecte un front-matter `sourcePath` (chemin relatif au repo root) si
  * le fichier n'a pas déjà de front-matter, pour générer "Edit on GitHub".
@@ -76,7 +76,8 @@ function main() {
     if (relPath.startsWith('adr/')) {
       const flat = relPath.replace(/^adr\//, '');
       syncFile(file, join(TARGET_ADRS, flat));
-    } else if (relPath.startsWith('superpowers/')) {
+    } else if (relPath.startsWith('archive/')) {
+      // Historique interne (chantiers clos, audits datés) : jamais publié.
       continue;
     } else {
       syncFile(file, join(TARGET_DOCS, relPath));

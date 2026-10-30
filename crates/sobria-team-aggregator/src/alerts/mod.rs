@@ -10,7 +10,7 @@
 //! webhook) pour rester simple ; en cas de charge plus élevée on passera
 //! à un job de fond.
 //!
-//! Voir ADR-0013 Phase 2 et `briefs/chantiers/C29-v0.7.1-polish-mode-equipe.md`.
+//! Voir ADR-0013 Phase 2 et `docs/archive/chantiers/C29-v0.7.1-polish-mode-equipe.md`.
 
 pub mod checker;
 pub mod notify;

@@ -116,9 +116,9 @@
           nommément, même volontairement. Ce réglage sera honoré si la politique change.
         {:else}
           Par défaut, l'administrateur ne voit que des
-          <strong>agrégats anonymes d'équipe</strong> (seuil k-anonymat). Si vous l'activez, votre
-          nom et vos totaux apparaîtront dans les vues admin. Révocable à tout moment — vous seul·e
-          contrôlez ce réglage.
+          <strong>agrégats anonymes d'équipe</strong> (seuil k-anonymat). Si vous l'activez, votre nom
+          et vos totaux apparaîtront dans les vues admin. Révocable à tout moment — vous seul·e contrôlez
+          ce réglage.
         {/if}
       </p>
     </div>

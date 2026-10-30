@@ -3,7 +3,7 @@
 > **Date** : 13 mai 2026
 > **Sprints couverts** : S6 (UI MVP, façade IPC, écrans M2 + M7 + M3 + M5 + M8)
 > **Statut** : jalon stable, taggé `v0.2.0-estimer`.
-> **Référence brief** : `briefs/chantiers/C09-tauri-integration.md` + `C09-PROMPT-CLAUDE-CODE.md`.
+> **Référence brief** : `docs/archive/chantiers/C09-tauri-integration.md` + `C09-PROMPT-CLAUDE-CODE.md`.
 
 ---
 
@@ -84,7 +84,7 @@ Bénéfice : impossible d'introduire silencieusement un fallback qui mentirait �
 
 ### 2. Design system v2 (ink/lime/ivory) plutôt que la maquette v1 (Inter/#0d1117)
 
-La maquette texte initiale (`docs/ux/MAQUETTE-UI-TEXTUELLE.md`) proposait Inter + palette `#0d1117 / #3fb950`. Le handoff Claude Design (`sobr-ia-design-system/`) a livré une direction beaucoup plus éditoriale : **Instrument Serif italic** pour les chiffres et titres, **Geist** pour l'UI, **JetBrains Mono** pour les hashes ; palette **ink `#0a0d0b` + lime `#c5f04a` + ivory `#f0ece3`**. On a basculé là-dessus, avec auto-hébergement des fontes pour respecter `default-src 'self'`.
+La maquette texte initiale (`docs/archive/MAQUETTE-UI-TEXTUELLE.md`) proposait Inter + palette `#0d1117 / #3fb950`. Le handoff Claude Design (`sobr-ia-design-system/`) a livré une direction beaucoup plus éditoriale : **Instrument Serif italic** pour les chiffres et titres, **Geist** pour l'UI, **JetBrains Mono** pour les hashes ; palette **ink `#0a0d0b` + lime `#c5f04a` + ivory `#f0ece3`**. On a basculé là-dessus, avec auto-hébergement des fontes pour respecter `default-src 'self'`.
 
 ### 3. Bins log-normales dans le DTO + payload audit (option A1)
 

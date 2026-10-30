@@ -463,7 +463,7 @@ mod tests {
         assert!(report.copper.is_empty());
         assert!(report.silver.is_empty());
         assert_eq!(report.fully_successful_count(), 0);
-        assert!(!report.gold_lineage.gold_artifacts.is_empty());
+        assert_ne!(report.gold_lineage.gold_artifacts, Vec::<String>::new());
     }
 
     #[tokio::test]
@@ -477,7 +477,7 @@ mod tests {
         assert_eq!(report.silver.len(), 1);
         assert_eq!(report.gold_contributions.len(), 1);
         assert_eq!(report.fully_successful_count(), 1);
-        assert!(report.failed_sources().is_empty());
+        assert_eq!(report.failed_sources(), Vec::<String>::new());
 
         let lineage_sources: Vec<&str> = report.gold_lineage.source_ids();
         assert!(lineage_sources.contains(&"src-a"));

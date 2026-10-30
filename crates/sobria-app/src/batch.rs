@@ -6,7 +6,7 @@
 //! 3. Agrège stats globales + par modèle.
 //! 4. Optionnel : écrit les résultats dans un CSV.
 //!
-//! Voir `briefs/chantiers/C21-batch-csv.md`.
+//! Voir `docs/archive/chantiers/C21-batch-csv.md`.
 
 use std::{
     fs::File,

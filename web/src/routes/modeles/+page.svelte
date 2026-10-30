@@ -5,7 +5,7 @@
   // Tauri, aucune fiche n'est rendue (bannière + empty shell uniquement).
   //
   // Voir :
-  //   - briefs/chantiers/C18-referentiel-modeles.md
+  //   - docs/archive/chantiers/C18-referentiel-modeles.md
   //   - crates/sobria-app/src/dto.rs (bloc "model detail")
   //   - docs/methodology/MODEL-PRESETS.md
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M9

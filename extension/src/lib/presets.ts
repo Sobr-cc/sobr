@@ -543,8 +543,3 @@ export const MODEL_PRESETS: readonly ModelPreset[] = [
 export function findPreset(modelId: string): ModelPreset | undefined {
   return MODEL_PRESETS.find((p) => p.id === modelId);
 }
-
-/** Liste tous les presets disponibles (pour sélecteur popup). */
-export function availablePresets(): readonly ModelPreset[] {
-  return MODEL_PRESETS;
-}

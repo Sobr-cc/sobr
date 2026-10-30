@@ -9,18 +9,14 @@ authors.workspace = true
 description = "Crate Sobr.ia — accès lecture au référentiel Gold (data/gold/referentiel.sqlite)"
 
 [dependencies]
-sobria-core = { path = "../sobria-core" }
 serde = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 chrono = { workspace = true }
 rusqlite = { workspace = true }
 sha2 = { workspace = true }
 schemars = { workspace = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }  # doctest de lib.rs
 proptest = { workspace = true }
 tempfile = { workspace = true }

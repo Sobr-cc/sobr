@@ -31,18 +31,19 @@ npm run dev          # http://localhost:4321
 
 ## Structure
 
-Cf. [`../briefs/chantiers/C33-site-internet.md`](../briefs/chantiers/C33-site-internet.md) §2 pour l'architecture complète.
+Cf. [`../docs/archive/chantiers/C33-site-internet.md`](../docs/archive/chantiers/C33-site-internet.md) §2 pour l'architecture complète.
 
 ```
 site/
 ├── src/
 │   ├── pages/             # Routes Astro
-│   ├── components/        # Astro + Svelte islands
-│   ├── layouts/           # BaseLayout
+│   ├── components/        # Topbar, Footer, docs/ (sidebar, recherche)
+│   ├── layouts/           # BaseLayout, DocLayout
 │   ├── styles/global.css  # Tokens v2 + reset + reduced-motion
-│   └── lib/               # (à venir : motion.ts, three-utils.ts, ...)
+│   └── lib/               # doc-tree.ts
 ├── public/
 │   ├── fonts/             # Geist / Instrument Serif / JetBrains Mono
+│   ├── lib/               # three.js vendorisé (index immersif)
 │   ├── favicon.svg
 │   └── robots.txt
 └── tests/                 # Playwright a11y + lighthouse
@@ -64,7 +65,6 @@ le provisioning serveur et les secrets GitHub Actions.
 
 ## Brief & doc
 
-- Brief chantier : [`../briefs/chantiers/C33-site-internet.md`](../briefs/chantiers/C33-site-internet.md)
+- Brief chantier : [`../docs/archive/chantiers/C33-site-internet.md`](../docs/archive/chantiers/C33-site-internet.md)
 - Deploy ops : [`../docs/operations/site-deploy.md`](../docs/operations/site-deploy.md)
 - ADR architecture : [`../docs/adr/ADR-0014-dual-track-local-cloud.md`](../docs/adr/ADR-0014-dual-track-local-cloud.md)
-- Plan d'implémentation C33.1 : [`../docs/superpowers/plans/2026-05-17-c33.1-site-bootstrap.md`](../docs/superpowers/plans/2026-05-17-c33.1-site-bootstrap.md)

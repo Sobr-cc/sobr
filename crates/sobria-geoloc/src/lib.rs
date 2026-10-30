@@ -8,7 +8,7 @@
 //! - Génération du Sankey énergétique national à partir du mix RTE eco2mix
 //!   (voir [`sankey_fr`]).
 //!
-//! Voir CDC §7.1 (M12 / M20) et `briefs/chantiers/C12-*` + `C13-*`.
+//! Voir CDC §7.1 (M12 / M20) et `docs/archive/chantiers/C12-*` + `C13-*`.
 
 #![deny(unsafe_code)]
 #![warn(clippy::pedantic)]

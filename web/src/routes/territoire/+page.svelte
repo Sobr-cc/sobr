@@ -6,7 +6,7 @@
   // factice (les markers Leaflet sont absents en l'absence de données réelles).
   //
   // Voir :
-  //   - briefs/chantiers/C13-territoire-fr-sankey.md
+  //   - docs/archive/chantiers/C13-territoire-fr-sankey.md
   //   - crates/sobria-app/src/dto.rs (bloc "territoire_fr" + "sankey_fr")
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M20
 

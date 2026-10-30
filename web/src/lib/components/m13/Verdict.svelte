@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Leaf, TrendingDown, TrendingUp } from '@lucide/svelte';
   import type { DistributionBins, ScenarioOutcomeDto, EstimationResultDto } from '$lib/api';
+  import { fmtSig as fmt, pickScale } from '$lib/format';
 
   type Props = {
     /** Outcome de la « Configuration actuelle » — null si pas d'override actif. */
@@ -10,38 +11,11 @@
   };
   const { scenario, baseline }: Props = $props();
 
-  type Scale = { mult: number; unit: string };
-
-  const CO2_CHAIN: readonly Scale[] = [
-    { mult: 1e-3, unit: 'kg CO₂eq' },
-    { mult: 1, unit: 'g CO₂eq' },
-    { mult: 1e3, unit: 'mg CO₂eq' },
-    { mult: 1e6, unit: 'µg CO₂eq' }
-  ];
-
-  function pickScale(p50: number): Scale {
-    if (!Number.isFinite(p50) || p50 === 0) return CO2_CHAIN[1] ?? { mult: 1, unit: 'g CO₂eq' };
-    for (const s of CO2_CHAIN) {
-      const v = Math.abs(p50 * s.mult);
-      if (v >= 1 && v < 1000) return s;
-    }
-    return CO2_CHAIN[CO2_CHAIN.length - 1] ?? { mult: 1, unit: 'g CO₂eq' };
-  }
-
-  function fmt(value: number, sig = 3): string {
-    if (!Number.isFinite(value)) return '—';
-    if (value === 0) return '0';
-    return new Intl.NumberFormat('fr-FR', {
-      maximumSignificantDigits: sig,
-      minimumSignificantDigits: 1
-    }).format(value);
-  }
-
   const activeResult = $derived(scenario ? scenario.result : baseline);
   const co2 = $derived(activeResult.indicators.find((i) => i.indicator === 'co2eq'));
   const baselineCo2 = $derived(baseline.indicators.find((i) => i.indicator === 'co2eq'));
 
-  const scale = $derived(co2 ? pickScale(co2.p50) : { mult: 1, unit: 'g CO₂eq' });
+  const scale = $derived(co2 ? pickScale(co2.p50, 'gCO2eq') : { mult: 1, unit: 'g CO₂eq' });
 
   // Le delta vient du backend (canonique). On gère le cas "pas de scénario" où
   // on affiche juste le baseline sans pill comparative.

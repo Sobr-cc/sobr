@@ -28,14 +28,11 @@ import {
   setProjectForThread,
   threadKeyFromUrl
 } from '../content/shared/projects.js';
-import { pickGrade } from '../lib/empreinte/grade.js';
+import { pickGrade, toneOf } from '../lib/empreinte/grade.js';
+import { CAR_G_CO2EQ_PER_KM } from '../lib/empreinte/equivalents.js';
+import { fmtFr } from '../lib/format.js';
 import type { EmpreinteMethod } from '../lib/types.js';
 import type { DailyTotal, Host, LastEstimate } from '../lib/messages.js';
-
-/** Formatage FR à `digits` chiffres significatifs (« 12 », « 1,8 »). */
-export function fmtFr(n: number, digits = 2): string {
-  return new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: digits }).format(n);
-}
 
 /** Horodatage relatif en français (« à l’instant », « il y a 7 min »). */
 export function fmtRelative(iso: string, now: number = Date.now()): string {
@@ -49,14 +46,6 @@ export function fmtRelative(iso: string, now: number = Date.now()): string {
   return new Date(iso).toLocaleDateString('fr-FR');
 }
 
-/** Ton couleur selon la note A-F (cohérent badge in-page). */
-export function toneOf(gco2eq: number): 'lime' | 'amber' | 'coral' {
-  const g = pickGrade(gco2eq);
-  if (g === 'A' || g === 'B') return 'lime';
-  if (g === 'C' || g === 'D') return 'amber';
-  return 'coral';
-}
-
 /** Libellés lisibles des sites suivis. */
 const HOST_LABELS: Record<Host, string> = {
   chatgpt: 'ChatGPT',
@@ -64,13 +53,9 @@ const HOST_LABELS: Record<Host, string> = {
   'le-chat': 'Le Chat'
 };
 
-// Voiture thermique moyenne ≈ 192 g CO₂eq/km (ADEME, Base Empreinte — même
-// coefficient que l'équivalent voiture du badge in-page, design 38).
-const CAR_G_PER_KM = 192;
-
 /** Équivalent distance voiture pour rendre le chiffre parlant (« ≈ 65 m »). */
 export function carEquivalentLabel(gco2eq: number): string {
-  const meters = (gco2eq / CAR_G_PER_KM) * 1000;
+  const meters = (gco2eq / CAR_G_CO2EQ_PER_KM) * 1000;
   if (meters < 1) return 'moins d’un mètre en voiture';
   if (meters < 1000) return `≈ ${fmtFr(meters)} m en voiture`;
   return `≈ ${fmtFr(meters / 1000)} km en voiture`;

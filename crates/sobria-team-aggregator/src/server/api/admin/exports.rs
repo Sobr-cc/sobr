@@ -17,7 +17,7 @@ use crate::exports::{csrd, csv as team_csv, prov_o, ExportRequest};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
-use crate::storage::estimations;
+use crate::storage::estimations::{self, EstimationRow};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ExportInput {
@@ -69,11 +69,7 @@ pub async fn handle_csrd(
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
     let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
-    let rows = estimations::list_for_window(storage.connection(), req.from, req.to)?;
+    let rows = rows_in_window(&state, &req)?;
     let artifacts = csrd::build_report(&rows, &org, req.from, req.to)?;
 
     Ok(pdf_response(
@@ -91,11 +87,7 @@ pub async fn handle_provo(
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
     let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
-    let rows = estimations::list_for_window(storage.connection(), req.from, req.to)?;
+    let rows = rows_in_window(&state, &req)?;
     let v = prov_o::build_team_provo(&rows, &org, req.from, req.to, req.anonymize);
     let bytes = serde_json::to_vec_pretty(&v)
         .map_err(|e| ApiError::InternalMsg(format!("provo serialise: {e}")))?;
@@ -120,11 +112,7 @@ pub async fn handle_csv(
     Json(input): Json<ExportInput>,
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
-    let rows = estimations::list_for_window(storage.connection(), req.from, req.to)?;
+    let rows = rows_in_window(&state, &req)?;
     let bytes = team_csv::build_csv(&rows, req.anonymize)?;
     Response::builder()
         .status(StatusCode::OK)
@@ -139,6 +127,20 @@ pub async fn handle_csv(
         )
         .body(Body::from(bytes))
         .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))
+}
+
+/// Lit la fenêtre puis relâche le verrou global aussitôt : la génération
+/// (PDF surtout) ne doit pas bloquer l'ingestion des estimations.
+fn rows_in_window(state: &ServerState, req: &ExportRequest) -> ApiResult<Vec<EstimationRow>> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    Ok(estimations::list_for_window(
+        storage.connection(),
+        req.from,
+        req.to,
+    )?)
 }
 
 fn pdf_response(bytes: Vec<u8>, org: &str, from_s: &str, to_s: &str) -> Response {

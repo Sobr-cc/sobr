@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn empty_store_lists_empty() {
         let (_tmp, store) = open_temp();
-        assert!(store.list_all().unwrap().is_empty());
+        assert_eq!(store.list_all().unwrap().len(), 0);
     }
 
     #[test]

@@ -35,11 +35,6 @@ export function estimate(input: EstimateInput): Estimate {
   }
 }
 
-/**
- * Liste des méthodologies disponibles (utilisé par le toggle popup C27.4).
- */
-export const AVAILABLE_METHODS: readonly EmpreinteMethod[] = ['afnor_sobria', 'ecologits'];
-
 /** Métadonnées d'affichage pour chaque méthodologie (mirror MethodologyInfo Rust). */
 export const METHOD_INFO: Record<
   EmpreinteMethod,

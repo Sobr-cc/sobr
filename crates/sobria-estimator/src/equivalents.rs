@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn equivalents_have_non_empty_source() {
         let e = co2eq_to_car_km(100.0);
-        assert!(!e.source.is_empty());
-        assert!(!e.label.is_empty());
+        assert_ne!(e.source, "");
+        assert_ne!(e.label, "");
     }
 }

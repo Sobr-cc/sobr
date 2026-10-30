@@ -4,7 +4,7 @@
   // Contrat no-mock : hors Tauri, formulaire désactivé + bannière.
   //
   // Voir :
-  //   - briefs/chantiers/C14-rapport-csrd-agec.md
+  //   - docs/archive/chantiers/C14-rapport-csrd-agec.md
   //   - crates/sobria-app/src/dto.rs (bloc "CSRD report")
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M22
 
@@ -37,6 +37,7 @@
     type CsrdReportResultDto,
     type IpcErrorCode
   } from '$lib/api';
+  import { fmtFixed as fmt, fmtTotal } from '$lib/format';
   import { preferences, type ModuleId } from '$lib/preferences';
 
   const MODULE_ID: ModuleId = 'm22';
@@ -177,29 +178,6 @@
     genError = null;
   }
 
-  function fmt(value: number, digits = 2): string {
-    if (!Number.isFinite(value)) return '—';
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: digits }).format(value);
-  }
-
-  type AutoScale = { v: string; u: string };
-  function fmtAuto(value: number, base: 'g' | 'Wh' | 'L'): AutoScale {
-    if (!Number.isFinite(value)) return { v: '—', u: base };
-    if (base === 'g') {
-      if (value >= 1e6) return { v: fmt(value / 1e6, 2), u: 't CO₂eq' };
-      if (value >= 1e3) return { v: fmt(value / 1e3, 2), u: 'kg CO₂eq' };
-      return { v: fmt(value, 2), u: 'g CO₂eq' };
-    }
-    if (base === 'Wh') {
-      if (value >= 1e6) return { v: fmt(value / 1e6, 2), u: 'MWh' };
-      if (value >= 1e3) return { v: fmt(value / 1e3, 2), u: 'kWh' };
-      return { v: fmt(value, 2), u: 'Wh' };
-    }
-    if (value >= 1000) return { v: fmt(value / 1000, 2), u: 'm³' };
-    if (value >= 1) return { v: fmt(value, 2), u: 'L' };
-    return { v: fmt(value * 1000, 1), u: 'mL' };
-  }
-
   // ─── Erreurs ─────────────────────────────────────────────────────────────
   const ERROR_LABELS: Record<string, string> = {
     tauri_unavailable: 'Application de bureau requise',
@@ -303,11 +281,11 @@
         {#snippet metric(
           label: string,
           value: number,
-          base: 'g' | 'Wh' | 'L',
+          base: 'gCO2eq' | 'Wh' | 'L',
           icon: typeof Leaf,
           tone: string
         )}
-          {@const a = fmtAuto(value, base)}
+          {@const a = fmtTotal(value, base)}
           <div class="stat">
             <div class="stat-l">
               {#if icon}
@@ -319,7 +297,7 @@
             <div class="stat-v" style="color: {tone}">{a.v}<span class="u">{a.u}</span></div>
           </div>
         {/snippet}
-        {@render metric('CO₂eq P50 cumulé', r.total_co2eq_g_p50, 'g', Leaf, '#c5f04a')}
+        {@render metric('CO₂eq P50 cumulé', r.total_co2eq_g_p50, 'gCO2eq', Leaf, '#c5f04a')}
         {@render metric('Énergie P50', r.total_energy_wh_p50, 'Wh', Zap, '#7eb6ff')}
         {@render metric('Eau P50', r.total_water_l_p50, 'L', Droplet, '#b794f4')}
       </div>

@@ -66,10 +66,10 @@ et journalise dans le ledger d'audit.
 |---|---|---|
 | **C09.1 — Brief** | Cowork | Ce document |
 | **C09.2 — Squelette Tauri Rust** | Cowork | `crates/sobria-app/src/{main,state,error,commands/*}.rs`, `tauri.conf.json`, `capabilities/default.json` |
-| **C09.3 — Prompt Claude Code** | Cowork | `briefs/chantiers/C09-PROMPT-CLAUDE-CODE.md` avec URL design + cahier des charges UI |
+| **C09.3 — Prompt Claude Code** | Cowork | `docs/archive/chantiers/C09-PROMPT-CLAUDE-CODE.md` avec URL design + cahier des charges UI |
 | **C09.4 — Implémentation frontend** | Claude Code | `web/` SvelteKit complet : routes, composants, `lib/api.ts`, tests Playwright |
 | **C09.5 — Wiring final + e2e** | Mixte | `cargo run -p sobria-app` lance l'app, écran *Estimer* fonctionne bout-en-bout |
-| **C09.6 — Rétro + tag v0.2.0-app** | Cowork | `briefs/chantiers/C09-RETROSPECTIVE.md`, `CHANGELOG.md`, tag git |
+| **C09.6 — Rétro + tag v0.2.0-app** | Cowork | `docs/archive/chantiers/C09-RETROSPECTIVE.md`, `CHANGELOG.md`, tag git |
 
 ## 3. Commandes IPC (contrats publics)
 
@@ -320,7 +320,7 @@ brief UI et le réalise.
 - [ ] Bouton « Exporter NDJSON » écrit un fichier valide.
 - [ ] Au moins 1 test Playwright e2e (formulaire → résultat).
 - [ ] `cd web && npm run lint && npm run check` verts.
-- [ ] `briefs/chantiers/C09-RETROSPECTIVE.md` rédigé.
+- [ ] `docs/archive/chantiers/C09-RETROSPECTIVE.md` rédigé.
 - [ ] `CHANGELOG.md` mis à jour, tag `v0.2.0-app`.
 
 ## 8. Tests Rust (C09.2)

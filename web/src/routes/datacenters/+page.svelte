@@ -7,7 +7,7 @@
   // n'est monté que si selectedDc ou selectedCountry est défini.
   //
   // Voir :
-  //   - briefs/chantiers/C12-datacenters-europe.md
+  //   - docs/archive/chantiers/C12-datacenters-europe.md
   //   - crates/sobria-app/src/dto.rs (bloc "datacenters")
   //   - docs/sources/CATALOGUE-DATACENTERS.md
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M12

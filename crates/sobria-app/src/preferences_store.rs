@@ -1,7 +1,7 @@
 //! Persistance des préférences utilisateur dans `referentiel.sqlite`.
 //!
 //! Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md)
-//! et `briefs/chantiers/C10-onboarding-personas.md` §2.
+//! et `docs/archive/chantiers/C10-onboarding-personas.md` §2.
 //!
 //! Schéma :
 //! ```sql

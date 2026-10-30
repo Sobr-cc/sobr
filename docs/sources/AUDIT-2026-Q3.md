@@ -4,7 +4,7 @@
 > **Auteur** : Cowork
 > **Date** : 2026-05-16
 > **Périmètre** : audit exhaustif des sources de données disponibles pour enrichir le référentiel Sobr.ia (modèles, datacenters, mix électrique, facteurs émission, benchmarks IA).
-> **Méthodologie** : voir `briefs/chantiers/C30-audit-datasets.md`.
+> **Méthodologie** : voir `docs/archive/chantiers/C30-audit-datasets.md`.
 > **Output cible** : ~40-50 sources évaluées en 5 catégories + matrice de priorisation + roadmap C31.
 
 ---

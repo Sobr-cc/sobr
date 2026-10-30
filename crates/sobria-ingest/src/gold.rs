@@ -23,7 +23,7 @@
 //!   `sha256sum`). Si la variable d'environnement `SOBRIA_GPG_KEY_ID` est
 //!   présente, on génère aussi `MANIFEST.sha256.asc` via `gpg --sign`.
 //!
-//! Voir aussi `briefs/chantiers/C26-pipeline-medaillon-activation.md`.
+//! Voir aussi `docs/archive/chantiers/C26-pipeline-medaillon-activation.md`.
 
 use std::path::{Path, PathBuf};
 

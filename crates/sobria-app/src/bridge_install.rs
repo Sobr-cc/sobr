@@ -409,7 +409,7 @@ pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     let detected = detect_installed_browsers();
     let installed = BrowserKind::ALL
         .into_iter()
-        .filter(|b| manifest_install_path(*b).ok().is_some_and(|p| p.exists()))
+        .filter(|b| manifest_install_path(*b).is_ok_and(|p| p.exists()))
         .collect();
     BridgeStatus {
         bridge_path,
@@ -461,8 +461,8 @@ mod tests {
     #[test]
     fn browser_kind_id_and_display_name_are_stable() {
         for b in BrowserKind::ALL {
-            assert!(!b.id().is_empty());
-            assert!(!b.display_name().is_empty());
+            assert_ne!(b.id().len(), 0);
+            assert_ne!(b.display_name().len(), 0);
         }
         assert_eq!(BrowserKind::Chrome.id(), "chrome");
         assert!(BrowserKind::Firefox.is_firefox());
@@ -683,7 +683,7 @@ mod tests {
     fn detect_browsers_in_returns_empty_when_no_browser_dir() {
         let tmp = TempDir::new().unwrap();
         let detected = detect_browsers_in(HostOs::Linux, tmp.path(), None, None);
-        assert!(detected.is_empty());
+        assert_eq!(detected.len(), 0);
     }
 
     #[test]

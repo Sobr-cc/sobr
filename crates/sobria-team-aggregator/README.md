@@ -15,7 +15,7 @@ pour agréger les estimations carbone de ses N employés (extension navigateur
 - CLI `serve` (axum + rustls + ring, route `/health`).
 - Schéma SQLite v1 complet (`admins`, `enrollment_codes`, `users`, `tokens`, `estimations`, `config`).
 
-Les sous-chantiers à venir (cf. `briefs/chantiers/C28-mode-equipe-self-hosted.md`) :
+Les sous-chantiers à venir (cf. `docs/archive/chantiers/C28-mode-equipe-self-hosted.md`) :
 
 - C28.2 — auth JWT + API REST core (enroll, login, refresh, estimations).
 - C28.3 — API admin + analytics agrégés.
@@ -61,5 +61,5 @@ Le data dir contient :
 ## Voir aussi
 
 - ADR-0013 — décision d'architecture (extension + pairing + mode équipe).
-- `briefs/chantiers/C28-mode-equipe-self-hosted.md` — brief complet du chantier.
+- `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` — brief complet du chantier.
 - `crates/sobria-app/src/pairing.rs` — pattern Argon2id partagé (C27 v0.6.0).

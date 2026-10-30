@@ -6,7 +6,7 @@
 //! mais les fonctions internes (`logic::*`) sont **directement appelables
 //! depuis les tests** sans démarrer la fenêtre native.
 //!
-//! Voir `briefs/chantiers/C09-tauri-integration.md`.
+//! Voir `docs/archive/chantiers/C09-tauri-integration.md`.
 
 #![deny(unsafe_code)]
 #![warn(clippy::pedantic)]

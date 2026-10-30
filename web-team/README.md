@@ -45,4 +45,4 @@ cd .. && cargo build -p sobria-team-aggregator --release
 - Auth client : JWT access en mémoire, refresh en sessionStorage,
   rotation automatique sur 401.
 
-Voir `briefs/chantiers/C28-mode-equipe-self-hosted.md` §C28.4.
+Voir `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §C28.4.

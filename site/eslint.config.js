@@ -5,7 +5,8 @@ import svelteParser from 'svelte-eslint-parser';
 
 export default tseslint.config(
   {
-    ignores: ['dist', '.astro', 'node_modules', 'pagefind', 'public/fonts'],
+    // public/lib : three.js vendorisé minifié (C33.10), pas notre code.
+    ignores: ['dist', '.astro', 'node_modules', 'pagefind', 'public/fonts', 'public/lib'],
   },
   ...tseslint.configs.recommended,
   ...sveltePlugin.configs['flat/recommended'],

@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn empty_store_lists_no_goals() {
         let (_tmp, store) = open_temp();
-        assert!(store.list_all().unwrap().is_empty());
+        assert_eq!(store.list_all().unwrap().len(), 0);
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         store
             .delete(GoalIndicator::Water, GoalPeriod::Weekly)
             .unwrap();
-        assert!(store.list_all().unwrap().is_empty());
+        assert_eq!(store.list_all().unwrap().len(), 0);
     }
 
     #[test]

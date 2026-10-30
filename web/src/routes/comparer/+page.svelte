@@ -28,6 +28,7 @@
     type ModelPresetDto
   } from '$lib/api';
   import DatacenterPicker from '$lib/components/DatacenterPicker.svelte';
+  import { fmtSig as fmtNum, pickScale, type Scale } from '$lib/format';
   import { preferences } from '$lib/preferences';
   import { tick } from 'svelte';
 
@@ -315,48 +316,14 @@
     }
   });
 
-  // ─── Échelles d'unités partagées (mêmes chaînes que ResultBlock) ───
-  type Scale = { mult: number; unit: string };
-  const UNIT_CHAINS: Record<string, Scale[]> = {
-    gCO2eq: [
-      { mult: 1e-3, unit: 'kg CO₂eq' },
-      { mult: 1, unit: 'g CO₂eq' },
-      { mult: 1e3, unit: 'mg CO₂eq' },
-      { mult: 1e6, unit: 'µg CO₂eq' },
-      { mult: 1e9, unit: 'ng CO₂eq' }
-    ],
-    Wh: [
-      { mult: 1e-3, unit: 'kWh' },
-      { mult: 1, unit: 'Wh' },
-      { mult: 1e3, unit: 'mWh' },
-      { mult: 1e6, unit: 'µWh' },
-      { mult: 1e9, unit: 'nWh' }
-    ],
-    L: [
-      { mult: 1, unit: 'L' },
-      { mult: 1e3, unit: 'mL' },
-      { mult: 1e6, unit: 'µL' },
-      { mult: 1e9, unit: 'nL' }
-    ]
-  };
-
+  // ─── Échelles d'unités (chaînes partagées, cf. $lib/format) ───
   /** Échelle commune à tous les modèles comparés sur cet indicateur,
    *  choisie sur la médiane des P50 — toutes les cards affichent la
    *  même unité pour pouvoir comparer à l'œil. */
   function pickColScale(values: number[], baseUnit: string): Scale {
-    const chain = UNIT_CHAINS[baseUnit];
-    const fallback: Scale = { mult: 1, unit: baseUnit };
-    if (!chain || chain.length === 0 || values.length === 0) return fallback;
+    if (values.length === 0) return { mult: 1, unit: baseUnit };
     const sorted = [...values].sort((a, b) => a - b);
-    const mid = sorted[Math.floor(sorted.length / 2)] ?? 0;
-    if (!Number.isFinite(mid) || mid === 0) {
-      return chain.find((s) => s.mult === 1) ?? chain[0] ?? fallback;
-    }
-    for (const s of chain) {
-      const v = Math.abs(mid * s.mult);
-      if (v >= 1 && v < 1000) return s;
-    }
-    return chain[chain.length - 1] ?? fallback;
+    return pickScale(sorted[Math.floor(sorted.length / 2)] ?? 0, baseUnit);
   }
 
   const co2Scale = $derived(
@@ -377,14 +344,6 @@
       'L'
     )
   );
-
-  function fmtNum(value: number): string {
-    if (!Number.isFinite(value)) return '—';
-    return new Intl.NumberFormat('fr-FR', {
-      maximumSignificantDigits: 3,
-      minimumSignificantDigits: 1
-    }).format(value);
-  }
 
   // ─── Verdict : meilleur vs pire CO₂eq ──────────────────────────────
   type Verdict = {

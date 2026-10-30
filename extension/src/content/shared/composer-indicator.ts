@@ -11,7 +11,8 @@
 // désactivé (pas d'estimation trompeuse).
 
 import { estimate } from '../../lib/empreinte/index.js';
-import { gaugeRatio, pickGrade } from '../../lib/empreinte/grade.js';
+import { gaugeRatio, pickGrade, toneOf } from '../../lib/empreinte/grade.js';
+import { fmtFr } from '../../lib/format.js';
 import { estimateTokens, estimateOutputTokens } from './tokens.js';
 import { getMethod } from './storage.js';
 import { findPreset } from '../../lib/presets.js';
@@ -44,17 +45,6 @@ export type ComposerIndicatorConfig = {
    */
   readonly extractModelId: () => string | null;
 };
-
-function fmtFr(n: number, digits = 2): string {
-  return new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: digits }).format(n);
-}
-
-function toneOf(gco2eq: number): 'lime' | 'amber' | 'coral' {
-  const g = pickGrade(gco2eq);
-  if (g === 'A' || g === 'B') return 'lime';
-  if (g === 'C' || g === 'D') return 'amber';
-  return 'coral';
-}
 
 function readText(el: Element): string {
   if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {

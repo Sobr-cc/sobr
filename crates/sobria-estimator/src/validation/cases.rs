@@ -151,7 +151,7 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
 /// EcoLogits, on isole la composante usage (énergie × IF × PUE) pour
 /// vérifier d'abord cette partie. L'embodied EcoLogits (`I_server × ΔT/
 /// (B×ΔL)`) est implémenté dans le moteur mais sera couvert par des
-/// cas dédiés en v1.1+ (cf. `briefs/chantiers/C24-multi-methodologie-ecologits.md`).
+/// cas dédiés en v1.1+ (cf. `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`).
 ///
 /// **Formule EcoLogits réimplémentée pour calculer les cibles** (cf.
 /// <https://ecologits.ai/latest/methodology/llm_inference/>, accédé 2026-05-13) :

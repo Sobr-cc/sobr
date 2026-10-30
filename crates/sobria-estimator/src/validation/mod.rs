@@ -1,6 +1,6 @@
 //! Validation croisée du moteur Monte-Carlo.
 //!
-//! Voir `briefs/chantiers/C07-validation-croisee.md` et
+//! Voir `docs/archive/chantiers/C07-validation-croisee.md` et
 //! `docs/methodology/VALIDATION-CROISEE.md`.
 //!
 //! Deux niveaux :

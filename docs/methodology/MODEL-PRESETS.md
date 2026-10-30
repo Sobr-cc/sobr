@@ -57,7 +57,7 @@ Le chantier C24 (audit B, mai 2026) a recalibré la constante
 mesures HF AI Energy Score et ML.ENERGY : 1750 mJ/token ÷ 70 B =
 25.0 mJ/token/B. Cf. le commentaire sourcé sur la constante dans
 `model_presets.rs`, l'[ADR-0012](../adr/ADR-0012-multi-methodology-engine.md)
-et `briefs/chantiers/C24-multi-methodologie-ecologits.md`.
+et `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`.
 
 **Largeur d'incertitude** :
 - `P5 = P50 / 1.65`

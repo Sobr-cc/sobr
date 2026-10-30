@@ -1,6 +1,6 @@
 //! Registry de paramètres distributionnels par modèle.
 //!
-//! Voir `briefs/chantiers/C06-model-presets.md` pour la méthodologie
+//! Voir `docs/archive/chantiers/C06-model-presets.md` pour la méthodologie
 //! d'extrapolation et `docs/methodology/MODEL-PRESETS.md` pour la
 //! documentation chiffre par chiffre.
 //!
@@ -25,7 +25,7 @@
 //!   `default_context_overhead_tokens`, `deprecated`, `source_url`,
 //!   `active_params_b`.
 //!
-//! Shortlist source : `briefs/chantiers/C34-shortlist-models-validated.md`.
+//! Shortlist source : `docs/archive/chantiers/C34-shortlist-models-validated.md`.
 
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -405,7 +405,7 @@ pub struct ModelPreset {
 /// HF AI Energy Score et ML.ENERGY (Llama 3.1 70B ≈ 1.75 J/token decode,
 /// ≈ 25 × 70 mJ/token).
 ///
-/// Cf. ADR-0012 et `briefs/chantiers/C24-multi-methodologie-ecologits.md`
+/// Cf. ADR-0012 et `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`
 /// pour le détail de la calibration.
 pub const K_DECODE_MJ_PER_TOKEN_PER_B: f64 = 25.0;
 

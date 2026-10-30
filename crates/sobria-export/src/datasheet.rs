@@ -7,16 +7,17 @@
 //! - **DCAT** : distributions
 //! - **Sobr.ia vocab** : 7 sections Gebru sous `sobria:Datasheet`
 //!
-//! Voir `briefs/chantiers/C20-empreinte-projet-datasheet.md`.
+//! Voir `docs/archive/chantiers/C20-empreinte-projet-datasheet.md`.
 
 use std::fmt::Write as _;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use sobria_audit::AuditEntry;
 use sobria_core::{EstimationResult, Indicator};
+
+use crate::report::sha256_hex;
 
 /// Métadonnées d'un projet pour la génération de datasheet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -282,15 +283,6 @@ fn build_jsonld(
     })
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut s = String::with_capacity(64);
-    for b in digest {
-        let _ = write!(s, "{b:02x}");
-    }
-    s
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,7 +358,7 @@ mod tests {
     fn compose_empty_entries_returns_zeros() {
         let c = compose(&[]);
         assert_eq!(c.total_requests, 0);
-        assert!(c.unique_models.is_empty());
+        assert_eq!(c.unique_models, Vec::<String>::new());
         assert!(c.date_first_entry.is_none());
     }
 

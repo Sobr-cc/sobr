@@ -171,7 +171,7 @@ détaillée.
 
 ## Liens
 
-- Brief : [`briefs/chantiers/C27-extension-navigateur.md`](../briefs/chantiers/C27-extension-navigateur.md)
+- Brief : [`docs/archive/chantiers/C27-extension-navigateur.md`](../docs/archive/chantiers/C27-extension-navigateur.md)
 - ADR-0013 : [`docs/adr/ADR-0013-extension-pairing-team-mode.md`](../docs/adr/ADR-0013-extension-pairing-team-mode.md)
 - ADR-0012 : [`docs/adr/ADR-0012-multi-methodology-engine.md`](../docs/adr/ADR-0012-multi-methodology-engine.md)
 - CLAUDE.md : [`../CLAUDE.md`](../CLAUDE.md)

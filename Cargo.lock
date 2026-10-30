@@ -5966,7 +5966,6 @@ name = "sobria-core"
 version = "0.9.0"
 dependencies = [
  "chrono",
- "insta",
  "proptest",
  "schemars 0.8.22",
  "serde",
@@ -5995,7 +5994,6 @@ dependencies = [
 name = "sobria-export"
 version = "0.9.0"
 dependencies = [
- "anyhow",
  "chrono",
  "printpdf",
  "proptest",
@@ -6004,9 +6002,7 @@ dependencies = [
  "sha2",
  "sobria-audit",
  "sobria-core",
- "tempfile",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
 ]
 
@@ -6014,16 +6010,11 @@ dependencies = [
 name = "sobria-geoloc"
 version = "0.9.0"
 dependencies = [
- "anyhow",
  "proptest",
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "sobria-core",
- "tempfile",
  "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -6082,13 +6073,9 @@ dependencies = [
  "rusqlite",
  "schemars 0.8.22",
  "serde",
- "serde_json",
  "sha2",
- "sobria-core",
  "tempfile",
  "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]

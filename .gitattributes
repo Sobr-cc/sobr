@@ -1,0 +1,10 @@
+# Fins de ligne LF partout (Prettier et rustfmt l'exigent) — sans ça,
+# core.autocrlf=true sous Windows fait échouer `npm run lint` sur chaque fichier.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.webp binary
+*.woff2 binary

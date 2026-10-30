@@ -1939,12 +1939,8 @@ pub fn list_extension_events(
 /// Drain le spool `~/.sobria/spool/incoming.jsonl` produit par `sobria-bridge`.
 /// Retourne le nombre d'évènements ingérés. Appelé manuellement ou par un timer.
 pub fn drain_extension_spool(state: &AppState) -> IpcResult<usize> {
-    let home = dirs::home_dir().ok_or_else(|| {
-        IpcError::from(AppError::Internal(
-            "home_dir introuvable pour localiser le spool".into(),
-        ))
-    })?;
-    let spool_path = home.join(".sobria").join("spool").join("incoming.jsonl");
+    let spool_path =
+        sobria_bridge::spool_path().map_err(|e| AppError::Internal(format!("{e:#}")))?;
     let store = state
         .extension_store
         .lock()
@@ -1971,7 +1967,7 @@ mod tests {
     fn meta_info_returns_version() {
         let (tmp, state) = fresh_state();
         let m = meta_info(&state).unwrap();
-        assert!(!m.app_version.is_empty());
+        assert_ne!(m.app_version.len(), 0);
         assert_eq!(m.estimator_n, sobria_estimator::DEFAULT_N);
         assert!(m.audit_path.ends_with("audit.sqlite"));
     }
@@ -2129,7 +2125,7 @@ mod tests {
         let page3 = list_audit_entries(3, 6, &state).unwrap();
         assert_eq!(page3.len(), 1);
         assert_eq!(page1[0].model_id, "claude-3-5-sonnet");
-        assert!(page1[0].sig_short.len() == 16);
+        assert_eq!(page1[0].sig_short.len(), 16);
     }
 
     #[test]
@@ -2469,7 +2465,7 @@ mod tests {
         assert!(detail.baseline_co2eq_p50_g > 0.0);
         assert!(detail.baseline_energy_wh_p50.is_finite());
         assert!(detail.baseline_water_l_p50.is_finite());
-        assert!(!detail.sources.is_empty());
+        assert_ne!(detail.sources.len(), 0);
     }
 
     #[test]
@@ -2699,8 +2695,8 @@ mod tests {
             "conservation violée"
         );
         assert_eq!(sankey.year, 2023);
-        assert!(!sankey.source_url.is_empty());
-        assert!(!sankey.source_sha256.is_empty());
+        assert_ne!(sankey.source_url.len(), 0);
+        assert_ne!(sankey.source_sha256.len(), 0);
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -3097,7 +3093,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let ds = generate_project_datasheet(p.id, &state).unwrap();
         // Composition agrégée vide mais datasheet quand même produit.
         assert_eq!(ds.composition.total_requests, 0);
-        assert!(ds.composition.unique_models.is_empty());
+        assert_eq!(ds.composition.unique_models.len(), 0);
     }
 
     #[test]
@@ -3344,8 +3340,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let (tmp, state) = fresh_state();
         let d = get_model_detail("gpt-4o-mini", &state).unwrap();
         assert_eq!(d.id, "gpt-4o-mini");
-        assert!(!d.display_name.is_empty());
-        assert!(!d.provider.is_empty());
+        assert_ne!(d.display_name.len(), 0);
+        assert_ne!(d.provider.len(), 0);
         assert!(!d.sources.is_empty(), "sources non vides");
         // Triplets ordonnés (P5 ≤ P50 ≤ P95)
         let t = &d.epsilon_prefill_mj_per_token;
@@ -3487,8 +3483,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet"]);
         let res = benchmark_models(req, &state).unwrap();
         for o in &res.outcomes {
-            assert!(!o.display_name.is_empty());
-            assert!(!o.provider.is_empty());
+            assert_ne!(o.display_name.len(), 0);
+            assert_ne!(o.provider.len(), 0);
             assert!(matches!(
                 o.calibration.as_str(),
                 "validated" | "indicative" | "extrapolated"
@@ -3701,7 +3697,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let provo: serde_json::Value = serde_json::from_str(&provo_text).unwrap();
         assert!(provo["@context"]["prov"].is_string());
         let graph = provo["@graph"].as_array().unwrap();
-        assert!(!graph.is_empty());
+        assert_ne!(graph.len(), 0);
         let report_node = &graph[0];
         assert_eq!(
             report_node["schema:contentSha256"].as_str().unwrap(),
@@ -4007,7 +4003,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let code = regenerate_pairing_code(&state).unwrap();
         let secret = verify_pairing_code(&state, &code.code, "chrome-mac-fp1").unwrap();
         assert_eq!(secret.secret_hex.len(), 64);
-        assert!(!secret.pairing_id.is_empty());
+        assert_ne!(secret.pairing_id.len(), 0);
         // Code consommé
         assert!(state.pending_code.lock().unwrap().is_none());
         // Pairing persisté

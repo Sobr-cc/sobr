@@ -3,7 +3,7 @@
 > **Public** : opérateurs Sobr.ia, mainteneurs, contributeurs qui veulent
 > rejouer le pipeline localement.
 > **Référence amont** : [`ADR-0009`](../adr/ADR-0009-medallion-architecture.md)
-> + chantier C26 (`briefs/chantiers/C26-pipeline-medaillon-activation.md`).
+> + chantier C26 (`docs/archive/chantiers/C26-pipeline-medaillon-activation.md`).
 
 DVC ([dvc.org](https://dvc.org/)) est notre versionneur de **données**. Il
 remplace Git pour les artefacts trop gros pour le repo (snapshots Copper de
@@ -193,5 +193,5 @@ Si divergence, ouvrir une issue avec le diff `MANIFEST.sha256` avant/après.
 
 - [ADR-0007 — Versionnage des données via DVC](../adr/ADR-0007-dvc.md)
 - [ADR-0009 — Architecture médaillon](../adr/ADR-0009-medallion-architecture.md)
-- [Brief C26 — Activation du pipeline](../../briefs/chantiers/C26-pipeline-medaillon-activation.md)
+- [Brief C26 — Activation du pipeline](../../docs/archive/chantiers/C26-pipeline-medaillon-activation.md)
 - [Documentation DVC officielle](https://dvc.org/doc)

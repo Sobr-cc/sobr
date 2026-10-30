@@ -10,7 +10,7 @@
 
 ## 0. Pourquoi ce chantier
 
-L'**état des lieux 2026-05-17** (`docs/etat-des-lieux-2026-05-17.md`) liste les dettes 🟠 importantes qui ne sont pas bloquantes individuellement mais qui, accumulées, font la différence entre un projet "ça marche" et un projet "production".
+L'**état des lieux 2026-05-17** (`docs/archive/etat-des-lieux-2026-05-17.md`) liste les dettes 🟠 importantes qui ne sont pas bloquantes individuellement mais qui, accumulées, font la différence entre un projet "ça marche" et un projet "production".
 
 C35 nettoie ces dettes en un sprint focalisé avant le dépôt candidature v1.0.
 

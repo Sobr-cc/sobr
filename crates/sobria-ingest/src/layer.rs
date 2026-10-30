@@ -150,6 +150,9 @@ impl HealthReport {
 }
 
 /// Trait unique du pipeline médaillon — voir ADR-0009.
+// Faux positif clippy 1.99 sur l'expansion d'async_trait : le future boxé
+// est déjà `#[must_use]`.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait DataLayer: Send + Sync {
     /// Identifiant stable et unique de la source.

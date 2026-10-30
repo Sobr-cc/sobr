@@ -42,7 +42,7 @@ impl AuditEntry {
             self.estimation_result_json,
             self.prev_sig
         );
-        hex_encode(&Sha256::digest(payload.as_bytes()))
+        format!("{:x}", Sha256::digest(payload.as_bytes()))
     }
 
     /// `true` si l'entrée a été purgée (payload remplacé par sentinel).
@@ -50,17 +50,6 @@ impl AuditEntry {
     pub fn is_purged(&self) -> bool {
         self.estimation_result_json == PURGED_SENTINEL && self.purged_at.is_some()
     }
-}
-
-/// Encode un slice de bytes en hexadécimal minuscule.
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = Vec::with_capacity(bytes.len() * 2);
-    for &b in bytes {
-        out.push(HEX[(b >> 4) as usize]);
-        out.push(HEX[(b & 0x0f) as usize]);
-    }
-    String::from_utf8(out).expect("hex chars ASCII")
 }
 
 #[cfg(test)]

@@ -122,7 +122,7 @@
   //
   // **Périmètre v1.0** (cf. ADR-0011) : 13 modules retenus, tous routés
   // frontend. M17 (Empreinte projet) a été câblé en C20 — voir
-  // `briefs/chantiers/C20-PROMPT-CLAUDE-CODE-M17.md`.
+  // `docs/archive/chantiers/C20-empreinte-projet-datasheet.md`.
   //
   // Modules différés v1.1+ (M2/M5/M6/M10/M11/M16/M18/M19/M21/M23/M24) :
   // routes placeholder retirées du rail. Les backend Rust restent compilés

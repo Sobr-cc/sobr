@@ -243,7 +243,7 @@ deux cas, Sobr.ia donne *la matière à creuser*, pas un chiffre
 imposé.
 
 Cf. [ADR-0012 Multi-méthodologie](adr/ADR-0012-multi-methodology-engine.md),
-[`briefs/chantiers/C24-multi-methodologie-ecologits.md`](../briefs/chantiers/C24-multi-methodologie-ecologits.md)
+[`docs/archive/chantiers/C24-multi-methodologie-ecologits.md`](../docs/archive/chantiers/C24-multi-methodologie-ecologits.md)
 et [`crates/sobria-estimator/src/engine_trait.rs`](../crates/sobria-estimator/src/engine_trait.rs).
 
 ### 4.2 Audit ledger SHA-256 chaîné
@@ -573,7 +573,7 @@ traçabilité cryptographique de ce choix.**
 - [Notebook de validation Quarto](../notebook/validation.qmd)
 - [Catalogue des sources](sources/)
 - [Sources de données embarquées](sources/CATALOGUE-DATACENTERS.md)
-- [Brief chantier C24 multi-méthodologie](../briefs/chantiers/C24-multi-methodologie-ecologits.md)
+- [Brief chantier C24 multi-méthodologie](../docs/archive/chantiers/C24-multi-methodologie-ecologits.md)
 
 ---
 

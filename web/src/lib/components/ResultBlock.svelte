@@ -1,5 +1,6 @@
 <script lang="ts">
   import Term from '$lib/components/Term.svelte';
+  import { fmtSig as fmt, pickScale } from '$lib/format';
   import { Leaf, Droplet, Hexagon, Layers, Settings2 } from '@lucide/svelte';
   import type {
     DistributionBins,
@@ -23,92 +24,9 @@
     return METHOD_LABELS[m] ?? m;
   }
 
-  // Format FR : virgule décimale, **N chiffres significatifs** plutôt que
-  // N décimales fixes. Indispensable parce que les indicateurs Sobr.ia
-  // s'étalent sur 6 ordres de grandeur (de quelques nanogrammes de métaux
-  // critiques à plusieurs centaines de grammes de CO₂eq pour des gros
-  // modèles) — un `maximumFractionDigits: 2` afficherait « 0,00 » pour
-  // tout ce qui passe sous 5 mg.
-  //
-  // Edge cases :
-  //   - `value === 0`  → "0"
-  //   - non fini       → "—"
-  //   - sinon          → Intl avec `maximumSignificantDigits`.
-  function fmt(value: number, sig = 3): string {
-    if (!Number.isFinite(value)) return '—';
-    if (value === 0) return '0';
-    return new Intl.NumberFormat('fr-FR', {
-      maximumSignificantDigits: sig,
-      minimumSignificantDigits: 1
-    }).format(value);
-  }
-
-  // ─── Auto-rescale des unités ────────────────────────────────────────────
-  //
-  // Le Rust renvoie les indicateurs dans leur unité « canonique »
-  // (`gCO2eq`, `Wh`, `L`, `mg`). Pour les petits modèles, ces valeurs
-  // tombent à 10⁻⁵..10⁻⁷ — illisibles. On bascule automatiquement vers la
-  // sous-unité où la valeur tombe dans [1, 1000).
-  //
-  // Le choix de l'échelle est fait UNE FOIS sur le P50 puis appliqué à P5,
-  // P95, et aux bornes de l'axe — pour que les trois percentiles d'un
-  // même indicateur restent comparables visuellement.
-
-  type Scale = { mult: number; unit: string };
-  type UnitChain = readonly Scale[];
-
-  // Chaînes de prefixes SI ordonnées de la plus grande à la plus petite.
-  // La fonction `pickScale` itère et choisit la première entrée où la
-  // valeur P50 multipliée par `mult` est dans [1, 1000).
-  const UNIT_CHAINS: Record<string, UnitChain> = {
-    gCO2eq: [
-      { mult: 1e-3, unit: 'kg CO₂eq' },
-      { mult: 1, unit: 'g CO₂eq' },
-      { mult: 1e3, unit: 'mg CO₂eq' },
-      { mult: 1e6, unit: 'µg CO₂eq' },
-      { mult: 1e9, unit: 'ng CO₂eq' }
-    ],
-    Wh: [
-      { mult: 1e-6, unit: 'MWh' },
-      { mult: 1e-3, unit: 'kWh' },
-      { mult: 1, unit: 'Wh' },
-      { mult: 1e3, unit: 'mWh' },
-      { mult: 1e6, unit: 'µWh' },
-      { mult: 1e9, unit: 'nWh' }
-    ],
-    L: [
-      { mult: 1e-3, unit: 'm³' },
-      { mult: 1, unit: 'L' },
-      { mult: 1e3, unit: 'mL' },
-      { mult: 1e6, unit: 'µL' },
-      { mult: 1e9, unit: 'nL' }
-    ],
-    mg: [
-      { mult: 1e-3, unit: 'g' },
-      { mult: 1, unit: 'mg' },
-      { mult: 1e3, unit: 'µg' },
-      { mult: 1e6, unit: 'ng' },
-      { mult: 1e9, unit: 'pg' }
-    ],
-    EUR: [{ mult: 1, unit: '€' }]
-  };
-
-  function pickScale(p50: number, baseUnit: string): Scale {
-    const chain = UNIT_CHAINS[baseUnit];
-    if (!chain || chain.length === 0) return { mult: 1, unit: baseUnit };
-    if (!Number.isFinite(p50) || p50 === 0) {
-      // Pas de signal → on garde l'unité canonique du milieu de chaîne.
-      return chain.find((s) => s.mult === 1) ?? chain[0] ?? { mult: 1, unit: baseUnit };
-    }
-    for (const s of chain) {
-      const scaled = Math.abs(p50 * s.mult);
-      if (scaled >= 1 && scaled < 1000) return s;
-    }
-    // Valeur hors plage couverte : on prend l'extrême le plus proche
-    // pour ne pas afficher zéro.
-    const last = chain[chain.length - 1];
-    return last ?? { mult: 1, unit: baseUnit };
-  }
+  // Format FR à chiffres significatifs + auto-rescale des unités : cf.
+  // `$lib/format` (échelle choisie UNE FOIS sur le P50 puis appliquée à P5,
+  // P95 et aux bornes de l'axe, pour garder les percentiles comparables).
 
   // Découpe l'unité affichée en (g, CO₂eq) pour la pill range P5–P95 qui
   // veut juste la sous-unité (« mg ») dans la clé, pas le suffixe (« CO₂eq »).

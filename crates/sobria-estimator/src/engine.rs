@@ -1,7 +1,7 @@
 //! Moteur Monte-Carlo de l'estimateur (ADR-0004).
 //!
 //! N=10⁴ tirages par défaut, seed déterministe (`SOBRIA_SEED`, défaut 42).
-//! Voir CDC §9 et `briefs/chantiers/C05-estimator-monte-carlo.md`.
+//! Voir CDC §9 et `docs/archive/chantiers/C05-estimator-monte-carlo.md`.
 
 use chrono::Utc;
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus};

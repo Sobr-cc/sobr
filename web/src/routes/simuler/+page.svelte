@@ -4,7 +4,7 @@
   // Contrat no-mock : hors Tauri on affiche une bannière d'erreur explicite.
   //
   // Voir :
-  //   - briefs/chantiers/C11-simulateur-et-si.md
+  //   - docs/archive/chantiers/C11-simulateur-et-si.md
   //   - crates/sobria-app/src/dto.rs (bloc "simulation")
   //   - docs/CAHIER-DES-CHARGES-v1.0.md §4 M13
 

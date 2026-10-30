@@ -14,7 +14,7 @@
 // pas de `rename_all`), `Option<T>` Rust → `field?: T` TS (compatible avec
 // `exactOptionalPropertyTypes`).
 //
-// Voir `briefs/chantiers/C09-tauri-integration.md` §3 pour les contrats IPC.
+// Voir `docs/archive/chantiers/C09-tauri-integration.md` §3 pour les contrats IPC.
 
 import { invoke } from '@tauri-apps/api/core';
 
@@ -120,7 +120,7 @@ export type VisionPricing =
 
 // Fiche détaillée d'un modèle (paramètres distributionnels + baseline
 // contextuel calculé sans journalisation). Cf. brief
-// `briefs/chantiers/C18-referentiel-modeles.md`.
+// `docs/archive/chantiers/C18-referentiel-modeles.md`.
 export interface ModelDetailDto {
   id: string;
   display_name: string;

@@ -212,7 +212,7 @@ sauvegardes SQLite, upgrade, troubleshooting). Bonus : Dockerfile
 multi-stage dans [`crates/sobria-team-aggregator/Dockerfile`](crates/sobria-team-aggregator/Dockerfile).
 
 Architecture : [ADR-0013 Phase 2](docs/adr/ADR-0013-extension-pairing-team-mode.md)
-· brief : [`briefs/chantiers/C28-mode-equipe-self-hosted.md`](briefs/chantiers/C28-mode-equipe-self-hosted.md).
+· brief : [`docs/archive/chantiers/C28-mode-equipe-self-hosted.md`](docs/archive/chantiers/C28-mode-equipe-self-hosted.md).
 
 ## Stack technique
 
