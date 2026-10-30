@@ -23,8 +23,8 @@ Foundations, all.
 ## Model
 
 Default: **Opus**. Sonnet for routine reviews.
-The task's `Model` label overrides this default. If blocked after two attempts: do not switch models yourself, note it in a comment and the orchestrator changes the label.
+The issue's `Model` label overrides this default. If blocked after two attempts: do not switch models yourself, note it in a comment and the orchestrator changes the label.
 
 ## Common rules
 
-Linear document "How we work" and CLAUDE.md §11. Sign your Linear comments `-- role:cto (model:<the task's Model label>)`.
+Linear document "How we work" and CLAUDE.md §11. Sign your Linear comments `-- role:cto (model:<the issue's Model label>)`.

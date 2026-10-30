@@ -340,8 +340,8 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
 - ❌ Ne JAMAIS faire un `force push` sur `main` ou `develop`.
 - ❌ Ne JAMAIS skipper les tests pour "gagner du temps".
 - ❌ Ne JAMAIS introduire de tracking utilisateur silencieux.
-- ❌ Ne JAMAIS écrire en français un commentaire de code, un message de commit, une PR ou une doc technique (ADR, CHANGELOG) : tout cela est en anglais. Seuls les textes visibles par l'utilisateur sont en français et en anglais.
-- ❌ Ne JAMAIS commenter ce que le code dit déjà : commentaires au strict minimum, une ligne courte pour une fonction complexe ou un choix non évident.
+- ❌ Ne JAMAIS écrire en français (Linear, commentaires de code, commits, titres et descriptions de PR, ADR, CHANGELOG) : tout est en anglais. Seuls les textes visibles par l'utilisateur sont en français et en anglais.
+- ❌ Ne JAMAIS commenter ce que le code dit déjà : commentaires au strict minimum, une ligne courte pour une fonction complexe ou un choix non évident. Exceptions : les `///` des items publics (§4.1), la source d'une formule (§6), `TODO(SOB-123)` (§14).
 - ❌ Ne JAMAIS résoudre une ambiguïté du CDC sans demander confirmation.
 
 ---

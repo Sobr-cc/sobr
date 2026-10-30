@@ -9,11 +9,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Changed — Writing rules in English (2026-10-30, SOB-97)
 
-- **CLAUDE.md** (§4.1, §4.3, §11, §13): everything agents write is now in
-  English: code comments, commit messages, PR titles and descriptions,
-  technical docs (ADRs, CHANGELOG). Only user-facing text stays in French and
-  English. New comment rule: the strict minimum, nothing that restates the
-  code. The old "FR + EN required for docs" rule is removed.
+- **CLAUDE.md** (§13, with pointers in §4.1, §4.3 and §11): everything agents
+  write is in English; only user-facing text stays in French and English. New
+  comment rule: the strict minimum, with three exceptions. The old "FR + EN
+  required for docs" rule is removed.
 - **`.claude/agents/*.md`** and **`.claude/skills/orchestrate/SKILL.md`**
   translated into English, rules unchanged.
 
