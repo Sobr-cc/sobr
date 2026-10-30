@@ -7,6 +7,30 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0013 amended for automatic pairing (2026-10-30, SOB-34)
+
+- **ADR-0013, Amendment 1** (Accepted 2026-10-30): after one explicit
+  "Connect my browsers" choice in the app, the browser extension pairs
+  automatically, with no 6-digit code to type (screen E2, October 30
+  arbitration).
+  - The app writes native messaging manifests that allow only the published
+    Sobr extension IDs.
+  - Unpairing is done in the settings on either side. It sticks for that
+    installation; a reinstalled extension pairs again only after the person
+    accepts it in the app.
+  - The amendment keeps the original text and records that it reverses
+    alternative 4.
+  - It lists the conditions automatic pairing must meet before it ships:
+    - store IDs created;
+    - the bridge shipped with the app;
+    - channels restricted to the current OS user;
+    - one pairing per browser profile;
+    - a notice to the person;
+    - the offline spool checks the secret;
+    - "Export JSON" leaves the secret out.
+  - ADR-0014 gets a note on its "Pairing perso 6 chiffres" row.
+  - Nothing is built yet (SOB-107).
+
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
 - **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what
