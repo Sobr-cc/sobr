@@ -7,6 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Règles du code de pairing épinglées dans le dispatcher (2026-10-30, SOB-80)
+
+- **`sobria-app`** (`bridge_server.rs`, module de tests) : quatre tests figent
+  le comportement actuel de `dispatch_request` pour `Pair` (ADR-0013), avant le
+  pairing automatique (E2). Un code est à usage unique (le second `Pair` reçoit
+  « aucun code de pairing en attente… »), un code expiré est refusé (« code
+  invalide ou expiré »), un code mal formé et un mauvais code à 6 chiffres
+  reçoivent chacun leur message exact. Aucun code de production modifié.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
