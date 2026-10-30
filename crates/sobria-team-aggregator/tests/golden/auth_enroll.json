@@ -5,11 +5,18 @@
       "access_token": "<jwt>",
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
-      "user_id": "<ulid>"
+      "user_id": "<ulid#1>"
     },
     "content_type": "application/json",
     "request": "enroll: ok",
     "status": 200
+  },
+  {
+    "note": "token lifetimes in hours",
+    "value": {
+      "access": 24.0,
+      "refresh": 168.0
+    }
   },
   {
     "body": {
@@ -66,13 +73,13 @@
     "status": 400
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `password` at line 1 column 46",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `password`",
     "content_type": "text/plain",
     "request": "enroll: missing field",
     "status": 422
   },
   {
-    "body": "Failed to parse the request body as JSON: EOF while parsing an object at line 1 column 1",
+    "body": "Failed to parse the request body as JSON: EOF while parsing an object",
     "content_type": "text/plain",
     "request": "enroll: body is not JSON",
     "status": 400
@@ -83,7 +90,7 @@
       "access_token": "<jwt>",
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
-      "user_id": "<ulid>"
+      "user_id": "<ulid#2>"
     },
     "content_type": "application/json",
     "request": "enroll: without display name",

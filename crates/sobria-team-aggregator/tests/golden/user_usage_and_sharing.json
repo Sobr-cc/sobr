@@ -9,7 +9,7 @@
         "tokens_out": 0,
         "water_ml": 0.0
       },
-      "user_id": "<ulid>"
+      "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
     },
     "content_type": "application/json",
     "request": "me/usage: nothing sent yet",
@@ -61,13 +61,13 @@
     "status": 200
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `share_identified` at line 1 column 2",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `share_identified`",
     "content_type": "text/plain",
     "request": "me/sharing: missing field",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: share_identified: invalid type: string \"yes\", expected a boolean at line 1 column 25",
+    "body": "Failed to deserialize the JSON body into the target type: share_identified: invalid type: string \"yes\", expected a boolean",
     "content_type": "text/plain",
     "request": "me/sharing: wrong type",
     "status": 422

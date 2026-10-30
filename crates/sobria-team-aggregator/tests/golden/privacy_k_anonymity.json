@@ -166,7 +166,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -316,13 +316,39 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
     },
     "content_type": "application/json",
     "request": "5 employees, k unreadable (k)",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-01-01T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 0,
+        "blocked": true,
+        "required": 5
+      },
+      "method_breakdown": [],
+      "policy": "opt_in",
+      "projects": [],
+      "series": [],
+      "to": "2026-01-02T00:00:00+00:00",
+      "top_models": [],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": []
+      }
+    },
+    "content_type": "application/json",
+    "request": "5 employees, window without estimation",
     "status": 200
   },
   {

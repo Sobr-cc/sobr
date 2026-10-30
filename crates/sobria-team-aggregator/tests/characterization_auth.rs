@@ -7,9 +7,9 @@
 
 mod common;
 
-use common::{Server, ADMIN_PASSWORD, ADMIN_USERNAME, USER_PASSWORD};
+use common::{hours_from_now, Server, ADMIN_PASSWORD, ADMIN_USERNAME, USER_PASSWORD};
 use reqwest::header::AUTHORIZATION;
-use serde_json::{json, Value};
+use serde_json::json;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_and_unknown_routes() {
@@ -31,7 +31,7 @@ async fn health_and_unknown_routes() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn enroll() {
     let server = Server::start().await;
-    let codes = server.create_codes(6);
+    let codes = server.create_codes(2);
     let enroll = |code: &str, password: &str, fingerprint: &str| {
         server.post("/api/v1/enroll").json(&json!({
             "code": code,
@@ -41,10 +41,18 @@ async fn enroll() {
         }))
     };
 
-    let (status, _) = server
+    let (status, body) = server
         .record("enroll: ok", enroll(&codes[0], USER_PASSWORD, "fp-alice"))
         .await;
     assert_eq!(status, 200);
+    server.note(
+        "token lifetimes in hours",
+        json!({
+            "access": hours_from_now(body["access_expires_at"].as_str().expect("access")),
+            "refresh": hours_from_now(body["refresh_expires_at"].as_str().expect("refresh")),
+        }),
+    );
+    // The second code is not consumed by the refused attempts below.
     server
         .record(
             "enroll: same fingerprint, fresh code",
@@ -72,13 +80,13 @@ async fn enroll() {
     server
         .record(
             "enroll: password too short",
-            enroll(&codes[2], "short", "fp-bob"),
+            enroll(&codes[1], "short", "fp-bob"),
         )
         .await;
     server
         .record(
             "enroll: empty fingerprint",
-            enroll(&codes[3], USER_PASSWORD, ""),
+            enroll(&codes[1], USER_PASSWORD, ""),
         )
         .await;
     server
@@ -86,7 +94,7 @@ async fn enroll() {
             "enroll: missing field",
             server
                 .post("/api/v1/enroll")
-                .json(&json!({"code": codes[4], "fingerprint": "fp-bob"})),
+                .json(&json!({"code": codes[1], "fingerprint": "fp-bob"})),
         )
         .await;
     server
@@ -98,12 +106,11 @@ async fn enroll() {
                 .body("{"),
         )
         .await;
-    // The code of the refused attempts above is still usable.
     let (status, _) = server
         .record(
             "enroll: without display name",
             server.post("/api/v1/enroll").json(&json!({
-                "code": codes[5],
+                "code": codes[1],
                 "password": USER_PASSWORD,
                 "fingerprint": "fp-carol",
             })),
@@ -118,76 +125,57 @@ async fn enroll() {
 async fn login() {
     let server = Server::start().await;
     server.enroll("fp-alice", "Alice").await;
-    let login = |body: Value| server.post("/api/v1/login").json(&body);
 
-    server
-        .record(
-            "login: user, role omitted",
-            login(json!({"username": "fp-alice", "password": USER_PASSWORD})),
-        )
-        .await;
-    server
-        .record(
-            "login: user, role user",
-            login(json!({"username": "fp-alice", "password": USER_PASSWORD, "role": "user"})),
-        )
-        .await;
-    server
-        .record(
-            "login: user, wrong password",
-            login(json!({"username": "fp-alice", "password": "wrong-password"})),
-        )
-        .await;
-    server
-        .record(
-            "login: user, unknown fingerprint",
-            login(json!({"username": "fp-nobody", "password": USER_PASSWORD})),
-        )
-        .await;
-    server
-        .record(
-            "login: empty username",
-            login(json!({"username": "", "password": USER_PASSWORD})),
-        )
-        .await;
-    server
-        .record(
-            "login: empty password",
-            login(json!({"username": "fp-alice", "password": ""})),
-        )
-        .await;
-    server
-        .record(
-            "login: admin",
-            login(json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "admin"})),
-        )
-        .await;
-    server
-        .record(
-            "login: admin, wrong password",
-            login(
-                json!({"username": ADMIN_USERNAME, "password": "wrong-password", "role": "admin"}),
-            ),
-        )
-        .await;
-    server
-        .record(
-            "login: admin name with the user role",
-            login(json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "user"})),
-        )
-        .await;
-    server
-        .record(
-            "login: unknown role",
-            login(json!({"username": "fp-alice", "password": USER_PASSWORD, "role": "root"})),
-        )
-        .await;
-    server
-        .record(
-            "login: missing password",
-            login(json!({"username": "fp-alice"})),
-        )
-        .await;
+    for (label, body) in [
+        (
+            "user, role omitted",
+            json!({"username": "fp-alice", "password": USER_PASSWORD}),
+        ),
+        (
+            "user, role user",
+            json!({"username": "fp-alice", "password": USER_PASSWORD, "role": "user"}),
+        ),
+        (
+            "user, wrong password",
+            json!({"username": "fp-alice", "password": "wrong-password"}),
+        ),
+        (
+            "user, unknown fingerprint",
+            json!({"username": "fp-nobody", "password": USER_PASSWORD}),
+        ),
+        (
+            "empty username",
+            json!({"username": "", "password": USER_PASSWORD}),
+        ),
+        (
+            "empty password",
+            json!({"username": "fp-alice", "password": ""}),
+        ),
+        (
+            "admin",
+            json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "admin"}),
+        ),
+        (
+            "admin, wrong password",
+            json!({"username": ADMIN_USERNAME, "password": "wrong-password", "role": "admin"}),
+        ),
+        (
+            "admin name with the user role",
+            json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "user"}),
+        ),
+        (
+            "unknown role",
+            json!({"username": "fp-alice", "password": USER_PASSWORD, "role": "root"}),
+        ),
+        ("missing password", json!({"username": "fp-alice"})),
+    ] {
+        server
+            .record(
+                &format!("login: {label}"),
+                server.post("/api/v1/login").json(&body),
+            )
+            .await;
+    }
 
     server.assert_golden("auth_login");
 }
@@ -254,46 +242,29 @@ async fn refresh() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn access_guards() {
     let server = Server::start().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
-    let admin_token = server.admin_token().await;
+    let user_token = server.user_token(&server.seed_user(1, false));
+    let admin_token = server.admin_token();
+    let attempts = [
+        ("no header", None),
+        ("Basic scheme", Some("Basic YWJjOmRlZg==".to_owned())),
+        ("garbage bearer", Some("Bearer garbage".to_owned())),
+        ("user token", Some(format!("Bearer {user_token}"))),
+        ("admin token", Some(format!("Bearer {admin_token}"))),
+    ];
 
     for (route, label) in [
         ("/api/v1/me/usage", "user route"),
         ("/api/v1/admin/users", "admin route"),
     ] {
-        server
-            .record(
-                &format!("GET {route}: no header ({label})"),
-                server.get(route),
-            )
-            .await;
-        server
-            .record(
-                &format!("GET {route}: Basic scheme ({label})"),
-                server
-                    .get(route)
-                    .header(AUTHORIZATION, "Basic YWJjOmRlZg=="),
-            )
-            .await;
-        server
-            .record(
-                &format!("GET {route}: garbage bearer ({label})"),
-                server.get(route).bearer_auth("garbage"),
-            )
-            .await;
-        server
-            .record(
-                &format!("GET {route}: user token ({label})"),
-                server.get(route).bearer_auth(&user_token),
-            )
-            .await;
-        server
-            .record(
-                &format!("GET {route}: admin token ({label})"),
-                server.get(route).bearer_auth(&admin_token),
-            )
-            .await;
+        for (attempt, header) in &attempts {
+            let mut request = server.get(route);
+            if let Some(value) = header {
+                request = request.header(AUTHORIZATION, value);
+            }
+            server
+                .record(&format!("GET {route}: {attempt} ({label})"), request)
+                .await;
+        }
     }
 
     server.assert_golden("auth_access_guards");

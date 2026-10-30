@@ -8,8 +8,7 @@
 
 mod common;
 
-use chrono::{DateTime, Utc};
-use common::Server;
+use common::{hours_from_now, timestamp, Server, USER_PASSWORD};
 use serde_json::{json, Value};
 use sobria_team_aggregator::{alerts::store::try_insert_trigger, policy::POLICY_KEY};
 
@@ -17,23 +16,23 @@ use sobria_team_aggregator::{alerts::store::try_insert_trigger, policy::POLICY_K
 const FROM: &str = "2026-05-15T00:00:00Z";
 const TO: &str = "2026-05-17T00:00:00Z";
 
-fn timestamp(rfc3339: &str) -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(rfc3339)
-        .expect("fixed timestamp")
-        .with_timezone(&Utc)
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn enrollment_codes() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
+    let token = server.admin_token();
+    let user_token = server.user_token(&server.seed_user(1, false));
     let create = |body: Value| {
         server
             .post("/api/v1/admin/codes")
             .bearer_auth(&token)
             .json(&body)
+    };
+    let lifetime = |batch: &Value| {
+        hours_from_now(
+            batch["codes"][0]["expires_at"]
+                .as_str()
+                .expect("expires_at"),
+        )
     };
 
     let (status, batch) = server
@@ -43,21 +42,14 @@ async fn enrollment_codes() {
         )
         .await;
     assert_eq!(status, 200);
-    let expires_at = DateTime::parse_from_rfc3339(
-        batch["codes"][0]["expires_at"]
-            .as_str()
-            .expect("expires_at"),
-    )
-    .expect("RFC 3339");
-    let lifetime_days =
-        ((expires_at.with_timezone(&Utc) - Utc::now()).num_minutes() as f64 / 1440.0).round();
-    server.note("default lifetime in days", json!(lifetime_days));
-    server
+    server.note("default lifetime in hours", json!(lifetime(&batch)));
+    let (_, thirty_days) = server
         .record(
             "codes: one code, 30 days",
             create(json!({"count": 1, "ttl_days": 30})),
         )
         .await;
+    server.note("30-day lifetime in hours", json!(lifetime(&thirty_days)));
     for (label, body) in [
         ("count 0", json!({"count": 0})),
         ("count 501", json!({"count": 501})),
@@ -83,21 +75,11 @@ async fn enrollment_codes() {
         )
         .await;
     server
-        .record(
-            "codes: no auth",
+        .record_refused("codes", "user token", &user_token, || {
             server
                 .post("/api/v1/admin/codes")
-                .json(&json!({"count": 1})),
-        )
-        .await;
-    server
-        .record(
-            "codes: user token",
-            server
-                .post("/api/v1/admin/codes")
-                .bearer_auth(&user_token)
-                .json(&json!({"count": 1})),
-        )
+                .json(&json!({"count": 1}))
+        })
         .await;
 
     let first_id = batch["codes"][0]["id"].as_str().expect("id").to_owned();
@@ -115,25 +97,16 @@ async fn enrollment_codes() {
         .record("revoke: unknown id", revoke("does-not-exist"))
         .await;
     server
-        .record(
-            "revoke: no auth",
-            server.delete(&format!("/api/v1/admin/codes/{first_id}")),
-        )
-        .await;
-    server
-        .record(
-            "revoke: user token",
-            server
-                .delete(&format!("/api/v1/admin/codes/{first_id}"))
-                .bearer_auth(&user_token),
-        )
+        .record_refused("revoke", "user token", &user_token, || {
+            server.delete(&format!("/api/v1/admin/codes/{first_id}"))
+        })
         .await;
     server
         .record(
             "enroll with the revoked code",
             server.post("/api/v1/enroll").json(&json!({
                 "code": first_code,
-                "password": "user-password-strong",
+                "password": USER_PASSWORD,
                 "fingerprint": "fp-bob",
             })),
         )
@@ -145,23 +118,12 @@ async fn enrollment_codes() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exports() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
+    let token = server.admin_token();
     // Two employees: under the k threshold, and under the strictest policy.
     server.seed_team(1..=2);
-    server
-        .storage()
-        .set_config(POLICY_KEY, "anonymous")
-        .expect("config");
+    let user_token = server.user_token(&server.seed_user(3, false));
+    server.set_config(POLICY_KEY, "anonymous");
     let window = json!({"from": FROM, "to": TO});
-    let with = |extra: Value| {
-        let mut body = window.clone();
-        body.as_object_mut()
-            .expect("object")
-            .extend(extra.as_object().expect("object").clone());
-        body
-    };
     let post = |kind: &str, body: Value| {
         server
             .post(&format!("/api/v1/admin/exports/{kind}"))
@@ -178,7 +140,7 @@ async fn exports() {
     server
         .record_download(
             "csv: anonymize = true",
-            post("csv", with(json!({"anonymize": true}))),
+            post("csv", json!({"from": FROM, "to": TO, "anonymize": true})),
         )
         .await;
     server
@@ -201,7 +163,7 @@ async fn exports() {
             "prov-o: anonymize = true, entity name",
             post(
                 "prov-o",
-                with(json!({"anonymize": true, "entity_name": "ACME"})),
+                json!({"from": FROM, "to": TO, "anonymize": true, "entity_name": "ACME"}),
             ),
         )
         .await;
@@ -211,7 +173,10 @@ async fn exports() {
     server
         .record_download(
             "csrd: entity name",
-            post("csrd", with(json!({"entity_name": "ACME Corp"}))),
+            post(
+                "csrd",
+                json!({"from": FROM, "to": TO, "entity_name": "ACME Corp"}),
+            ),
         )
         .await;
 
@@ -229,21 +194,11 @@ async fn exports() {
             )
             .await;
         server
-            .record(
-                &format!("{kind}: no auth"),
+            .record_refused(kind, "user token", &user_token, || {
                 server
                     .post(&format!("/api/v1/admin/exports/{kind}"))
-                    .json(&window),
-            )
-            .await;
-        server
-            .record(
-                &format!("{kind}: user token"),
-                server
-                    .post(&format!("/api/v1/admin/exports/{kind}"))
-                    .bearer_auth(&user_token)
-                    .json(&window),
-            )
+                    .json(&window)
+            })
             .await;
     }
     server
@@ -263,10 +218,9 @@ async fn exports() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn alert_thresholds() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
+    let token = server.admin_token();
     server.seed_team(1..=1);
+    let user_token = server.user_token(&server.seed_user(2, false));
     let employee = Server::user_id(1);
     let create = |body: Value| {
         server
@@ -274,13 +228,9 @@ async fn alert_thresholds() {
             .bearer_auth(&token)
             .json(&body)
     };
+    let list = || server.get("/api/v1/admin/alerts").bearer_auth(&token);
 
-    server
-        .record(
-            "list: empty",
-            server.get("/api/v1/admin/alerts").bearer_auth(&token),
-        )
-        .await;
+    server.record("list: empty", list()).await;
     let (status, team) = server
         .record(
             "create: team, daily, log only",
@@ -364,31 +314,14 @@ async fn alert_thresholds() {
             .await;
     }
     server
-        .record(
-            "create: no auth",
+        .record_refused("create", "user token", &user_token, || {
             server.post("/api/v1/admin/alerts").json(&json!({
                 "scope": "team", "period": "daily", "gco2eq_max": 1.0, "notify_kind": "log_only"
-            })),
-        )
-        .await;
-    server
-        .record(
-            "create: user token",
-            server
-                .post("/api/v1/admin/alerts")
-                .bearer_auth(&user_token)
-                .json(&json!({
-                    "scope": "team", "period": "daily", "gco2eq_max": 1.0, "notify_kind": "log_only"
-                })),
-        )
+            }))
+        })
         .await;
 
-    server
-        .record(
-            "list: four thresholds",
-            server.get("/api/v1/admin/alerts").bearer_auth(&token),
-        )
-        .await;
+    server.record("list: four thresholds", list()).await;
     let delete = |id: &str| {
         server
             .delete(&format!("/api/v1/admin/alerts/{id}"))
@@ -402,33 +335,17 @@ async fn alert_thresholds() {
         .record("delete: unknown id", delete("does-not-exist"))
         .await;
     server
-        .record(
-            "list: a disabled threshold stays listed",
-            server.get("/api/v1/admin/alerts").bearer_auth(&token),
-        )
+        .record("list: a disabled threshold stays listed", list())
         .await;
     server
-        .record(
-            "delete: no auth",
-            server.delete(&format!("/api/v1/admin/alerts/{team_id}")),
-        )
+        .record_refused("delete", "user token", &user_token, || {
+            server.delete(&format!("/api/v1/admin/alerts/{team_id}"))
+        })
         .await;
     server
-        .record(
-            "delete: user token",
-            server
-                .delete(&format!("/api/v1/admin/alerts/{team_id}"))
-                .bearer_auth(&user_token),
-        )
-        .await;
-    server
-        .record("list: no auth", server.get("/api/v1/admin/alerts"))
-        .await;
-    server
-        .record(
-            "list: user token",
-            server.get("/api/v1/admin/alerts").bearer_auth(&user_token),
-        )
+        .record_refused("list", "user token", &user_token, || {
+            server.get("/api/v1/admin/alerts")
+        })
         .await;
 
     server.assert_golden("admin_alert_thresholds");
@@ -437,9 +354,8 @@ async fn alert_thresholds() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn alert_triggers() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
+    let token = server.admin_token();
+    let user_token = server.user_token(&server.seed_user(1, false));
     let (_, threshold) = server
         .fetch(
             server
@@ -464,70 +380,42 @@ async fn alert_triggers() {
         let storage = server.storage();
         for (n, day, observed) in [(1, 14, 3.0), (2, 15, 4.0), (3, 16, 5.0)] {
             let id = format!("01HZ{}{n:03}", "T".repeat(19));
-            let start = timestamp(&format!("2026-05-{day}T00:00:00Z"));
-            let end = timestamp(&format!("2026-05-{:02}T00:00:00Z", day + 1));
-            let triggered = timestamp(&format!("2026-05-{day}T12:00:00Z"));
             let inserted = try_insert_trigger(
                 storage.connection(),
                 &id,
                 &threshold_id,
-                start,
-                end,
+                timestamp(&format!("2026-05-{day}T00:00:00Z")),
+                timestamp(&format!("2026-05-{:02}T00:00:00Z", day + 1)),
                 observed,
-                triggered,
+                timestamp(&format!("2026-05-{day}T12:00:00Z")),
             )
             .expect("seed trigger");
             assert!(inserted.is_some(), "trigger {n} must be new");
         }
     }
 
+    for (label, query) in [
+        ("all three, newest first", ""),
+        ("limit 2", "?limit=2"),
+        ("limit 0 is raised to 1", "?limit=0"),
+        ("limit 1000 is capped at 500", "?limit=1000"),
+        ("from the second day", "?from=2026-05-15T00:00:00Z"),
+        ("up to the second day", "?to=2026-05-15T23:59:59Z"),
+        (
+            "only the second day",
+            "?from=2026-05-15T00:00:00Z&to=2026-05-15T23:59:59Z",
+        ),
+        ("from is not a date", "?from=yesterday"),
+        ("limit is not a number", "?limit=many"),
+    ] {
+        server
+            .record(&format!("triggers: {label}"), get(query))
+            .await;
+    }
     server
-        .record("triggers: all three, newest first", get(""))
-        .await;
-    server.record("triggers: limit 2", get("?limit=2")).await;
-    server
-        .record("triggers: limit 0 is raised to 1", get("?limit=0"))
-        .await;
-    server
-        .record("triggers: limit 1000 is capped at 500", get("?limit=1000"))
-        .await;
-    server
-        .record(
-            "triggers: from the second day",
-            get("?from=2026-05-15T00:00:00Z"),
-        )
-        .await;
-    server
-        .record(
-            "triggers: up to the second day",
-            get("?to=2026-05-15T23:59:59Z"),
-        )
-        .await;
-    server
-        .record(
-            "triggers: only the second day",
-            get("?from=2026-05-15T00:00:00Z&to=2026-05-15T23:59:59Z"),
-        )
-        .await;
-    server
-        .record("triggers: from is not a date", get("?from=yesterday"))
-        .await;
-    server
-        .record("triggers: limit is not a number", get("?limit=many"))
-        .await;
-    server
-        .record(
-            "triggers: no auth",
-            server.get("/api/v1/admin/alerts/triggers"),
-        )
-        .await;
-    server
-        .record(
-            "triggers: user token",
-            server
-                .get("/api/v1/admin/alerts/triggers")
-                .bearer_auth(&user_token),
-        )
+        .record_refused("triggers", "user token", &user_token, || {
+            server.get("/api/v1/admin/alerts/triggers")
+        })
         .await;
 
     server.assert_golden("admin_alert_triggers");

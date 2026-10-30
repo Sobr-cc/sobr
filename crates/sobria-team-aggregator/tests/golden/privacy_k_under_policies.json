@@ -149,14 +149,14 @@
             "display_name": "Employee 2",
             "fingerprint": "fp-employee-2",
             "gco2eq_g": 0.6000000000000001,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ002"
           },
           {
             "count": 2,
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }

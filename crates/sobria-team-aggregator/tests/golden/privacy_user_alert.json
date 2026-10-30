@@ -5,23 +5,23 @@
       "share_identified": false
     },
     "content_type": "application/json",
-    "request": "alice did not opt in",
+    "request": "the employee did not opt in",
     "status": 200
   },
   {
     "body": {
-      "id": "<ulid>",
+      "id": "<ulid#1>",
       "threshold": {
         "created_at": "<timestamp>",
-        "created_by_admin_id": "<ulid>",
+        "created_by_admin_id": "<ulid#2>",
         "disabled_at": null,
         "gco2eq_max": 0.1,
-        "id": "<ulid>",
+        "id": "<ulid#1>",
         "notify_kind": "log_only",
         "notify_target": null,
         "period": "daily",
         "scope": "user",
-        "target_id": "<ulid>"
+        "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
       }
     },
     "content_type": "application/json",
@@ -31,7 +31,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#3>"
     },
     "content_type": "application/json",
     "request": "estimation above the threshold",

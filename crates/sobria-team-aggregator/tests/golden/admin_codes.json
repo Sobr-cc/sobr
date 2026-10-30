@@ -3,19 +3,19 @@
     "body": {
       "codes": [
         {
-          "code": "<enrollment_code>",
+          "code": "<code#1>",
           "expires_at": "<timestamp>",
-          "id": "<ulid>"
+          "id": "<ulid#1>"
         },
         {
-          "code": "<enrollment_code>",
+          "code": "<code#2>",
           "expires_at": "<timestamp>",
-          "id": "<ulid>"
+          "id": "<ulid#2>"
         },
         {
-          "code": "<enrollment_code>",
+          "code": "<code#3>",
           "expires_at": "<timestamp>",
-          "id": "<ulid>"
+          "id": "<ulid#3>"
         }
       ]
     },
@@ -24,22 +24,26 @@
     "status": 200
   },
   {
-    "note": "default lifetime in days",
-    "value": 7.0
+    "note": "default lifetime in hours",
+    "value": 168.0
   },
   {
     "body": {
       "codes": [
         {
-          "code": "<enrollment_code>",
+          "code": "<code#4>",
           "expires_at": "<timestamp>",
-          "id": "<ulid>"
+          "id": "<ulid#4>"
         }
       ]
     },
     "content_type": "application/json",
     "request": "codes: one code, 30 days",
     "status": 200
+  },
+  {
+    "note": "30-day lifetime in hours",
+    "value": 720.0
   },
   {
     "body": {
@@ -87,25 +91,25 @@
     "status": 400
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `count` at line 1 column 14",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `count`",
     "content_type": "text/plain",
     "request": "codes: count missing",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: count: invalid value: integer `-1`, expected u32 at line 1 column 11",
+    "body": "Failed to deserialize the JSON body into the target type: count: invalid value: integer `-1`, expected u32",
     "content_type": "text/plain",
     "request": "codes: count negative",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: count: invalid type: string \"3\", expected u32 at line 1 column 12",
+    "body": "Failed to deserialize the JSON body into the target type: count: invalid type: string \"3\", expected u32",
     "content_type": "text/plain",
     "request": "codes: count is a string",
     "status": 422
   },
   {
-    "body": "Failed to parse the request body as JSON: EOF while parsing an object at line 1 column 1",
+    "body": "Failed to parse the request body as JSON: EOF while parsing an object",
     "content_type": "text/plain",
     "request": "codes: body is not JSON",
     "status": 400

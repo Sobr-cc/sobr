@@ -61,9 +61,8 @@ fn stored_estimations(server: &Server) -> Value {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn estimations() {
     let server = Server::start().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let token = enrolled["access_token"].as_str().expect("token").to_owned();
-    let admin_token = server.admin_token().await;
+    let token = server.user_token(&server.seed_user(1, false));
+    let admin_token = server.admin_token();
     let post = |body: Value| {
         server
             .post("/api/v1/estimations")
@@ -107,46 +106,23 @@ async fn estimations() {
             post(payload(5, json!({"project": "   "}))),
         )
         .await;
-    server
-        .record(
-            "estimation: method ecologits",
-            post({
-                let mut body = payload(6, json!({}));
-                body["estimate"]["method"] = json!("ecologits");
-                body
-            }),
-        )
-        .await;
-    server
-        .record(
-            "estimation: unknown method",
-            post({
-                let mut body = payload(7, json!({}));
-                body["estimate"]["method"] = json!("made_up");
-                body
-            }),
-        )
-        .await;
-    server
-        .record(
-            "estimation: negative gco2eq",
-            post({
-                let mut body = payload(8, json!({}));
-                body["estimate"]["gco2eq"] = json!(-0.1);
-                body
-            }),
-        )
-        .await;
-    server
-        .record(
-            "estimation: negative token count",
-            post({
-                let mut body = payload(9, json!({}));
-                body["estimate"]["tokensIn"] = json!(-1);
-                body
-            }),
-        )
-        .await;
+    for (second, label, pointer, value) in [
+        (
+            6,
+            "method ecologits",
+            "/estimate/method",
+            json!("ecologits"),
+        ),
+        (7, "unknown method", "/estimate/method", json!("made_up")),
+        (8, "negative gco2eq", "/estimate/gco2eq", json!(-0.1)),
+        (9, "negative token count", "/estimate/tokensIn", json!(-1)),
+    ] {
+        let mut body = payload(second, json!({}));
+        *body.pointer_mut(pointer).expect("field") = value;
+        server
+            .record(&format!("estimation: {label}"), post(body))
+            .await;
+    }
     server
         .record(
             "estimation: missing ts",
@@ -168,21 +144,11 @@ async fn estimations() {
         )
         .await;
     server
-        .record(
-            "estimation: no auth",
+        .record_refused("estimation", "admin token", &admin_token, || {
             server
                 .post("/api/v1/estimations")
-                .json(&payload(12, json!({}))),
-        )
-        .await;
-    server
-        .record(
-            "estimation: admin token",
-            server
-                .post("/api/v1/estimations")
-                .bearer_auth(&admin_token)
-                .json(&payload(13, json!({}))),
-        )
+                .json(&payload(12, json!({})))
+        })
         .await;
 
     server.note("stored estimations", stored_estimations(&server));
@@ -199,9 +165,9 @@ async fn estimations() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn me_usage_and_sharing() {
     let server = Server::start().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let token = enrolled["access_token"].as_str().expect("token").to_owned();
-    let admin_token = server.admin_token().await;
+    let token = server.user_token(&server.seed_user(1, false));
+    let admin_token = server.admin_token();
+    let get = |path: &str| server.get(path).bearer_auth(&token);
     let put = |body: Value| {
         server
             .put("/api/v1/me/sharing")
@@ -210,25 +176,16 @@ async fn me_usage_and_sharing() {
     };
 
     server
-        .record(
-            "me/usage: nothing sent yet",
-            server.get("/api/v1/me/usage").bearer_auth(&token),
-        )
+        .record("me/usage: nothing sent yet", get("/api/v1/me/usage"))
         .await;
     server
-        .record(
-            "me/sharing: default",
-            server.get("/api/v1/me/sharing").bearer_auth(&token),
-        )
+        .record("me/sharing: default", get("/api/v1/me/sharing"))
         .await;
     server
         .record("me/sharing: opt in", put(json!({"share_identified": true})))
         .await;
     server
-        .record(
-            "me/sharing: read back",
-            server.get("/api/v1/me/sharing").bearer_auth(&token),
-        )
+        .record("me/sharing: read back", get("/api/v1/me/sharing"))
         .await;
     server
         .record(
@@ -239,7 +196,7 @@ async fn me_usage_and_sharing() {
     server
         .record(
             "me/sharing: read back after the ignored key",
-            server.get("/api/v1/me/sharing").bearer_auth(&token),
+            get("/api/v1/me/sharing"),
         )
         .await;
     server
@@ -252,30 +209,16 @@ async fn me_usage_and_sharing() {
         )
         .await;
     server
-        .record("me/sharing GET: no auth", server.get("/api/v1/me/sharing"))
+        .record_refused("me/sharing GET", "admin token", &admin_token, || {
+            server.get("/api/v1/me/sharing")
+        })
         .await;
     server
-        .record(
-            "me/sharing GET: admin token",
-            server.get("/api/v1/me/sharing").bearer_auth(&admin_token),
-        )
-        .await;
-    server
-        .record(
-            "me/sharing PUT: no auth",
+        .record_refused("me/sharing PUT", "admin token", &admin_token, || {
             server
                 .put("/api/v1/me/sharing")
-                .json(&json!({"share_identified": true})),
-        )
-        .await;
-    server
-        .record(
-            "me/sharing PUT: admin token",
-            server
-                .put("/api/v1/me/sharing")
-                .bearer_auth(&admin_token)
-                .json(&json!({"share_identified": true})),
-        )
+                .json(&json!({"share_identified": true}))
+        })
         .await;
     server
         .record("me/usage: no auth", server.get("/api/v1/me/usage"))

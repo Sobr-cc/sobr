@@ -3,22 +3,30 @@
 //! Each test starts a real HTTPS server on a random port, sends requests and
 //! records every response (status, content type, body). Values the server
 //! generates at random (ids, tokens, codes, timestamps) are checked for their
-//! shape and replaced by a placeholder, so the recorded file is stable.
-//! The recording is then compared with `tests/golden/<name>.json`.
+//! shape and replaced by a placeholder, so the recorded file is stable. A
+//! random id keeps the same placeholder everywhere in a test (`<ulid#1>`), so
+//! a response that returns the wrong id still shows. The recording is then
+//! compared with `tests/golden/<name>.json`.
 
 #![allow(dead_code)]
 
 pub mod golden;
 
-use std::{net::TcpListener, sync::Mutex, time::Duration};
+use std::{collections::HashMap, net::TcpListener, sync::Mutex, time::Duration};
 
 use chrono::{DateTime, Utc};
 use reqwest::RequestBuilder;
 use serde_json::{json, Value};
 use sobria_team_aggregator::{
-    commands::{code, init, serve},
+    commands::{
+        code,
+        init::{self, CFG_JWT_SIGNING_KEY},
+        serve,
+    },
     config::DataPaths,
+    server::auth::jwt::{self, Role},
     storage::{
+        admins,
         estimations::{self, NewEstimation},
         users, Storage,
     },
@@ -28,6 +36,10 @@ use tempfile::TempDir;
 pub const ADMIN_USERNAME: &str = "admin";
 pub const ADMIN_PASSWORD: &str = "admin-pw-not-secret";
 pub const USER_PASSWORD: &str = "user-password-strong";
+
+/// Ids of the seeded employees and estimations start with this prefix; they
+/// are fixed, so they are kept readable in the recordings.
+const SEEDED_ID_PREFIX: &str = "01HZ";
 
 /// Keys whose string value is a timestamp chosen by the server (clock).
 const SERVER_TIMESTAMP_KEYS: &[&str] = &[
@@ -48,6 +60,8 @@ pub struct Server {
     pub client: reqwest::Client,
     handle: tokio::task::JoinHandle<()>,
     log: Mutex<Vec<Value>>,
+    /// Random value -> placeholder, in order of first appearance.
+    placeholders: Mutex<HashMap<String, String>>,
 }
 
 impl Server {
@@ -69,14 +83,16 @@ impl Server {
             .build()
             .expect("client");
 
+        let mut ready = false;
         for _ in 0..50 {
-            if let Ok(r) = client.get(format!("{base}/health")).send().await {
-                if r.status().is_success() {
-                    break;
-                }
+            let health = client.get(format!("{base}/health")).send().await;
+            if health.is_ok_and(|r| r.status().is_success()) {
+                ready = true;
+                break;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
+        assert!(ready, "the server never answered /health");
         Self {
             _dir: dir,
             paths,
@@ -84,12 +100,18 @@ impl Server {
             client,
             handle,
             log: Mutex::new(Vec::new()),
+            placeholders: Mutex::new(HashMap::new()),
         }
     }
 
     /// A direct handle on the database (to seed data or change the config).
     pub fn storage(&self) -> Storage {
         Storage::open(&self.paths.db()).expect("open storage")
+    }
+
+    /// Sets a value of the configuration, as the CLI does (no validation).
+    pub fn set_config(&self, key: &str, value: &str) {
+        self.storage().set_config(key, value).expect("config");
     }
 
     /// `count` enrollment codes (clear text), valid 7 days.
@@ -121,10 +143,10 @@ impl Server {
         let body = if content_type == "application/json" {
             serde_json::from_str(&text).expect("a JSON content type must carry JSON")
         } else {
-            Value::String(text)
+            Value::String(strip_position(&text))
         };
         let mut masked = body.clone();
-        mask(&mut masked);
+        self.mask(&mut masked);
         self.push(json!({
             "request": label,
             "status": status,
@@ -132,6 +154,20 @@ impl Server {
             "body": masked,
         }));
         (status, body)
+    }
+
+    /// Records a request without a token, then the same request with `token`
+    /// (labels `"<prefix>: no auth"` and `"<prefix>: <who>"`).
+    pub async fn record_refused(
+        &self,
+        prefix: &str,
+        who: &str,
+        token: &str,
+        request: impl Fn() -> RequestBuilder,
+    ) {
+        self.record(&format!("{prefix}: no auth"), request()).await;
+        self.record(&format!("{prefix}: {who}"), request().bearer_auth(token))
+            .await;
     }
 
     /// Like [`Self::record`] but keeps only status and content type (for
@@ -170,7 +206,7 @@ impl Server {
             },
             "application/ld+json" | "application/json" => {
                 let mut value: Value = serde_json::from_slice(&bytes).expect("JSON body");
-                mask(&mut value);
+                self.mask(&mut value);
                 value
             },
             _ => Value::String(String::from_utf8_lossy(&bytes).into_owned()),
@@ -195,20 +231,35 @@ impl Server {
         self.log.lock().expect("log").push(entry);
     }
 
-    /// Not recorded: an admin access token.
-    pub async fn admin_token(&self) -> String {
-        let (status, body) = send_json(self.post("/api/v1/login").json(
-            &json!({"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD, "role": "admin"}),
-        ))
-        .await;
-        assert_eq!(status, 200, "admin login: {body}");
-        body["access_token"]
-            .as_str()
-            .expect("access_token")
-            .to_owned()
+    /// Not recorded: sends the request and returns `(status, body)`.
+    pub async fn fetch(&self, request: RequestBuilder) -> (u16, Value) {
+        send_json(request).await
     }
 
-    /// Not recorded: enrolls a user with a fresh code, returns the response.
+    fn signing_key(&self) -> String {
+        self.storage()
+            .get_config(CFG_JWT_SIGNING_KEY)
+            .expect("config")
+            .expect("signing key")
+    }
+
+    /// An admin access token signed with the server key (no login, no hashing).
+    pub fn admin_token(&self) -> String {
+        let storage = self.storage();
+        let admin = admins::find_by_username(storage.connection(), ADMIN_USERNAME)
+            .expect("query")
+            .expect("admin");
+        jwt::issue(&self.signing_key(), &admin.id, Role::Admin, Utc::now()).expect("admin token")
+    }
+
+    /// An access token of the employee `user_id`, who must exist
+    /// (see [`Self::seed_user`]).
+    pub fn user_token(&self, user_id: &str) -> String {
+        jwt::issue(&self.signing_key(), user_id, Role::User, Utc::now()).expect("user token")
+    }
+
+    /// Not recorded: enrolls a user through the API with a fresh code, returns
+    /// the response (for the tests of the enrollment and login flows).
     pub async fn enroll(&self, fingerprint: &str, display_name: &str) -> Value {
         let code = self.create_codes(1).remove(0);
         let (status, body) = send_json(self.post("/api/v1/enroll").json(&json!({
@@ -222,65 +273,75 @@ impl Server {
         body
     }
 
-    /// Not recorded: sends the request and returns `(status, body)`.
-    pub async fn fetch(&self, request: RequestBuilder) -> (u16, Value) {
-        send_json(request).await
+    /// Fixed id of seeded employee `n` (see [`Self::seed_user`]).
+    pub fn user_id(n: u32) -> String {
+        format!("{SEEDED_ID_PREFIX}{}{n:03}", "Z".repeat(19))
     }
 
-    /// Seeds employees `numbers` straight in the database (no password, no
-    /// Argon2), each with two estimations on 2026-05-15 and 2026-05-16.
-    /// Employee 1 has opted in to being identified. Ids are fixed.
+    /// Seeds employee `n` (1 to 59) straight in the database: fixed id,
+    /// fingerprint `fp-employee-<n>`, name `Employee <n>`, no usable password.
+    /// Returns the id.
+    pub fn seed_user(&self, n: u32, opted_in: bool) -> String {
+        let storage = self.storage();
+        let id = Self::user_id(n);
+        users::insert(
+            storage.connection(),
+            &id,
+            None,
+            &format!("fp-employee-{n}"),
+            "$argon2id$not-a-real-hash",
+            Some(&format!("Employee {n}")),
+            timestamp(&format!("2026-05-01T00:00:{n:02}Z")),
+        )
+        .expect("seed user");
+        if opted_in {
+            users::set_share_identified(storage.connection(), &id, true).expect("opt in");
+        }
+        id
+    }
+
+    /// Seeds employees `numbers` (see [`Self::seed_user`]), each with two
+    /// estimations on 2026-05-15 and 2026-05-16, at second `n` of 10:00.
+    /// Employee 1 has opted in to being identified.
     ///
     /// Employee `n` has: day 1, model `llama-3-1-70b`, method `afnor_sobria`,
     /// project `Alpha`, `0.1 * n` gCO2eq; day 2, model `gpt-4o`, method
     /// `ecologits`, project `Beta` when `n` is even and none otherwise,
     /// `0.2 * n` gCO2eq.
     pub fn seed_team(&self, numbers: std::ops::RangeInclusive<u32>) {
-        let storage = self.storage();
-        let conn = storage.connection();
         for n in numbers {
+            let user_id = self.seed_user(n, n == 1);
+            let storage = self.storage();
             let weight = f64::from(n);
-            let user_id = Self::user_id(n);
-            users::insert(
-                conn,
-                &user_id,
-                None,
-                &format!("fp-employee-{n}"),
-                "$argon2id$not-a-real-hash",
-                Some(&format!("Employee {n}")),
-                timestamp("2026-05-01T00:00:00Z"),
-            )
-            .expect("seed user");
-            if n == 1 {
-                users::set_share_identified(conn, &user_id, true).expect("opt in");
-            }
             let project_day_two = (n % 2 == 0).then_some("Beta");
-            for (index, (ts, model_id, method, gco2eq, project)) in [
+            let rows = [
                 (
-                    "2026-05-15T10:00:00Z",
+                    format!("2026-05-15T10:00:{n:02}Z"),
                     "llama-3-1-70b",
                     "afnor_sobria",
                     0.1 * weight,
                     Some("Alpha"),
                 ),
                 (
-                    "2026-05-16T10:00:00Z",
+                    format!("2026-05-16T10:00:{n:02}Z"),
                     "gpt-4o",
                     "ecologits",
                     0.2 * weight,
                     project_day_two,
                 ),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                let id = format!("01HZ{}{:03}", "E".repeat(19), n * 2 + index as u32);
+            ];
+            for (index, (ts, model_id, method, gco2eq, project)) in rows.into_iter().enumerate() {
+                let id = format!(
+                    "{SEEDED_ID_PREFIX}{}{:03}",
+                    "E".repeat(19),
+                    n * 2 + index as u32
+                );
                 estimations::insert(
-                    conn,
+                    storage.connection(),
                     &NewEstimation {
                         id: &id,
                         user_id: &user_id,
-                        ts: timestamp(ts),
+                        ts: timestamp(&ts),
                         method,
                         model_id,
                         tokens_in: 100,
@@ -293,7 +354,7 @@ impl Server {
                         region: None,
                         project,
                         raw_payload_json: "{}",
-                        received_at: timestamp(ts),
+                        received_at: timestamp(&ts),
                     },
                 )
                 .expect("seed estimation");
@@ -301,15 +362,69 @@ impl Server {
         }
     }
 
-    /// Fixed id of seeded employee `n` (see [`Self::seed_team`]).
-    pub fn user_id(n: u32) -> String {
-        format!("01HZ{}{n:03}", "Z".repeat(19))
-    }
-
     /// Compares everything recorded so far with `tests/golden/<name>.json`.
     pub fn assert_golden(&self, name: &str) {
         let log = self.log.lock().expect("log").clone();
         golden::assert_golden(name, &Value::Array(log));
+    }
+
+    /// Replaces server-generated random values by a placeholder, after
+    /// checking their shape. A value of an unexpected shape fails the test.
+    fn mask(&self, value: &mut Value) {
+        match value {
+            Value::Object(map) => {
+                for (key, child) in map.iter_mut() {
+                    self.mask_field(key, child);
+                    self.mask(child);
+                }
+            },
+            Value::Array(items) => items.iter_mut().for_each(|item| self.mask(item)),
+            Value::String(s) if is_ulid(s) && !s.starts_with(SEEDED_ID_PREFIX) => {
+                *s = self.placeholder("ulid", s);
+            },
+            _ => {},
+        }
+    }
+
+    fn mask_field(&self, key: &str, value: &mut Value) {
+        let Value::String(s) = value else { return };
+        let placeholder = match key {
+            k if SERVER_TIMESTAMP_KEYS.contains(&k) => {
+                DateTime::parse_from_rfc3339(s)
+                    .unwrap_or_else(|e| panic!("{key} is not RFC 3339 ({s}): {e}"));
+                "<timestamp>".to_owned()
+            },
+            "access_token" => {
+                assert_eq!(s.split('.').count(), 3, "access_token is not a JWT");
+                "<jwt>".to_owned()
+            },
+            "refresh_token" => {
+                assert!(s.contains('.'), "refresh_token has no separator");
+                "<refresh_token>".to_owned()
+            },
+            "code" if s.len() == 12 && s.chars().all(|c| c.is_ascii_digit()) => {
+                self.placeholder("code", s)
+            },
+            k if k == "version" || k.ends_with(":version") => {
+                assert_eq!(s, env!("CARGO_PKG_VERSION"), "unexpected version in {key}");
+                "<crate_version>".to_owned()
+            },
+            _ => return,
+        };
+        *s = placeholder;
+    }
+
+    /// `<kind#n>`, `n` counting the distinct values of that kind seen so far.
+    fn placeholder(&self, kind: &str, value: &str) -> String {
+        let mut known = self.placeholders.lock().expect("placeholders");
+        if let Some(existing) = known.get(value) {
+            return existing.clone();
+        }
+        let prefix = format!("<{kind}#");
+        let number = known.values().filter(|p| p.starts_with(&prefix)).count() + 1;
+        let created = format!("{prefix}{number}>");
+        known.insert(value.to_owned(), created.clone());
+        created
     }
 }
 
@@ -317,6 +432,30 @@ impl Drop for Server {
     fn drop(&mut self) {
         self.handle.abort();
     }
+}
+
+/// Hours between now and an RFC 3339 timestamp, rounded: the lifetime of a
+/// token or a code, whatever the exact time of the request.
+pub fn hours_from_now(rfc3339: &str) -> f64 {
+    let at = DateTime::parse_from_rfc3339(rfc3339).expect("RFC 3339");
+    ((at.with_timezone(&Utc) - Utc::now()).num_seconds() as f64 / 3600.0).round()
+}
+
+/// Waits until a few seconds after UTC midnight when the test starts just
+/// before it: the periods of the alerts are computed from the UTC date.
+pub async fn avoid_utc_midnight() {
+    let now = Utc::now();
+    let seconds_into_day = i64::from(chrono::Timelike::num_seconds_from_midnight(&now));
+    let seconds_to_midnight = 86_400 - seconds_into_day;
+    if seconds_to_midnight < 10 {
+        tokio::time::sleep(Duration::from_secs(seconds_to_midnight.unsigned_abs() + 2)).await;
+    }
+}
+
+pub fn timestamp(rfc3339: &str) -> DateTime<Utc> {
+    DateTime::parse_from_rfc3339(rfc3339)
+        .expect("fixed timestamp")
+        .with_timezone(&Utc)
 }
 
 /// `(status, media type, body text)`.
@@ -343,56 +482,25 @@ async fn send_json(request: RequestBuilder) -> (u16, Value) {
     )
 }
 
-fn timestamp(rfc3339: &str) -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(rfc3339)
-        .expect("fixed timestamp")
-        .with_timezone(&Utc)
+/// Removes the trailing ` at line N column M` of a serde error: the column
+/// depends on the order of the keys of the request, which depends on the
+/// `serde_json` features that the whole workspace turns on.
+fn strip_position(text: &str) -> String {
+    const MARKER: &str = " at line ";
+    if let Some(index) = text.rfind(MARKER) {
+        let tail = &text[index + MARKER.len()..];
+        if let Some((line, column)) = tail.split_once(" column ") {
+            let digits = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+            if digits(line) && digits(column) {
+                return text[..index].to_owned();
+            }
+        }
+    }
+    text.to_owned()
 }
 
 fn is_ulid(s: &str) -> bool {
     s.len() == 26
         && s.chars()
-            .all(|c| c.is_ascii_digit() || ("ABCDEFGHJKMNPQRSTVWXYZ".contains(c)))
-}
-
-/// Replaces server-generated random values by a placeholder, after checking
-/// their shape. A value of an unexpected shape fails the test.
-pub fn mask(value: &mut Value) {
-    match value {
-        Value::Object(map) => {
-            for (key, child) in map.iter_mut() {
-                mask_field(key, child);
-                mask(child);
-            }
-        },
-        Value::Array(items) => items.iter_mut().for_each(mask),
-        Value::String(s) if is_ulid(s) => *s = "<ulid>".into(),
-        _ => {},
-    }
-}
-
-fn mask_field(key: &str, value: &mut Value) {
-    let Value::String(s) = value else { return };
-    let placeholder = match key {
-        k if SERVER_TIMESTAMP_KEYS.contains(&k) => {
-            chrono::DateTime::parse_from_rfc3339(s)
-                .unwrap_or_else(|e| panic!("{key} is not RFC 3339 ({s}): {e}"));
-            "<timestamp>"
-        },
-        "access_token" => {
-            assert_eq!(s.split('.').count(), 3, "access_token is not a JWT");
-            "<jwt>"
-        },
-        "refresh_token" => {
-            assert!(s.contains('.'), "refresh_token has no separator");
-            "<refresh_token>"
-        },
-        "code" if s.len() == 12 && s.chars().all(|c| c.is_ascii_digit()) => "<enrollment_code>",
-        k if k == "version" || k.ends_with(":version") => {
-            assert_eq!(s, env!("CARGO_PKG_VERSION"), "unexpected version in {key}");
-            "<crate_version>"
-        },
-        _ => return,
-    };
-    *s = placeholder.into();
+            .all(|c| c.is_ascii_digit() || "ABCDEFGHJKMNPQRSTVWXYZ".contains(c))
 }

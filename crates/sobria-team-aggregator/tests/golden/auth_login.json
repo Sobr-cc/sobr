@@ -6,7 +6,7 @@
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
       "role": "user",
-      "subject_id": "<ulid>"
+      "subject_id": "<ulid#1>"
     },
     "content_type": "application/json",
     "request": "login: user, role omitted",
@@ -19,7 +19,7 @@
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
       "role": "user",
-      "subject_id": "<ulid>"
+      "subject_id": "<ulid#1>"
     },
     "content_type": "application/json",
     "request": "login: user, role user",
@@ -68,7 +68,7 @@
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
       "role": "admin",
-      "subject_id": "<ulid>"
+      "subject_id": "<ulid#2>"
     },
     "content_type": "application/json",
     "request": "login: admin",
@@ -93,13 +93,13 @@
     "status": 401
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: role: unknown variant `root`, expected `user` or `admin` at line 1 column 48",
+    "body": "Failed to deserialize the JSON body into the target type: role: unknown variant `root`, expected `user` or `admin`",
     "content_type": "text/plain",
     "request": "login: unknown role",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `password` at line 1 column 23",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `password`",
     "content_type": "text/plain",
     "request": "login: missing password",
     "status": 422

@@ -94,50 +94,10 @@
       "users": [
         {
           "created_at": "<timestamp>",
-          "display_name": "Alice",
-          "enrollment_code_id": "<ulid>",
-          "fingerprint": "fp-alice",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 1",
+          "display_name": "Employee 6",
           "enrollment_code_id": null,
-          "fingerprint": "fp-employee-1",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": true,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 2",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-2",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 3",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-3",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 4",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-4",
-          "id": "<ulid>",
+          "fingerprint": "fp-employee-6",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ006",
           "last_seen_at": null,
           "share_identified": false,
           "totals": null
@@ -147,9 +107,49 @@
           "display_name": "Employee 5",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-5",
-          "id": "<ulid>",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ005",
           "last_seen_at": null,
           "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 4",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-4",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ004",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 3",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-3",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ003",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ002",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
+          "last_seen_at": null,
+          "share_identified": true,
           "totals": null
         }
       ]
@@ -265,7 +265,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -279,10 +279,50 @@
       "users": [
         {
           "created_at": "<timestamp>",
-          "display_name": "Alice",
-          "enrollment_code_id": "<ulid>",
-          "fingerprint": "fp-alice",
-          "id": "<ulid>",
+          "display_name": "Employee 6",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-6",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ006",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 5",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-5",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ005",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 4",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-4",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ004",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 3",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-3",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ003",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ002",
           "last_seen_at": null,
           "share_identified": false,
           "totals": null
@@ -292,7 +332,7 @@
           "display_name": "Employee 1",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-1",
-          "id": "<ulid>",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
           "last_seen_at": null,
           "share_identified": true,
           "totals": {
@@ -303,46 +343,6 @@
             "tokens_out": 800,
             "water_ml": 2.0
           }
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 2",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-2",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 3",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-3",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 4",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-4",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 5",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-5",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": null
         }
       ]
     },
@@ -414,7 +414,7 @@
       "user": {
         "display_name": "Employee 1",
         "fingerprint": "fp-employee-1",
-        "id": "<ulid>",
+        "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
         "share_identified": true
       }
     },
@@ -529,35 +529,35 @@
             "display_name": "Employee 5",
             "fingerprint": "fp-employee-5",
             "gco2eq_g": 1.5,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ005"
           },
           {
             "count": 2,
             "display_name": "Employee 4",
             "fingerprint": "fp-employee-4",
             "gco2eq_g": 1.2000000000000002,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ004"
           },
           {
             "count": 2,
             "display_name": "Employee 3",
             "fingerprint": "fp-employee-3",
             "gco2eq_g": 0.9000000000000001,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ003"
           },
           {
             "count": 2,
             "display_name": "Employee 2",
             "fingerprint": "fp-employee-2",
             "gco2eq_g": 0.6000000000000001,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ002"
           },
           {
             "count": 2,
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -571,10 +571,10 @@
       "users": [
         {
           "created_at": "<timestamp>",
-          "display_name": "Alice",
-          "enrollment_code_id": "<ulid>",
-          "fingerprint": "fp-alice",
-          "id": "<ulid>",
+          "display_name": "Employee 6",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-6",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ006",
           "last_seen_at": null,
           "share_identified": false,
           "totals": {
@@ -588,50 +588,16 @@
         },
         {
           "created_at": "<timestamp>",
-          "display_name": "Employee 1",
+          "display_name": "Employee 5",
           "enrollment_code_id": null,
-          "fingerprint": "fp-employee-1",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": true,
-          "totals": {
-            "count": 2,
-            "energy_wh": 0.30000000000000004,
-            "gco2eq_p50_g": 0.30000000000000004,
-            "tokens_in": 200,
-            "tokens_out": 800,
-            "water_ml": 2.0
-          }
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 2",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-2",
-          "id": "<ulid>",
+          "fingerprint": "fp-employee-5",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ005",
           "last_seen_at": null,
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 0.6000000000000001,
-            "gco2eq_p50_g": 0.6000000000000001,
-            "tokens_in": 200,
-            "tokens_out": 800,
-            "water_ml": 2.0
-          }
-        },
-        {
-          "created_at": "<timestamp>",
-          "display_name": "Employee 3",
-          "enrollment_code_id": null,
-          "fingerprint": "fp-employee-3",
-          "id": "<ulid>",
-          "last_seen_at": null,
-          "share_identified": false,
-          "totals": {
-            "count": 2,
-            "energy_wh": 0.9000000000000001,
-            "gco2eq_p50_g": 0.9000000000000001,
+            "energy_wh": 1.5,
+            "gco2eq_p50_g": 1.5,
             "tokens_in": 200,
             "tokens_out": 800,
             "water_ml": 2.0
@@ -642,7 +608,7 @@
           "display_name": "Employee 4",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-4",
-          "id": "<ulid>",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ004",
           "last_seen_at": null,
           "share_identified": false,
           "totals": {
@@ -656,16 +622,50 @@
         },
         {
           "created_at": "<timestamp>",
-          "display_name": "Employee 5",
+          "display_name": "Employee 3",
           "enrollment_code_id": null,
-          "fingerprint": "fp-employee-5",
-          "id": "<ulid>",
+          "fingerprint": "fp-employee-3",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ003",
           "last_seen_at": null,
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 1.5,
-            "gco2eq_p50_g": 1.5,
+            "energy_wh": 0.9000000000000001,
+            "gco2eq_p50_g": 0.9000000000000001,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ002",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.6000000000000001,
+            "gco2eq_p50_g": 0.6000000000000001,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
+          "last_seen_at": null,
+          "share_identified": true,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.30000000000000004,
+            "gco2eq_p50_g": 0.30000000000000004,
             "tokens_in": 200,
             "tokens_out": 800,
             "water_ml": 2.0
@@ -741,7 +741,7 @@
       "user": {
         "display_name": "Employee 1",
         "fingerprint": "fp-employee-1",
-        "id": "<ulid>",
+        "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
         "share_identified": true
       }
     },
@@ -813,7 +813,7 @@
       "user": {
         "display_name": "Employee 2",
         "fingerprint": "fp-employee-2",
-        "id": "<ulid>",
+        "id": "01HZZZZZZZZZZZZZZZZZZZZ002",
         "share_identified": false
       }
     },
@@ -864,7 +864,7 @@
       "user": {
         "display_name": "Employee 1",
         "fingerprint": "fp-employee-1",
-        "id": "<ulid>",
+        "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
         "share_identified": true
       }
     },
@@ -909,7 +909,7 @@
       "user": {
         "display_name": "Employee 1",
         "fingerprint": "fp-employee-1",
-        "id": "<ulid>",
+        "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
         "share_identified": true
       }
     },

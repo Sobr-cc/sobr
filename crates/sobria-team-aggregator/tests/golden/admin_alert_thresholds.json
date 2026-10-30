@@ -9,13 +9,13 @@
   },
   {
     "body": {
-      "id": "<ulid>",
+      "id": "<ulid#1>",
       "threshold": {
         "created_at": "<timestamp>",
-        "created_by_admin_id": "<ulid>",
+        "created_by_admin_id": "<ulid#2>",
         "disabled_at": null,
         "gco2eq_max": 10.0,
-        "id": "<ulid>",
+        "id": "<ulid#1>",
         "notify_kind": "log_only",
         "notify_target": null,
         "period": "daily",
@@ -29,18 +29,18 @@
   },
   {
     "body": {
-      "id": "<ulid>",
+      "id": "<ulid#3>",
       "threshold": {
         "created_at": "<timestamp>",
-        "created_by_admin_id": "<ulid>",
+        "created_by_admin_id": "<ulid#2>",
         "disabled_at": null,
         "gco2eq_max": 2.5,
-        "id": "<ulid>",
+        "id": "<ulid#3>",
         "notify_kind": "webhook",
         "notify_target": "https://example.invalid/hook",
         "period": "weekly",
         "scope": "user",
-        "target_id": "<ulid>"
+        "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
       }
     },
     "content_type": "application/json",
@@ -49,13 +49,13 @@
   },
   {
     "body": {
-      "id": "<ulid>",
+      "id": "<ulid#4>",
       "threshold": {
         "created_at": "<timestamp>",
-        "created_by_admin_id": "<ulid>",
+        "created_by_admin_id": "<ulid#2>",
         "disabled_at": null,
         "gco2eq_max": 1.0,
-        "id": "<ulid>",
+        "id": "<ulid#4>",
         "notify_kind": "log_only",
         "notify_target": null,
         "period": "monthly",
@@ -69,13 +69,13 @@
   },
   {
     "body": {
-      "id": "<ulid>",
+      "id": "<ulid#5>",
       "threshold": {
         "created_at": "<timestamp>",
-        "created_by_admin_id": "<ulid>",
+        "created_by_admin_id": "<ulid#2>",
         "disabled_at": null,
         "gco2eq_max": 100.0,
-        "id": "<ulid>",
+        "id": "<ulid#5>",
         "notify_kind": "email",
         "notify_target": "ops@example.invalid",
         "period": "monthly",
@@ -142,25 +142,25 @@
     "status": 400
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: period: unknown variant `hourly`, expected one of `daily`, `weekly`, `monthly` at line 1 column 60",
+    "body": "Failed to deserialize the JSON body into the target type: period: unknown variant `hourly`, expected one of `daily`, `weekly`, `monthly`",
     "content_type": "text/plain",
     "request": "create: unknown period",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: scope: unknown variant `org`, expected `user` or `team` at line 1 column 73",
+    "body": "Failed to deserialize the JSON body into the target type: scope: unknown variant `org`, expected `user` or `team`",
     "content_type": "text/plain",
     "request": "create: unknown scope",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: notify_kind: unknown variant `sms`, expected one of `webhook`, `email`, `log_only` at line 1 column 37",
+    "body": "Failed to deserialize the JSON body into the target type: notify_kind: unknown variant `sms`, expected one of `webhook`, `email`, `log_only`",
     "content_type": "text/plain",
     "request": "create: unknown notify kind",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `period` at line 1 column 16",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `period`",
     "content_type": "text/plain",
     "request": "create: missing fields",
     "status": 422
@@ -188,10 +188,10 @@
       "thresholds": [
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 100.0,
-          "id": "<ulid>",
+          "id": "<ulid#5>",
           "notify_kind": "email",
           "notify_target": "ops@example.invalid",
           "period": "monthly",
@@ -200,10 +200,10 @@
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 1.0,
-          "id": "<ulid>",
+          "id": "<ulid#4>",
           "notify_kind": "log_only",
           "notify_target": null,
           "period": "monthly",
@@ -212,22 +212,22 @@
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 2.5,
-          "id": "<ulid>",
+          "id": "<ulid#3>",
           "notify_kind": "webhook",
           "notify_target": "https://example.invalid/hook",
           "period": "weekly",
           "scope": "user",
-          "target_id": "<ulid>"
+          "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 10.0,
-          "id": "<ulid>",
+          "id": "<ulid#1>",
           "notify_kind": "log_only",
           "notify_target": null,
           "period": "daily",
@@ -269,10 +269,10 @@
       "thresholds": [
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 100.0,
-          "id": "<ulid>",
+          "id": "<ulid#5>",
           "notify_kind": "email",
           "notify_target": "ops@example.invalid",
           "period": "monthly",
@@ -281,10 +281,10 @@
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 1.0,
-          "id": "<ulid>",
+          "id": "<ulid#4>",
           "notify_kind": "log_only",
           "notify_target": null,
           "period": "monthly",
@@ -293,22 +293,22 @@
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": null,
           "gco2eq_max": 2.5,
-          "id": "<ulid>",
+          "id": "<ulid#3>",
           "notify_kind": "webhook",
           "notify_target": "https://example.invalid/hook",
           "period": "weekly",
           "scope": "user",
-          "target_id": "<ulid>"
+          "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
         },
         {
           "created_at": "<timestamp>",
-          "created_by_admin_id": "<ulid>",
+          "created_by_admin_id": "<ulid#2>",
           "disabled_at": "<timestamp>",
           "gco2eq_max": 10.0,
-          "id": "<ulid>",
+          "id": "<ulid#1>",
           "notify_kind": "log_only",
           "notify_target": null,
           "period": "daily",

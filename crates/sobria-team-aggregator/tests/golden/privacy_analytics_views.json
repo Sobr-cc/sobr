@@ -88,7 +88,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -186,7 +186,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -275,7 +275,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -364,7 +364,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -455,7 +455,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -546,7 +546,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -644,7 +644,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -742,7 +742,7 @@
             "display_name": "Employee 1",
             "fingerprint": "fp-employee-1",
             "gco2eq_g": 0.30000000000000004,
-            "user_id": "<ulid>"
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
           }
         ]
       }
@@ -808,7 +808,7 @@
       "error": "authentification requise"
     },
     "content_type": "application/json",
-    "request": "no auth",
+    "request": "analytics: no auth",
     "status": 401
   },
   {
@@ -817,7 +817,7 @@
       "error": "rôle insuffisant pour cette opération"
     },
     "content_type": "application/json",
-    "request": "user token",
+    "request": "analytics: user token",
     "status": 403
   }
 ]

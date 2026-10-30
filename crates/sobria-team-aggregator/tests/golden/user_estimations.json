@@ -2,7 +2,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#1>"
     },
     "content_type": "application/json",
     "request": "estimation: minimal",
@@ -11,7 +11,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#2>"
     },
     "content_type": "application/json",
     "request": "estimation: with host, display name, region and project",
@@ -20,7 +20,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#3>"
     },
     "content_type": "application/json",
     "request": "estimation: project is trimmed",
@@ -29,7 +29,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#4>"
     },
     "content_type": "application/json",
     "request": "estimation: project cut at 64 characters",
@@ -38,7 +38,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#5>"
     },
     "content_type": "application/json",
     "request": "estimation: blank project",
@@ -47,7 +47,7 @@
   {
     "body": {
       "ack": true,
-      "id": "<ulid>"
+      "id": "<ulid#6>"
     },
     "content_type": "application/json",
     "request": "estimation: method ecologits",
@@ -72,19 +72,19 @@
     "status": 400
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: estimate.tokensIn: invalid value: integer `-1`, expected u32 at line 1 column 106",
+    "body": "Failed to deserialize the JSON body into the target type: estimate.tokensIn: invalid value: integer `-1`, expected u32",
     "content_type": "text/plain",
     "request": "estimation: negative token count",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `ts` at line 1 column 139",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `ts`",
     "content_type": "text/plain",
     "request": "estimation: missing ts",
     "status": 422
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: ts: input contains invalid characters at line 1 column 155",
+    "body": "Failed to deserialize the JSON body into the target type: ts: input contains invalid characters",
     "content_type": "text/plain",
     "request": "estimation: ts is not a date",
     "status": 422
@@ -176,7 +176,7 @@
         "tokens_out": 4800,
         "water_ml": 9.0
       },
-      "user_id": "<ulid>"
+      "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
     },
     "content_type": "application/json",
     "request": "me/usage after the accepted estimations",

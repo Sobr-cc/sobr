@@ -3,8 +3,8 @@
 //!
 //! Employees are seeded straight in the database (see `Server::seed_team`),
 //! so the numbers are fixed. The configuration is changed live through the
-//! storage, as the CLI does. If an expected value moves, the privacy
-//! behavior of the server moved.
+//! storage, without the checks of the CLI. If an expected value moves, the
+//! privacy behavior of the server moved.
 
 mod common;
 
@@ -15,8 +15,12 @@ use sobria_team_aggregator::policy::POLICY_KEY;
 /// A window that contains every seeded estimation.
 const WINDOW: &str = "from=2026-05-15T00:00:00Z&to=2026-05-17T00:00:00Z";
 
-async fn analytics(server: &Server, token: &str, label: &str, extra_query: &str) -> Value {
-    let path = format!("/api/v1/admin/analytics?{WINDOW}{extra_query}");
+/// A window without any estimation.
+const EMPTY_WINDOW: &str = "from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z";
+
+/// Records `GET /admin/analytics?<query>` and checks that it answers 200.
+async fn analytics_query(server: &Server, token: &str, label: &str, query: &str) -> Value {
+    let path = format!("/api/v1/admin/analytics?{query}");
     let (status, body) = server
         .record(label, server.get(&path).bearer_auth(token))
         .await;
@@ -24,13 +28,24 @@ async fn analytics(server: &Server, token: &str, label: &str, extra_query: &str)
     body
 }
 
-/// Asserts the k-anonymity block of a response.
+/// Analytics over the window that contains every seeded estimation.
+async fn analytics(server: &Server, token: &str, label: &str, extra_query: &str) -> Value {
+    analytics_query(server, token, label, &format!("{WINDOW}{extra_query}")).await
+}
+
+/// Asserts the k-anonymity block of a response, then that the aggregates are
+/// hidden when `blocked` and shown otherwise.
 fn assert_k(body: &Value, required: u64, active_users: u64, blocked: bool) {
     assert_eq!(
         body["k_anonymity"],
         json!({"required": required, "active_users": active_users, "blocked": blocked}),
         "k_anonymity block: {body}"
     );
+    if blocked {
+        assert_hidden(body);
+    } else {
+        assert_shown(body);
+    }
 }
 
 /// Asserts that a blocked response shows no aggregate at all.
@@ -73,61 +88,51 @@ fn assert_shown(body: &Value) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn k_anonymity_threshold_and_boundaries() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
+    let token = server.admin_token();
 
     server.seed_team(1..=2);
     let body = analytics(&server, &token, "2 employees, default k", "").await;
     assert_k(&body, 5, 2, true);
-    assert_hidden(&body);
 
-    server
-        .storage()
-        .set_config("k_anonymity_min", "3")
-        .expect("config");
+    server.set_config("k_anonymity_min", "3");
     let body = analytics(&server, &token, "2 employees, k = 3", "").await;
     assert_k(&body, 3, 2, true);
-    assert_hidden(&body);
 
     // A configured value under the floor of 3 is raised to 3.
-    server
-        .storage()
-        .set_config("k_anonymity_min", "1")
-        .expect("config");
+    server.set_config("k_anonymity_min", "1");
     let body = analytics(&server, &token, "2 employees, k = 1 (floor 3)", "").await;
     assert_k(&body, 3, 2, true);
-    assert_hidden(&body);
 
     server.seed_team(3..=3);
     let body = analytics(&server, &token, "3 employees, k = 1 (floor 3)", "").await;
     assert_k(&body, 3, 3, false);
-    assert_shown(&body);
 
     // An unreadable value falls back to the default of 5.
-    server
-        .storage()
-        .set_config("k_anonymity_min", "abc")
-        .expect("config");
+    server.set_config("k_anonymity_min", "abc");
     let body = analytics(&server, &token, "3 employees, k unreadable", "").await;
     assert_k(&body, 5, 3, true);
-    assert_hidden(&body);
 
     server.seed_team(4..=4);
     let body = analytics(&server, &token, "4 employees, k unreadable (k - 1)", "").await;
     assert_k(&body, 5, 4, true);
-    assert_hidden(&body);
 
     server.seed_team(5..=5);
     let body = analytics(&server, &token, "5 employees, k unreadable (k)", "").await;
     assert_k(&body, 5, 5, false);
-    assert_shown(&body);
 
-    server
-        .storage()
-        .set_config("k_anonymity_min", "10")
-        .expect("config");
+    // Only the employees active in the queried window count.
+    let body = analytics_query(
+        &server,
+        &token,
+        "5 employees, window without estimation",
+        EMPTY_WINDOW,
+    )
+    .await;
+    assert_k(&body, 5, 0, true);
+
+    server.set_config("k_anonymity_min", "10");
     let body = analytics(&server, &token, "5 employees, k = 10", "").await;
     assert_k(&body, 10, 5, true);
-    assert_hidden(&body);
 
     server.assert_golden("privacy_k_anonymity");
 }
@@ -135,36 +140,20 @@ async fn k_anonymity_threshold_and_boundaries() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn k_anonymity_under_each_policy() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
+    let token = server.admin_token();
     server.seed_team(1..=2);
 
+    // `identified` switches the k check off; the other policies keep it.
     for (policy, blocked) in [("anonymous", true), ("opt_in", true), ("identified", false)] {
-        server
-            .storage()
-            .set_config(POLICY_KEY, policy)
-            .expect("config");
-        let body = analytics(
-            &server,
-            &token,
-            &format!("2 employees, policy {policy}"),
-            "",
-        )
-        .await;
+        server.set_config(POLICY_KEY, policy);
+        let label = format!("2 employees, policy {policy}");
+        let body = analytics(&server, &token, &label, "").await;
         assert_eq!(body["policy"], policy);
         assert_k(&body, 5, 2, blocked);
-        if blocked {
-            assert_hidden(&body);
-        } else {
-            // `identified` switches the k check off.
-            assert_shown(&body);
-        }
     }
 
     // A policy value the server does not know falls back to opt_in.
-    server
-        .storage()
-        .set_config(POLICY_KEY, "something-else")
-        .expect("config");
+    server.set_config(POLICY_KEY, "something-else");
     let body = analytics(&server, &token, "2 employees, unknown policy value", "").await;
     assert_eq!(body["policy"], "opt_in");
 
@@ -174,10 +163,9 @@ async fn k_anonymity_under_each_policy() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn analytics_views_and_errors() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
+    let token = server.admin_token();
     server.seed_team(1..=5);
+    let user_token = server.user_token(&server.seed_user(6, false));
 
     analytics(&server, &token, "group by day (default)", "").await;
     analytics(&server, &token, "group by day (explicit)", "&group_by=day").await;
@@ -230,15 +218,9 @@ async fn analytics_views_and_errors() {
     );
 
     server
-        .record("no auth", server.get("/api/v1/admin/analytics"))
-        .await;
-    server
-        .record(
-            "user token",
-            server
-                .get("/api/v1/admin/analytics")
-                .bearer_auth(&user_token),
-        )
+        .record_refused("analytics", "user token", &user_token, || {
+            server.get("/api/v1/admin/analytics")
+        })
         .await;
 
     server.assert_golden("privacy_analytics_views");
@@ -248,19 +230,17 @@ async fn analytics_views_and_errors() {
 /// of that employee: the trigger row carries the individual consumption.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn user_alert_ignores_policy_and_consent() {
+    // The period of a daily alert is computed from the UTC date.
+    common::avoid_utc_midnight().await;
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
-    let user_id = enrolled["user_id"].as_str().expect("user_id").to_owned();
-    server
-        .storage()
-        .set_config(POLICY_KEY, "anonymous")
-        .expect("config");
+    let token = server.admin_token();
+    let user_id = server.seed_user(1, false);
+    let user_token = server.user_token(&user_id);
+    server.set_config(POLICY_KEY, "anonymous");
 
     server
         .record(
-            "alice did not opt in",
+            "the employee did not opt in",
             server.get("/api/v1/me/sharing").bearer_auth(&user_token),
         )
         .await;
@@ -292,26 +272,16 @@ async fn user_alert_ignores_policy_and_consent() {
         )
         .await;
 
-    // The threshold is checked after the acknowledgement: wait for the row.
-    let mut triggers = Value::Null;
-    for _ in 0..50 {
-        let (_, body) = server
-            .fetch(
-                server
-                    .get("/api/v1/admin/alerts/triggers")
-                    .bearer_auth(&token),
-            )
-            .await;
-        if body["triggers"]
-            .as_array()
-            .is_some_and(|rows| !rows.is_empty())
-        {
-            triggers = body;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-    let rows = triggers["triggers"].as_array().expect("a trigger row");
+    // The threshold is checked, and the row written, before the acknowledgement
+    // (only the notification is sent afterwards).
+    let (_, body) = server
+        .fetch(
+            server
+                .get("/api/v1/admin/alerts/triggers")
+                .bearer_auth(&token),
+        )
+        .await;
+    let rows = body["triggers"].as_array().expect("triggers");
     let parse = |key: &str| {
         chrono::DateTime::parse_from_rfc3339(rows[0][key].as_str().expect(key)).expect("RFC 3339")
     };
@@ -331,104 +301,107 @@ async fn user_alert_ignores_policy_and_consent() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn policies_on_analytics_users_and_user_detail() {
     let server = Server::start().await;
-    let token = server.admin_token().await;
-    let enrolled = server.enroll("fp-alice", "Alice").await;
-    let user_token = enrolled["access_token"].as_str().expect("token").to_owned();
-    // Employee 1 opted in; employees 2..=5 did not; Alice has no estimation.
+    let token = server.admin_token();
+    // Employee 1 opted in; employees 2 to 5 did not; employee 6 has no estimation.
     server.seed_team(1..=5);
+    let user_token = server.user_token(&server.seed_user(6, false));
     let opted_in = Server::user_id(1);
     let private = Server::user_id(2);
-
-    for policy in ["anonymous", "opt_in", "identified"] {
+    let detail = |id: &str, query: &str| {
         server
-            .storage()
-            .set_config(POLICY_KEY, policy)
-            .expect("config");
+            .get(&format!("/api/v1/admin/users/{id}/analytics{query}"))
+            .bearer_auth(&token)
+    };
+
+    // (policy, identified rows in top_users, users with totals in the list,
+    //  status of the detail of an opted-in employee, of a private employee)
+    for (policy, identified_rows, users_with_totals, detail_opted_in, detail_private) in [
+        ("anonymous", 0, 0, 403, 403),
+        ("opt_in", 1, 1, 200, 403),
+        ("identified", 5, 6, 200, 200),
+    ] {
+        server.set_config(POLICY_KEY, policy);
         let body = analytics(&server, &token, &format!("[{policy}] analytics"), "").await;
         assert_k(&body, 5, 5, false);
+        assert_eq!(
+            body["top_users"]["identified"]
+                .as_array()
+                .expect("rows")
+                .len(),
+            identified_rows,
+            "[{policy}] employees named in top_users"
+        );
 
-        server
+        let (_, users) = server
             .record(
                 &format!("[{policy}] users list"),
                 server.get("/api/v1/admin/users").bearer_auth(&token),
             )
             .await;
-        for (who, id) in [("opted in", &opted_in), ("not opted in", &private)] {
-            server
+        let with_totals = users["users"]
+            .as_array()
+            .expect("users")
+            .iter()
+            .filter(|user| !user["totals"].is_null())
+            .count();
+        assert_eq!(
+            with_totals, users_with_totals,
+            "[{policy}] users with totals"
+        );
+
+        for (who, id, expected) in [
+            ("opted in", &opted_in, detail_opted_in),
+            ("not opted in", &private, detail_private),
+        ] {
+            let (status, _) = server
                 .record(
                     &format!("[{policy}] user detail, {who}"),
-                    server
-                        .get(&format!("/api/v1/admin/users/{id}/analytics?{WINDOW}"))
-                        .bearer_auth(&token),
+                    detail(id, &format!("?{WINDOW}")),
                 )
                 .await;
+            assert_eq!(status, expected, "[{policy}] user detail, {who}");
         }
     }
 
     // A window of the first day only: the series follows the window, the totals
     // are checked against it in the recording.
-    server
-        .storage()
-        .set_config(POLICY_KEY, "opt_in")
-        .expect("config");
+    server.set_config(POLICY_KEY, "opt_in");
     server
         .record(
             "user detail: window of the first day only",
-            server
-                .get(&format!(
-                    "/api/v1/admin/users/{opted_in}/analytics?from=2026-05-15T00:00:00Z&to=2026-05-16T00:00:00Z"
-                ))
-                .bearer_auth(&token),
+            detail(
+                &opted_in,
+                "?from=2026-05-15T00:00:00Z&to=2026-05-16T00:00:00Z",
+            ),
         )
         .await;
     server
         .record(
             "user detail: unknown user",
-            server
-                .get(&format!(
-                    "/api/v1/admin/users/{}/analytics?{WINDOW}",
-                    Server::user_id(99)
-                ))
-                .bearer_auth(&token),
+            detail(&Server::user_id(99), &format!("?{WINDOW}")),
         )
         .await;
     server
         .record(
             "user detail: from is not a date",
-            server
-                .get(&format!(
-                    "/api/v1/admin/users/{opted_in}/analytics?from=yesterday"
-                ))
-                .bearer_auth(&token),
+            detail(&opted_in, "?from=yesterday"),
         )
         .await;
     server
         .record(
             "user detail: from after to",
-            server
-                .get(&format!(
-                    "/api/v1/admin/users/{opted_in}/analytics?from=2026-05-17T00:00:00Z&to=2026-05-15T00:00:00Z"
-                ))
-                .bearer_auth(&token),
+            detail(
+                &opted_in,
+                "?from=2026-05-17T00:00:00Z&to=2026-05-15T00:00:00Z",
+            ),
         )
         .await;
     server
-        .record(
-            "user detail: no auth",
+        .record_refused("user detail", "user token", &user_token, || {
             server.get(&format!(
                 "/api/v1/admin/users/{opted_in}/analytics?{WINDOW}"
-            )),
-        )
-        .await;
-    server
-        .record(
-            "user detail: user token",
-            server
-                .get(&format!(
-                    "/api/v1/admin/users/{opted_in}/analytics?{WINDOW}"
-                ))
-                .bearer_auth(&user_token),
-        )
+            ))
+        })
         .await;
 
     server.assert_golden("privacy_policies_views");

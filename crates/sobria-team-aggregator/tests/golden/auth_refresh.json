@@ -51,7 +51,7 @@
     "status": 401
   },
   {
-    "body": "Failed to deserialize the JSON body into the target type: missing field `refresh_token` at line 1 column 2",
+    "body": "Failed to deserialize the JSON body into the target type: missing field `refresh_token`",
     "content_type": "text/plain",
     "request": "refresh: missing field",
     "status": 422
@@ -63,7 +63,7 @@
       "refresh_expires_at": "<timestamp>",
       "refresh_token": "<refresh_token>",
       "role": "admin",
-      "subject_id": "<ulid>"
+      "subject_id": "<ulid#1>"
     },
     "content_type": "application/json",
     "request": "login: admin (to get a refresh token)",

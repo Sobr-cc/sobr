@@ -5,8 +5,8 @@
 //! change is intended:
 //!
 //! ```text
-//! SOBRIA_UPDATE_GOLDEN=1 cargo test -p sobria-team-aggregator
-//! $env:SOBRIA_UPDATE_GOLDEN = "1"; cargo test -p sobria-team-aggregator   # PowerShell
+//! SOBRIA_UPDATE_GOLDEN=1 cargo test -p sobria-team-aggregator --no-fail-fast
+//! $env:SOBRIA_UPDATE_GOLDEN = "1"; cargo test -p sobria-team-aggregator --no-fail-fast   # PowerShell
 //! ```
 //!
 //! A test that rewrites a file fails on purpose, so that a variable left
@@ -36,13 +36,13 @@ pub fn assert_golden(name: &str, actual: &Value) {
             std::env::var_os("CI").is_none(),
             "{UPDATE_ENV}=1 is refused in CI: it would rewrite the references instead of comparing"
         );
-        let mut text = String::new();
-        render(actual, 0, &mut text);
-        text.push('\n');
+        let text = format!(
+            "{}\n",
+            serde_json::to_string_pretty(actual).expect("render")
+        );
         if fs::read_to_string(&path).is_ok_and(|current| current == text) {
             return;
         }
-        fs::create_dir_all(path.parent().expect("golden dir")).expect("create golden dir");
         fs::write(&path, text).expect("write golden file");
         panic!(
             "golden file rewritten: {}\nRun again WITHOUT {UPDATE_ENV}, then review `git diff`.",
@@ -84,35 +84,6 @@ pub fn assert_golden(name: &str, actual: &Value) {
         "If the change is intended, regenerate with {UPDATE_ENV}=1 and say so in the PR; otherwise it is a regression."
     );
     panic!("{message}");
-}
-
-/// Indented JSON, but arrays of scalars stay on one line so that a diff of a
-/// long series is one line.
-fn render(value: &Value, depth: usize, out: &mut String) {
-    let indent = |level: usize| "  ".repeat(level);
-    match value {
-        Value::Object(map) if !map.is_empty() => {
-            out.push_str("{\n");
-            for (i, (key, child)) in map.iter().enumerate() {
-                let _ = write!(out, "{}{}: ", indent(depth + 1), Value::String(key.clone()));
-                render(child, depth + 1, out);
-                out.push_str(if i + 1 < map.len() { ",\n" } else { "\n" });
-            }
-            let _ = write!(out, "{}}}", indent(depth));
-        },
-        Value::Array(items) if items.iter().any(|v| v.is_object() || v.is_array()) => {
-            out.push_str("[\n");
-            for (i, child) in items.iter().enumerate() {
-                out.push_str(&indent(depth + 1));
-                render(child, depth + 1, out);
-                out.push_str(if i + 1 < items.len() { ",\n" } else { "\n" });
-            }
-            let _ = write!(out, "{}]", indent(depth));
-        },
-        flat => {
-            let _ = write!(out, "{flat}");
-        },
-    }
 }
 
 fn compare(path: &str, expected: &Value, actual: &Value, diffs: &mut Vec<String>) {

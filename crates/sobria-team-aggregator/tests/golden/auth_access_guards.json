@@ -36,7 +36,7 @@
         "tokens_out": 0,
         "water_ml": 0.0
       },
-      "user_id": "<ulid>"
+      "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
     },
     "content_type": "application/json",
     "request": "GET /api/v1/me/usage: user token (user route)",
@@ -92,10 +92,10 @@
       "users": [
         {
           "created_at": "<timestamp>",
-          "display_name": "Alice",
-          "enrollment_code_id": "<ulid>",
-          "fingerprint": "fp-alice",
-          "id": "<ulid>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
           "last_seen_at": null,
           "share_identified": false,
           "totals": null
