@@ -1,0 +1,22 @@
+[
+  {
+    "body": {
+      "ok": true,
+      "version": "<crate_version>"
+    },
+    "content_type": "application/json",
+    "request": "GET /health",
+    "status": 200
+  },
+  {
+    "body": "",
+    "content_type": "",
+    "request": "POST /health",
+    "status": 405
+  },
+  {
+    "content_type": "text/html",
+    "request": "GET /api/v1/does-not-exist",
+    "status": 200
+  }
+]
