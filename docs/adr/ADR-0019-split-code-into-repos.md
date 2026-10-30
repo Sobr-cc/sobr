@@ -25,7 +25,7 @@ On October 30, 2026, Thibault decided that the projects live in separate repos o
 Findings on `main` on 2026-10-30:
 
 1. **A block built and shipped together.** `sobria-app` embeds `web/build` (`crates/sobria-app/tauri.conf.json`, `frontendDist`). `sobria-team-aggregator` embeds `web-team/build` with `rust-embed` (`src/server/embedded_web.rs`), and ADR-0021 replaces `web-team/` by `web/`. The app and the server share `core`, `audit` and `export`. The TypeScript types of `web/` copy the Rust DTOs by hand (`web/src/lib/api.ts`).
-2. **Weak links elsewhere.** `extension/` has no code dependency: the bridge protocol and the API client are copied, the logos are copied by a manual script. `site/` depends only on `docs/` (`scripts/sync-docs.mjs`). The design system is used only by the logo script of the extension, and holds no font. `sobria-ingest` uses only `DEFAULT_SEED` from `sobria-core` and the datacenter records from `sobria-geoloc`; its schemas are read at compile time (`include_str!`).
+2. **Weak links elsewhere.** `extension/` has no code dependency: the bridge protocol and the API client are copied, the logos are copied by a manual script, and it carries hand ports of the estimator (`ecologits.ts`, `afnor.ts`, `equivalents.ts`) whose parity test reads values copied by hand from the Rust cases. `site/` depends only on `docs/` (`scripts/sync-docs.mjs`). The design system is used only by the logo script of the extension, and holds no font. `sobria-ingest` uses only `DEFAULT_SEED` from `sobria-core` and the datacenter records from `sobria-geoloc`; its schemas are read at compile time (`include_str!`).
 3. **Drift already present.** The CSS tokens of `web/` are copied into three other folders, the 8 fonts exist in 3 copies, the old URL `BkOff-fr/defis-lia-generatif` is hard-coded in 17 files, one `vX.Y.Z` tag triggers 3 release workflows, two nightly DVC workflows replay the same pipeline (`ingest-nightly` refers to a remote `origin` missing from `.dvc/config`), and `ci.yml` has no path filter.
 4. **A data → app link that is only implicit.** The app creates `referentiel.sqlite` in the user's data directory and writes its own tables in it (preferences, goals, projects). No release workflow supplies the Gold produced by `sobria-ingest`, but `sobria-referentiel` already reads two Gold tables by name when the file is present: `sources` and `model_overview`. Only the ingest crate creates them, and `schemas/gold/` covers the datasheet, not the tables. The Gold is also not reproducible: its datasheet embeds the build time, so its hashes change on every run. The `data` → `sobr` contract is to formalize, starting from these two tables.
 5. **A governance constraint.** Every merge needs Thibault's approval ("How we work"). A change that touches N repos costs N reviews.
@@ -46,7 +46,7 @@ Two rules, which also place future components:
 |--------|-----------|------|------|---------------|
 | A | Status quo: one repo | none | contradicts the October 30 decision | — (ruled out) |
 | B | One repo per folder or crate (about fifteen) | high | high | hard |
-| C | One repo per delivery unit, in 3 waves | about 62 points (§6) | medium, concentrated on `data` | good: each wave is a stopping point |
+| C | One repo per delivery unit, in 3 waves | about 69 points (§6) | medium, concentrated on `data` | good: each wave is a stopping point |
 | D | Only `site` and `.github` (current text of the routes document) | about 8 points | low | excellent |
 
 - **B**: splitting `web/` from the crates turns each DTO change into two PRs plus a version change, and the crossed versions among `core`, `estimator`, `audit` and `export` into a compatibility matrix. Merging repos back later is possible but long.
@@ -93,7 +93,7 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 | `scripts/bootstrap.sh`, `scripts/build-all.sh` | `sobr` | the steps of moved folders leave with them (§4) |
 | `scripts/sync-docs.mjs` | `site` | replaced by a fetch of the public documentation from `.github` and of the ADR pages from `sobr` (§3) |
 | `docs/LICENSES-FONTS.md` | `design-system` | copied in wave 1; the copy in `sobr` stays until the last font copy of `web/` and `extension/` is gone, because `web/static/fonts/README.md`, `extension/vite.config.ts` and `extension/src/styles/tokens.css` link to it |
-| `docs/` public documentation (§3) | `.github` | copied with its history into a `docs/` folder of `.github` in wave 1 and removed from `sobr` in the site move PR, so the site build never breaks; the list follows the criterion of §3 and is approved by Thibault in the `.github` docs issue (§6) |
+| `docs/` public documentation (§3) | `.github` | copied with its history into a `docs/` folder of `.github` in wave 1; the site move PR copies the listed pages again from `sobr` and then removes them from `sobr`, so the site build never breaks and no edit made in between is lost; the list follows the criterion of §3 and is approved by Thibault in the `.github` docs issue (§6) |
 | `docs/adr/` | `sobr` | single ADR register, since a decision concerns the organization, not one repo |
 | `docs/` (the rest: technical documentation, project documents, archive) | `sobr` | |
 | `briefs/`, `research/`, `notebook/` | `sobr` | the notebook validates the estimator |
@@ -102,7 +102,8 @@ Names follow those already set (`sobr`, `site`, `.github`). No repo is created b
 | `.github/workflows/extension-release.yml` | `extension` | |
 | `.github/workflows/site-deploy.yml` | `site` | |
 | `.github/workflows/dvc-nightly.yml`, `ingest-nightly.yml` | `data` | merged into one |
-| `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CONTRIBUTING.md` | `.github` | SOB-70; a repo keeps its own file if it needs a different one |
+| `CODE_OF_CONDUCT.md`, `SECURITY.md` | `.github` | SOB-70; a repo keeps its own file if it needs a different one |
+| `CONTRIBUTING.md` | `sobr` | its quality gates are the cargo ones; `.github` gets a short generic one (SOB-70) for the repos that use npm only |
 | `LICENSE-DATA` | `data` | |
 | `LICENSE`, `LICENSE-DOCS`, `.zenodo.json`, `Cargo.toml`, `Cargo.lock`, `deny.toml`, `rust-toolchain.toml`, `rustfmt.toml`, `CLAUDE.md`, `CHANGELOG.md`, `README.md`, `.env.example`, `.gitattributes`, `.gitignore` | `sobr` | every other repo gets its own version; `LICENSE` is copied everywhere (ADR-0006), and `LICENSE-DOCS` also goes to `.github`, which now holds docs |
 
@@ -115,12 +116,13 @@ No Rust code is shared across repos (decision 2). Front-end assets and interface
 | CSS tokens, fonts, logos | `design-system` → `web/`, `extension`, `site`, `vscode` | npm dependency `github:Sobr-cc/design-system#vX.Y.Z`, ready-to-use files in the repo; replaces the copies | SemVer; major = a token removed or renamed |
 | Bridge protocol (ADR-0013) | `sobr` → `extension` | JSON Schema generated from the Rust types, published with each release; contract test in the extension | protocol version in the messages |
 | HTTP API of the server | `sobr` → `extension`, `vscode`, `claude-code`, the app | OpenAPI published with each release | `/api/v1` prefix; a breaking change opens `/api/v2` in parallel |
+| Estimator parity | `sobr` → `extension` | reference cases published with each release (generated by `tools/fixturegen` from `core` and `estimator`, ADR-0017); the parity test of the extension reads them | version of the release |
 | Reference data (ADR-0007, ADR-0009) | `data` → `sobr` | artefact published as a `data` release (CalVer tag, `MANIFEST.sha256`); `data` adds a versioned schema of the Gold tables that `sobr` reads (Context 4), next to the datasheet schema, and `sobr` has a contract test against it; how the app receives the file: the note in Decisions | schema version of the Gold tables + CalVer |
 | Public documentation | `.github` → `site` | the site workflow clones the public documentation of `.github@main` at build time; it runs on a push to `site`, daily, and by hand | none: always `main` |
 | ADR pages | `sobr` → `site` | same mechanism, from `docs/adr/` of `sobr@main`; the site publishes them today and decision 3 does not change that | none: always `main` |
 | Common CI jobs | `.github` → all | reusable workflows | tag |
 
-Public documentation is written for users, operators and readers of the method (user and operator guides, methodology pages). Technical documentation is written for contributors (ADRs, component architecture, internal operations, QA, planning, archive). The docs pages the site links today (the methodology, the operator guides, the sources catalogs) are the candidates for the first list; a page that fits neither is settled in that list, with Thibault's approval.
+Public documentation is written for users, operators and readers of the method (user and operator guides, methodology pages). Technical documentation is written for contributors (ADRs, component architecture, internal operations, QA, planning, archive). The docs pages the site links today (the methodology, the operator guides, the sources catalogs) are the candidates for the first list; a page that fits neither is settled in that list, with Thibault's approval. A page that user-facing output of `sobr` cites by path (a result `source`, an error message) is classified like any other, and its path string is rewritten in the same step (§4, Links).
 
 ### 4. History, open PRs, CI, DVC, releases
 
@@ -128,7 +130,7 @@ Public documentation is written for users, operators and readers of the method (
 - **Open PRs**: a folder does not move while a PR touches it: the PR is merged, closed, or replayed in the new repo.
 - **CI**: each repo starts with a copy of the `ci.yml` jobs it needs, and switches to the reusable workflows when they exist. `sobr` drops the moved jobs in the same PR that removes the folder, so CI stays green.
 - **Scripts**: `scripts/build-all.sh` (the release command of CLAUDE.md §10) builds the extension, and `scripts/bootstrap.sh` installs DVC, runs `sobria-ingest fetch` and runs `npm ci` in `extension/`. Each move PR removes its steps, with their help lines and messages, so both scripts keep working after each wave.
-- **Links**: links from a moved folder to `../docs/...` (in `site/README.md` and `extension/README.md`) are rewritten to the URL of the repo that holds the page (`Sobr-cc/sobr` or `Sobr-cc/.github`) in the move PR, otherwise they return 404. The same holds for links from files that stay in `sobr` (READMEs, `CLAUDE.md`, ADRs) to a page that moved: the docs issue rewrites them.
+- **Links**: every relative link that leaves a moved folder (`../docs/...` in `site/README.md` and `extension/README.md`, `../CLAUDE.md` in `extension/README.md`) is rewritten to the URL of the repo that holds the target (`Sobr-cc/sobr` or `Sobr-cc/.github`) in the move PR, otherwise it returns 404. The same holds for references to a moved page from files that stay in `sobr`: READMEs, `CLAUDE.md`, ADRs, and also code strings, doc comments and golden files (the `source` of the estimator results, error messages, rustdoc). The golden files are regenerated and the PR says so.
 - **Releases**: `sobr` keeps the `vX.Y.Z` tags, because the app and the server embed one `web/` build (ADR-0021); `extension` has its own tags. Each README holds a compatibility matrix (protocol version and `/api/v1`, §3).
 - **`data` and DVC**: `data` keeps the current relative layout: `crates/<ingest crate>/`, `schemas/`, `dvc.yaml` and `.dvc/` at the root, because `include_str!("../../../schemas/...")` and the `dvc.yaml` dependencies use these paths. The datasets it ships live in `datasets/`, listed in the `gold` stage dependencies; `sobria-ingest fetch` writes there by default (today `crates/sobria-geoloc/data/`). A root `Cargo.toml` holds the ingest crate only, with the workspace package and dependency entries it inherits today; `Cargo.lock` is copied, so versions match `sobr`. The `copper` stage of `dvc.yaml` depends today on `crates/sobria-core/src`; that dependency is dropped, because ingest no longer depends on `sobria-core` (decision 2). The `dvc.lock` is committed in the move PR, and the single command of CLAUDE.md §3bis (`pipeline run`) runs in `data`. Success test of the move: `dvc repro` completes in `data` and `validate` passes. A "same `MANIFEST.sha256`" test cannot pass yet (Context 4); making the Gold reproducible is a separate fix in `sobria-ingest`.
 - **Human actions per repo**: creation, protection of `main` (SOB-17), deploy or remote secrets, coverage of Linear's GitHub integration (SOB-46).
@@ -150,22 +152,25 @@ Token adoption follows the move of each consumer; `web/` waits for the end of it
 
 ### 6. Issues to create
 
-Titles in English, to be created in Linear by the orchestrator (SOB-66, SOB-69 and SOB-70 already exist), each of 8 points at most. Points are indicative; the official estimate is made at creation. Total: 62 points, not counting the `vscode` and `claude-code` repos.
+Titles in English, to be created in Linear by the orchestrator (SOB-66, SOB-69 and SOB-70 already exist), each of 8 points at most. Points are indicative; the official estimate is made at creation. Total: 69 points, not counting the `vscode` and `claude-code` repos.
 
 | When | Issue | Role | Points |
 |------|-------|------|--------|
 | Before the waves | Share the agent working rules across the Sobr-cc repos (after SOB-43 and SOB-44) | CTO | 3 |
 | Wave 1 | SOB-66 Create the site and .github repos in Sobr-cc (existing; add `design-system`) | DevOps | 1 |
-| Wave 1 | SOB-70 Set up the Sobr-cc/.github repo (existing) | DevOps | 2 |
+| Wave 1 | SOB-70 Set up the Sobr-cc/.github repo (existing; a short generic CONTRIBUTING.md instead of the cargo one) | DevOps | 2 |
 | Wave 1 | Copy the public documentation, with its history, to Sobr-cc/.github from a list approved by Thibault | DevOps | 3 |
-| Wave 1 | SOB-69 Move the site to the Sobr-cc/site repo (existing; after the docs copy; add the daily fetch of the public documentation from .github and of the ADR pages from sobr, remove the documentation from sobr, and the README links; re-estimated) | DevOps | 5 |
+| Wave 1 | Rewrite the references to moved pages in sobr (code strings, doc comments, tests, golden files, READMEs, CLAUDE.md, ADRs); lands with the site move | Lead Rust | 3 |
+| Wave 1 | SOB-69 Move the site to the Sobr-cc/site repo (existing; after the docs copy; add the daily fetch of the public documentation from .github and of the ADR pages from sobr, copy the listed pages again and remove them from sobr, copy LICENSES-FONTS.md with the fonts of site/public/fonts, give "Edit on GitHub" the repo of each source, and fix the README links; re-estimated) | DevOps | 5 |
 | Wave 1 | Move the design system to Sobr-cc/design-system (fonts, icons, package.json, LICENSES-FONTS.md copy, ADR-0020 rename), repoint sync-logos, and tag its tokens | DevOps | 5 |
 | Wave 1 | Add reusable CI workflows to Sobr-cc/.github (before wave 2) | DevOps | 3 |
 | Wave 1 | Use the design tokens by tag in the site | Svelte front end | 2 |
 | Wave 2 | Create the extension repo in Sobr-cc (human-only) | DevOps | 1 |
 | Wave 2 | Publish the bridge JSON Schema and the server OpenAPI with each release | Lead Rust | 5 |
+| Wave 2 | Publish the estimator reference cases with each release (generated by tools/fixturegen) | Lead Rust | 2 |
 | Wave 2 | Move the extension to Sobr-cc/extension; remove its steps from build-all.sh and bootstrap.sh, delete sync-logos, move its rules and commands from CLAUDE.md, and rewrite its README links | DevOps | 5 |
 | Wave 2 | Add contract tests against the bridge schema and the API in the extension | Dev extensions | 3 |
+| Wave 2 | Make the parity test of the extension read the published reference cases | Dev extensions | 2 |
 | Wave 2 | Use the design tokens by tag in the extension | Dev extensions | 2 |
 | Wave 3 | Create the data repo in Sobr-cc (human-only) | DevOps | 1 |
 | Wave 3 | Make sobria-ingest independent of sobria-core and sobria-geoloc (copy the seed; read and write the datasets in a datasets/ folder, fetch included) | Lead Rust | 3 |
