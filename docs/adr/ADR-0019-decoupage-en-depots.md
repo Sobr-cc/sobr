@@ -42,10 +42,11 @@ Décision.
    MCP va dans `claude-code` s'il est un processus séparé qui parle à l'API
    HTTP, dans `sobr` s'il est un module du serveur. L'ADR du projet « Claude
    Code and MCP » confirme.
-5. **Information, pas de réponse attendue ici : livraison du catalogue à
-   l'app.** Aujourd'hui rien ne relie le Gold d'`ingest` à l'app (voir
-   Contexte). Une issue d'ADR dédiée est prévue en vague 3 ; elle conditionne
-   le projet « Model catalog », pas les déplacements.
+5. **Information, pas de réponse attendue ici : livraison des données à
+   l'app** (catalogue de modèles, fichiers de territoire). Aujourd'hui rien
+   ne relie le Gold d'`ingest` à l'app (voir Contexte). Une issue d'ADR dédiée
+   est prévue en vague 3 ; elle conditionne le projet « Model catalog », pas
+   les déplacements.
 
 ## Contexte et énoncé du problème
 
@@ -64,7 +65,7 @@ Constats sur `main` au 2026-10-30 :
 1. **Un bloc compilé et livré ensemble.** `sobria-app` embarque `web/build`
    (`crates/sobria-app/tauri.conf.json`, `frontendDist`).
    `sobria-team-aggregator` embarque `web-team/build` avec `rust-embed`
-   (`src/server/embedded_web.rs`) ; l'ADR « app unique » (SOB-14) remplace
+   (`src/server/embedded_web.rs`) ; l'ADR-0021 « app unique » (SOB-14) remplace
    `web-team/` par `web/`. L'app et le serveur partagent `core`, `audit` et
    `export`. Les types TypeScript de `web/` recopient à la main les DTO Rust
    (`web/src/lib/api.ts`).
@@ -250,19 +251,21 @@ figure (règle Foundations).
 
 L'adoption des jetons suit le déplacement de chaque consommateur ; `web/`
 attend la fin de son Deep cleanup (SOB-27 à SOB-29). Le travail interne à
-`sobr` (app unique SOB-14, renommage SOB-13, suppression d'`import` SOB-67)
+`sobr` (app unique ADR-0021, renommage ADR-0020, suppression d'`import` SOB-67)
 ne dépend pas des vagues. Chaque vague est un point d'arrêt : à sa fin,
 `sobr` compile et sa CI est verte.
 
-**Renommage (SOB-13).** Les noms de dépôts sont fixés ici ; les noms de
-crates, de dossiers et de paquets relèvent de SOB-13, appliqué dépôt par
-dépôt (SOB-38 se scinde par dépôt ; SOB-39 devient le renommage du contenu
-du design system). Zenodo et DOI sont par dépôt : `sobr` (logiciel) et
-`data` (jeu de données) ont chacun leurs métadonnées de citation. Les noms
-`sobria-*` de cet ADR sont ceux du 2026-10-30.
+**Renommage (ADR-0020).** Les noms de dépôts sont fixés ici ; les noms de
+crates, de dossiers et de paquets relèvent de l'ADR-0020 (préfixe `sobr-`
+proposé), appliqué dépôt par dépôt (SOB-38 se scinde par dépôt ; SOB-39
+devient le renommage du contenu du design system). Zenodo et DOI sont par
+dépôt : `sobr` (logiciel) et `data` (jeu de données) ont chacun leurs
+métadonnées de citation. Les noms `sobria-*` de cet ADR sont ceux du
+2026-10-30.
 
-**App unique (SOB-14).** Tout front embarqué par l'app de bureau ou par le
-serveur reste dans `sobr`, qu'il y ait une ou deux apps.
+**App unique (ADR-0021).** Tout front embarqué par l'app de bureau ou par le
+serveur reste dans `sobr`, qu'il y ait une ou deux apps. L'ADR-0021 s'appuie
+sur cette règle.
 
 ### 6. Issues à créer après approbation
 
@@ -287,11 +290,11 @@ SOB-66, SOB-69 et SOB-70 déjà créées.
 | Vague 2 | Use the design tokens by tag in the extension | Dev extensions | 2 |
 | Vague 3 | Create the data repo in Sobr-cc (human-only) | DevOps | 1 |
 | Vague 3 | Move sobria-ingest, the schemas and the DVC pipeline to Sobr-cc/data | DevOps | 8 |
-| Vague 3 | Write the ADR for delivering model catalog updates to the app | CTO | 3 |
+| Vague 3 | Write the ADR for delivering data updates (model catalog, territory files) to the app | CTO | 3 |
 | Après le Deep cleanup de `web/` | Use the design tokens by tag in web | Svelte front end | 2 |
 | Plus tard | Create the vscode repo, Create the claude-code repo (human-only, à l'ouverture de leur projet) | DevOps | 1 + 1 |
 
-Autres issues existantes à ajuster : SOB-38, SOB-39 et SOB-13 (voir §5),
+Autres issues existantes à ajuster : SOB-38 et SOB-39 (voir §5),
 SOB-6 et SOB-71 (le catalogue arrive dans `data`), SOB-43 et SOB-44 (fichiers
 d'agents par dépôt).
 
@@ -333,7 +336,7 @@ d'agents par dépôt).
 - Linear : SOB-65, SOB-13 (renommage), SOB-14 (app unique), SOB-33
   (décision « pas de monolithe »), SOB-66, SOB-69, SOB-70, SOB-73, SOB-74
 - ADR-0005, ADR-0006, ADR-0007, ADR-0009, ADR-0013, ADR-0014, ADR-0017,
-  ADR-0018
+  ADR-0018, ADR-0020 (renommage), ADR-0021 (app unique)
 - CLAUDE.md §3bis, §8, §13
 - Document de routes (décision « Dépôts », remplacée par le §7)
 - Linear, « How we work »
