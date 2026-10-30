@@ -21,6 +21,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   les en-têtes de sécurité du HTML servi. Il amende la règle 2 de
   l'ADR-0017. Attend l'approbation de Thibault. Refs: SOB-14.
 
+### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
+
+- **ADR-0020** (Proposed) : renommer Sobr.ia en Sobr.cc selon quatre règles
+  par nature de nom, préfixe de crates `sobr-`, avec l'impact de chaque
+  élément pour les utilisateurs existants. Attend l'approbation de Thibault.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
@@ -33,6 +39,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `SOBRIA_UPDATE_GOLDEN=1`. Aucune dépendance ajoutée, aucun changement de
   comportement.
 
+### Added — Agents Claude Code par rôle (2026-10-30)
+
+- **`.claude/agents/`** : sept agents, un par rôle actif en novembre
+  (`po-individuals`, `designer`, `cto`, `rust`, `frontend`, `devops`,
+  `qa`). Chaque fichier donne la mission, les projets, ce que le rôle ne
+  fait jamais et son modèle par défaut, d'après « How we work » et le
+  document Organisation de Linear (SOB-43). L'orchestrateur reste la
+  session principale.
+
 ### Added — Pilotage dans Linear (2026-10-30)
 
 - **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la
@@ -40,6 +55,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   CONTRIBUTING.md mis à jour : branches `feature/sob-123-<desc>`,
   `TODO(SOB-123)`, footer `Refs: SOB-123`. `docs/ROADMAP.md` passe en
   document historique.
+
+### Added — Skill /orchestrate et règles de travail (2026-10-30)
+
+- **`.claude/skills/orchestrate/`** : la routine de l'orchestrateur (trier
+  Triage et proposer une action par tâche, écrire et découper les tâches,
+  poser les labels Role et Model, limite de trois tâches In Review,
+  mises à jour du vendredi).
+- **`.claude/skills/linear-issue-writing/`** : copie du skill d'équipe
+  pour écrire les tâches Linear (SOB-44).
+- **CLAUDE.md §11** : les règles de travail, alignées sur le document
+  Linear « How we work » (qui fait quoi, règles, « Prêt », « Terminé »,
+  estimation et modèle).
 
 ### Removed — Nettoyage du dépôt (2026-10-30)
 
