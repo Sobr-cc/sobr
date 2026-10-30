@@ -177,6 +177,7 @@ créé avant d'avoir du contenu à y mettre.
 | `scripts/sync-docs.mjs` | `site` | remplacé par un fetch de `docs/` (§3) |
 | `docs/` (dont `docs/adr/`) | `sobr` | arbre unique que le site récupère ; registre unique des ADR, une décision concerne l'organisation et non un dépôt |
 | `briefs/`, `research/`, `notebook/` | `sobr` | le notebook valide l'estimateur |
+| `.claude/` (agents, skills `orchestrate` et `linear-issue-writing`) | `sobr` | source des règles de travail ; les autres dépôts en reçoivent la part qui les concerne (§4) |
 | `.github/workflows/ci.yml`, `app-release.yml`, `team-aggregator-release.yml`, `team-docker.yml`, `zenodo.yml` | `sobr` | les jobs de `ci.yml` pour les dossiers partis les suivent |
 | `.github/workflows/extension-release.yml` | `extension` | |
 | `.github/workflows/site-deploy.yml` | `site` | |
@@ -226,7 +227,7 @@ registre plus tard ne change que la ligne de dépendance.
   (SOB-17), secrets de déploiement ou de remote DVC, couverture de
   l'intégration GitHub de Linear (SOB-46).
 - **Règles de travail des agents** : `CLAUDE.md` §11, les skills et les
-  fichiers d'agents sont dans `sobr` (SOB-43, SOB-44). Chaque nouveau dépôt
+  fichiers d'agents sont dans `sobr` (`.claude/`, SOB-43, SOB-44). Chaque nouveau dépôt
   reçoit un `CLAUDE.md` court (son périmètre, ses commandes, renvoi vers les
   règles communes). Conventions de branches, de commits et de TODO de
   l'ADR-0018 inchangées.
@@ -294,9 +295,8 @@ SOB-66, SOB-69 et SOB-70 déjà créées.
 | Après le Deep cleanup de `web/` | Use the design tokens by tag in web | Svelte front end | 2 |
 | Plus tard | Create the vscode repo, Create the claude-code repo (human-only, à l'ouverture de leur projet) | DevOps | 1 + 1 |
 
-Autres issues existantes à ajuster : SOB-38 et SOB-39 (voir §5),
-SOB-6 et SOB-71 (le catalogue arrive dans `data`), SOB-43 et SOB-44 (fichiers
-d'agents par dépôt).
+Autres issues existantes à ajuster : SOB-38 et SOB-39 (voir §5), SOB-6 et
+SOB-71 (le catalogue arrive dans `data`).
 
 ### 7. Texte qui remplace la décision « Dépôts » du document de routes
 
