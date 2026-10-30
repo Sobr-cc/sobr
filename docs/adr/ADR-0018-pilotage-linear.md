@@ -59,7 +59,7 @@ with the original points.
   | Group | Labels |
   |--|--|
   | Type | Feature, Bug, Chore, Design, Docs, Research, Decision |
-  | Area | App, Browser extension, VS Code, Claude Code, MCP, Server, Site, Data |
+  | Area | App, Browser extension, VS Code, Claude Code, MCP, Server, Site, Data, Repo |
   | Agent | `agent:claude-code`, `agent:claude-design`, `human-only` |
   | Role | `role:orchestrator`, `role:po-individuals`, `role:po-organizations`, `role:po-research`, `role:designer`, `role:ux-writer`, `role:cto`, `role:rust`, `role:frontend`, `role:extensions`, `role:integrations`, `role:devops`, `role:qa`, `role:security`, `role:data`, `role:docs`, `role:infra`, `role:sre` |
   | Model | `model:haiku`, `model:sonnet`, `model:opus` |
@@ -87,9 +87,9 @@ with the original points.
   - CLAUDE.md §2 (row `briefs/chantiers/Cxx-*.md`) and §11 (step 2 reads the
     brief; step 4f links it in the PR), which still tie every issue to a
     brief, against A2;
-  - CONTRIBUTING.md line 11 ("the active sprint and its brief");
-  - the Role list in `.claude/skills/linear-issue-writing/SKILL.md`, which
-    lacks `role:infra` and `role:sre`.
+  - CONTRIBUTING.md line 10 ("the active sprint and its brief");
+  - the label lists in `.claude/skills/linear-issue-writing/SKILL.md`: Area
+    lacks `Repo`, and Role lacks `role:infra` and `role:sre`.
 - **Handled by other issues:**
   - CLAUDE.md §13 (French and English for every doc): SOB-97;
   - `docs/adr/README.md` (Accepted ADRs said to be immutable): SOB-127.

@@ -19,7 +19,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - Only Claude agents do the work; Linear AI features stay off.
   - The branch format from SOB-12 is confirmed.
   - The working rules stay in "How we work", which the ADR links.
-  - CLAUDE.md §2 and §11, CONTRIBUTING.md and the role list of the issue
+  - CLAUDE.md §2 and §11, CONTRIBUTING.md and the label lists of the issue
     skill follow in SOB-138.
 
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
