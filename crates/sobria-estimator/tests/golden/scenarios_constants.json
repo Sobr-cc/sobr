@@ -1,0 +1,6 @@
+{
+  "max_forecast_horizon_months": 60,
+  "max_forecast_months": 60,
+  "max_forecast_scenarios": 10,
+  "max_scenarios": 20
+}

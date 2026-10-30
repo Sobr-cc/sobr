@@ -1,0 +1,1087 @@
+{
+  "claude-3-5-sonnet": {
+    "embodied_g_per_request": {
+      "mu": -2.995732273553991,
+      "sigma": 0.307504842711553,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 8.517193191416238,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 7.600902459542082,
+      "sigma": 0.30498218577761166,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-3-7-sonnet": {
+    "embodied_g_per_request": {
+      "mu": -2.995732273553991,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 8.517193191416238,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 7.600902459542082,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-haiku-4-5": {
+    "embodied_g_per_request": {
+      "mu": -4.045554398052668,
+      "sigma": 0.30467614153735706,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 7.4673710669175595,
+      "sigma": 0.3043895046316714,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 6.551080335043404,
+      "sigma": 0.3046235091389993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-opus-4": {
+    "embodied_g_per_request": {
+      "mu": -0.9808292530117262,
+      "sigma": 0.3049375454344878,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.532096211958502,
+      "sigma": 0.30445340530185905,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.615805480084347,
+      "sigma": 0.30444671777002014,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-opus-4-7": {
+    "embodied_g_per_request": {
+      "mu": -0.6931471805599453,
+      "sigma": 0.3044801569005699,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.819778284410283,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.903487552536127,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-opus-4-8": {
+    "embodied_g_per_request": {
+      "mu": -0.6931471805599453,
+      "sigma": 0.3044801569005699,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.819778284410283,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.903487552536127,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-sonnet-4": {
+    "embodied_g_per_request": {
+      "mu": -2.3025850929940455,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.294049640102028,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "claude-sonnet-4-6": {
+    "embodied_g_per_request": {
+      "mu": -2.3025850929940455,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.294049640102028,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "conservative_default": {
+    "embodied_g_per_request": {
+      "mu": -3.912023005428146,
+      "sigma": 0.4,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 0.6931471805599453,
+      "sigma": 0.3,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 0.0,
+      "sigma": 0.25,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "deepseek-r1": {
+    "embodied_g_per_request": {
+      "mu": -4.683131727457804,
+      "sigma": 0.30418643030758524,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.829793737512425,
+      "sigma": 0.3041864303075853,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.91350300563827,
+      "sigma": 0.3047785606169623,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "deepseek-v4-pro": {
+    "embodied_g_per_request": {
+      "mu": -4.402229341991401,
+      "sigma": 0.3045859089885455,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 7.110696122978827,
+      "sigma": 0.3045859089885455,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 6.194405391104672,
+      "sigma": 0.304418740915725,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gemini-2-0-flash": {
+    "embodied_g_per_request": {
+      "mu": -4.8283137373023015,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.684611727667927,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.768320995793772,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gemini-2-5-pro": {
+    "embodied_g_per_request": {
+      "mu": -2.3025850929940455,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.294049640102028,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gemini-3-1-pro": {
+    "embodied_g_per_request": {
+      "mu": -2.3025850929940455,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.294049640102028,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gemini-3-5-flash": {
+    "embodied_g_per_request": {
+      "mu": -4.8283137373023015,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.684611727667927,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.768320995793772,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gpt-4o": {
+    "embodied_g_per_request": {
+      "mu": -2.995732273553991,
+      "sigma": 0.307504842711553,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 8.517193191416238,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 7.600902459542082,
+      "sigma": 0.30498218577761166,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gpt-4o-mini": {
+    "embodied_g_per_request": {
+      "mu": -6.214608098422191,
+      "sigma": 0.3049821857776117,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 5.298317366548036,
+      "sigma": 0.30498218577761166,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 4.382026634673881,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gpt-5-5": {
+    "embodied_g_per_request": {
+      "mu": -1.3862943611198906,
+      "sigma": 0.3031098974901881,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.126631103850338,
+      "sigma": 0.304440030385304,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gpt-5-5-pro": {
+    "embodied_g_per_request": {
+      "mu": -1.3862943611198906,
+      "sigma": 0.3031098974901881,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.126631103850338,
+      "sigma": 0.304440030385304,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "gpt-5-5-thinking": {
+    "embodied_g_per_request": {
+      "mu": -1.3862943611198906,
+      "sigma": 0.3031098974901881,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.126631103850338,
+      "sigma": 0.304440030385304,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "grok-4": {
+    "embodied_g_per_request": {
+      "mu": -2.0794415416798357,
+      "sigma": 0.30435326007838726,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.433483923290392,
+      "sigma": 0.304440030385304,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.517193191416238,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "llama-3-1-70b": {
+    "embodied_g_per_request": {
+      "mu": -4.045554398052668,
+      "sigma": 0.30467614153735706,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 7.4673710669175595,
+      "sigma": 0.3043895046316714,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 6.551080335043404,
+      "sigma": 0.3046235091389993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "llama-3-1-8b": {
+    "embodied_g_per_request": {
+      "mu": -6.214608098422191,
+      "sigma": 0.3049821857776117,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 5.298317366548036,
+      "sigma": 0.30498218577761166,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 4.382026634673881,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "llama-3-3-70b": {
+    "embodied_g_per_request": {
+      "mu": -4.045554398052668,
+      "sigma": 0.30467614153735706,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 7.4673710669175595,
+      "sigma": 0.3043895046316714,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 6.551080335043404,
+      "sigma": 0.3046235091389993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "llama-4-maverick": {
+    "embodied_g_per_request": {
+      "mu": -5.4608362960458114,
+      "sigma": 0.3038411095476953,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.052089168924417,
+      "sigma": 0.3038411095476953,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.135798437050262,
+      "sigma": 0.30453917610587244,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "llama-4-scout": {
+    "embodied_g_per_request": {
+      "mu": -5.4608362960458114,
+      "sigma": 0.3038411095476953,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.052089168924417,
+      "sigma": 0.3038411095476953,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.135798437050262,
+      "sigma": 0.30453917610587244,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "mistral-large-2": {
+    "embodied_g_per_request": {
+      "mu": -3.48186528472961,
+      "sigma": 0.3044054280895703,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 8.031060180240619,
+      "sigma": 0.3044054280895703,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 7.114769448366463,
+      "sigma": 0.3047100475177561,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "mistral-large-3": {
+    "embodied_g_per_request": {
+      "mu": -4.58047757339772,
+      "sigma": 0.3045086354649402,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.932447891572509,
+      "sigma": 0.3045086354649402,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 6.016157159698354,
+      "sigma": 0.3050434655713795,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "mistral-medium-3": {
+    "embodied_g_per_request": {
+      "mu": -4.892852258439873,
+      "sigma": 0.30426872576763386,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.620073206530356,
+      "sigma": 0.30426872576763386,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.703782474656201,
+      "sigma": 0.3041459310109828,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "mistral-medium-3-5": {
+    "embodied_g_per_request": {
+      "mu": -3.4420193761824103,
+      "sigma": 0.30451150942661037,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 8.070906088787819,
+      "sigma": 0.30451150942661037,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 7.154615356913663,
+      "sigma": 0.3043547791235993,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "mistral-small-4": {
+    "embodied_g_per_request": {
+      "mu": -4.892852258439873,
+      "sigma": 0.30426872576763386,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 6.620073206530356,
+      "sigma": 0.30426872576763386,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.703782474656201,
+      "sigma": 0.3041459310109828,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "o3": {
+    "embodied_g_per_request": {
+      "mu": -2.3025850929940455,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 8.294049640102028,
+      "sigma": 0.30448015690057,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "phi-4-reasoning": {
+    "embodied_g_per_request": {
+      "mu": -5.654992310486769,
+      "sigma": 0.3046235091389993,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 5.857933154483459,
+      "sigma": 0.3046235091389993,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 4.941642422609304,
+      "sigma": 0.30390742302232004,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "phi-4-reasoning-vision": {
+    "embodied_g_per_request": {
+      "mu": -5.585999438999818,
+      "sigma": 0.3049375454344878,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 5.926926025970411,
+      "sigma": 0.3048147506778368,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 5.0106352940962555,
+      "sigma": 0.3041459310109828,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  },
+  "qwen-3-6-plus": {
+    "embodied_g_per_request": {
+      "mu": -1.3862943611198906,
+      "sigma": 0.3031098974901881,
+      "type": "log_normal"
+    },
+    "epsilon_decode_mj_per_token": {
+      "mu": 10.126631103850338,
+      "sigma": 0.304440030385304,
+      "type": "log_normal"
+    },
+    "epsilon_prefill_mj_per_token": {
+      "mu": 9.210340371976184,
+      "sigma": 0.3044299995840704,
+      "type": "log_normal"
+    },
+    "if_electrical_g_per_kwh": {
+      "type": "point",
+      "value": 56.0
+    },
+    "pue": {
+      "high": 1.4,
+      "low": 1.1,
+      "type": "uniform"
+    },
+    "wue_l_per_kwh": {
+      "high": 2.5,
+      "low": 0.5,
+      "type": "uniform"
+    }
+  }
+}

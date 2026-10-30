@@ -1,0 +1,206 @@
+{
+  "claude-3-5-sonnet": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "claude-3-7-sonnet": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-haiku-4-5": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-opus-4": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-opus-4-7": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-opus-4-8": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-sonnet-4": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "claude-sonnet-4-6": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 10000,
+    "tools_definition_tokens": 0
+  },
+  "deepseek-r1": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 14142,
+    "tools_definition_tokens": 0
+  },
+  "deepseek-v4-pro": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 14142,
+    "tools_definition_tokens": 0
+  },
+  "gemini-2-0-flash": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "gemini-2-5-pro": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 8660,
+    "tools_definition_tokens": 0
+  },
+  "gemini-3-1-pro": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 8660,
+    "tools_definition_tokens": 0
+  },
+  "gemini-3-5-flash": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 8660,
+    "tools_definition_tokens": 0
+  },
+  "gpt-4o": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "gpt-4o-mini": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "gpt-5-5": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "gpt-5-5-pro": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 20000,
+    "tools_definition_tokens": 0
+  },
+  "gpt-5-5-thinking": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 12247,
+    "tools_definition_tokens": 0
+  },
+  "grok-4": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 800,
+    "thinking_tokens_p50": 12247,
+    "tools_definition_tokens": 0
+  },
+  "llama-3-1-70b": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "llama-3-1-8b": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "llama-3-3-70b": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "llama-4-maverick": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "llama-4-scout": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "mistral-large-2": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 300,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "mistral-large-3": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 300,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "mistral-medium-3": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 300,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  },
+  "mistral-medium-3-5": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 300,
+    "thinking_tokens_p50": 11180,
+    "tools_definition_tokens": 0
+  },
+  "mistral-small-4": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 300,
+    "thinking_tokens_p50": 11180,
+    "tools_definition_tokens": 0
+  },
+  "o3": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 1000,
+    "thinking_tokens_p50": 12247,
+    "tools_definition_tokens": 0
+  },
+  "phi-4-reasoning": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 8660,
+    "tools_definition_tokens": 0
+  },
+  "phi-4-reasoning-vision": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 8660,
+    "tools_definition_tokens": 0
+  },
+  "qwen-3-6-plus": {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 500,
+    "thinking_tokens_p50": 11180,
+    "tools_definition_tokens": 0
+  }
+}

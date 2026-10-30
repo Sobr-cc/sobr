@@ -1,0 +1,6 @@
+{
+  "default_bin_count": 50,
+  "default_n": 10000,
+  "default_seed": 42,
+  "min_samples_for_bins": 10
+}

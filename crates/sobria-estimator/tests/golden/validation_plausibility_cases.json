@@ -1,0 +1,74 @@
+[
+  {
+    "case_id": "gpt-4o-mini-fr-short",
+    "computed_p50_g_co2eq": 0.004209649072176644,
+    "expected": {
+      "kind": "range",
+      "max": 0.01,
+      "min": 0.00001
+    },
+    "kind": "plausibility",
+    "message": "gpt-4o-mini-fr-short : OK (0.004210 ∈ [0.00001, 0.01] g CO₂eq)",
+    "passed": true
+  },
+  {
+    "case_id": "llama-70b-fr-medium",
+    "computed_p50_g_co2eq": 0.055804540730798935,
+    "expected": {
+      "kind": "range",
+      "max": 0.1,
+      "min": 0.0001
+    },
+    "kind": "plausibility",
+    "message": "llama-70b-fr-medium : OK (0.055805 ∈ [0.0001, 0.1] g CO₂eq)",
+    "passed": true
+  },
+  {
+    "case_id": "llama-70b-us-va-medium",
+    "computed_p50_g_co2eq": 0.2921275299801209,
+    "expected": {
+      "kind": "range",
+      "max": 1.0,
+      "min": 0.001
+    },
+    "kind": "plausibility",
+    "message": "llama-70b-us-va-medium : OK (0.292128 ∈ [0.001, 1] g CO₂eq)",
+    "passed": true
+  },
+  {
+    "case_id": "gpt-4o-fr-long",
+    "computed_p50_g_co2eq": 0.2701193972402889,
+    "expected": {
+      "kind": "range",
+      "max": 1.0,
+      "min": 0.01
+    },
+    "kind": "plausibility",
+    "message": "gpt-4o-fr-long : OK (0.270119 ∈ [0.01, 1] g CO₂eq)",
+    "passed": true
+  },
+  {
+    "case_id": "mistral-large-fr-short",
+    "computed_p50_g_co2eq": 0.06471120785348848,
+    "expected": {
+      "kind": "range",
+      "max": 0.1,
+      "min": 0.0001
+    },
+    "kind": "plausibility",
+    "message": "mistral-large-fr-short : OK (0.064711 ∈ [0.0001, 0.1] g CO₂eq)",
+    "passed": true
+  },
+  {
+    "case_id": "us-mix-is-more-carbon-intensive-than-fr",
+    "computed_p50_g_co2eq": 0.01777249703075902,
+    "expected": {
+      "kind": "range",
+      "max": 1.0,
+      "min": 0.0001
+    },
+    "kind": "plausibility",
+    "message": "us-mix-is-more-carbon-intensive-than-fr : OK (0.017772 ∈ [0.0001, 1] g CO₂eq)",
+    "passed": true
+  }
+]

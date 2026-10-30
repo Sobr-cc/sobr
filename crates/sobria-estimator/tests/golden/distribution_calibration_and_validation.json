@@ -1,0 +1,53 @@
+{
+  "log_normal_from_interval.flat": {
+    "message": "schéma : log_normal_from_interval : σ calculé ≤ 0 (p5 = p95 ?)",
+    "variant": "Schema"
+  },
+  "log_normal_from_interval.narrow": {
+    "mu": 0.0,
+    "sigma": 0.060999560135350434,
+    "type": "log_normal"
+  },
+  "log_normal_from_interval.non_positive_p5": {
+    "message": "schéma : log_normal_from_interval : quantiles doivent être > 0 ; p5=0, p50=1, p95=2",
+    "variant": "Schema"
+  },
+  "log_normal_from_interval.ratio_4": {
+    "mu": 0.6931471805599453,
+    "sigma": 0.42140356394179923,
+    "type": "log_normal"
+  },
+  "log_normal_from_interval.tiny_values": {
+    "mu": -12.206072645530174,
+    "sigma": 0.9106379511428627,
+    "type": "log_normal"
+  },
+  "log_normal_from_interval.unordered": {
+    "message": "schéma : log_normal_from_interval : ordre p5 ≤ p50 ≤ p95 violé ; p5=2, p50=1, p95=3",
+    "variant": "Schema"
+  },
+  "validate.log_normal_nan_mu": {
+    "message": "schéma : LogNormal : μ non fini (NaN)",
+    "variant": "Schema"
+  },
+  "validate.log_normal_negative_sigma": {
+    "message": "schéma : LogNormal : σ doit être > 0 (reçu -0.1)",
+    "variant": "Schema"
+  },
+  "validate.normal_zero_std": {
+    "message": "schéma : Normal : std doit être > 0 (reçu 0)",
+    "variant": "Schema"
+  },
+  "validate.point_nan": {
+    "message": "schéma : Point : valeur non finie (NaN)",
+    "variant": "Schema"
+  },
+  "validate.uniform_infinite": {
+    "message": "schéma : Uniform : bornes non finies",
+    "variant": "Schema"
+  },
+  "validate.uniform_inverted": {
+    "message": "schéma : Uniform : low=2 > high=1",
+    "variant": "Schema"
+  }
+}

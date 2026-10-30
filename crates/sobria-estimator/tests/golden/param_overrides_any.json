@@ -1,0 +1,9 @@
+{
+  "embodied": true,
+  "empty": false,
+  "if_electrical": true,
+  "model_id": true,
+  "pue": true,
+  "tokens_out": true,
+  "wue": true
+}

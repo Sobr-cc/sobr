@@ -1,0 +1,98 @@
+[
+  {
+    "case_id": "ecologits-llama-70b-fr-short",
+    "computed_p50_g_co2eq": 0.018415679917076384,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.01843,
+      "tolerance": 0.01
+    },
+    "kind": "reproduction",
+    "message": "ecologits-llama-70b-fr-short : OK (P50=0.0184, cible=0.0184, err=0.1%, tol=1.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "ecologits-llama-70b-us-long",
+    "computed_p50_g_co2eq": 0.5419471518453908,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.542,
+      "tolerance": 0.01
+    },
+    "kind": "reproduction",
+    "message": "ecologits-llama-70b-us-long : OK (P50=0.5419, cible=0.5420, err=0.0%, tol=1.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "ecologits-mistral-large-us-medium",
+    "computed_p50_g_co2eq": 0.3771208219784504,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.378,
+      "tolerance": 0.01
+    },
+    "kind": "reproduction",
+    "message": "ecologits-mistral-large-us-medium : OK (P50=0.3771, cible=0.3780, err=0.2%, tol=1.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "c34-vision-gpt4o-2-high-images-fr",
+    "computed_p50_g_co2eq": 0.1620773314724312,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.157,
+      "tolerance": 0.25
+    },
+    "kind": "reproduction",
+    "message": "c34-vision-gpt4o-2-high-images-fr : OK (P50=0.1621, cible=0.1570, err=3.2%, tol=25.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "c34-document-gpt4o-5-pages-fr",
+    "computed_p50_g_co2eq": 0.3122142921492381,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.306,
+      "tolerance": 0.25
+    },
+    "kind": "reproduction",
+    "message": "c34-document-gpt4o-5-pages-fr : OK (P50=0.3122, cible=0.3060, err=2.0%, tol=25.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "c34-audio-gpt4o-30s-fr",
+    "computed_p50_g_co2eq": 0.11416711391047622,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.112,
+      "tolerance": 0.25
+    },
+    "kind": "reproduction",
+    "message": "c34-audio-gpt4o-30s-fr : OK (P50=0.1142, cible=0.1120, err=1.9%, tol=25.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "c34-reasoning-o3-complex-fr",
+    "computed_p50_g_co2eq": 2.568960418136912,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 2.588,
+      "tolerance": 0.25
+    },
+    "kind": "reproduction",
+    "message": "c34-reasoning-o3-complex-fr : OK (P50=2.5690, cible=2.5880, err=0.7%, tol=25.0%)",
+    "passed": true
+  },
+  {
+    "case_id": "c34-overhead-claude-3-7-fr",
+    "computed_p50_g_co2eq": 0.6436127988968233,
+    "expected": {
+      "kind": "point_within_tolerance",
+      "target": 0.642,
+      "tolerance": 0.3
+    },
+    "kind": "reproduction",
+    "message": "c34-overhead-claude-3-7-fr : OK (P50=0.6436, cible=0.6420, err=0.3%, tol=30.0%)",
+    "passed": true
+  }
+]

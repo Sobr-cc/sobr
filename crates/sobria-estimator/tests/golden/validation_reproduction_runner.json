@@ -1,0 +1,90 @@
+{
+  "afnor_outside_tolerance": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 0.05361937316500885,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.0001
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : KO — P50=0.0536, cible=0.0500, err=7.2% > tol=0.0%",
+      "passed": false
+    }
+  },
+  "afnor_with_modalities_and_overhead": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 2.81568657134585,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.5
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : KO — P50=2.8157, cible=0.0500, err=5531.4% > tol=50.0%",
+      "passed": false
+    }
+  },
+  "afnor_within_tolerance": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 0.05361937316500885,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.5
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : OK (P50=0.0536, cible=0.0500, err=7.2%, tol=50.0%)",
+      "passed": true
+    }
+  },
+  "afnor_without_embodied": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 0.03530214608921724,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.5
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : OK (P50=0.0353, cible=0.0500, err=29.4%, tol=50.0%)",
+      "passed": true
+    }
+  },
+  "ecologits": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 0.09332131391811352,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.5
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : KO — P50=0.0933, cible=0.0500, err=86.6% > tol=50.0%",
+      "passed": false
+    }
+  },
+  "ecologits_without_embodied": {
+    "ok": {
+      "case_id": "characterization-reproduction",
+      "computed_p50_g_co2eq": 0.03683135983415277,
+      "expected": {
+        "kind": "point_within_tolerance",
+        "target": 0.05,
+        "tolerance": 0.5
+      },
+      "kind": "reproduction",
+      "message": "characterization-reproduction : OK (P50=0.0368, cible=0.0500, err=26.3%, tol=50.0%)",
+      "passed": true
+    }
+  },
+  "unknown_model": {
+    "message": "schéma : modèle inconnu : \"not-in-registry\"",
+    "variant": "Schema"
+  }
+}
