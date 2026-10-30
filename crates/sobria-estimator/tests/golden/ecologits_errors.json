@@ -1,0 +1,18 @@
+{
+  "empty_model_id": {
+    "message": "validation : request: validation échouée : model_id vide",
+    "variant": "Validation"
+  },
+  "invalid_pue": {
+    "message": "validation : pue: schéma : Uniform : low=2 > high=1",
+    "variant": "Validation"
+  },
+  "tokens_above_limit": {
+    "message": "validation : request: validation échouée : tokens absurdes : in=10000001, out=1",
+    "variant": "Validation"
+  },
+  "unknown_model": {
+    "message": "schéma : EcoLogits: modèle inconnu \"not-in-registry\" (registry Sobr.ia)",
+    "variant": "Schema"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "fails_outside_range": {
+    "ok": {
+      "case_id": "characterization-plausibility",
+      "computed_p50_g_co2eq": 0.004209649072176644,
+      "expected": {
+        "kind": "range",
+        "max": 200.0,
+        "min": 100.0
+      },
+      "kind": "plausibility",
+      "message": "characterization-plausibility : KO — P50=0.004210 hors plage [100, 200] g CO₂eq",
+      "passed": false
+    }
+  },
+  "passes": {
+    "ok": {
+      "case_id": "characterization-plausibility",
+      "computed_p50_g_co2eq": 0.004209649072176644,
+      "expected": {
+        "kind": "range",
+        "max": 0.01,
+        "min": 0.00001
+      },
+      "kind": "plausibility",
+      "message": "characterization-plausibility : OK (0.004210 ∈ [0.00001, 0.01] g CO₂eq)",
+      "passed": true
+    }
+  },
+  "unknown_model": {
+    "message": "schéma : modèle inconnu : \"not-in-registry\"",
+    "variant": "Schema"
+  }
+}

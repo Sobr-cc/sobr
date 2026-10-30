@@ -7,6 +7,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
+
+- **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
+  (SOB-19). `tests/characterization/` fige les sorties actuelles (P5/P50/P95,
+  histogrammes, hypothèses, erreurs) de `MonteCarloEngine`, `EcoLogitsEngine`,
+  `simulate`, `forecast_yearly`, du registre de modèles (34 presets), des
+  tokens effectifs, des équivalents, des méthodologies et de `validation`,
+  avec seed 42 et horodatage fixe. Références dans `tests/golden/*.json`
+  (comparées à 1e-9 près, car la CI tourne sur 3 OS) ; régénération avec
+  `SOBRIA_UPDATE_GOLDEN=1`. Aucune dépendance ajoutée, aucun changement de
+  comportement.
+
 ### Added — Pilotage dans Linear (2026-10-30)
 
 - **ADR-0018** : Linear (workspace `sobrcc`, équipe `SOB`) devient la

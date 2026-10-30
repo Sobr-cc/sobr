@@ -1,0 +1,27 @@
+{
+  "at_min_samples_degenerate": null,
+  "below_min_samples": null,
+  "contains_infinity": null,
+  "contains_nan": null,
+  "ramp_10_bins": {
+    "counts": [10,10,10,10,10,10,10,10,10,10],
+    "max": 99.0,
+    "min": 0.0
+  },
+  "ramp_default_bins": {
+    "counts": [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+    "max": 99.0,
+    "min": 0.0
+  },
+  "ramp_single_bin": {
+    "counts": [100],
+    "max": 99.0,
+    "min": 0.0
+  },
+  "skewed_right_tail": {
+    "counts": [54,5,5,5,5,5,5,5,5,6],
+    "max": 500.0,
+    "min": 0.0
+  },
+  "zero_bins": null
+}
