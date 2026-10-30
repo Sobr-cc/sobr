@@ -25,6 +25,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
 
+### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
+
+- **ADR-0020** (Proposed) : renommer Sobr.ia en Sobr.cc selon quatre règles
+  par nature de nom, préfixe de crates `sobr-`, avec l'impact de chaque
+  élément pour les utilisateurs existants. Attend l'approbation de Thibault.
+
 ### Added — Tests de caractérisation de l'estimateur (2026-10-30, SOB-9)
 
 - **`sobria-estimator`** : filet de sécurité avant le nettoyage de la crate
@@ -36,6 +42,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   (comparées à 1e-9 près, car la CI tourne sur 3 OS) ; régénération avec
   `SOBRIA_UPDATE_GOLDEN=1`. Aucune dépendance ajoutée, aucun changement de
   comportement.
+
+### Added — Agents Claude Code par rôle (2026-10-30)
+
+- **`.claude/agents/`** : sept agents, un par rôle actif en novembre
+  (`po-individuals`, `designer`, `cto`, `rust`, `frontend`, `devops`,
+  `qa`). Chaque fichier donne la mission, les projets, ce que le rôle ne
+  fait jamais et son modèle par défaut, d'après « How we work » et le
+  document Organisation de Linear (SOB-43). L'orchestrateur reste la
+  session principale.
 
 ### Added — Pilotage dans Linear (2026-10-30)
 
