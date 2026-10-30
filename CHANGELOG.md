@@ -25,8 +25,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **CLAUDE.md** (§13, with pointers in §4.1, §4.3 and §11): everything agents
   write is in English, all documentation included (rustdoc, ADRs, CHANGELOG,
   READMEs); only the product's user-facing text (UI, i18n) stays in French and
-  English. New comment rule: the strict minimum, with three exceptions. The
-  old "FR + EN required for docs" rule is removed.
+  English. Existing French files are translated when next edited. New comment
+  rule: the strict minimum, with three exceptions; rustdoc on public items is
+  one short line, with an example only when useful (§4.1). The old "FR + EN
+  required for docs" rule is removed.
 - **`.claude/agents/*.md`** and **`.claude/skills/orchestrate/SKILL.md`**
   translated into English, rules unchanged.
 
