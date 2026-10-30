@@ -30,6 +30,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     - a notice to the person;
     - stopping a browser holds in the app;
     - the offline spool checks the secret;
+    - nothing measured while the connection is off is kept;
     - "Export JSON" leaves the secret out.
   - ADR-0014 gets a note on its "Pairing perso 6 chiffres" row.
   - Nothing is built yet (SOB-107).

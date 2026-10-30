@@ -101,7 +101,10 @@ document. Translated from French:
      the app refuses every pairing request and estimate until it is turned
      on again. A bridge that a browser already started keeps running until
      the browser closes the port, so deleting the manifests alone would not
-     stop it.
+     stop it. What such a bridge writes to the offline spool is refused too:
+     while the connection is off, the app discards spooled lines instead of
+     keeping them, and when it is turned back on, it drops the lines written
+     before that moment.
    - **The refusal in the app is what stops the browser, not the deleted
      manifest.** On Windows, Edge reads the Chromium and then the Chrome
      registry keys when its own key has no manifest
@@ -183,6 +186,11 @@ Automatic pairing ships only with these conditions met:
   that carries an estimate while a pairing is active, without checking its
   secret (SOB-7 audit). This bug exists with or without a code, but
   automatic pairing makes it easier to reach.
+- **Nothing measured while the connection is off is kept.** The app
+  discards the offline spool while "Connect my browsers" is off, and drops
+  the lines written before it is turned back on (Decision 3). Today the
+  drain does not look at when a line was written (`drain_spool` in
+  `extension_store.rs`).
 - **The secret never leaves storage.** Today the extension's "Export JSON"
   includes the secret (SOB-7 audit). It must leave it out.
 
