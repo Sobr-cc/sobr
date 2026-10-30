@@ -247,7 +247,64 @@ quarto render notebook/validation.qmd
 
 ---
 
-## 11. Workflow recommandé pour Claude Code
+## 11. Workflow et règles de travail
+
+Source : le document Linear [« How we work »](https://linear.app/sobrcc/document/how-we-work-cb9e7156febb). Linear (workspace `sobrcc`, équipe `SOB`) pilote l'avancement (ADR-0018). Tous les agents sont des agents Claude ; les fonctions IA de Linear restent désactivées. Les règles ci-dessous sont lues à chaque session par Claude Code et par les agents de `.claude/agents/`.
+
+### Qui fait quoi
+
+| Acteur | Fait | Ne fait jamais |
+|--------|------|----------------|
+| Thibault | Priorise, valide le design, relit et merge les PR, gère comptes, paiements, stores et décisions juridiques | — |
+| Orchestrateur (session principale de Claude Code, skill `/orchestrate`) | Trie Triage, écrit les tâches avec le skill `linear-issue-writing`, découpe ce qui dépasse 8 points, rédige la mise à jour hebdomadaire de chaque projet | Coder, merger, fermer une tâche |
+| Claude Design | Produit les écrans d'une tâche Design (pas d'accès à Linear : Thibault ou Claude joint le lien à la tâche) | Inventer un écran absent des routes |
+| Claude Code (dans le dépôt, avec le MCP Linear) | Prend une tâche Todo `agent:claude-code`, la passe In Progress, branche au nom de l'identifiant, code, vérifie, ouvre une PR liée, passe In Review avec un résumé | Merger, élargir le périmètre (il crée une tâche en Triage), toucher une tâche `human-only` |
+
+Les rôles de Claude Code sont les fichiers de `.claude/agents/` : même modèle, consignes différentes. Pour décider, Thibault répond en commentaire d'une tâche Decision. Pour piloter, il change la priorité ou le label Role, ou renvoie une tâche en Backlog : les agents ne prennent que ce qui est en Todo.
+
+### Règles de travail
+
+- Une tâche = une PR, 8 points au plus. Au-delà, découpage en sous-tâches avant Todo.
+- Chaque tâche cite les écrans concernés par leur identifiant de route (E1, Z2, V3…) et lie les deux documents de référence (routes et architecture).
+- Branche `feature/sob-123-<desc>` (ou `fix/`, `docs/`) et `Fixes SOB-123` dans la PR : l'intégration GitHub relie tout et fait avancer l'état (§4.4, ADR-0018).
+- En passant une tâche In Review, un commentaire en trois parties, signé du rôle :
+
+  ```
+  Done: ce qui a changé, en une à trois phrases.
+  Verified: la commande ou les étapes lancées, et le résultat.
+  Left: ce qui n'est pas fait, liens des tâches de suite, questions pour Thibault.
+  -- role:rust (model:sonnet)
+  ```
+
+- Tout écart de périmètre devient une nouvelle tâche en Triage, jamais un ajout silencieux.
+- Au plus trois tâches In Review à la fois ; au-delà, les agents s'arrêtent et attendent.
+- Le label `human-only` couvre comptes, paiements, stores, secrets et juridique : aucun agent n'y travaille.
+- Toute décision qui change un ADR passe par une tâche Docs et une PR sur l'ADR, validée par Thibault.
+- Chaque vendredi, mise à jour de chaque projet actif : santé (On track, At risk, Off track) et trois lignes (Progress, Risks, Next), moins de 120 mots, des faits seulement.
+- Pas de monolithe : les projets vivent dans des dépôts séparés de l'organisation GitHub Sobr-cc (découpage fixé par SOB-65).
+
+### Prêt (avant qu'une tâche passe en Todo)
+
+- Titre à verbe, résultat décrit, moins de 70 caractères.
+- Why, What, Acceptance criteria et How to verify remplis.
+- Estimation posée, 8 au plus.
+- Labels Type, Area, Agent, Role, Model, projet et priorité posés.
+- Aucune question ouverte. S'il en reste une, la tâche reste en Backlog et une tâche Decision ou Research lui est liée.
+
+### Terminé (tâches de code)
+
+En plus de la définition du §5 :
+
+- `cargo clippy -- -D warnings`, les tests, `tsc --noEmit` et le lint passent.
+- `/simplify` et `/code-review` lancés sur le diff, remarques traitées.
+- Une vraie vérification : `/verify`, un test Playwright, ou un appel `curl` sur le point d'accès modifié.
+- CHANGELOG à jour ; la description de la PR contient `Fixes SOB-123`.
+
+### Estimation et modèle
+
+Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une heure), 2 (une demi-journée), 3 (environ un jour), 5 (2 à 3 jours), 8 (environ une semaine, maximum). Le label `Model` suit la taille et le risque, pas le prestige du rôle : `model:haiku` pour 1 point mécanique sans décision, `model:sonnet` pour 2 à 5 points sur un chemin connu (défaut), `model:opus` pour 8 points ou un risque élevé. Fable n'est jamais le défaut : seulement si Opus a échoué deux fois, avec l'accord de Thibault. On ne monte d'un cran qu'après deux tentatives bloquées : l'agent le note en commentaire et l'orchestrateur change le label.
+
+### Déroulé d'une session
 
 À chaque nouvelle session :
 
