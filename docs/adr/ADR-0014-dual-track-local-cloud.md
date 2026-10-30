@@ -5,6 +5,39 @@
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : après v0.7.0 (Mode Équipe self-hosted shippé), avant la candidature data.gouv.fr v1.0
 - **Liens** : CLAUDE.md §7 (privacy by design), §13 (anti-patterns), ADR-0013 (extension + pairing + mode équipe)
+- **Amendment 1** (2026-10-30, Proposed): the managed cloud has a 30-day trial, then is paid per seat (condition 5); a personal space on the Sobr server is allowed (condition 1). See the section below.
+
+---
+
+## Amendment 1 — 30-day trial and personal space (2026-10-30)
+
+**Status.** Proposed. It becomes part of this ADR when Thibault approves the PR (SOB-35). The original text is unchanged; notes mark conditions 1 and 5.
+
+**What changes.**
+
+1. **Condition 5 is replaced.** The managed cloud has a 30-day trial, then is paid per seat, with a dedicated price for public bodies and research. Local and self-hosted stay free. A public price and no mandatory annual commitment stay as before. The previous version required a real free tier on the managed offer (example: 1,000 estimates per month and 5 users), with no payment card.
+2. **Condition 1 is clarified, not weakened.** A person can have a personal space on the Sobr server, which runs the same binary: it syncs between their machines, and the same account lets them join an organization. Guest mode, local, with no account and no signal to Sobr, stays the default and needs nothing from the server. The previous version described only that guest mode.
+3. **The license stays MIT** for all the code (ADR-0006). The paid value comes from the service: managed cloud, support, commitments.
+
+**What does not change.** Conditions 2, 3 and 4 apply as written, including to the personal space: same binary, no prompt text (only metadata and results), hosting in the EU with the GDPR duties.
+
+**Why.** Thibault's arbitrations of October 30 (the offer and the personal account) are in the "Gaps" section of [App and screen architecture](https://claude.ai/artifact/5UaiKHXrKPVyRPEd6gfeyr). The document listed the conflict: this ADR requires a real free offer, so either keep one or amend it explicitly. Thibault chose to amend, with the three changes above. Screens: Z1b, A1, S3, in [Routes, screen by screen](https://claude.ai/artifact/Cua7SK84VzMCwYFZRQfUHD).
+
+**How the Révision rule of this ADR is met.**
+
+1. A written decision by Thibault: the arbitration above, then his approval of the PR.
+2. A public justification: this section and the CHANGELOG entry. The README is unchanged for now (see below).
+3. 30 days' notice for managed users: nobody uses the managed cloud yet, so nobody is notified. The notice applies to any later change of these conditions.
+
+The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged.
+
+**Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here.
+
+- The README says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes when the offer is announced.
+- Whether the trial needs a payment card: the arbitration does not say.
+- The "Modèle technique" diagram says "MIT/Apache"; the license is MIT (change 3).
+- The row "Pairing perso 6 chiffres" of the feature table follows the pairing change of ADR-0013 (SOB-34).
+- "Implémentation phasée" (phase 5 lists a free tier, cloud beta and GA at v1.3.0 and v2.0.0, and "no public cloud announcement before v1.3.0") and "Lien avec les chantiers" (the cloud "not mentioned" at the application) predate the calendar of October 30, which builds the cloud before the public V1 of March 2027. The row "Multi-device" (v1.2.0) is later than the personal space sync between machines.
 
 ---
 
@@ -42,10 +75,12 @@ Adopter une **stratégie dual-track « local-first + cloud opt-in »**, inspiré
 Toute offre cloud Sobr.ia doit respecter ces 5 conditions, faute de quoi le pitch défi data.gouv.fr et CLAUDE.md §7 sont trahis :
 
 1. **Local par défaut** — l'app + l'extension fonctionnent en 100 % local sans inscription, sans compte, sans signal vers Sobr.ia. Le cloud est un choix conscient et explicite.
+   > *Amendment 1 (2026-10-30): clarified. A personal space on the Sobr server is allowed; guest mode stays the default. See the Amendment 1 section.*
 2. **Binaire open-source identique** — le serveur managé chez Sobr.ia est le même `sobria-team-aggregator` que tout self-hoster. Toute amélioration backend est merge sur la même branche, accessible à tous. Pas de privatisation de features.
 3. **Pas d'envoi de prompts en clair** — le cloud Sobr.ia n'ingère que des metadata + résultats (tokens, gCO₂eq, méthodologie), jamais le contenu textuel des prompts. Strict respect du contrat d'extension/app actuel.
 4. **GDPR-compliant** — hébergement UE (OVH Gravelines, Scaleway, Clever Cloud), DPO désigné, clauses contractuelles types, privacy policy publique, DPIA documentée, droit à l'effacement implémenté, export RGPD self-service.
 5. **Free tier transparent + tarif lisible** — l'offre managed propose un free tier réel (ex : 1 000 estimations/mois, 5 utilisateurs) sans carte bancaire. Au-delà, tarif public en €/utilisateur/mois ou en pay-per-use, sans engagement annuel obligatoire.
+   > *Amendment 1 (2026-10-30): replaced. The managed cloud has a 30-day trial, then is paid per seat. The text above is the previous version. See the Amendment 1 section.*
 
 Si une décision produit future viole une de ces 5 conditions, le ADR doit être amendé explicitement par décision de Thibault — pas de dérive silencieuse.
 
