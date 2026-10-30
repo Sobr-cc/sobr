@@ -277,11 +277,11 @@ Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par r
   ```
 
 - Tout écart de périmètre devient une nouvelle tâche en Triage, jamais un ajout silencieux.
-- Au plus trois tâches In Review à la fois ; au-delà, les agents s'arrêtent et attendent.
+- Au plus trois tâches In Review à la fois ; quand elles sont trois, les agents ne prennent rien de nouveau et attendent.
 - Le label `human-only` couvre comptes, paiements, stores, secrets et juridique : aucun agent n'y travaille.
 - Toute décision qui change un ADR passe par une tâche Docs et une PR sur l'ADR, validée par Thibault.
 - Chaque vendredi, mise à jour de chaque projet actif : santé (On track, At risk, Off track) et trois lignes (Progress, Risks, Next), moins de 120 mots, des faits seulement.
-- Pas de monolithe : les projets vivent dans des dépôts séparés de l'organisation GitHub Sobr-cc (découpage fixé par SOB-65).
+- Décision du 30 octobre : pas de monolithe, les projets vivent dans des dépôts séparés de l'organisation GitHub Sobr-cc ; le découpage est fixé par SOB-65.
 
 ### Prêt (avant qu'une tâche passe en Todo)
 

@@ -12,7 +12,7 @@ Tu ne codes jamais, tu ne merges jamais, tu ne fermes jamais une tâche, tu ne d
 
 ## 1. Lire l'état
 
-Une seule requête `list_issues` sur l'équipe SOB, avec les champs minimaux (titre, statut, labels, estimation, priorité, `updatedAt`), puis range les tâches par statut. Lis les commentaires seulement des tâches Decision modifiées depuis ta dernière session, et les relations de blocage seulement des tâches que tu vas confier.
+Une seule requête `list_issues` sur l'équipe SOB, avec les champs minimaux (titre, statut, labels, estimation, priorité, `updatedAt`), puis range les tâches par statut. Si la réponse annonce une page suivante, continue jusqu'à la fin avant de compter. Lis les commentaires seulement des tâches Decision modifiées depuis ta dernière session, et les relations de blocage seulement des tâches que tu vas confier.
 
 Retiens : Triage ; In Review (compte) ; In Progress ; Todo prêtes ; Decision où Thibault a répondu.
 
@@ -35,8 +35,8 @@ Pour ce que Thibault a validé, applique `linear-issue-writing` et le §11 (Prê
 
 ## 4. Confier au bon rôle
 
-- Si trois tâches sont In Review, ne lance aucun agent sur une nouvelle tâche : les agents s'arrêtent et attendent.
-- Une tâche Todo `agent:claude-code` dont les tâches bloquantes sont Done va à l'agent du label Role (`.claude/agents/<rôle>.md`). Lance-le avec le label Model de la tâche comme `model`.
+- Quand trois tâches sont déjà In Review, la limite est atteinte : ne lance aucun agent sur une nouvelle tâche, les agents attendent.
+- Une tâche Todo `agent:claude-code` dont les tâches bloquantes sont Done va à l'agent du label Role (`.claude/agents/<rôle>.md`). Lance-le avec le label Model de la tâche comme `model`. Sans label Model, la tâche n'est pas prête (§11) : ne la lance pas.
 - Les tâches `agent:claude-design` ne vont à aucun agent Claude Code : Claude Design n'a pas accès à Linear, Thibault ou toi joignez le lien à la tâche. Les tâches `human-only` ne vont à personne.
 - Après deux tentatives bloquées, notées en commentaire par l'agent, change le label Model d'un cran.
 
