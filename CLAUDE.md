@@ -249,7 +249,7 @@ quarto render notebook/validation.qmd
 
 ## 11. Workflow et règles de travail
 
-Source : le document Linear [« How we work »](https://linear.app/sobrcc/document/how-we-work-cb9e7156febb). Linear (workspace `sobrcc`, équipe `SOB`) pilote l'avancement (ADR-0018). Tous les agents sont des agents Claude ; les fonctions IA de Linear restent désactivées. Les règles ci-dessous sont lues à chaque session par Claude Code et par les agents de `.claude/agents/`.
+Source : le document Linear [« How we work »](https://linear.app/sobrcc/document/how-we-work-cb9e7156febb). Linear (workspace `sobrcc`, équipe `SOB`) pilote l'avancement (ADR-0018). Tous les agents sont des agents Claude ; les fonctions IA de Linear restent désactivées.
 
 ### Qui fait quoi
 
@@ -260,13 +260,13 @@ Source : le document Linear [« How we work »](https://linear.app/sobrcc/docume
 | Claude Design | Produit les écrans d'une tâche Design (pas d'accès à Linear : Thibault ou Claude joint le lien à la tâche) | Inventer un écran absent des routes |
 | Claude Code (dans le dépôt, avec le MCP Linear) | Prend une tâche Todo `agent:claude-code`, la passe In Progress, branche au nom de l'identifiant, code, vérifie, ouvre une PR liée, passe In Review avec un résumé | Merger, élargir le périmètre (il crée une tâche en Triage), toucher une tâche `human-only` |
 
-Les rôles de Claude Code sont les fichiers de `.claude/agents/` : même modèle, consignes différentes. Pour décider, Thibault répond en commentaire d'une tâche Decision. Pour piloter, il change la priorité ou le label Role, ou renvoie une tâche en Backlog : les agents ne prennent que ce qui est en Todo.
+Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par rôle). Pour décider, Thibault répond en commentaire d'une tâche Decision. Pour piloter, il change la priorité ou le label Role, ou renvoie une tâche en Backlog.
 
 ### Règles de travail
 
 - Une tâche = une PR, 8 points au plus. Au-delà, découpage en sous-tâches avant Todo.
 - Chaque tâche cite les écrans concernés par leur identifiant de route (E1, Z2, V3…) et lie les deux documents de référence (routes et architecture).
-- Branche `feature/sob-123-<desc>` (ou `fix/`, `docs/`) et `Fixes SOB-123` dans la PR : l'intégration GitHub relie tout et fait avancer l'état (§4.4, ADR-0018).
+- Branches, commits et PR : §4.3 et §4.4 (ADR-0018). L'intégration GitHub relie la PR à la tâche et fait avancer l'état.
 - En passant une tâche In Review, un commentaire en trois parties, signé du rôle :
 
   ```
@@ -293,16 +293,15 @@ Les rôles de Claude Code sont les fichiers de `.claude/agents/` : même modèle
 
 ### Terminé (tâches de code)
 
-En plus de la définition du §5 :
+En plus de la définition du §5 (clippy, tests, lint, CHANGELOG) :
 
-- `cargo clippy -- -D warnings`, les tests, `tsc --noEmit` et le lint passent.
+- `tsc --noEmit` passe.
 - `/simplify` et `/code-review` lancés sur le diff, remarques traitées.
 - Une vraie vérification : `/verify`, un test Playwright, ou un appel `curl` sur le point d'accès modifié.
-- CHANGELOG à jour ; la description de la PR contient `Fixes SOB-123`.
 
 ### Estimation et modèle
 
-Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une heure), 2 (une demi-journée), 3 (environ un jour), 5 (2 à 3 jours), 8 (environ une semaine, maximum). Le label `Model` suit la taille et le risque, pas le prestige du rôle : `model:haiku` pour 1 point mécanique sans décision, `model:sonnet` pour 2 à 5 points sur un chemin connu (défaut), `model:opus` pour 8 points ou un risque élevé. Fable n'est jamais le défaut : seulement si Opus a échoué deux fois, avec l'accord de Thibault. On ne monte d'un cran qu'après deux tentatives bloquées : l'agent le note en commentaire et l'orchestrateur change le label.
+Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une heure), 2 (une demi-journée), 3 (environ un jour), 5 (2 à 3 jours), 8 (environ une semaine, maximum). Le label `Model` suit la taille et le risque, pas le prestige du rôle : `model:haiku` pour 1 point mécanique sans décision, `model:sonnet` pour 2 à 5 points sur un chemin connu (défaut), `model:opus` pour 8 points ou un risque élevé. L'orchestrateur lance l'agent avec ce modèle ; le fichier de l'agent ne porte que le modèle par défaut du rôle. Fable n'est jamais le défaut : seulement si Opus a échoué deux fois, avec l'accord de Thibault. On ne monte d'un cran qu'après deux tentatives bloquées : l'agent le note en commentaire et l'orchestrateur change le label.
 
 ### Déroulé d'une session
 
