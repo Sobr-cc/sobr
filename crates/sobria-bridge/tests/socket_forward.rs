@@ -1,59 +1,31 @@
-//! Tests d'intégration du socket forward (patch C27 v0.6.0).
+//! Socket forward integration tests (C27 patch 2, v0.6.0): `try_forward_to`
+//! round trip against `common::fake_app` over a Unix socket.
 //!
-//! Démarre un faux serveur dans un thread, vérifie que `try_forward_to`
-//! envoie une requête et lit la réponse en length-prefixed JSON. Sur Unix
-//! on utilise UnixListener ; sur Windows un named pipe via tokio (depuis
-//! le helper de test).
-//!
-//! Brief §"Patch 2" : "démarre un serveur factice, bridge se connecte,
-//! roundtrip OK".
+//! On Windows only the missing-pipe case is tested: the named-pipe forward has
+//! no round-trip test (see `forward_wire.rs` and SOB-96).
+
+mod common;
 
 use sobria_bridge::{try_forward_to, BridgeRequest};
 
 #[cfg(unix)]
 mod unix {
     use super::*;
-    use sobria_bridge::BridgeResponse;
-    use std::io::{Read, Write};
+    use crate::common::fake_app::{serve, Reply};
+    use serde_json::json;
     use std::os::unix::net::UnixListener;
     use tempfile::TempDir;
-
-    fn run_fake_server(listener: UnixListener) -> std::thread::JoinHandle<()> {
-        std::thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept");
-            // Lit la requête length-prefixed.
-            let mut len_buf = [0u8; 4];
-            stream.read_exact(&mut len_buf).expect("read len");
-            let len = u32::from_le_bytes(len_buf) as usize;
-            let mut payload = vec![0u8; len];
-            stream.read_exact(&mut payload).expect("read payload");
-            let req: BridgeRequest = serde_json::from_slice(&payload).expect("decode req");
-            // Construit une réponse simple basée sur le req_id reçu.
-            let resp = BridgeResponse {
-                req_id: req.req_id().into(),
-                ok: true,
-                error: None,
-                pong: Some(matches!(req, BridgeRequest::Ping { .. })),
-                secret: None,
-                pairing_id: None,
-                fingerprint: None,
-            };
-            let bytes = serde_json::to_vec(&resp).expect("encode resp");
-            let resp_len = u32::try_from(bytes.len()).unwrap();
-            stream
-                .write_all(&resp_len.to_le_bytes())
-                .expect("write len");
-            stream.write_all(&bytes).expect("write payload");
-            stream.flush().expect("flush");
-        })
-    }
 
     #[test]
     fn forward_ping_returns_pong() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("sobria-bridge-test.sock");
-        let listener = UnixListener::bind(&path).expect("bind");
-        let handle = run_fake_server(listener);
+        let handle = serve(
+            UnixListener::bind(&path).expect("bind"),
+            vec![Reply::Json(
+                json!({"reqId": "ping-1", "ok": true, "pong": true}),
+            )],
+        );
 
         let req = BridgeRequest::Ping {
             req_id: "ping-1".into(),
@@ -62,15 +34,22 @@ mod unix {
         assert_eq!(resp.req_id, "ping-1");
         assert!(resp.ok);
         assert_eq!(resp.pong, Some(true));
-        handle.join().expect("server done");
+        assert_eq!(
+            handle.join().expect("server done"),
+            [json!({"type": "ping", "reqId": "ping-1"})]
+        );
     }
 
     #[test]
     fn forward_pair_returns_serialized_request() {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("sobria-bridge-test.sock");
-        let listener = UnixListener::bind(&path).expect("bind");
-        let handle = run_fake_server(listener);
+        let handle = serve(
+            UnixListener::bind(&path).expect("bind"),
+            vec![Reply::Json(
+                json!({"reqId": "pair-1", "ok": true, "pong": false}),
+            )],
+        );
 
         let req = BridgeRequest::Pair {
             req_id: "pair-1".into(),
@@ -79,9 +58,11 @@ mod unix {
         let resp = try_forward_to(&path, &req).expect("forward ok");
         assert_eq!(resp.req_id, "pair-1");
         assert!(resp.ok);
-        // Notre fake server répond Ping=false sur Pair, mais ok=true.
         assert_eq!(resp.pong, Some(false));
-        handle.join().expect("server done");
+        assert_eq!(
+            handle.join().expect("server done"),
+            [json!({"type": "pair", "reqId": "pair-1", "code": "123456"})]
+        );
     }
 
     #[test]
@@ -100,13 +81,10 @@ mod unix {
 mod windows_pipe {
     use super::*;
 
-    /// Smoke test : essayer de forward vers un pipe inexistant doit échouer
-    /// rapidement (pas de timeout, l'open échoue dès qu'il voit que le pipe
-    /// n'existe pas).
+    /// Opening a missing pipe fails at once, without waiting for a timeout.
     #[test]
     fn forward_to_nonexistent_pipe_errors_fast() {
-        // Pipe name aléatoire pour éviter une éventuelle collision avec un
-        // vrai sobria-bridge tournant.
+        // Unique name to avoid clashing with a running sobria-bridge.
         let pipe = format!(r"\\.\pipe\sobria-bridge-test-{}", std::process::id());
         let req = BridgeRequest::Ping {
             req_id: "ghost-win".into(),
@@ -116,9 +94,6 @@ mod windows_pipe {
     }
 }
 
-/// Test cross-platform : la requête sérialisée doit conserver le format
-/// attendu par l'app (length-prefixed + JSON tag-based enum). Validé en
-/// inspectant la réponse de l'erreur quand le serveur écrit n'importe quoi.
 #[test]
 fn serialization_of_bridge_request_round_trips() {
     let req = BridgeRequest::Estimate {
