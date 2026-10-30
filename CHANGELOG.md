@@ -11,11 +11,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **`sobria-app`** (`bridge_server.rs`, module de tests) : trois tests figent
   le comportement actuel de `dispatch_request` pour `Pair` (ADR-0013) après un
-  refus. Le code en attente n'est pas consommé : le bon code appaire encore
-  après un mauvais code, et un code expiré reste en attente (le second essai
-  reçoit le même « code invalide ou expiré »). Un `Pair` refusé n'enregistre
-  aucun pairing. Il n'y a donc aujourd'hui aucune limite d'essais pendant les
-  5 minutes de vie du code. Aucun code de production modifié.
+  refus. Un refus ne consomme pas le code en attente : après 20 mauvais codes
+  de suite, le bon code appaire encore (aucune limite d'essais dans la voie
+  bridge aujourd'hui ; la voie IPC `logic::verify_pairing_code` n'est pas
+  couverte), et un code expiré reste en attente (le second essai reçoit le
+  même « code invalide ou expiré »). Un `Pair` refusé n'enregistre aucun
+  pairing. Aucun code de production modifié.
 
 ### Added — Single app on desktop and web (2026-10-30, SOB-14)
 

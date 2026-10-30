@@ -345,6 +345,16 @@ mod tests {
         format!("{:06}", (code.parse::<u32>().unwrap() + 1) % 1_000_000)
     }
 
+    /// Installe un code en attente expiré depuis 10 minutes ; renvoie ce code.
+    fn install_expired_code(state: &AppState) -> String {
+        let expired = crate::pairing::PendingCode::with_expiry(
+            chrono::Utc::now() - chrono::Duration::minutes(10),
+        );
+        let code = expired.code.clone();
+        *state.pending_code.lock().unwrap() = Some(expired);
+        code
+    }
+
     /// Message d'erreur d'un `Pair` qui doit être refusé.
     #[track_caller]
     fn pair_error(state: &AppState, code: &str) -> String {
@@ -451,12 +461,8 @@ mod tests {
     #[test]
     fn pair_with_expired_pending_code_is_refused() {
         let (_tmp, state) = fresh_state();
-        let expired = crate::pairing::PendingCode::with_expiry(
-            chrono::Utc::now() - chrono::Duration::minutes(10),
-        );
         // Le bon code, mais expiré : même message qu'un mauvais code.
-        let code = expired.code.clone();
-        *state.pending_code.lock().unwrap() = Some(expired);
+        let code = install_expired_code(&state);
         assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
     }
 
@@ -493,15 +499,21 @@ mod tests {
     }
 
     #[test]
-    fn pair_with_right_code_still_works_after_a_wrong_code() {
+    fn pair_with_right_code_still_works_after_wrong_codes() {
         let (_tmp, state) = fresh_state();
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
-        assert_eq!(
-            pair_error(&state, &wrong_code_for(&dto.code)),
-            "code invalide ou expiré"
-        );
+        let wrong = wrong_code_for(&dto.code);
+        // Aucune limite d'essais aujourd'hui : si le pairing automatique (E2) en
+        // ajoute une, ce test doit changer en connaissance de cause (SOB-91).
+        for attempt in 1..=20 {
+            assert_eq!(
+                pair_error(&state, &wrong),
+                "code invalide ou expiré",
+                "essai raté n°{attempt}"
+            );
+        }
 
-        // Un refus ne consomme pas le code en attente : le bon code appaire encore.
+        // Les refus ne consomment pas le code en attente : le bon code appaire encore.
         let resp = dispatch_request(
             &state,
             BridgeRequest::Pair {
@@ -515,41 +527,53 @@ mod tests {
     #[test]
     fn pair_with_expired_code_keeps_it_pending() {
         let (_tmp, state) = fresh_state();
-        let expired = crate::pairing::PendingCode::with_expiry(
-            chrono::Utc::now() - chrono::Duration::minutes(10),
-        );
-        let code = expired.code.clone();
-        *state.pending_code.lock().unwrap() = Some(expired);
+        let code = install_expired_code(&state);
 
-        // Le code périmé reste en attente : le second essai reçoit le même message,
-        // et non « aucun code de pairing en attente ».
-        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
-        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
+        assert_eq!(
+            pair_error(&state, &code),
+            "code invalide ou expiré",
+            "premier essai"
+        );
+        // Le refus ne consomme pas le code périmé : c'est toujours lui qui est en
+        // attente, et le second essai reçoit le même message (et non « aucun code
+        // de pairing en attente »).
+        assert_eq!(
+            state
+                .pending_code
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|p| p.code.as_str()),
+            Some(code.as_str())
+        );
+        assert_eq!(
+            pair_error(&state, &code),
+            "code invalide ou expiré",
+            "second essai"
+        );
     }
 
     #[test]
     fn refused_pair_records_no_pairing() {
+        const INVALID: &str = "code invalide ou expiré";
         let (_tmp, state) = fresh_state();
+        // Chaque voie de refus est vérifiée par son message : si une voie change
+        // (par exemple le code est consommé plus tôt), le test échoue ici et non
+        // en silence.
         // Sans code en attente.
-        pair_error(&state, "123456");
+        assert_eq!(
+            pair_error(&state, "123456"),
+            "aucun code de pairing en attente — génère-en un depuis Sobr.ia /parametres"
+        );
         // Avec un code en attente : mal formé, puis mauvais code.
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
-        pair_error(&state, "abc");
-        pair_error(&state, &wrong_code_for(&dto.code));
+        assert_eq!(pair_error(&state, "abc"), "code à 6 chiffres requis");
+        assert_eq!(pair_error(&state, &wrong_code_for(&dto.code)), INVALID);
         // Avec un code expiré.
-        let expired = crate::pairing::PendingCode::with_expiry(
-            chrono::Utc::now() - chrono::Duration::minutes(10),
-        );
-        let code = expired.code.clone();
-        *state.pending_code.lock().unwrap() = Some(expired);
-        pair_error(&state, &code);
+        let code = install_expired_code(&state);
+        assert_eq!(pair_error(&state, &code), INVALID);
 
-        let pairings = state
-            .extension_store
-            .lock()
-            .unwrap()
-            .list_pairings()
-            .unwrap();
+        let pairings = crate::logic::list_pairings(&state).unwrap();
         assert_eq!(pairings.len(), 0, "un Pair refusé ne doit rien enregistrer");
     }
 
