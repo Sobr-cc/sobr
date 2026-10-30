@@ -20,7 +20,7 @@ fn payload(second: u32, extra: Value) -> Value {
             "tokensOut": 800,
             "gco2eq": 0.42,
             "waterMl": 1.5,
-            "energyWh": 0.42
+            "energyWh": 0.33
         },
         "ts": format!("2026-05-16T12:00:{second:02}Z"),
     });
@@ -36,20 +36,26 @@ fn stored_estimations(server: &Server) -> Value {
     let mut statement = storage
         .connection()
         .prepare(
-            "SELECT ts, method, model_id, tokens_in, tokens_out, region, project
+            "SELECT ts, method, model_id, tokens_in, tokens_out, gco2eq_p50, water_ml,
+                    energy_wh, region, project, raw_payload_json
              FROM estimations ORDER BY ts",
         )
         .expect("prepare");
     let rows: Vec<Value> = statement
         .query_map([], |row| {
+            let raw: String = row.get(10)?;
             Ok(json!({
                 "ts": row.get::<_, String>(0)?,
                 "method": row.get::<_, String>(1)?,
                 "model_id": row.get::<_, String>(2)?,
                 "tokens_in": row.get::<_, u32>(3)?,
                 "tokens_out": row.get::<_, u32>(4)?,
-                "region": row.get::<_, Option<String>>(5)?,
-                "project": row.get::<_, Option<String>>(6)?,
+                "gco2eq_p50": row.get::<_, f64>(5)?,
+                "water_ml": row.get::<_, f64>(6)?,
+                "energy_wh": row.get::<_, f64>(7)?,
+                "region": row.get::<_, Option<String>>(8)?,
+                "project": row.get::<_, Option<String>>(9)?,
+                "raw_payload": serde_json::from_str::<Value>(&raw).unwrap_or(Value::String(raw)),
             }))
         })
         .expect("query")
@@ -76,7 +82,7 @@ async fn estimations() {
     assert_eq!(status, 200);
     server
         .record(
-            "estimation: with host, display name, region and project",
+            "estimation: with optional host, display name, region and project",
             post(payload(
                 2,
                 json!({
@@ -156,6 +162,13 @@ async fn estimations() {
         .record(
             "me/usage after the accepted estimations",
             server.get("/api/v1/me/usage").bearer_auth(&token),
+        )
+        .await;
+    // An accepted estimation also updates the last-seen date of the employee.
+    server
+        .record(
+            "admin users list after the accepted estimations",
+            server.get("/api/v1/admin/users").bearer_auth(&admin_token),
         )
         .await;
 

@@ -25,40 +25,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -123,40 +123,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -221,31 +221,31 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-W19",
           "count": 10,
-          "energy_wh": 4.5,
+          "energy_wh": 11.25,
           "gco2eq_g": 4.5,
           "tokens_in": 1000,
           "tokens_out": 4000,
-          "water_ml": 10.0
+          "water_ml": 25.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -310,31 +310,31 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05",
           "count": 10,
-          "energy_wh": 4.5,
+          "energy_wh": 11.25,
           "gco2eq_g": 4.5,
           "tokens_in": 1000,
           "tokens_out": 4000,
-          "water_ml": 10.0
+          "water_ml": 25.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -399,40 +399,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -490,40 +490,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -581,40 +581,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -650,7 +650,7 @@
       }
     },
     "content_type": "application/json",
-    "request": "top 1000 is capped at 100",
+    "request": "top 1000 is accepted",
     "status": 200
   },
   {
@@ -679,40 +679,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",

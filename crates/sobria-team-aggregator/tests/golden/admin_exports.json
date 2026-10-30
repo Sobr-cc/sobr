@@ -1,13 +1,13 @@
 [
   {
-    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:01+00:00,fp-employee-1,Employee 1,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,1,0.1,\n2026-05-15T10:00:02+00:00,fp-employee-2,Employee 2,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:01+00:00,fp-employee-1,Employee 1,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:02+00:00,fp-employee-2,Employee 2,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,1,0.4,\n",
+    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:01+00:00,fp-employee-1,Employee 1,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,2,0.5,\n2026-05-15T10:00:02+00:00,fp-employee-2,Employee 2,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,2,1,\n2026-05-16T10:00:01+00:00,fp-employee-1,Employee 1,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,3,0.25,\n2026-05-16T10:00:02+00:00,fp-employee-2,Employee 2,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,3,0.5,\n",
     "content_disposition": "attachment; filename=\"sobria-team-20260515-to-20260517.csv\"",
     "content_type": "text/csv; charset=utf-8",
     "request": "csv: 2 employees, policy anonymous",
     "status": 200
   },
   {
-    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:01+00:00,Employé #1,,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,1,0.1,\n2026-05-15T10:00:02+00:00,Employé #2,,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:01+00:00,Employé #1,,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:02+00:00,Employé #2,,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,1,0.4,\n",
+    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:01+00:00,Employé #1,,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,2,0.5,\n2026-05-15T10:00:02+00:00,Employé #2,,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,2,1,\n2026-05-16T10:00:01+00:00,Employé #1,,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,3,0.25,\n2026-05-16T10:00:02+00:00,Employé #2,,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,3,0.5,\n",
     "content_disposition": "attachment; filename=\"sobria-team-20260515-to-20260517.csv\"",
     "content_type": "text/csv; charset=utf-8",
     "request": "csv: anonymize = true",
@@ -42,9 +42,9 @@
           "sobria:anonymized": false,
           "sobria:organizationName": "Équipe",
           "sobria:totalCo2eqGramsP50": 0.9,
-          "sobria:totalEnergyWh": 0.9,
+          "sobria:totalEnergyWh": 2.25,
           "sobria:totalEstimations": 4,
-          "sobria:totalWaterMl": 4.0
+          "sobria:totalWaterMl": 10.0
         },
         {
           "@id": "sobria-team:agent-aggregator",
@@ -76,14 +76,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
           },
-          "sobria:energyWh": 0.1,
+          "sobria:energyWh": 0.5,
           "sobria:gco2eqGramsP50": 0.1,
           "sobria:methodology": "afnor_sobria",
           "sobria:modelId": "llama-3-1-70b",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 2.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE004",
@@ -95,14 +95,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
           },
-          "sobria:energyWh": 0.2,
+          "sobria:energyWh": 1.0,
           "sobria:gco2eqGramsP50": 0.2,
           "sobria:methodology": "afnor_sobria",
           "sobria:modelId": "llama-3-1-70b",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 2.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE003",
@@ -114,14 +114,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
           },
-          "sobria:energyWh": 0.2,
+          "sobria:energyWh": 0.25,
           "sobria:gco2eqGramsP50": 0.2,
           "sobria:methodology": "ecologits",
           "sobria:modelId": "gpt-4o",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 3.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE005",
@@ -133,14 +133,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
           },
-          "sobria:energyWh": 0.4,
+          "sobria:energyWh": 0.5,
           "sobria:gco2eqGramsP50": 0.4,
           "sobria:methodology": "ecologits",
           "sobria:modelId": "gpt-4o",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 3.0
         }
       ]
     },
@@ -171,9 +171,9 @@
           "sobria:anonymized": true,
           "sobria:organizationName": "ACME",
           "sobria:totalCo2eqGramsP50": 0.9,
-          "sobria:totalEnergyWh": 0.9,
+          "sobria:totalEnergyWh": 2.25,
           "sobria:totalEstimations": 4,
-          "sobria:totalWaterMl": 4.0
+          "sobria:totalWaterMl": 10.0
         },
         {
           "@id": "sobria-team:agent-aggregator",
@@ -205,14 +205,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
           },
-          "sobria:energyWh": 0.1,
+          "sobria:energyWh": 0.5,
           "sobria:gco2eqGramsP50": 0.1,
           "sobria:methodology": "afnor_sobria",
           "sobria:modelId": "llama-3-1-70b",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 2.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE004",
@@ -224,14 +224,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
           },
-          "sobria:energyWh": 0.2,
+          "sobria:energyWh": 1.0,
           "sobria:gco2eqGramsP50": 0.2,
           "sobria:methodology": "afnor_sobria",
           "sobria:modelId": "llama-3-1-70b",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 2.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE003",
@@ -243,14 +243,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
           },
-          "sobria:energyWh": 0.2,
+          "sobria:energyWh": 0.25,
           "sobria:gco2eqGramsP50": 0.2,
           "sobria:methodology": "ecologits",
           "sobria:modelId": "gpt-4o",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 3.0
         },
         {
           "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE005",
@@ -262,14 +262,14 @@
           "prov:wasAssociatedWith": {
             "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
           },
-          "sobria:energyWh": 0.4,
+          "sobria:energyWh": 0.5,
           "sobria:gco2eqGramsP50": 0.4,
           "sobria:methodology": "ecologits",
           "sobria:modelId": "gpt-4o",
           "sobria:region": null,
           "sobria:tokensIn": 100,
           "sobria:tokensOut": 400,
-          "sobria:waterMl": 1.0
+          "sobria:waterMl": 3.0
         }
       ]
     },

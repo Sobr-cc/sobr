@@ -242,12 +242,20 @@ async fn refresh() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn access_guards() {
     let server = Server::start().await;
-    let user_token = server.user_token(&server.seed_user(1, false));
+    let user_id = server.seed_user(1, false);
+    let user_token = server.user_token(&user_id);
+    let forged_token = server.forged_user_token(&user_id);
+    let expired_token = server.expired_user_token(&user_id);
     let admin_token = server.admin_token();
     let attempts = [
         ("no header", None),
         ("Basic scheme", Some("Basic YWJjOmRlZg==".to_owned())),
         ("garbage bearer", Some("Bearer garbage".to_owned())),
+        (
+            "token signed with another key",
+            Some(format!("Bearer {forged_token}")),
+        ),
+        ("expired token", Some(format!("Bearer {expired_token}"))),
         ("user token", Some(format!("Bearer {user_token}"))),
         ("admin token", Some(format!("Bearer {admin_token}"))),
     ];

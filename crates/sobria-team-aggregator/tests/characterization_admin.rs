@@ -398,7 +398,7 @@ async fn alert_triggers() {
         ("all three, newest first", ""),
         ("limit 2", "?limit=2"),
         ("limit 0 is raised to 1", "?limit=0"),
-        ("limit 1000 is capped at 500", "?limit=1000"),
+        ("limit 1000 is accepted", "?limit=1000"),
         ("from the second day", "?from=2026-05-15T00:00:00Z"),
         ("up to the second day", "?to=2026-05-15T23:59:59Z"),
         (

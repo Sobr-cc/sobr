@@ -28,6 +28,24 @@
   },
   {
     "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "GET /api/v1/me/usage: token signed with another key (user route)",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "GET /api/v1/me/usage: expired token (user route)",
+    "status": 401
+  },
+  {
+    "body": {
       "totals": {
         "count": 0,
         "energy_wh": 0.0,
@@ -80,6 +98,24 @@
   },
   {
     "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "GET /api/v1/admin/users: token signed with another key (admin route)",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "GET /api/v1/admin/users: expired token (admin route)",
+    "status": 401
+  },
+  {
+    "body": {
       "code": "forbidden",
       "error": "rôle insuffisant pour cette opération"
     },
@@ -91,7 +127,7 @@
     "body": {
       "users": [
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:01Z",
           "display_name": "Employee 1",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-1",

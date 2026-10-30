@@ -41,6 +41,10 @@ pub const USER_PASSWORD: &str = "user-password-strong";
 /// are fixed, so they are kept readable in the recordings.
 const SEEDED_ID_PREFIX: &str = "01HZ";
 
+/// Timestamps that the tests seed are in May 2026 and stay readable; the clock
+/// of the server is always later.
+const SEEDED_TIMESTAMP_PREFIX: &str = "2026-05-";
+
 /// Keys whose string value is a timestamp chosen by the server (clock).
 const SERVER_TIMESTAMP_KEYS: &[&str] = &[
     "created_at",
@@ -54,7 +58,6 @@ const SERVER_TIMESTAMP_KEYS: &[&str] = &[
 ];
 
 pub struct Server {
-    _dir: TempDir,
     pub paths: DataPaths,
     pub base: String,
     pub client: reqwest::Client,
@@ -62,6 +65,10 @@ pub struct Server {
     log: Mutex<Vec<Value>>,
     /// Random value -> placeholder, in order of first appearance.
     placeholders: Mutex<HashMap<String, String>>,
+    /// Last field: fields drop in order, so the folder is removed after the
+    /// server task was told to stop (a database file cannot be removed while
+    /// it is open on Windows).
+    _dir: TempDir,
 }
 
 impl Server {
@@ -109,7 +116,10 @@ impl Server {
         Storage::open(&self.paths.db()).expect("open storage")
     }
 
-    /// Sets a value of the configuration, as the CLI does (no validation).
+    /// Writes a value of the configuration straight in the database. Unlike
+    /// the CLI (`config set`), nothing is validated: the tests use it to reach
+    /// states that the CLI refuses (k under its floor, an unreadable value, the
+    /// identified policy without attestation).
     pub fn set_config(&self, key: &str, value: &str) {
         self.storage().set_config(key, value).expect("config");
     }
@@ -140,10 +150,11 @@ impl Server {
     /// `(status, body)` so the test can chain on ids and tokens.
     pub async fn record(&self, label: &str, request: RequestBuilder) -> (u16, Value) {
         let (status, content_type, text) = send(request).await;
-        let body = if content_type == "application/json" {
-            serde_json::from_str(&text).expect("a JSON content type must carry JSON")
-        } else {
-            Value::String(strip_position(&text))
+        // A body that is not valid JSON is recorded as text, so that a change
+        // shows in the diff instead of aborting the test.
+        let body = match serde_json::from_str(&text) {
+            Ok(json) if content_type == "application/json" => json,
+            _ => Value::String(strip_position(&text)),
         };
         let mut masked = body.clone();
         self.mask(&mut masked);
@@ -258,6 +269,18 @@ impl Server {
         jwt::issue(&self.signing_key(), user_id, Role::User, Utc::now()).expect("user token")
     }
 
+    /// A well-formed user token signed with a key that is not the server one.
+    pub fn forged_user_token(&self, user_id: &str) -> String {
+        let other_key = "ab".repeat(32);
+        jwt::issue(&other_key, user_id, Role::User, Utc::now()).expect("forged token")
+    }
+
+    /// A user token signed with the server key that expired an hour ago.
+    pub fn expired_user_token(&self, user_id: &str) -> String {
+        let issued = Utc::now() - jwt::ACCESS_TTL - chrono::Duration::hours(1);
+        jwt::issue(&self.signing_key(), user_id, Role::User, issued).expect("expired token")
+    }
+
     /// Not recorded: enrolls a user through the API with a fresh code, returns
     /// the response (for the tests of the enrollment and login flows).
     pub async fn enroll(&self, fingerprint: &str, display_name: &str) -> Value {
@@ -305,9 +328,10 @@ impl Server {
     /// Employee 1 has opted in to being identified.
     ///
     /// Employee `n` has: day 1, model `llama-3-1-70b`, method `afnor_sobria`,
-    /// project `Alpha`, `0.1 * n` gCO2eq; day 2, model `gpt-4o`, method
-    /// `ecologits`, project `Beta` when `n` is even and none otherwise,
-    /// `0.2 * n` gCO2eq.
+    /// project `Alpha`, `0.1 * n` gCO2eq, `0.5 * n` Wh, 2 mL of water; day 2,
+    /// model `gpt-4o`, method `ecologits`, project `Beta` when `n` is even and
+    /// none otherwise, `0.2 * n` gCO2eq, `0.25 * n` Wh, 3 mL of water. The
+    /// three quantities differ, so a column mixed up with another shows.
     pub fn seed_team(&self, numbers: std::ops::RangeInclusive<u32>) {
         for n in numbers {
             let user_id = self.seed_user(n, n == 1);
@@ -319,18 +343,20 @@ impl Server {
                     format!("2026-05-15T10:00:{n:02}Z"),
                     "llama-3-1-70b",
                     "afnor_sobria",
-                    0.1 * weight,
+                    (0.1 * weight, 0.5 * weight, 2.0),
                     Some("Alpha"),
                 ),
                 (
                     format!("2026-05-16T10:00:{n:02}Z"),
                     "gpt-4o",
                     "ecologits",
-                    0.2 * weight,
+                    (0.2 * weight, 0.25 * weight, 3.0),
                     project_day_two,
                 ),
             ];
-            for (index, (ts, model_id, method, gco2eq, project)) in rows.into_iter().enumerate() {
+            for (index, (ts, model_id, method, (gco2eq, energy_wh, water_ml), project)) in
+                rows.into_iter().enumerate()
+            {
                 let id = format!(
                     "{SEEDED_ID_PREFIX}{}{:03}",
                     "E".repeat(19),
@@ -349,8 +375,8 @@ impl Server {
                         gco2eq_p50: gco2eq,
                         gco2eq_p5: Some(gco2eq * 0.5),
                         gco2eq_p95: Some(gco2eq * 1.5),
-                        water_ml: 1.0,
-                        energy_wh: gco2eq,
+                        water_ml,
+                        energy_wh,
                         region: None,
                         project,
                         raw_payload_json: "{}",
@@ -392,6 +418,9 @@ impl Server {
             k if SERVER_TIMESTAMP_KEYS.contains(&k) => {
                 DateTime::parse_from_rfc3339(s)
                     .unwrap_or_else(|e| panic!("{key} is not RFC 3339 ({s}): {e}"));
+                if s.starts_with(SEEDED_TIMESTAMP_PREFIX) {
+                    return;
+                }
                 "<timestamp>".to_owned()
             },
             "access_token" => {

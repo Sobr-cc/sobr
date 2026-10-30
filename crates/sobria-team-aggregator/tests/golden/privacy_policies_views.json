@@ -25,40 +25,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -93,7 +93,7 @@
     "body": {
       "users": [
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:06Z",
           "display_name": "Employee 6",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-6",
@@ -103,7 +103,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:05Z",
           "display_name": "Employee 5",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-5",
@@ -113,7 +113,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:04Z",
           "display_name": "Employee 4",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-4",
@@ -123,7 +123,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:03Z",
           "display_name": "Employee 3",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-3",
@@ -133,7 +133,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:02Z",
           "display_name": "Employee 2",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-2",
@@ -143,7 +143,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:01Z",
           "display_name": "Employee 1",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-1",
@@ -202,40 +202,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -278,7 +278,7 @@
     "body": {
       "users": [
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:06Z",
           "display_name": "Employee 6",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-6",
@@ -288,7 +288,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:05Z",
           "display_name": "Employee 5",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-5",
@@ -298,7 +298,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:04Z",
           "display_name": "Employee 4",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-4",
@@ -308,7 +308,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:03Z",
           "display_name": "Employee 3",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-3",
@@ -318,7 +318,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:02Z",
           "display_name": "Employee 2",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-2",
@@ -328,7 +328,7 @@
           "totals": null
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:01Z",
           "display_name": "Employee 1",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-1",
@@ -337,11 +337,11 @@
           "share_identified": true,
           "totals": {
             "count": 2,
-            "energy_wh": 0.30000000000000004,
+            "energy_wh": 0.75,
             "gco2eq_p50_g": 0.30000000000000004,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         }
       ]
@@ -370,20 +370,20 @@
         {
           "bucket": "2026-05-15",
           "count": 1,
-          "energy_wh": 0.1,
+          "energy_wh": 0.5,
           "gco2eq_g": 0.1,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 2.0
         },
         {
           "bucket": "2026-05-16",
           "count": 1,
-          "energy_wh": 0.2,
+          "energy_wh": 0.25,
           "gco2eq_g": 0.2,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 3.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -405,11 +405,11 @@
       ],
       "totals": {
         "count": 2,
-        "energy_wh": 0.30000000000000004,
+        "energy_wh": 0.75,
         "gco2eq_p50_g": 0.30000000000000004,
         "tokens_in": 200,
         "tokens_out": 800,
-        "water_ml": 2.0
+        "water_ml": 5.0
       },
       "user": {
         "display_name": "Employee 1",
@@ -457,49 +457,49 @@
         {
           "contributors": 3,
           "count": 3,
-          "energy_wh": 1.8,
+          "energy_wh": 2.25,
           "folded": false,
           "gco2eq_g": 1.8,
           "project": null,
-          "water_ml": 3.0
+          "water_ml": 9.0
         },
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 2,
           "count": 2,
-          "energy_wh": 1.2000000000000002,
+          "energy_wh": 1.5,
           "folded": false,
           "gco2eq_g": 1.2000000000000002,
           "project": "Beta",
-          "water_ml": 2.0
+          "water_ml": 6.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -570,7 +570,7 @@
     "body": {
       "users": [
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:06Z",
           "display_name": "Employee 6",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-6",
@@ -587,7 +587,7 @@
           }
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:05Z",
           "display_name": "Employee 5",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-5",
@@ -596,15 +596,15 @@
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 1.5,
+            "energy_wh": 3.75,
             "gco2eq_p50_g": 1.5,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:04Z",
           "display_name": "Employee 4",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-4",
@@ -613,15 +613,15 @@
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 1.2000000000000002,
+            "energy_wh": 3.0,
             "gco2eq_p50_g": 1.2000000000000002,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:03Z",
           "display_name": "Employee 3",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-3",
@@ -630,15 +630,15 @@
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 0.9000000000000001,
+            "energy_wh": 2.25,
             "gco2eq_p50_g": 0.9000000000000001,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:02Z",
           "display_name": "Employee 2",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-2",
@@ -647,15 +647,15 @@
           "share_identified": false,
           "totals": {
             "count": 2,
-            "energy_wh": 0.6000000000000001,
+            "energy_wh": 1.5,
             "gco2eq_p50_g": 0.6000000000000001,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         },
         {
-          "created_at": "<timestamp>",
+          "created_at": "2026-05-01T00:00:01Z",
           "display_name": "Employee 1",
           "enrollment_code_id": null,
           "fingerprint": "fp-employee-1",
@@ -664,11 +664,11 @@
           "share_identified": true,
           "totals": {
             "count": 2,
-            "energy_wh": 0.30000000000000004,
+            "energy_wh": 0.75,
             "gco2eq_p50_g": 0.30000000000000004,
             "tokens_in": 200,
             "tokens_out": 800,
-            "water_ml": 2.0
+            "water_ml": 5.0
           }
         }
       ]
@@ -697,20 +697,20 @@
         {
           "bucket": "2026-05-15",
           "count": 1,
-          "energy_wh": 0.1,
+          "energy_wh": 0.5,
           "gco2eq_g": 0.1,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 2.0
         },
         {
           "bucket": "2026-05-16",
           "count": 1,
-          "energy_wh": 0.2,
+          "energy_wh": 0.25,
           "gco2eq_g": 0.2,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 3.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -732,11 +732,11 @@
       ],
       "totals": {
         "count": 2,
-        "energy_wh": 0.30000000000000004,
+        "energy_wh": 0.75,
         "gco2eq_p50_g": 0.30000000000000004,
         "tokens_in": 200,
         "tokens_out": 800,
-        "water_ml": 2.0
+        "water_ml": 5.0
       },
       "user": {
         "display_name": "Employee 1",
@@ -769,20 +769,20 @@
         {
           "bucket": "2026-05-15",
           "count": 1,
-          "energy_wh": 0.2,
+          "energy_wh": 1.0,
           "gco2eq_g": 0.2,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 2.0
         },
         {
           "bucket": "2026-05-16",
           "count": 1,
-          "energy_wh": 0.4,
+          "energy_wh": 0.5,
           "gco2eq_g": 0.4,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 3.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -804,11 +804,11 @@
       ],
       "totals": {
         "count": 2,
-        "energy_wh": 0.6000000000000001,
+        "energy_wh": 1.5,
         "gco2eq_p50_g": 0.6000000000000001,
         "tokens_in": 200,
         "tokens_out": 800,
-        "water_ml": 2.0
+        "water_ml": 5.0
       },
       "user": {
         "display_name": "Employee 2",
@@ -836,11 +836,11 @@
         {
           "bucket": "2026-05-15",
           "count": 1,
-          "energy_wh": 0.1,
+          "energy_wh": 0.5,
           "gco2eq_g": 0.1,
           "tokens_in": 100,
           "tokens_out": 400,
-          "water_ml": 1.0
+          "water_ml": 2.0
         }
       ],
       "to": "2026-05-16T00:00:00+00:00",
@@ -855,11 +855,11 @@
       ],
       "totals": {
         "count": 2,
-        "energy_wh": 0.30000000000000004,
+        "energy_wh": 0.75,
         "gco2eq_p50_g": 0.30000000000000004,
         "tokens_in": 200,
         "tokens_out": 800,
-        "water_ml": 2.0
+        "water_ml": 5.0
       },
       "user": {
         "display_name": "Employee 1",
@@ -900,11 +900,11 @@
       "top_models": [],
       "totals": {
         "count": 2,
-        "energy_wh": 0.30000000000000004,
+        "energy_wh": 0.75,
         "gco2eq_p50_g": 0.30000000000000004,
         "tokens_in": 200,
         "tokens_out": 800,
-        "water_ml": 2.0
+        "water_ml": 5.0
       },
       "user": {
         "display_name": "Employee 1",

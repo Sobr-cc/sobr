@@ -14,7 +14,7 @@
       "id": "<ulid#2>"
     },
     "content_type": "application/json",
-    "request": "estimation: with host, display name, region and project",
+    "request": "estimation: with optional host, display name, region and project",
     "status": 200
   },
   {
@@ -111,58 +111,166 @@
     "note": "stored estimations",
     "value": [
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "afnor_sobria",
         "model_id": "llama-3-1-70b",
         "project": null,
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "afnor_sobria",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": null,
+          "modelDisplayName": null,
+          "region": null,
+          "ts": "2026-05-16T12:00:01Z"
+        },
         "region": null,
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:01+00:00"
+        "ts": "2026-05-16T12:00:01+00:00",
+        "water_ml": 1.5
       },
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "afnor_sobria",
         "model_id": "llama-3-1-70b",
         "project": "Alpha",
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "afnor_sobria",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": "chatgpt",
+          "modelDisplayName": "GPT-4o",
+          "region": "FR",
+          "ts": "2026-05-16T12:00:02Z"
+        },
         "region": "FR",
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:02+00:00"
+        "ts": "2026-05-16T12:00:02+00:00",
+        "water_ml": 1.5
       },
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "afnor_sobria",
         "model_id": "llama-3-1-70b",
         "project": "Alpha",
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "afnor_sobria",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": null,
+          "modelDisplayName": null,
+          "region": null,
+          "ts": "2026-05-16T12:00:03Z"
+        },
         "region": null,
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:03+00:00"
+        "ts": "2026-05-16T12:00:03+00:00",
+        "water_ml": 1.5
       },
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "afnor_sobria",
         "model_id": "llama-3-1-70b",
         "project": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "afnor_sobria",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": null,
+          "modelDisplayName": null,
+          "region": null,
+          "ts": "2026-05-16T12:00:04Z"
+        },
         "region": null,
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:04+00:00"
+        "ts": "2026-05-16T12:00:04+00:00",
+        "water_ml": 1.5
       },
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "afnor_sobria",
         "model_id": "llama-3-1-70b",
         "project": null,
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "afnor_sobria",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": null,
+          "modelDisplayName": null,
+          "region": null,
+          "ts": "2026-05-16T12:00:05Z"
+        },
         "region": null,
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:05+00:00"
+        "ts": "2026-05-16T12:00:05+00:00",
+        "water_ml": 1.5
       },
       {
+        "energy_wh": 0.33,
+        "gco2eq_p50": 0.42,
         "method": "ecologits",
         "model_id": "llama-3-1-70b",
         "project": null,
+        "raw_payload": {
+          "estimate": {
+            "energyWh": 0.33,
+            "gco2eq": 0.42,
+            "method": "ecologits",
+            "modelId": "llama-3-1-70b",
+            "tokensIn": 120,
+            "tokensOut": 800,
+            "waterMl": 1.5
+          },
+          "host": null,
+          "modelDisplayName": null,
+          "region": null,
+          "ts": "2026-05-16T12:00:06Z"
+        },
         "region": null,
         "tokens_in": 120,
         "tokens_out": 800,
-        "ts": "2026-05-16T12:00:06+00:00"
+        "ts": "2026-05-16T12:00:06+00:00",
+        "water_ml": 1.5
       }
     ]
   },
@@ -170,7 +278,7 @@
     "body": {
       "totals": {
         "count": 6,
-        "energy_wh": 2.52,
+        "energy_wh": 1.98,
         "gco2eq_p50_g": 2.52,
         "tokens_in": 720,
         "tokens_out": 4800,
@@ -180,6 +288,25 @@
     },
     "content_type": "application/json",
     "request": "me/usage after the accepted estimations",
+    "status": 200
+  },
+  {
+    "body": {
+      "users": [
+        {
+          "created_at": "2026-05-01T00:00:01Z",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "01HZZZZZZZZZZZZZZZZZZZZ001",
+          "last_seen_at": "<timestamp>",
+          "share_identified": false,
+          "totals": null
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "admin users list after the accepted estimations",
     "status": 200
   }
 ]

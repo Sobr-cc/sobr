@@ -18,7 +18,7 @@
           "period_end": "2026-05-17T00:00:00Z",
           "period_start": "2026-05-16T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-16T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT002",
@@ -28,7 +28,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT001",
@@ -38,7 +38,7 @@
           "period_end": "2026-05-15T00:00:00Z",
           "period_start": "2026-05-14T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-14T12:00:00Z"
         }
       ]
     },
@@ -57,7 +57,7 @@
           "period_end": "2026-05-17T00:00:00Z",
           "period_start": "2026-05-16T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-16T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT002",
@@ -67,7 +67,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         }
       ]
     },
@@ -86,7 +86,7 @@
           "period_end": "2026-05-17T00:00:00Z",
           "period_start": "2026-05-16T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-16T12:00:00Z"
         }
       ]
     },
@@ -105,7 +105,7 @@
           "period_end": "2026-05-17T00:00:00Z",
           "period_start": "2026-05-16T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-16T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT002",
@@ -115,7 +115,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT001",
@@ -125,12 +125,12 @@
           "period_end": "2026-05-15T00:00:00Z",
           "period_start": "2026-05-14T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-14T12:00:00Z"
         }
       ]
     },
     "content_type": "application/json",
-    "request": "triggers: limit 1000 is capped at 500",
+    "request": "triggers: limit 1000 is accepted",
     "status": 200
   },
   {
@@ -144,7 +144,7 @@
           "period_end": "2026-05-17T00:00:00Z",
           "period_start": "2026-05-16T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-16T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT002",
@@ -154,7 +154,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         }
       ]
     },
@@ -173,7 +173,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         },
         {
           "id": "01HZTTTTTTTTTTTTTTTTTTT001",
@@ -183,7 +183,7 @@
           "period_end": "2026-05-15T00:00:00Z",
           "period_start": "2026-05-14T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-14T12:00:00Z"
         }
       ]
     },
@@ -202,7 +202,7 @@
           "period_end": "2026-05-16T00:00:00Z",
           "period_start": "2026-05-15T00:00:00Z",
           "threshold_id": "<ulid#1>",
-          "triggered_at": "<timestamp>"
+          "triggered_at": "2026-05-15T12:00:00Z"
         }
       ]
     },

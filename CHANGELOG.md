@@ -17,8 +17,9 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   mode) checked as hidden below the threshold, and the three visibility policies
   on analytics, users and user detail. Responses are recorded from a real HTTPS
   server, random values are masked after a shape check, and the recordings are
-  compared with `tests/golden/*.json` (see the README there). No production code
-  changed, no dependency added.
+  compared with `tests/golden/*.json` (see the README there). The CSRD export is
+  checked for its header and size only. No production code changed, no
+  dependency added.
 
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 

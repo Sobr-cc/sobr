@@ -103,40 +103,40 @@
         {
           "contributors": 3,
           "count": 3,
-          "energy_wh": 0.6000000000000001,
+          "energy_wh": 3.0,
           "folded": false,
           "gco2eq_g": 0.6000000000000001,
           "project": "Alpha",
-          "water_ml": 3.0
+          "water_ml": 6.0
         },
         {
           "contributors": 2,
           "count": 3,
-          "energy_wh": 1.2000000000000002,
+          "energy_wh": 1.5,
           "folded": true,
           "gco2eq_g": 1.2000000000000002,
           "project": null,
-          "water_ml": 3.0
+          "water_ml": 9.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 3,
-          "energy_wh": 0.6000000000000001,
+          "energy_wh": 3.0,
           "gco2eq_g": 0.6000000000000001,
           "tokens_in": 300,
           "tokens_out": 1200,
-          "water_ml": 3.0
+          "water_ml": 6.0
         },
         {
           "bucket": "2026-05-16",
           "count": 3,
-          "energy_wh": 1.2000000000000002,
+          "energy_wh": 1.5,
           "gco2eq_g": 1.2000000000000002,
           "tokens_in": 300,
           "tokens_out": 1200,
-          "water_ml": 3.0
+          "water_ml": 9.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",
@@ -253,40 +253,40 @@
         {
           "contributors": 5,
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "folded": false,
           "gco2eq_g": 1.5,
           "project": "Alpha",
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "contributors": 3,
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "folded": true,
           "gco2eq_g": 3.0,
           "project": null,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "series": [
         {
           "bucket": "2026-05-15",
           "count": 5,
-          "energy_wh": 1.5,
+          "energy_wh": 7.5,
           "gco2eq_g": 1.5,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 10.0
         },
         {
           "bucket": "2026-05-16",
           "count": 5,
-          "energy_wh": 3.0,
+          "energy_wh": 3.75,
           "gco2eq_g": 3.0,
           "tokens_in": 500,
           "tokens_out": 2000,
-          "water_ml": 5.0
+          "water_ml": 15.0
         }
       ],
       "to": "2026-05-17T00:00:00+00:00",

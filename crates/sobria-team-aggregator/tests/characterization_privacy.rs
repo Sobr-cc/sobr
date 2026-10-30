@@ -173,7 +173,7 @@ async fn analytics_views_and_errors() {
     analytics(&server, &token, "group by month", "&group_by=month").await;
     analytics(&server, &token, "top 1", "&top=1").await;
     analytics(&server, &token, "top 0 is raised to 1", "&top=0").await;
-    analytics(&server, &token, "top 1000 is capped at 100", "&top=1000").await;
+    analytics(&server, &token, "top 1000 is accepted", "&top=1000").await;
     analytics(&server, &token, "dim is accepted and ignored", "&dim=user").await;
 
     for (label, query) in [
@@ -230,8 +230,6 @@ async fn analytics_views_and_errors() {
 /// of that employee: the trigger row carries the individual consumption.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn user_alert_ignores_policy_and_consent() {
-    // The period of a daily alert is computed from the UTC date.
-    common::avoid_utc_midnight().await;
     let server = Server::start().await;
     let token = server.admin_token();
     let user_id = server.seed_user(1, false);
@@ -256,6 +254,8 @@ async fn user_alert_ignores_policy_and_consent() {
                 })),
         )
         .await;
+    // The period of a daily alert is computed from the UTC date of the estimation.
+    common::avoid_utc_midnight().await;
     server
         .record(
             "estimation above the threshold",
@@ -265,7 +265,7 @@ async fn user_alert_ignores_policy_and_consent() {
                 .json(&json!({
                     "estimate": {
                         "method": "afnor_sobria", "modelId": "llama-3-1-70b", "tokensIn": 120,
-                        "tokensOut": 800, "gco2eq": 0.42, "waterMl": 1.5, "energyWh": 0.42
+                        "tokensOut": 800, "gco2eq": 0.42, "waterMl": 1.5, "energyWh": 0.33
                     },
                     "ts": chrono::Utc::now().to_rfc3339(),
                 })),
