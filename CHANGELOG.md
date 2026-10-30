@@ -25,6 +25,29 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
 
+### Added — Single app on desktop and web (2026-10-30, SOB-14)
+
+- **ADR-0021** (Proposed): `web/` becomes the only interface. One build is
+  embedded by the desktop app and by the organization server, in place of
+  `web-team/`. The app detects three contexts at start-up: desktop, web served
+  by the server, demo. On the web, the merge covers the organization space;
+  the Understand section waits for a decision on prompt privacy. Organization
+  data goes through a `$lib/org` client, relayed by Rust on desktop so tokens
+  never reach the webview. The ADR maps the 7 web-team pages to screens (M2,
+  Z6, Z7, Z9, B2, A6), sets sign-in per context and the security headers of
+  the served HTML, and amends rule 2 of ADR-0017. Waiting for Thibault's
+  approval.
+
+### Added — Règles du code de pairing épinglées dans le dispatcher (2026-10-30, SOB-80)
+
+- **`sobria-app`** (`bridge_server.rs`, module de tests) : quatre tests figent
+  le comportement actuel de `dispatch_request` pour `Pair` (ADR-0013), avant le
+  changement du pairing automatique. Un code est à usage unique (le second
+  `Pair` reçoit « aucun code de pairing en attente… »), un code expiré est
+  refusé (« code invalide ou expiré »), un code mal formé (y compris avec
+  espaces ou chiffres pleine chasse) et un mauvais code à 6 chiffres reçoivent
+  chacun leur message exact. Aucun code de production modifié.
+
 ### Added — Renommage en Sobr.cc (2026-10-30, SOB-13)
 
 - **ADR-0020** (Proposed) : renommer Sobr.ia en Sobr.cc selon quatre règles

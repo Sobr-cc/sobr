@@ -340,6 +340,20 @@ mod tests {
         (tmp, state)
     }
 
+    /// Message d'erreur d'un `Pair` qui doit être refusé.
+    #[track_caller]
+    fn pair_error(state: &AppState, code: &str) -> String {
+        let resp = dispatch_request(
+            state,
+            BridgeRequest::Pair {
+                req_id: "r-pair".into(),
+                code: code.into(),
+            },
+        );
+        assert!(!resp.ok, "le Pair avec {code:?} aurait dû être refusé");
+        resp.error.expect("une réponse refusée porte un message")
+    }
+
     #[test]
     fn ping_returns_pong() {
         let (_tmp, state) = fresh_state();
@@ -406,6 +420,72 @@ mod tests {
             err.contains("invalide") || err.contains("expiré") || err.contains("chiffres"),
             "got: {err}"
         );
+    }
+
+    #[test]
+    fn pair_code_is_single_use() {
+        let (_tmp, state) = fresh_state();
+        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
+        let first = dispatch_request(
+            &state,
+            BridgeRequest::Pair {
+                req_id: "r-first".into(),
+                code: dto.code.clone(),
+            },
+        );
+        assert!(first.ok, "got error: {:?}", first.error);
+
+        // Le code est consommé : un second Pair avec le même code ne trouve plus
+        // de code en attente (et non « code invalide »).
+        assert_eq!(
+            pair_error(&state, &dto.code),
+            "aucun code de pairing en attente — génère-en un depuis Sobr.ia /parametres"
+        );
+    }
+
+    #[test]
+    fn pair_with_expired_pending_code_is_refused() {
+        let (_tmp, state) = fresh_state();
+        let expired = crate::pairing::PendingCode::with_expiry(
+            chrono::Utc::now() - chrono::Duration::minutes(10),
+        );
+        // Le bon code, mais expiré : même message qu'un mauvais code.
+        let code = expired.code.clone();
+        *state.pending_code.lock().unwrap() = Some(expired);
+        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
+    }
+
+    #[test]
+    fn pair_with_malformed_code_gets_the_six_digits_message() {
+        let (_tmp, state) = fresh_state();
+        let _ = crate::logic::regenerate_pairing_code(&state).unwrap();
+        // Pas de trim ni de chiffres Unicode : espaces, retour à la ligne et
+        // chiffres pleine chasse sont refusés comme mal formés.
+        for malformed in [
+            "",
+            "12345",
+            "1234567",
+            "12345a",
+            "abcdef",
+            " 123456",
+            "123456\n",
+            "１２３４５６",
+        ] {
+            assert_eq!(
+                pair_error(&state, malformed),
+                "code à 6 chiffres requis",
+                "code {malformed:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn pair_with_wrong_six_digit_code_gets_the_invalid_message() {
+        let (_tmp, state) = fresh_state();
+        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
+        // Un code à 6 chiffres garanti différent du code en attente (pas de collision).
+        let wrong = format!("{:06}", (dto.code.parse::<u32>().unwrap() + 1) % 1_000_000);
+        assert_eq!(pair_error(&state, &wrong), "code invalide ou expiré");
     }
 
     #[test]
