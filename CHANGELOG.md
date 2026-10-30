@@ -18,6 +18,24 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   même « code invalide ou expiré »). Un `Pair` refusé n'enregistre aucun
   pairing. Aucun code de production modifié.
 
+### Added — Tests de caractérisation du bridge (SOB-11, 2026-10-30)
+
+- **`sobria-bridge`** : tests (`tests/messages.rs`, `manifest_template.rs`,
+  `forward_wire.rs`, `bridge_process.rs`, aides dans `tests/common/`) qui
+  figent le comportement actuel avant le nettoyage du bridge (SOB-24) et le
+  pairing automatique (E2) : messages acceptés et refusés, cadrage
+  stdin/stdout, réponses locales hors-ligne, spool, forward vers l'app et
+  repli, forme du manifest et jetons que remplissent les scripts
+  `install-dev.*` (ceux-ci ne sont pas exécutés).
+  Aucun changement de code de production.
+- **Périmètre** : le code de pairing à 6 chiffres (TTL 5 min, usage unique) et
+  l'installation des manifests par navigateur vivent dans `sobria-app`, pas
+  dans le bridge, où `Pair` et `Revoke` hors-ligne ne renvoient qu'un refus
+  fixe. Les tests du bridge figent donc ce refus et le relais tel quel des
+  réponses de l'app ; ceux de `sobria-app` restent à compléter (SOB-80).
+- Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
+  (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
+
 ### Added — Single app on desktop and web (2026-10-30, SOB-14)
 
 - **ADR-0021** (Proposed): `web/` becomes the only interface. One build is
