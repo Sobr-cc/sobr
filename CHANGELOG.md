@@ -35,6 +35,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
 
+### Changed — 30-day trial and personal space (2026-10-30, SOB-35)
+
+- **ADR-0014, Amendment 1** (Accepted): the managed cloud has a 30-day
+  trial that needs a payment card to start, and is then paid per seat,
+  replacing the real free tier of condition 5; local and self-hosted stay
+  free. A personal space on the Sobr server is allowed (condition 1
+  clarified, guest mode stays the default). MIT stays for all the code. The
+  price of the personal space and its conflict with ADR-0013 are left open
+  (SOB-136).
+
 ### Added — Single app on desktop and web (2026-10-30, SOB-14)
 
 - **ADR-0021** (Proposed): `web/` becomes the only interface. One build is
