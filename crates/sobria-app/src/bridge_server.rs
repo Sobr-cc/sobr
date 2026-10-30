@@ -342,7 +342,10 @@ mod tests {
 
     /// Un code à 6 chiffres garanti différent de `code` (pas de collision possible).
     fn wrong_code_for(code: &str) -> String {
-        format!("{:06}", (code.parse::<u32>().unwrap() + 1) % 1_000_000)
+        let n: u32 = code
+            .parse()
+            .expect("wrong_code_for attend un code à 6 chiffres");
+        format!("{:06}", (n + 1) % 1_000_000)
     }
 
     /// Installe un code en attente expiré depuis 10 minutes ; renvoie ce code.
@@ -503,8 +506,8 @@ mod tests {
         let (_tmp, state) = fresh_state();
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         let wrong = wrong_code_for(&dto.code);
-        // Aucune limite d'essais aujourd'hui : si le pairing automatique (E2) en
-        // ajoute une, ce test doit changer en connaissance de cause (SOB-91).
+        // Aucune limite d'essais aujourd'hui : si l'on en ajoute une, ce test doit
+        // changer en connaissance de cause (SOB-91).
         for attempt in 1..=20 {
             assert_eq!(
                 pair_error(&state, &wrong),
@@ -522,6 +525,8 @@ mod tests {
             },
         );
         assert!(resp.ok, "got error: {:?}", resp.error);
+        assert_eq!(resp.secret.as_deref().unwrap_or("").len(), 64);
+        assert!(resp.pairing_id.is_some());
     }
 
     #[test]
@@ -555,7 +560,6 @@ mod tests {
 
     #[test]
     fn refused_pair_records_no_pairing() {
-        const INVALID: &str = "code invalide ou expiré";
         let (_tmp, state) = fresh_state();
         // Chaque voie de refus est vérifiée par son message : si une voie change
         // (par exemple le code est consommé plus tôt), le test échoue ici et non
@@ -568,10 +572,11 @@ mod tests {
         // Avec un code en attente : mal formé, puis mauvais code.
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         assert_eq!(pair_error(&state, "abc"), "code à 6 chiffres requis");
-        assert_eq!(pair_error(&state, &wrong_code_for(&dto.code)), INVALID);
+        let wrong = wrong_code_for(&dto.code);
+        assert_eq!(pair_error(&state, &wrong), "code invalide ou expiré");
         // Avec un code expiré.
         let code = install_expired_code(&state);
-        assert_eq!(pair_error(&state, &code), INVALID);
+        assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
 
         let pairings = crate::logic::list_pairings(&state).unwrap();
         assert_eq!(pairings.len(), 0, "un Pair refusé ne doit rien enregistrer");
