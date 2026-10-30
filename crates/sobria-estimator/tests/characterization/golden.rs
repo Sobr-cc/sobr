@@ -18,9 +18,11 @@
 //! Remove-Item Env:SOBRIA_UPDATE_GOLDEN
 //! ```
 //!
-//! Un test qui réécrit un fichier **échoue exprès** : une variable restée
-//! exportée ne peut pas absorber une régression en silence. Relancer ensuite
-//! sans la variable pour vérifier, et relire `git diff`.
+//! An update run rewrites **every** changed file of a test, then fails that
+//! test **once**, listing them, so an exported variable cannot swallow a
+//! regression silently. Rerun without the variable to check, and review
+//! `git diff`. A test that checks several files must share one [`Goldens`];
+//! [`assert_golden`] is for a test with a single file.
 
 use std::{fmt::Write as _, fs, path::PathBuf};
 
@@ -57,79 +59,120 @@ fn redact_volatile(value: &mut Value) {
     }
 }
 
-fn golden_path(name: &str) -> PathBuf {
+fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("golden")
-        .join(format!("{name}.json"))
 }
 
-/// Compare `actual` au golden file `tests/golden/<name>.json`.
-///
-/// Avec `SOBRIA_UPDATE_GOLDEN=1`, écrit le fichier au lieu de comparer — sauf
-/// en CI, où réécrire les références rendrait la suite inopérante. Un golden
-/// file absent est une erreur : il ne se crée jamais en silence.
-pub fn assert_golden<T: Serialize + ?Sized>(name: &str, actual: &T) {
-    let mut actual = serde_json::to_value(actual).expect("la valeur doit être sérialisable");
-    redact_volatile(&mut actual);
-    let path = golden_path(name);
+/// The golden-file checks of one test. In an update run, [`Goldens::assert`]
+/// rewrites each changed file and dropping the value fails the test once,
+/// listing them; otherwise it compares and panics at the first difference.
+pub struct Goldens {
+    dir: PathBuf,
+    update: bool,
+    rewritten: Vec<PathBuf>,
+}
 
-    if std::env::var(UPDATE_ENV).is_ok_and(|v| v == "1") {
+impl Goldens {
+    pub fn new() -> Self {
+        let update = std::env::var(UPDATE_ENV).is_ok_and(|v| v == "1");
+        Self::with(golden_dir(), update, std::env::var_os("CI").is_some())
+    }
+
+    fn with(dir: PathBuf, update: bool, ci: bool) -> Self {
         assert!(
-            std::env::var_os("CI").is_none(),
+            !(update && ci),
             "{UPDATE_ENV}=1 est interdit en CI : il réécrirait les références au lieu de les comparer"
         );
-        let mut text = String::new();
-        render(&actual, 0, &mut text);
-        text.push('\n');
-        if fs::read_to_string(&path).is_ok_and(|current| current == text) {
+        Self {
+            dir,
+            update,
+            rewritten: Vec::new(),
+        }
+    }
+
+    /// Checks `actual` against `<name>.json`. Outside an update run, a missing
+    /// golden file is an error.
+    pub fn assert<T: Serialize + ?Sized>(&mut self, name: &str, actual: &T) {
+        let mut actual = serde_json::to_value(actual).expect("la valeur doit être sérialisable");
+        redact_volatile(&mut actual);
+        let path = self.dir.join(format!("{name}.json"));
+
+        if self.update {
+            let mut text = String::new();
+            render(&actual, 0, &mut text);
+            text.push('\n');
+            if !fs::read_to_string(&path).is_ok_and(|current| current == text) {
+                fs::write(&path, text).expect("écriture du golden file");
+                self.rewritten.push(path);
+            }
             return;
         }
-        fs::write(&path, text).expect("écriture du golden file");
-        panic!(
-            "golden file réécrit : {}\n\
-             Relancer SANS {UPDATE_ENV} pour vérifier, et relire `git diff`.",
-            path.display()
-        );
-    }
 
-    let raw = fs::read_to_string(&path).unwrap_or_else(|e| {
-        panic!(
-            "golden file introuvable : {} ({e}).\n\
+        let raw = fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "golden file introuvable : {} ({e}).\n\
              Pour le créer : {UPDATE_ENV}=1 cargo test -p sobria-estimator --test characterization",
+                path.display()
+            )
+        });
+        let expected: Value = serde_json::from_str(&raw)
+            .unwrap_or_else(|e| panic!("golden file illisible : {} ({e})", path.display()));
+
+        let mut diffs = Vec::new();
+        compare("$", &expected, &actual, &mut diffs);
+        if diffs.is_empty() {
+            return;
+        }
+
+        let mut message = format!(
+            "le comportement de l'estimateur a changé — {} écart(s) avec {} :\n",
+            diffs.len(),
             path.display()
-        )
-    });
-    let expected: Value = serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("golden file illisible : {} ({e})", path.display()));
-
-    let mut diffs = Vec::new();
-    compare("$", &expected, &actual, &mut diffs);
-    if diffs.is_empty() {
-        return;
-    }
-
-    let mut message = format!(
-        "le comportement de l'estimateur a changé — {} écart(s) avec {} :\n",
-        diffs.len(),
-        path.display()
-    );
-    for diff in diffs.iter().take(MAX_REPORTED_DIFFS) {
-        let _ = writeln!(message, "  {diff}");
-    }
-    if diffs.len() > MAX_REPORTED_DIFFS {
-        let _ = writeln!(
+        );
+        for diff in diffs.iter().take(MAX_REPORTED_DIFFS) {
+            let _ = writeln!(message, "  {diff}");
+        }
+        if diffs.len() > MAX_REPORTED_DIFFS {
+            let _ = writeln!(
+                message,
+                "  … et {} autre(s)",
+                diffs.len() - MAX_REPORTED_DIFFS
+            );
+        }
+        let _ = write!(
             message,
-            "  … et {} autre(s)",
-            diffs.len() - MAX_REPORTED_DIFFS
+            "Si le changement est voulu, régénérer avec {UPDATE_ENV}=1 \
+         et le justifier dans la PR ; sinon, c'est une régression."
+        );
+        panic!("{message}");
+    }
+}
+
+impl Drop for Goldens {
+    fn drop(&mut self) {
+        // Never panic while unwinding: that would abort and hide the real failure.
+        if self.rewritten.is_empty() || std::thread::panicking() {
+            return;
+        }
+        let files: String = self
+            .rewritten
+            .iter()
+            .map(|path| format!("  {}\n", path.display()))
+            .collect();
+        panic!(
+            "{} golden file(s) rewritten:\n{files}\
+             Rerun WITHOUT {UPDATE_ENV} to check, and review `git diff`.",
+            self.rewritten.len()
         );
     }
-    let _ = write!(
-        message,
-        "Si le changement est voulu, régénérer avec {UPDATE_ENV}=1 \
-         et le justifier dans la PR ; sinon, c'est une régression."
-    );
-    panic!("{message}");
+}
+
+/// Compares `actual` to `tests/golden/<name>.json`, for a test with a single
+/// golden file. A test with several files uses one [`Goldens`] instead.
+pub fn assert_golden<T: Serialize + ?Sized>(name: &str, actual: &T) {
+    Goldens::new().assert(name, actual);
 }
 
 /// Rend le JSON indenté, mais garde les tableaux de scalaires (histogrammes,
@@ -228,6 +271,8 @@ fn close(expected: f64, actual: f64) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::panic;
+
     use serde_json::json;
 
     use super::*;
@@ -306,5 +351,164 @@ mod tests {
         redact_volatile(&mut value);
         assert_eq!(value["computed_at"], REDACTED);
         assert_eq!(value["inner"][0]["computed_at"], REDACTED);
+    }
+
+    /// A scratch directory removed on drop.
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(tag: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("sobria-golden-{}-{tag}", std::process::id()));
+            let _ = fs::remove_dir_all(&dir);
+            fs::create_dir_all(&dir).expect("scratch directory");
+            Self(dir)
+        }
+
+        fn file(&self, name: &str) -> PathBuf {
+            self.0.join(format!("{name}.json"))
+        }
+
+        fn seed(&self, name: &str, value: &Value) {
+            fs::write(self.file(name), rendered(value)).expect("seed golden file");
+        }
+
+        fn read(&self, name: &str) -> String {
+            fs::read_to_string(self.file(name)).expect("golden file")
+        }
+
+        fn goldens(&self, update: bool, ci: bool) -> Goldens {
+            Goldens::with(self.0.clone(), update, ci)
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn rendered(value: &Value) -> String {
+        let mut text = String::new();
+        render(value, 0, &mut text);
+        text.push('\n');
+        text
+    }
+
+    /// The panic message of `f`, or `None` if it returns normally.
+    fn panic_message(f: impl FnOnce()) -> Option<String> {
+        panic::catch_unwind(panic::AssertUnwindSafe(f))
+            .err()
+            .map(|payload| {
+                payload
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| payload.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+                    .unwrap_or_default()
+            })
+    }
+
+    #[test]
+    fn update_run_rewrites_every_changed_file_then_fails_once() {
+        let dir = Scratch::new("rewrite-all");
+        dir.seed("a", &json!({"x": 0}));
+        dir.seed("b", &json!({"x": 0}));
+        dir.seed("c", &json!({"x": 3}));
+
+        let message = panic_message(|| {
+            let mut goldens = dir.goldens(true, false);
+            goldens.assert("a", &json!({"x": 1}));
+            goldens.assert("b", &json!({"x": 2}));
+            goldens.assert("c", &json!({"x": 3}));
+        })
+        .expect("an update run must fail");
+
+        assert!(message.contains("2 golden file(s) rewritten"), "{message}");
+        assert!(
+            message.contains("a.json") && message.contains("b.json"),
+            "{message}"
+        );
+        assert!(!message.contains("c.json"), "{message}");
+        assert_eq!(dir.read("a"), rendered(&json!({"x": 1})));
+        assert_eq!(dir.read("b"), rendered(&json!({"x": 2})));
+    }
+
+    #[test]
+    fn rerun_without_the_variable_passes_after_an_update_run() {
+        let dir = Scratch::new("rerun");
+        dir.seed("a", &json!({"x": 0}));
+        dir.seed("b", &json!({"x": 0}));
+        let _ = panic_message(|| {
+            let mut goldens = dir.goldens(true, false);
+            goldens.assert("a", &json!({"x": 1}));
+            goldens.assert("b", &json!({"x": 2}));
+        });
+
+        let rerun = panic_message(|| {
+            let mut goldens = dir.goldens(false, false);
+            goldens.assert("a", &json!({"x": 1}));
+            goldens.assert("b", &json!({"x": 2}));
+        });
+
+        assert_eq!(rerun, None);
+    }
+
+    #[test]
+    fn update_run_with_nothing_to_rewrite_passes() {
+        let dir = Scratch::new("nothing-to-rewrite");
+        dir.seed("a", &json!({"x": 1}));
+
+        let outcome = panic_message(|| dir.goldens(true, false).assert("a", &json!({"x": 1})));
+
+        assert_eq!(outcome, None);
+    }
+
+    #[test]
+    fn update_run_creates_a_missing_file_then_fails() {
+        let dir = Scratch::new("create");
+
+        let message = panic_message(|| dir.goldens(true, false).assert("new", &json!({"x": 1})))
+            .expect("an update run must fail");
+
+        assert!(message.contains("1 golden file(s) rewritten"), "{message}");
+        assert_eq!(dir.read("new"), rendered(&json!({"x": 1})));
+    }
+
+    #[test]
+    fn update_run_is_refused_in_ci_and_writes_nothing() {
+        let dir = Scratch::new("ci");
+        dir.seed("a", &json!({"x": 0}));
+
+        let message = panic_message(|| dir.goldens(true, true).assert("a", &json!({"x": 1})))
+            .expect("must be refused");
+
+        assert!(message.contains("interdit en CI"), "{message}");
+        assert_eq!(dir.read("a"), rendered(&json!({"x": 0})));
+    }
+
+    #[test]
+    fn missing_golden_file_is_an_error_outside_an_update_run() {
+        let dir = Scratch::new("missing");
+
+        let message =
+            panic_message(|| dir.goldens(false, false).assert("absent", &json!({"x": 1})))
+                .expect("must fail");
+
+        assert!(message.contains("introuvable"), "{message}");
+        assert!(!dir.file("absent").exists());
+    }
+
+    #[test]
+    fn update_failure_does_not_mask_a_panic_of_the_test() {
+        let dir = Scratch::new("masking");
+
+        let message = panic_message(|| {
+            let mut goldens = dir.goldens(true, false);
+            goldens.assert("a", &json!({"x": 1}));
+            panic!("the test itself failed");
+        })
+        .expect("must fail");
+
+        assert_eq!(message, "the test itself failed");
     }
 }
