@@ -340,15 +340,13 @@ mod tests {
         (tmp, state)
     }
 
-    /// Un code à 6 chiffres garanti différent de `code` (pas de collision possible).
+    /// A 6-digit code that is guaranteed to differ from `code`.
     fn wrong_code_for(code: &str) -> String {
-        let n: u32 = code
-            .parse()
-            .expect("wrong_code_for attend un code à 6 chiffres");
+        let n: u32 = code.parse().expect("wrong_code_for expects a 6-digit code");
         format!("{:06}", (n + 1) % 1_000_000)
     }
 
-    /// Installe un code en attente expiré depuis 10 minutes ; renvoie ce code.
+    /// Installs a pending code that expired 10 minutes ago and returns that code.
     fn install_expired_code(state: &AppState) -> String {
         let expired = crate::pairing::PendingCode::with_expiry(
             chrono::Utc::now() - chrono::Duration::minutes(10),
@@ -506,17 +504,16 @@ mod tests {
         let (_tmp, state) = fresh_state();
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         let wrong = wrong_code_for(&dto.code);
-        // Aucune limite d'essais aujourd'hui : si l'on en ajoute une, ce test doit
-        // changer en connaissance de cause (SOB-91).
+        // There is no attempt limit today: adding one must change this test on purpose.
         for attempt in 1..=20 {
             assert_eq!(
                 pair_error(&state, &wrong),
                 "code invalide ou expiré",
-                "essai raté n°{attempt}"
+                "failed attempt {attempt}"
             );
         }
 
-        // Les refus ne consomment pas le code en attente : le bon code appaire encore.
+        // Refusals do not consume the pending code, so the right code still pairs.
         let resp = dispatch_request(
             &state,
             BridgeRequest::Pair {
@@ -537,11 +534,10 @@ mod tests {
         assert_eq!(
             pair_error(&state, &code),
             "code invalide ou expiré",
-            "premier essai"
+            "first attempt"
         );
-        // Le refus ne consomme pas le code périmé : c'est toujours lui qui est en
-        // attente, et le second essai reçoit le même message (et non « aucun code
-        // de pairing en attente »).
+        // The refusal does not consume the expired code: it is still the pending one,
+        // so the second attempt gets the same message, not "aucun code de pairing".
         assert_eq!(
             state
                 .pending_code
@@ -554,32 +550,30 @@ mod tests {
         assert_eq!(
             pair_error(&state, &code),
             "code invalide ou expiré",
-            "second essai"
+            "second attempt"
         );
     }
 
     #[test]
     fn refused_pair_records_no_pairing() {
         let (_tmp, state) = fresh_state();
-        // Chaque voie de refus est vérifiée par son message : si une voie change
-        // (par exemple le code est consommé plus tôt), le test échoue ici et non
-        // en silence.
-        // Sans code en attente.
+        // Each refusal path is checked by its message, so a path that changes fails here.
+        // No pending code.
         assert_eq!(
             pair_error(&state, "123456"),
             "aucun code de pairing en attente — génère-en un depuis Sobr.ia /parametres"
         );
-        // Avec un code en attente : mal formé, puis mauvais code.
+        // Pending code: malformed, then wrong.
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         assert_eq!(pair_error(&state, "abc"), "code à 6 chiffres requis");
         let wrong = wrong_code_for(&dto.code);
         assert_eq!(pair_error(&state, &wrong), "code invalide ou expiré");
-        // Avec un code expiré.
+        // Expired code.
         let code = install_expired_code(&state);
         assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
 
         let pairings = crate::logic::list_pairings(&state).unwrap();
-        assert_eq!(pairings.len(), 0, "un Pair refusé ne doit rien enregistrer");
+        assert_eq!(pairings.len(), 0, "a refused Pair must record nothing");
     }
 
     #[test]

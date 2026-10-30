@@ -7,16 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
-### Added — Un pairing refusé laisse le code en attente (2026-10-30, SOB-91)
+### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
-- **`sobria-app`** (`bridge_server.rs`, module de tests) : trois tests figent
-  le comportement actuel de `dispatch_request` pour `Pair` (ADR-0013) après un
-  refus. Un refus ne consomme pas le code en attente : après 20 mauvais codes
-  de suite, le bon code appaire encore (aucune limite d'essais dans la voie
-  bridge aujourd'hui ; la voie IPC `logic::verify_pairing_code` n'est pas
-  couverte), et un code expiré reste en attente (le second essai reçoit le
-  même « code invalide ou expiré »). Un `Pair` refusé n'enregistre aucun
-  pairing. Aucun code de production modifié.
+- **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what
+  `dispatch_request` does for `Pair` after a refusal (ADR-0013). A refusal does
+  not consume the pending code: after 20 wrong codes in a row, the right code
+  still pairs (there is no attempt limit in the bridge path today; the IPC path
+  `logic::verify_pairing_code` is not covered), and an expired code stays
+  pending (the second attempt gets the same "code invalide ou expiré"). A
+  refused `Pair` records no pairing. No production code changed.
 
 ### Added — Tests de caractérisation du bridge (SOB-11, 2026-10-30)
 
