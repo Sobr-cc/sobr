@@ -340,8 +340,8 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
 - ❌ Ne JAMAIS faire un `force push` sur `main` ou `develop`.
 - ❌ Ne JAMAIS skipper les tests pour "gagner du temps".
 - ❌ Ne JAMAIS introduire de tracking utilisateur silencieux.
-- ❌ Ne JAMAIS écrire en français (Linear, commentaires de code, rustdoc, commits, titres et descriptions de PR, ADR, CHANGELOG, README) : toute la documentation est en anglais uniquement. Seuls les textes du produit visibles par l'utilisateur (interface, i18n) sont en français et en anglais (décision du 30 octobre).
-- ❌ Ne JAMAIS commenter ce que le code dit déjà : commentaires au strict minimum, une ligne courte pour une fonction complexe ou un choix non évident. Exceptions : les `///` des items publics (§4.1), les sources et hypothèses exigées par le §6, `TODO(SOB-123)` (§14).
+- ❌ Ne JAMAIS écrire en français (Linear, commentaires de code, rustdoc, commits, titres et descriptions de PR, ADR, CHANGELOG, README) : toute la documentation est en anglais uniquement. Seuls les textes du produit visibles par l'utilisateur (interface, i18n) sont en français et en anglais (décision du 30 octobre). La règle vaut pour ce qui s'écrit à partir de maintenant ; les livrables du CDC en français et en anglais (NF-16, L5) et les fichiers existants en français attendent la réponse à SOB-100.
+- ❌ Ne JAMAIS commenter ce que le code dit déjà : commentaires au strict minimum, une ligne courte pour une fonction complexe ou un choix non évident. Exceptions : le rustdoc des items publics (`///` et `//!`, §4.1), les sources exigées par le §6 et le §14 (formules, hypothèses, valeurs numériques), `TODO(SOB-123)` (§14).
 - ❌ Ne JAMAIS résoudre une ambiguïté du CDC sans demander confirmation.
 
 ---
