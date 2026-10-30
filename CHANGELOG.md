@@ -7,6 +7,21 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0018 amended to match the Linear organization (2026-10-30, SOB-36)
+
+- **ADR-0018, Amendment 1** (Accepted 2026-10-30): point 1 is replaced, and
+  the rest stands.
+  - Projects are thematic, not one per chantier: 13 today, including Model
+    catalog and Infrastructure.
+  - Briefs stay as specs only where they exist (C31, C35, C36).
+  - Cycles last two weeks and start on Monday.
+  - Labels come in five groups: Type, Area, Agent, Role, Model.
+  - Only Claude agents do the work; Linear AI features stay off.
+  - The branch format from SOB-12 is confirmed.
+  - The working rules stay in "How we work", which the ADR links.
+  - CLAUDE.md §2 and §11, CONTRIBUTING.md and the role list of the issue
+    skill follow in SOB-138.
+
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
 - **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what
