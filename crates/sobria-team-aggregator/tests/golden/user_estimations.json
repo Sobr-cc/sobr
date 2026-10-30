@@ -1,0 +1,185 @@
+[
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: minimal",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: with host, display name, region and project",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: project is trimmed",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: project cut at 64 characters",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: blank project",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation: method ecologits",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : methode inconnue: made_up"
+    },
+    "content_type": "application/json",
+    "request": "estimation: unknown method",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : gco2eq invalide"
+    },
+    "content_type": "application/json",
+    "request": "estimation: negative gco2eq",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: estimate.tokensIn: invalid value: integer `-1`, expected u32 at line 1 column 106",
+    "content_type": "text/plain",
+    "request": "estimation: negative token count",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `ts` at line 1 column 139",
+    "content_type": "text/plain",
+    "request": "estimation: missing ts",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: ts: input contains invalid characters at line 1 column 155",
+    "content_type": "text/plain",
+    "request": "estimation: ts is not a date",
+    "status": 422
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "estimation: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "estimation: admin token",
+    "status": 403
+  },
+  {
+    "note": "stored estimations",
+    "value": [
+      {
+        "method": "afnor_sobria",
+        "model_id": "llama-3-1-70b",
+        "project": null,
+        "region": null,
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:01+00:00"
+      },
+      {
+        "method": "afnor_sobria",
+        "model_id": "llama-3-1-70b",
+        "project": "Alpha",
+        "region": "FR",
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:02+00:00"
+      },
+      {
+        "method": "afnor_sobria",
+        "model_id": "llama-3-1-70b",
+        "project": "Alpha",
+        "region": null,
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:03+00:00"
+      },
+      {
+        "method": "afnor_sobria",
+        "model_id": "llama-3-1-70b",
+        "project": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "region": null,
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:04+00:00"
+      },
+      {
+        "method": "afnor_sobria",
+        "model_id": "llama-3-1-70b",
+        "project": null,
+        "region": null,
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:05+00:00"
+      },
+      {
+        "method": "ecologits",
+        "model_id": "llama-3-1-70b",
+        "project": null,
+        "region": null,
+        "tokens_in": 120,
+        "tokens_out": 800,
+        "ts": "2026-05-16T12:00:06+00:00"
+      }
+    ]
+  },
+  {
+    "body": {
+      "totals": {
+        "count": 6,
+        "energy_wh": 2.52,
+        "gco2eq_p50_g": 2.52,
+        "tokens_in": 720,
+        "tokens_out": 4800,
+        "water_ml": 9.0
+      },
+      "user_id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "me/usage after the accepted estimations",
+    "status": 200
+  }
+]

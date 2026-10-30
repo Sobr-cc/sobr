@@ -1,0 +1,409 @@
+[
+  {
+    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:00+00:00,fp-employee-1,Employee 1,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,1,0.1,\n2026-05-15T10:00:00+00:00,fp-employee-2,Employee 2,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:00+00:00,fp-employee-1,Employee 1,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:00+00:00,fp-employee-2,Employee 2,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,1,0.4,\n",
+    "content_disposition": "attachment; filename=\"sobria-team-20260515-to-20260517.csv\"",
+    "content_type": "text/csv; charset=utf-8",
+    "request": "csv: 2 employees, policy anonymous",
+    "status": 200
+  },
+  {
+    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n2026-05-15T10:00:00+00:00,Employé #1,,afnor_sobria,llama-3-1-70b,100,400,0.1,0.05,0.15000000000000002,1,0.1,\n2026-05-15T10:00:00+00:00,Employé #2,,afnor_sobria,llama-3-1-70b,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:00+00:00,Employé #1,,ecologits,gpt-4o,100,400,0.2,0.1,0.30000000000000004,1,0.2,\n2026-05-16T10:00:00+00:00,Employé #2,,ecologits,gpt-4o,100,400,0.4,0.2,0.6000000000000001,1,0.4,\n",
+    "content_disposition": "attachment; filename=\"sobria-team-20260515-to-20260517.csv\"",
+    "content_type": "text/csv; charset=utf-8",
+    "request": "csv: anonymize = true",
+    "status": 200
+  },
+  {
+    "body": "ts,user_fingerprint,user_display_name,method,model_id,tokens_in,tokens_out,gco2eq_p50_g,gco2eq_p5_g,gco2eq_p95_g,water_ml,energy_wh,region\n",
+    "content_disposition": "attachment; filename=\"sobria-team-20260101-to-20260102.csv\"",
+    "content_type": "text/csv; charset=utf-8",
+    "request": "csv: window without data",
+    "status": 200
+  },
+  {
+    "body": {
+      "@context": {
+        "prov": "http://www.w3.org/ns/prov#",
+        "schema": "https://schema.org/",
+        "sobria": "https://sobr.ia/vocab#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#"
+      },
+      "@graph": [
+        {
+          "@id": "sobria-team:report-20260515-to-20260517",
+          "@type": "prov:Bundle",
+          "prov:wasAttributedTo": {
+            "@id": "sobria-team:agent-aggregator"
+          },
+          "schema:about": {
+            "schema:endDate": "2026-05-17",
+            "schema:startDate": "2026-05-15"
+          },
+          "sobria:anonymized": false,
+          "sobria:organizationName": "Équipe",
+          "sobria:totalCo2eqGramsP50": 0.9,
+          "sobria:totalEnergyWh": 0.9,
+          "sobria:totalEstimations": 4,
+          "sobria:totalWaterMl": 4.0
+        },
+        {
+          "@id": "sobria-team:agent-aggregator",
+          "@type": "prov:SoftwareAgent",
+          "schema:name": "sobria-team-aggregator",
+          "schema:version": "<crate_version>"
+        },
+        {
+          "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001",
+          "@type": "prov:Agent",
+          "prov:label": "Employé fp-employee-1",
+          "sobria:displayName": "Employee 1",
+          "sobria:fingerprint": "fp-employee-1"
+        },
+        {
+          "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002",
+          "@type": "prov:Agent",
+          "prov:label": "Employé fp-employee-2",
+          "sobria:displayName": "Employee 2",
+          "sobria:fingerprint": "fp-employee-2"
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE002",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-15T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
+          },
+          "sobria:energyWh": 0.1,
+          "sobria:gco2eqGramsP50": 0.1,
+          "sobria:methodology": "afnor_sobria",
+          "sobria:modelId": "llama-3-1-70b",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE004",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-15T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
+          },
+          "sobria:energyWh": 0.2,
+          "sobria:gco2eqGramsP50": 0.2,
+          "sobria:methodology": "afnor_sobria",
+          "sobria:modelId": "llama-3-1-70b",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE003",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-16T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
+          },
+          "sobria:energyWh": 0.2,
+          "sobria:gco2eqGramsP50": 0.2,
+          "sobria:methodology": "ecologits",
+          "sobria:modelId": "gpt-4o",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE005",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-16T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
+          },
+          "sobria:energyWh": 0.4,
+          "sobria:gco2eqGramsP50": 0.4,
+          "sobria:methodology": "ecologits",
+          "sobria:modelId": "gpt-4o",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        }
+      ]
+    },
+    "content_disposition": "attachment; filename=\"sobria-team-prov-20260515-to-20260517.jsonld\"",
+    "content_type": "application/ld+json",
+    "request": "prov-o: 2 employees, policy anonymous",
+    "status": 200
+  },
+  {
+    "body": {
+      "@context": {
+        "prov": "http://www.w3.org/ns/prov#",
+        "schema": "https://schema.org/",
+        "sobria": "https://sobr.ia/vocab#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#"
+      },
+      "@graph": [
+        {
+          "@id": "sobria-team:report-20260515-to-20260517",
+          "@type": "prov:Bundle",
+          "prov:wasAttributedTo": {
+            "@id": "sobria-team:agent-aggregator"
+          },
+          "schema:about": {
+            "schema:endDate": "2026-05-17",
+            "schema:startDate": "2026-05-15"
+          },
+          "sobria:anonymized": true,
+          "sobria:organizationName": "ACME",
+          "sobria:totalCo2eqGramsP50": 0.9,
+          "sobria:totalEnergyWh": 0.9,
+          "sobria:totalEstimations": 4,
+          "sobria:totalWaterMl": 4.0
+        },
+        {
+          "@id": "sobria-team:agent-aggregator",
+          "@type": "prov:SoftwareAgent",
+          "schema:name": "sobria-team-aggregator",
+          "schema:version": "<crate_version>"
+        },
+        {
+          "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001",
+          "@type": "prov:Agent",
+          "prov:label": "Employé #1",
+          "sobria:displayName": "Employé #1",
+          "sobria:fingerprint": null
+        },
+        {
+          "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002",
+          "@type": "prov:Agent",
+          "prov:label": "Employé #2",
+          "sobria:displayName": "Employé #2",
+          "sobria:fingerprint": null
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE002",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-15T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
+          },
+          "sobria:energyWh": 0.1,
+          "sobria:gco2eqGramsP50": 0.1,
+          "sobria:methodology": "afnor_sobria",
+          "sobria:modelId": "llama-3-1-70b",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE004",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-15T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
+          },
+          "sobria:energyWh": 0.2,
+          "sobria:gco2eqGramsP50": 0.2,
+          "sobria:methodology": "afnor_sobria",
+          "sobria:modelId": "llama-3-1-70b",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE003",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-16T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ001"
+          },
+          "sobria:energyWh": 0.2,
+          "sobria:gco2eqGramsP50": 0.2,
+          "sobria:methodology": "ecologits",
+          "sobria:modelId": "gpt-4o",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        },
+        {
+          "@id": "sobria-team:estimation-01HZEEEEEEEEEEEEEEEEEEE005",
+          "@type": "prov:Activity",
+          "prov:generatedAtTime": {
+            "@type": "xsd:dateTime",
+            "@value": "2026-05-16T10:00:00+00:00"
+          },
+          "prov:wasAssociatedWith": {
+            "@id": "sobria-team:user-01HZZZZZZZZZZZZZZZZZZZZ002"
+          },
+          "sobria:energyWh": 0.4,
+          "sobria:gco2eqGramsP50": 0.4,
+          "sobria:methodology": "ecologits",
+          "sobria:modelId": "gpt-4o",
+          "sobria:region": null,
+          "sobria:tokensIn": 100,
+          "sobria:tokensOut": 400,
+          "sobria:waterMl": 1.0
+        }
+      ]
+    },
+    "content_disposition": "attachment; filename=\"sobria-team-prov-20260515-to-20260517.jsonld\"",
+    "content_type": "application/ld+json",
+    "request": "prov-o: anonymize = true, entity name",
+    "status": 200
+  },
+  {
+    "body": "<pdf>",
+    "content_disposition": "attachment; filename=\"sobria-csrd--quipe-20260515-to-20260517.pdf\"",
+    "content_type": "application/pdf",
+    "request": "csrd: default entity",
+    "status": 200
+  },
+  {
+    "body": "<pdf>",
+    "content_disposition": "attachment; filename=\"sobria-csrd-acme-corp-20260515-to-20260517.pdf\"",
+    "content_type": "application/pdf",
+    "request": "csrd: entity name",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : from doit être < to"
+    },
+    "content_type": "application/json",
+    "request": "csv: from after to",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : date RFC3339 invalide (yesterday): premature end of input"
+    },
+    "content_type": "application/json",
+    "request": "csv: from is not a date",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "csv: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "csv: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : from doit être < to"
+    },
+    "content_type": "application/json",
+    "request": "prov-o: from after to",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : date RFC3339 invalide (yesterday): premature end of input"
+    },
+    "content_type": "application/json",
+    "request": "prov-o: from is not a date",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "prov-o: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "prov-o: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : from doit être < to"
+    },
+    "content_type": "application/json",
+    "request": "csrd: from after to",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : date RFC3339 invalide (yesterday): premature end of input"
+    },
+    "content_type": "application/json",
+    "request": "csrd: from is not a date",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "csrd: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "csrd: user token",
+    "status": 403
+  },
+  {
+    "body": "Failed to parse the request body as JSON: EOF while parsing an object at line 1 column 1",
+    "content_type": "text/plain",
+    "request": "csv: body is not JSON",
+    "status": 400
+  }
+]

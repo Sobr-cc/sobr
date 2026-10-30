@@ -1,0 +1,938 @@
+[
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "anonymous",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 1.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 5.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.0,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 5.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 1.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.0,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 10,
+        "anonymous_gco2eq_g": 4.5,
+        "anonymous_users": 5,
+        "identified": []
+      }
+    },
+    "content_type": "application/json",
+    "request": "[anonymous] analytics",
+    "status": 200
+  },
+  {
+    "body": {
+      "users": [
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Alice",
+          "enrollment_code_id": "<ulid>",
+          "fingerprint": "fp-alice",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": true,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 3",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-3",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 4",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-4",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 5",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-5",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "[anonymous] users list",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "[anonymous] user detail, opted in",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "[anonymous] user detail, not opted in",
+    "status": 403
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 1.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 5.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.0,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 5.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 1.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.0,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "<ulid>"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "[opt_in] analytics",
+    "status": 200
+  },
+  {
+    "body": {
+      "users": [
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Alice",
+          "enrollment_code_id": "<ulid>",
+          "fingerprint": "fp-alice",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": true,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.30000000000000004,
+            "gco2eq_p50_g": 0.30000000000000004,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 3",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-3",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 4",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-4",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 5",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-5",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": null
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "[opt_in] users list",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "method_breakdown": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "method": "ecologits"
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 1,
+          "energy_wh": 0.1,
+          "gco2eq_g": 0.1,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 1,
+          "energy_wh": 0.2,
+          "gco2eq_g": 0.2,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "model_id": "gpt-4o",
+          "tokens_in": 100,
+          "tokens_out": 400
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 100,
+          "tokens_out": 400
+        }
+      ],
+      "totals": {
+        "count": 2,
+        "energy_wh": 0.30000000000000004,
+        "gco2eq_p50_g": 0.30000000000000004,
+        "tokens_in": 200,
+        "tokens_out": 800,
+        "water_ml": 2.0
+      },
+      "user": {
+        "display_name": "Employee 1",
+        "fingerprint": "fp-employee-1",
+        "id": "<ulid>",
+        "share_identified": true
+      }
+    },
+    "content_type": "application/json",
+    "request": "[opt_in] user detail, opted in",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "[opt_in] user detail, not opted in",
+    "status": 403
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "identified",
+      "projects": [
+        {
+          "contributors": 3,
+          "count": 3,
+          "energy_wh": 1.8,
+          "folded": false,
+          "gco2eq_g": 1.8,
+          "project": null,
+          "water_ml": 3.0
+        },
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 1.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 5.0
+        },
+        {
+          "contributors": 2,
+          "count": 2,
+          "energy_wh": 1.2000000000000002,
+          "folded": false,
+          "gco2eq_g": 1.2000000000000002,
+          "project": "Beta",
+          "water_ml": 2.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 1.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.0,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 5.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 5",
+            "fingerprint": "fp-employee-5",
+            "gco2eq_g": 1.5,
+            "user_id": "<ulid>"
+          },
+          {
+            "count": 2,
+            "display_name": "Employee 4",
+            "fingerprint": "fp-employee-4",
+            "gco2eq_g": 1.2000000000000002,
+            "user_id": "<ulid>"
+          },
+          {
+            "count": 2,
+            "display_name": "Employee 3",
+            "fingerprint": "fp-employee-3",
+            "gco2eq_g": 0.9000000000000001,
+            "user_id": "<ulid>"
+          },
+          {
+            "count": 2,
+            "display_name": "Employee 2",
+            "fingerprint": "fp-employee-2",
+            "gco2eq_g": 0.6000000000000001,
+            "user_id": "<ulid>"
+          },
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "<ulid>"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "[identified] analytics",
+    "status": 200
+  },
+  {
+    "body": {
+      "users": [
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Alice",
+          "enrollment_code_id": "<ulid>",
+          "fingerprint": "fp-alice",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 0,
+            "energy_wh": 0.0,
+            "gco2eq_p50_g": 0.0,
+            "tokens_in": 0,
+            "tokens_out": 0,
+            "water_ml": 0.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 1",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-1",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": true,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.30000000000000004,
+            "gco2eq_p50_g": 0.30000000000000004,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 2",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-2",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.6000000000000001,
+            "gco2eq_p50_g": 0.6000000000000001,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 3",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-3",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 2,
+            "energy_wh": 0.9000000000000001,
+            "gco2eq_p50_g": 0.9000000000000001,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 4",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-4",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 2,
+            "energy_wh": 1.2000000000000002,
+            "gco2eq_p50_g": 1.2000000000000002,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        },
+        {
+          "created_at": "<timestamp>",
+          "display_name": "Employee 5",
+          "enrollment_code_id": null,
+          "fingerprint": "fp-employee-5",
+          "id": "<ulid>",
+          "last_seen_at": null,
+          "share_identified": false,
+          "totals": {
+            "count": 2,
+            "energy_wh": 1.5,
+            "gco2eq_p50_g": 1.5,
+            "tokens_in": 200,
+            "tokens_out": 800,
+            "water_ml": 2.0
+          }
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "[identified] users list",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "method_breakdown": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "method": "ecologits"
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "identified",
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 1,
+          "energy_wh": 0.1,
+          "gco2eq_g": 0.1,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 1,
+          "energy_wh": 0.2,
+          "gco2eq_g": 0.2,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "model_id": "gpt-4o",
+          "tokens_in": 100,
+          "tokens_out": 400
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 100,
+          "tokens_out": 400
+        }
+      ],
+      "totals": {
+        "count": 2,
+        "energy_wh": 0.30000000000000004,
+        "gco2eq_p50_g": 0.30000000000000004,
+        "tokens_in": 200,
+        "tokens_out": 800,
+        "water_ml": 2.0
+      },
+      "user": {
+        "display_name": "Employee 1",
+        "fingerprint": "fp-employee-1",
+        "id": "<ulid>",
+        "share_identified": true
+      }
+    },
+    "content_type": "application/json",
+    "request": "[identified] user detail, opted in",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "method_breakdown": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.4,
+          "method": "ecologits"
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "identified",
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 1,
+          "energy_wh": 0.2,
+          "gco2eq_g": 0.2,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 1,
+          "energy_wh": 0.4,
+          "gco2eq_g": 0.4,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.4,
+          "model_id": "gpt-4o",
+          "tokens_in": 100,
+          "tokens_out": 400
+        },
+        {
+          "count": 1,
+          "gco2eq_g": 0.2,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 100,
+          "tokens_out": 400
+        }
+      ],
+      "totals": {
+        "count": 2,
+        "energy_wh": 0.6000000000000001,
+        "gco2eq_p50_g": 0.6000000000000001,
+        "tokens_in": 200,
+        "tokens_out": 800,
+        "water_ml": 2.0
+      },
+      "user": {
+        "display_name": "Employee 2",
+        "fingerprint": "fp-employee-2",
+        "id": "<ulid>",
+        "share_identified": false
+      }
+    },
+    "content_type": "application/json",
+    "request": "[identified] user detail, not opted in",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "method_breakdown": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 1,
+          "energy_wh": 0.1,
+          "gco2eq_g": 0.1,
+          "tokens_in": 100,
+          "tokens_out": 400,
+          "water_ml": 1.0
+        }
+      ],
+      "to": "2026-05-16T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 1,
+          "gco2eq_g": 0.1,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 100,
+          "tokens_out": 400
+        }
+      ],
+      "totals": {
+        "count": 2,
+        "energy_wh": 0.30000000000000004,
+        "gco2eq_p50_g": 0.30000000000000004,
+        "tokens_in": 200,
+        "tokens_out": 800,
+        "water_ml": 2.0
+      },
+      "user": {
+        "display_name": "Employee 1",
+        "fingerprint": "fp-employee-1",
+        "id": "<ulid>",
+        "share_identified": true
+      }
+    },
+    "content_type": "application/json",
+    "request": "user detail: window of the first day only",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : employé inconnu: 01HZZZZZZZZZZZZZZZZZZZZ099"
+    },
+    "content_type": "application/json",
+    "request": "user detail: unknown user",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : date RFC3339 invalide (yesterday): premature end of input"
+    },
+    "content_type": "application/json",
+    "request": "user detail: from is not a date",
+    "status": 400
+  },
+  {
+    "body": {
+      "from": "2026-05-17T00:00:00+00:00",
+      "method_breakdown": [],
+      "policy": "opt_in",
+      "series": [],
+      "to": "2026-05-15T00:00:00+00:00",
+      "top_models": [],
+      "totals": {
+        "count": 2,
+        "energy_wh": 0.30000000000000004,
+        "gco2eq_p50_g": 0.30000000000000004,
+        "tokens_in": 200,
+        "tokens_out": 800,
+        "water_ml": 2.0
+      },
+      "user": {
+        "display_name": "Employee 1",
+        "fingerprint": "fp-employee-1",
+        "id": "<ulid>",
+        "share_identified": true
+      }
+    },
+    "content_type": "application/json",
+    "request": "user detail: from after to",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "user detail: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "user detail: user token",
+    "status": 403
+  }
+]

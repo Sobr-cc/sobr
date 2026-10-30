@@ -1,0 +1,194 @@
+[
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 2,
+        "blocked": true,
+        "required": 5
+      },
+      "method_breakdown": [],
+      "policy": "anonymous",
+      "projects": [],
+      "series": [],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": []
+      }
+    },
+    "content_type": "application/json",
+    "request": "2 employees, policy anonymous",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 2,
+        "blocked": true,
+        "required": 5
+      },
+      "method_breakdown": [],
+      "policy": "opt_in",
+      "projects": [],
+      "series": [],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": []
+      }
+    },
+    "content_type": "application/json",
+    "request": "2 employees, policy opt_in",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 2,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 2,
+          "gco2eq_g": 0.6000000000000001,
+          "method": "ecologits"
+        },
+        {
+          "count": 2,
+          "gco2eq_g": 0.30000000000000004,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "identified",
+      "projects": [
+        {
+          "contributors": 1,
+          "count": 1,
+          "energy_wh": 0.4,
+          "folded": false,
+          "gco2eq_g": 0.4,
+          "project": "Beta",
+          "water_ml": 1.0
+        },
+        {
+          "contributors": 2,
+          "count": 2,
+          "energy_wh": 0.30000000000000004,
+          "folded": false,
+          "gco2eq_g": 0.30000000000000004,
+          "project": "Alpha",
+          "water_ml": 2.0
+        },
+        {
+          "contributors": 1,
+          "count": 1,
+          "energy_wh": 0.2,
+          "folded": false,
+          "gco2eq_g": 0.2,
+          "project": null,
+          "water_ml": 1.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 2,
+          "energy_wh": 0.30000000000000004,
+          "gco2eq_g": 0.30000000000000004,
+          "tokens_in": 200,
+          "tokens_out": 800,
+          "water_ml": 2.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 2,
+          "energy_wh": 0.6000000000000001,
+          "gco2eq_g": 0.6000000000000001,
+          "tokens_in": 200,
+          "tokens_out": 800,
+          "water_ml": 2.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 2,
+          "gco2eq_g": 0.6000000000000001,
+          "model_id": "gpt-4o",
+          "tokens_in": 200,
+          "tokens_out": 800
+        },
+        {
+          "count": 2,
+          "gco2eq_g": 0.30000000000000004,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 200,
+          "tokens_out": 800
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 2",
+            "fingerprint": "fp-employee-2",
+            "gco2eq_g": 0.6000000000000001,
+            "user_id": "<ulid>"
+          },
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "<ulid>"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "2 employees, policy identified",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 2,
+        "blocked": true,
+        "required": 5
+      },
+      "method_breakdown": [],
+      "policy": "opt_in",
+      "projects": [],
+      "series": [],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [],
+      "top_users": {
+        "anonymous_count": 0,
+        "anonymous_gco2eq_g": 0.0,
+        "anonymous_users": 0,
+        "identified": []
+      }
+    },
+    "content_type": "application/json",
+    "request": "2 employees, unknown policy value",
+    "status": 200
+  }
+]

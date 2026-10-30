@@ -14,10 +14,14 @@ use std::{net::TcpListener, sync::Mutex, time::Duration};
 
 use reqwest::RequestBuilder;
 use serde_json::{json, Value};
+use chrono::{DateTime, Utc};
 use sobria_team_aggregator::{
     commands::{code, init, serve},
     config::DataPaths,
-    storage::Storage,
+    storage::{
+        estimations::{self, NewEstimation},
+        users, Storage,
+    },
 };
 use tempfile::TempDir;
 
@@ -142,6 +146,45 @@ impl Server {
         status
     }
 
+    /// Records a file download: status, content type, file name and the body
+    /// (text as is, JSON masked, PDF reduced to a check of its header).
+    pub async fn record_download(&self, label: &str, request: RequestBuilder) -> u16 {
+        let response = request.send().await.expect("request");
+        let status = response.status().as_u16();
+        let header = |name: &str| {
+            response
+                .headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("")
+                .to_owned()
+        };
+        let content_type = header("content-type");
+        let disposition = header("content-disposition");
+        let bytes = response.bytes().await.expect("body");
+        let body = match content_type.split(';').next().unwrap_or("").trim() {
+            "application/pdf" => {
+                assert!(bytes.starts_with(b"%PDF-"), "not a PDF");
+                assert!(bytes.len() > 1000, "a PDF report is never this small");
+                json!("<pdf>")
+            },
+            "application/ld+json" | "application/json" => {
+                let mut value: Value = serde_json::from_slice(&bytes).expect("JSON body");
+                mask(&mut value);
+                value
+            },
+            _ => Value::String(String::from_utf8_lossy(&bytes).into_owned()),
+        };
+        self.push(json!({
+            "request": label,
+            "status": status,
+            "content_type": content_type,
+            "content_disposition": disposition,
+            "body": body,
+        }));
+        status
+    }
+
     /// Records a value computed by the test itself (for example a count read
     /// from the database).
     pub fn note(&self, label: &str, value: Value) {
@@ -178,6 +221,90 @@ impl Server {
         body
     }
 
+    /// Not recorded: sends the request and returns `(status, body)`.
+    pub async fn fetch(&self, request: RequestBuilder) -> (u16, Value) {
+        send_json(request).await
+    }
+
+    /// Seeds employees `numbers` straight in the database (no password, no
+    /// Argon2), each with two estimations on 2026-05-15 and 2026-05-16.
+    /// Employee 1 has opted in to being identified. Ids are fixed.
+    ///
+    /// Employee `n` has: day 1, model `llama-3-1-70b`, method `afnor_sobria`,
+    /// project `Alpha`, `0.1 * n` gCO2eq; day 2, model `gpt-4o`, method
+    /// `ecologits`, project `Beta` when `n` is even and none otherwise,
+    /// `0.2 * n` gCO2eq.
+    pub fn seed_team(&self, numbers: std::ops::RangeInclusive<u32>) {
+        let storage = self.storage();
+        let conn = storage.connection();
+        for n in numbers {
+            let weight = f64::from(n);
+            let user_id = Self::user_id(n);
+            users::insert(
+                conn,
+                &user_id,
+                None,
+                &format!("fp-employee-{n}"),
+                "$argon2id$not-a-real-hash",
+                Some(&format!("Employee {n}")),
+                timestamp("2026-05-01T00:00:00Z"),
+            )
+            .expect("seed user");
+            if n == 1 {
+                users::set_share_identified(conn, &user_id, true).expect("opt in");
+            }
+            let project_day_two = (n % 2 == 0).then_some("Beta");
+            for (index, (ts, model_id, method, gco2eq, project)) in [
+                (
+                    "2026-05-15T10:00:00Z",
+                    "llama-3-1-70b",
+                    "afnor_sobria",
+                    0.1 * weight,
+                    Some("Alpha"),
+                ),
+                (
+                    "2026-05-16T10:00:00Z",
+                    "gpt-4o",
+                    "ecologits",
+                    0.2 * weight,
+                    project_day_two,
+                ),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let id = format!("01HZ{}{:03}", "E".repeat(19), n * 2 + index as u32);
+                estimations::insert(
+                    conn,
+                    &NewEstimation {
+                        id: &id,
+                        user_id: &user_id,
+                        ts: timestamp(ts),
+                        method,
+                        model_id,
+                        tokens_in: 100,
+                        tokens_out: 400,
+                        gco2eq_p50: gco2eq,
+                        gco2eq_p5: Some(gco2eq * 0.5),
+                        gco2eq_p95: Some(gco2eq * 1.5),
+                        water_ml: 1.0,
+                        energy_wh: gco2eq,
+                        region: None,
+                        project,
+                        raw_payload_json: "{}",
+                        received_at: timestamp(ts),
+                    },
+                )
+                .expect("seed estimation");
+            }
+        }
+    }
+
+    /// Fixed id of seeded employee `n` (see [`Self::seed_team`]).
+    pub fn user_id(n: u32) -> String {
+        format!("01HZ{}{n:03}", "Z".repeat(19))
+    }
+
     /// Compares everything recorded so far with `tests/golden/<name>.json`.
     pub fn assert_golden(&self, name: &str) {
         let log = self.log.lock().expect("log").clone();
@@ -210,6 +337,12 @@ async fn send(request: RequestBuilder) -> (u16, String, String) {
 async fn send_json(request: RequestBuilder) -> (u16, Value) {
     let (status, _, text) = send(request).await;
     (status, serde_json::from_str(&text).unwrap_or(Value::String(text)))
+}
+
+fn timestamp(rfc3339: &str) -> DateTime<Utc> {
+    DateTime::parse_from_rfc3339(rfc3339)
+        .expect("fixed timestamp")
+        .with_timezone(&Utc)
 }
 
 fn is_ulid(s: &str) -> bool {
@@ -251,8 +384,8 @@ fn mask_field(key: &str, value: &mut Value) {
             "<refresh_token>"
         },
         "code" if s.len() == 12 && s.chars().all(|c| c.is_ascii_digit()) => "<enrollment_code>",
-        "version" => {
-            assert_eq!(s, env!("CARGO_PKG_VERSION"), "unexpected /health version");
+        k if k == "version" || k.ends_with(":version") => {
+            assert_eq!(s, env!("CARGO_PKG_VERSION"), "unexpected version in {key}");
             "<crate_version>"
         },
         _ => return,

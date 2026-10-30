@@ -1,0 +1,49 @@
+[
+  {
+    "body": {
+      "policy": "anonymous",
+      "share_identified": false
+    },
+    "content_type": "application/json",
+    "request": "alice did not opt in",
+    "status": 200
+  },
+  {
+    "body": {
+      "id": "<ulid>",
+      "threshold": {
+        "created_at": "<timestamp>",
+        "created_by_admin_id": "<ulid>",
+        "disabled_at": null,
+        "gco2eq_max": 0.1,
+        "id": "<ulid>",
+        "notify_kind": "log_only",
+        "notify_target": null,
+        "period": "daily",
+        "scope": "user",
+        "target_id": "<ulid>"
+      }
+    },
+    "content_type": "application/json",
+    "request": "create: user alert on a non-consenting employee, policy anonymous",
+    "status": 200
+  },
+  {
+    "body": {
+      "ack": true,
+      "id": "<ulid>"
+    },
+    "content_type": "application/json",
+    "request": "estimation above the threshold",
+    "status": 200
+  },
+  {
+    "note": "trigger seen by the admin",
+    "value": {
+      "notify_error": null,
+      "observed_gco2eq": 0.42,
+      "period_hours": 23,
+      "rows": 1
+    }
+  }
+]
