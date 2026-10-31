@@ -32,6 +32,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `https:` (SOB-201). The certificate setting is SOB-200; the dead variable
   of `tests/bridge_server.rs` is SOB-202.
 
+### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
+
+- **`docs/sources/CATALOGUE-SOURCES.md`** (version 2.2): the French part (sources
+  S01 to S09, tiers, quick matrix, Silver schema overview, prerequisites,
+  retention policy) is translated to English, following "translate when touched"
+  (SOB-100). No fact, URL, identifier or number changed; the model catalog
+  section of SOB-6 is untouched. Proper names (Teréga, ODRÉ) keep their accents.
+
 ### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
 
 - **`docs/adr/`**: both ADR files and their rows in the index say Accepted
