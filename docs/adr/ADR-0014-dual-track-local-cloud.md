@@ -32,7 +32,7 @@
 
 The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged.
 
-**Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here. Amendment 3 (SOB-103) settles the README, the diagram label, the pairing row and the phasing; SOB-154 settles the price and the conflict with ADR-0013.
+**Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here. Amendment 3 (SOB-103) aligns, or keeps with a reason, the README, the diagram label, the pairing row and the phasing; SOB-154 settles the price and the conflict with ADR-0013.
 
 - The README says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes when the offer is announced (SOB-103).
 - The price of the personal space: it runs on the Sobr server, which change 1 makes trial-then-paid, but the arbitration does not say whether it is free or under the trial. Guest mode stays free either way. The screens Z1b, A1 and S3 depend on it (SOB-136).
@@ -49,16 +49,16 @@ The Révision section asks for a separate "ADR-0014-amendement" document. This a
 
 1. **Phasing.** The calendar of October 30 ([Routes, screen by screen](https://claude.ai/artifact/Cua7SK84VzMCwYFZRQfUHD), "Calendrier") replaces the version numbers of phases 2 to 6 (v1.0.0 to v2.0.0). Organization features and the cloud are built in January and February 2027, the beta and the launch are in March, and the public V1 is on March 31, 2027. The content of phases 0, 1 and 3 is unchanged.
    - Phase 2 (application): dropped. The data.gouv.fr application is off (SOB-104).
-   - Phase 4: SSO, SCIM and custom roles are built in the Organization and identity project, and the sync of the personal space between machines in the Cloud and self-hosting project. Both stay in the common open-source binary.
+   - Phase 4: SSO and custom roles (the former "RBAC fin"), with SCIM added by the October 30 decisions, are built in the Organization and identity project, and the sync of the personal space between machines in the Cloud and self-hosting project. Both stay in the common open-source binary.
    - Phases 5 and 6: the beta is in March 2027 and the launch is with the public V1. The "free tier" is replaced by the 30-day trial for organizations (Amendment 1) and the free personal space (SOB-154).
-2. **Announcement.** "Pas avant v1.3.0, jamais simultanément avec la candidature" becomes: the cloud is announced with the public V1 launch. The second half of the rule goes, since the application is off (SOB-104).
+2. **Announcement.** "Pas avant v1.3.0, jamais simultanément avec la candidature" becomes: the cloud is announced with the public V1 launch. The second half of the rule goes, since the application is off (SOB-104). The beta stays by invitation (phase 5), which is not a public announcement.
 3. **"Lien avec les chantiers".** C-candidature, "the cloud is not mentioned": dropped for the same reason. C-admin-avance and C-cloud-beta are the projects named in point 1; the rule that their code is the common binary stays.
 4. **Feature table.** The row "Pairing perso 6 chiffres" is already aligned by ADR-0013 Amendment 1 (SOB-34): kept. The rows "SSO" and "Multi-device" are no longer "v0.8+": they follow the projects of point 1.
-5. **License label and "payant".** The license is MIT (ADR-0006), not "MIT/Apache". "Payant" for the managed offer means paid for organizations (trial, then per seat); the personal space is free.
+5. **License label and "payant".** The license is MIT (ADR-0006), not "MIT/Apache". "Payant" for the managed offer means paid for organizations (trial, then per seat); the personal space is free (SOB-136, written in Amendment 2 of SOB-154).
 6. **Trial and card.** Kept as Amendment 1, change 1 states it: a payment card starts the organizations' trial (SOB-105). The payment provider account is a human-only task (SOB-131).
 7. **README.** Kept as it is: it says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes at the announcement, with the V1 launch, because an earlier mention would describe an offer that does not exist yet.
 
-**What does not change.** The five conditions, and the rule that the managed cloud runs the same open-source binary. The amendment changes the plan, not a condition, so the Révision rule needs no notice period.
+**What does not change.** The five conditions, and the rule that the managed cloud runs the same open-source binary. The amendment changes the plan, not a condition (conditions 1 and 5 are changed by Amendments 1 and 2, which meet the Révision rule themselves), so it needs no notice period.
 
 **Not covered here.** The dates of individual builds (they belong to the issues of the projects), the price amounts, and the chantier names C29 and C30, which are history. The mentions of the data.gouv.fr pitch in "Contexte" and "Conséquences" give the reasons of May 2026 and are kept; the application is off (SOB-104).
 
