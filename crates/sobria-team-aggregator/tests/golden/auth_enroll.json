@@ -1,0 +1,99 @@
+[
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "user_id": "<ulid#1>"
+    },
+    "content_type": "application/json",
+    "request": "enroll: ok",
+    "status": 200
+  },
+  {
+    "note": "token lifetimes in hours",
+    "value": {
+      "access": 24.0,
+      "refresh": 168.0
+    }
+  },
+  {
+    "body": {
+      "code": "fingerprint_already_enrolled",
+      "error": "ce fingerprint est déjà enrôlé"
+    },
+    "content_type": "application/json",
+    "request": "enroll: same fingerprint, fresh code",
+    "status": 409
+  },
+  {
+    "body": {
+      "code": "invalid_enrollment_code",
+      "error": "code d'enrôlement invalide ou expiré"
+    },
+    "content_type": "application/json",
+    "request": "enroll: code already used",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_enrollment_code",
+      "error": "code d'enrôlement invalide ou expiré"
+    },
+    "content_type": "application/json",
+    "request": "enroll: unknown code",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : code doit être 12 chiffres ASCII"
+    },
+    "content_type": "application/json",
+    "request": "enroll: code with a wrong format",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : password ≥ 8 caractères requis"
+    },
+    "content_type": "application/json",
+    "request": "enroll: password too short",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : fingerprint manquant"
+    },
+    "content_type": "application/json",
+    "request": "enroll: empty fingerprint",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `password`",
+    "content_type": "text/plain",
+    "request": "enroll: missing field",
+    "status": 422
+  },
+  {
+    "body": "Failed to parse the request body as JSON: EOF while parsing an object",
+    "content_type": "text/plain",
+    "request": "enroll: body is not JSON",
+    "status": 400
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "user_id": "<ulid#2>"
+    },
+    "content_type": "application/json",
+    "request": "enroll: without display name",
+    "status": 200
+  }
+]

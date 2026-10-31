@@ -1,0 +1,107 @@
+[
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "user",
+      "subject_id": "<ulid#1>"
+    },
+    "content_type": "application/json",
+    "request": "login: user, role omitted",
+    "status": 200
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "user",
+      "subject_id": "<ulid#1>"
+    },
+    "content_type": "application/json",
+    "request": "login: user, role user",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "invalid_credentials",
+      "error": "identifiants invalides"
+    },
+    "content_type": "application/json",
+    "request": "login: user, wrong password",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_credentials",
+      "error": "identifiants invalides"
+    },
+    "content_type": "application/json",
+    "request": "login: user, unknown fingerprint",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : username + password requis"
+    },
+    "content_type": "application/json",
+    "request": "login: empty username",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : username + password requis"
+    },
+    "content_type": "application/json",
+    "request": "login: empty password",
+    "status": 400
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "admin",
+      "subject_id": "<ulid#2>"
+    },
+    "content_type": "application/json",
+    "request": "login: admin",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "invalid_credentials",
+      "error": "identifiants invalides"
+    },
+    "content_type": "application/json",
+    "request": "login: admin, wrong password",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_credentials",
+      "error": "identifiants invalides"
+    },
+    "content_type": "application/json",
+    "request": "login: admin name with the user role",
+    "status": 401
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: role: unknown variant `root`, expected `user` or `admin`",
+    "content_type": "text/plain",
+    "request": "login: unknown role",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `password`",
+    "content_type": "text/plain",
+    "request": "login: missing password",
+    "status": 422
+  }
+]

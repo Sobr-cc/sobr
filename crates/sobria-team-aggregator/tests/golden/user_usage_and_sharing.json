@@ -1,0 +1,120 @@
+[
+  {
+    "body": {
+      "totals": {
+        "count": 0,
+        "energy_wh": 0.0,
+        "gco2eq_p50_g": 0.0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "water_ml": 0.0
+      },
+      "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+    },
+    "content_type": "application/json",
+    "request": "me/usage: nothing sent yet",
+    "status": 200
+  },
+  {
+    "body": {
+      "policy": "opt_in",
+      "share_identified": false
+    },
+    "content_type": "application/json",
+    "request": "me/sharing: default",
+    "status": 200
+  },
+  {
+    "body": {
+      "policy": "opt_in",
+      "share_identified": true
+    },
+    "content_type": "application/json",
+    "request": "me/sharing: opt in",
+    "status": 200
+  },
+  {
+    "body": {
+      "policy": "opt_in",
+      "share_identified": true
+    },
+    "content_type": "application/json",
+    "request": "me/sharing: read back",
+    "status": 200
+  },
+  {
+    "body": {
+      "policy": "opt_in",
+      "share_identified": false
+    },
+    "content_type": "application/json",
+    "request": "me/sharing: the policy key is ignored",
+    "status": 200
+  },
+  {
+    "body": {
+      "policy": "opt_in",
+      "share_identified": false
+    },
+    "content_type": "application/json",
+    "request": "me/sharing: read back after the ignored key",
+    "status": 200
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `share_identified`",
+    "content_type": "text/plain",
+    "request": "me/sharing: missing field",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: share_identified: invalid type: string \"yes\", expected a boolean",
+    "content_type": "text/plain",
+    "request": "me/sharing: wrong type",
+    "status": 422
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "me/sharing GET: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "me/sharing GET: admin token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "me/sharing PUT: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "me/sharing PUT: admin token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "me/usage: no auth",
+    "status": 401
+  }
+]

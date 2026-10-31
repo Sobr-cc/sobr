@@ -1,0 +1,823 @@
+[
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "group by day (default)",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "group by day (explicit)",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "week",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-W19",
+          "count": 10,
+          "energy_wh": 11.25,
+          "gco2eq_g": 4.5,
+          "tokens_in": 1000,
+          "tokens_out": 4000,
+          "water_ml": 25.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "group by week",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "month",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05",
+          "count": 10,
+          "energy_wh": 11.25,
+          "gco2eq_g": 4.5,
+          "tokens_in": 1000,
+          "tokens_out": 4000,
+          "water_ml": 25.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "group by month",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "top 1",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "top 0 is raised to 1",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "top 1000 is accepted",
+    "status": 200
+  },
+  {
+    "body": {
+      "from": "2026-05-15T00:00:00+00:00",
+      "group_by": "day",
+      "k_anonymity": {
+        "active_users": 5,
+        "blocked": false,
+        "required": 5
+      },
+      "method_breakdown": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "method": "ecologits"
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "method": "afnor_sobria"
+        }
+      ],
+      "policy": "opt_in",
+      "projects": [
+        {
+          "contributors": 5,
+          "count": 5,
+          "energy_wh": 7.5,
+          "folded": false,
+          "gco2eq_g": 1.5,
+          "project": "Alpha",
+          "water_ml": 10.0
+        },
+        {
+          "contributors": 3,
+          "count": 5,
+          "energy_wh": 3.75,
+          "folded": true,
+          "gco2eq_g": 3.0,
+          "project": null,
+          "water_ml": 15.0
+        }
+      ],
+      "series": [
+        {
+          "bucket": "2026-05-15",
+          "count": 5,
+          "energy_wh": 7.5,
+          "gco2eq_g": 1.5,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 10.0
+        },
+        {
+          "bucket": "2026-05-16",
+          "count": 5,
+          "energy_wh": 3.75,
+          "gco2eq_g": 3.0,
+          "tokens_in": 500,
+          "tokens_out": 2000,
+          "water_ml": 15.0
+        }
+      ],
+      "to": "2026-05-17T00:00:00+00:00",
+      "top_models": [
+        {
+          "count": 5,
+          "gco2eq_g": 3.0,
+          "model_id": "gpt-4o",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        },
+        {
+          "count": 5,
+          "gco2eq_g": 1.5,
+          "model_id": "llama-3-1-70b",
+          "tokens_in": 500,
+          "tokens_out": 2000
+        }
+      ],
+      "top_users": {
+        "anonymous_count": 8,
+        "anonymous_gco2eq_g": 4.2,
+        "anonymous_users": 4,
+        "identified": [
+          {
+            "count": 2,
+            "display_name": "Employee 1",
+            "fingerprint": "fp-employee-1",
+            "gco2eq_g": 0.30000000000000004,
+            "user_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+          }
+        ]
+      }
+    },
+    "content_type": "application/json",
+    "request": "dim is accepted and ignored",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : group_by inconnu: hourly (day|week|month)"
+    },
+    "content_type": "application/json",
+    "request": "error: unknown group_by",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : from doit être < to"
+    },
+    "content_type": "application/json",
+    "request": "error: from after to",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : from doit être < to"
+    },
+    "content_type": "application/json",
+    "request": "error: from equal to",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : date RFC3339 invalide (yesterday): premature end of input"
+    },
+    "content_type": "application/json",
+    "request": "error: from is not a date",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize query string: invalid digit found in string",
+    "content_type": "text/plain",
+    "request": "error: top is not a number",
+    "status": 400
+  },
+  {
+    "note": "default window",
+    "value": {
+      "group_by": "day",
+      "policy": "opt_in",
+      "status": 200,
+      "window_days": 30
+    }
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "analytics: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "analytics: user token",
+    "status": 403
+  }
+]
