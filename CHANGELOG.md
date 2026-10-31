@@ -7,6 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
+
+- **`sobria-import`**: removed the empty skeleton crate (one constant, no
+  code, no tests), its workspace entry and the unused dependency in
+  `sobria-app` (decision SOB-33, option 2). Any future log import will live
+  where the repo split ADR (SOB-65, proposed) places it. The README crate
+  list now matches the workspace, and the README and `Cargo.toml` no longer
+  hard-code a crate count.
+
 ### Changed — ADR-0013 amended for automatic pairing (2026-10-30, SOB-34)
 
 - **ADR-0013, Amendment 1** (Accepted 2026-10-30): after one explicit
