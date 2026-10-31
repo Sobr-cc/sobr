@@ -7,7 +7,7 @@
 **Projet** : Sobr.ia
 **Auteur** : Thibault (étudiant, contributeur Sobr.ia)
 **Date** : Mai 2026 — **dernière mise à jour : 2026-06-12**
-**Lien dépôt** : <https://github.com/BkOff-fr/defis-lia-generatif>
+**Lien dépôt** : <https://github.com/Sobr-cc/sobr>
 **Licence code** : MIT
 **Statut** : v0.9.0 (taguée 2026-05-20) — 13 modules app livrés et testés,
 plus extension navigateur MV3 (Chrome + Firefox), Mode Équipe self-hosted,

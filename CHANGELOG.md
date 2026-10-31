@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — GitHub links point to Sobr-cc/sobr (2026-10-31, SOB-40)
+
+- **Docs and metadata**: the README (DOI badge, BibTeX), `.zenodo.json`,
+  the challenge application and the researcher and student personas link
+  to `github.com/Sobr-cc/sobr` instead of the old `BkOff-fr/defis-lia-generatif`
+  address (ADR-0020). The researcher quickstart now runs `cd sobr` after
+  the clone. Links in `site/` and `web/` wait for V7 (SOB-108).
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
