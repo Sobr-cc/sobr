@@ -10,7 +10,7 @@ receivers:
 
 exporters:
   file:
-    path: ${env:SOBR_STUB_LOG:-stub-log.jsonl}
+    path: stub-log.jsonl
     flush_interval: 1s
 
 service:

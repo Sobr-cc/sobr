@@ -1,7 +1,7 @@
 # Capturing Claude Code usage without storing prompts
 
 > **Status**: proposal for the "Claude Code and MCP" project (SOB-145). **Checked on 2026-10-31** against the official Claude Code documentation (`code.claude.com/docs`).
-> **Related**: ADR-0019 decision 4 (where the import is built), ADR-0022 (the session model and the upload contract), ADR-0015 and CLAUDE.md section 7 (privacy), SOB-146 (session identity and duplicates, not written yet), SOB-67 (the old `sobria-import` crate is removed).
+> **Related**: ADR-0019 decision 4 (where the import is built), ADR-0022 (the session model and the upload contract), ADR-0015 and CLAUDE.md section 7 (privacy), ADR-0025 (session identity and duplicates, SOB-146), SOB-67 (the old `sobria-import` crate is removed).
 > **Amendment 1 (2026-10-31, SOB-203, decision [SOB-198](https://linear.app/sobrcc/issue/SOB-198), option A):** the device keeps the folder, repo and branch of a session for 24 months, on the device only, so that rules from corrections can run on past sessions. The server never receives them. The previous wording is kept here for the record: "No prompt text, response text, tool input or output, file path or command line is stored, on the device or on the server", and "Never stored: ... file paths, folder, repo and branch names, command lines, ... The project path may be read to choose a project, but it is not stored or uploaded." Both sentences are replaced by the text below ("What we store per session", the table of what Sobr stores, and "Kept on the device, never uploaded").
 > Every fact about Claude Code links to the official page it comes from. "No official source" means we looked and found none; it is never filled in by guessing. The documentation is read through a fetch tool that summarises pages, so a link is where to confirm a fact, not a proof by itself (see "How this was checked").
 
@@ -102,7 +102,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 
 **Recommendation**: option 3 with **no hook that carries text**: subscribe only to `SessionStart`, `SessionEnd` and the model-switch events. The live display and the cost come from the status line; the token totals come from the transcript at the end of the session (or from OpenTelemetry). The status line is enabled by the consent step Thibault chose (SOB-164, October 31, option 1): a plugin command, run once and explained on screen, writes the `statusLine` setting. The live display can always be turned off by the user (`/statusline delete`, or disabling the plugin).
 
-## 3. OpenTelemetry (optional, for organizations)
+## 3. OpenTelemetry (optional)
 
 Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unless said otherwise.
 
@@ -177,11 +177,11 @@ Both protocols reached the stand-in, so the receiver may take one. `http/json` n
 
 ## 4. Double counting
 
-The rules belong to the session duplicates ADR (**SOB-146, not written yet**, in Backlog; ADR-0022 blocks it and leaves it open). This note gives it the facts:
+The rules are in ADR-0025 (session identity and duplicates, Accepted, SOB-146). This note gave it the facts:
 
-- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). A test on a real session must check it before any rule relies on it (SOB-163).
+- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). SOB-163 tested it on Claude Code 2.1.314: one value in the hooks, the SDK result, the transcript file name and OpenTelemetry, in new, resumed, forked and cleared sessions. The status line was not tested.
 - Inside one source: assistant messages that share an ID must be counted once (SDK cost tracking). Subagents write their own transcripts; the SDK `usage` field leaves subagents out while `total_cost_usd` includes them ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked). The importer must not add a subagent transcript and its parent's totals.
-- Across sources: one measurement per session and source (ADR-0022), then SOB-146 picks which source wins. Suggested input for it: prefer OpenTelemetry (official, token totals and cost), then the transcript (unofficial, token totals), then the status line, which gives the cost total and the last call only and so cannot stand alone for tokens. The status line stays the live display.
+- Across sources: one measurement per session and source (ADR-0022), and ADR-0025 sets which source wins. The status line gives the cost total and the last call only, so it cannot stand alone for tokens; it stays the live display.
 - The cost figures are client-side estimates at list price, not billing ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), [status line](https://code.claude.com/docs/en/statusline)); they must not be matched to a bill.
 
 ## 5. Where the import is built
@@ -197,7 +197,7 @@ ADR-0019 decision 4 (option 4a) puts the **log import in a crate of `sobr`**: it
 Each one is a Linear issue.
 
 1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID, `cwd` and `gitBranch`) from real sample files, and pin them with golden tests. Done in the transcript keys note (SOB-161); the repo has no key and comes from the `origin` remote of `cwd`.
-2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
+2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value. Done in section 4 (the status line was not tested).
 3. **Research, SOB-166**: find what the app's local receiver must accept, with real Claude Code runs. Done in section 3.
 
 ## Decided
