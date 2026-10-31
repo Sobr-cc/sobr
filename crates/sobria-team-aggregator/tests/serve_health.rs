@@ -1,8 +1,8 @@
-//! Smoke test d'intégration : `init` → `serve` → `GET /health` en HTTPS.
+//! Integration smoke test: `init` → `serve` → `GET /health` over HTTPS.
 //!
-//! Le cert est auto-signé, donc `reqwest` est configuré pour accepter les
-//! certs invalides (`danger_accept_invalid_certs`). C'est l'équivalent
-//! programmatique du clic "Accepter le risque" qu'un user fera en C28.6.
+//! The cert is self-signed, so `reqwest` is set up to accept invalid
+//! certs (`danger_accept_invalid_certs`). It is the programmatic equivalent
+//! of the "Accept the risk" click a user will make in C28.6.
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -28,7 +28,7 @@ async fn serve_responds_to_health() {
         let _ = serve::run_with_listener(listener, &paths_clone).await;
     });
 
-    // Laisse au serveur le temps de démarrer la handshake TLS.
+    // Give the server time to get the TLS handshake ready.
     let client = reqwest::ClientBuilder::new()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(5))
@@ -47,7 +47,7 @@ async fn serve_responds_to_health() {
     server.abort();
 }
 
-/// Attend jusqu'à 2 secondes l'apparition du serveur (handshake TLS prêt).
+/// Waits up to 2 seconds for the server to come up (TLS handshake ready).
 async fn retry_get(client: &reqwest::Client, url: &str) -> reqwest::Response {
     let mut last_err = None;
     for _ in 0..20 {

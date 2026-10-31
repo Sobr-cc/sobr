@@ -1,0 +1,130 @@
+name: app-build
+
+# Unsigned desktop builds on each OS, uploaded as artifacts.
+# Called by ci.yml on pull requests and by app-release.yml on tags.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to build. Empty means the triggering ref.'
+        required: false
+        type: string
+        default: ''
+      retention-days:
+        description: 'How long to keep the bundles as run artifacts.'
+        required: false
+        type: number
+        default: 14
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+            rust-targets: 'x86_64-pc-windows-msvc'
+            tauri-args: ''
+          - os: macos-latest
+            label: macos-aarch64
+            rust-targets: 'aarch64-apple-darwin'
+            tauri-args: '--target aarch64-apple-darwin'
+          # macos-13 (Intel) runners were retired on 2025-12-04: cross-compile on Apple silicon.
+          - os: macos-latest
+            label: macos-x86_64
+            rust-targets: 'x86_64-apple-darwin'
+            tauri-args: '--target x86_64-apple-darwin'
+          - os: ubuntu-22.04
+            label: linux
+            rust-targets: 'x86_64-unknown-linux-gnu'
+            tauri-args: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          shared-key: ${{ matrix.label }}
+
+      - name: Install Linux WebKit deps
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/tauri-linux-deps
+
+      - name: Install patchelf (Linux bundles)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y patchelf
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+
+      # tauri.conf.json beforeBuildCommand builds the web frontend.
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Tauri build
+        working-directory: crates/sobria-app
+        run: cargo tauri build ${{ matrix.tauri-args }}
+
+      - name: Check the Intel binary architecture
+        if: matrix.label == 'macos-x86_64'
+        shell: bash
+        run: |
+          archs=$(lipo -archs target/x86_64-apple-darwin/release/sobria-app)
+          echo "sobria-app: $archs"
+          [ "$archs" = "x86_64" ]
+
+      - name: Collect bundles
+        shell: bash
+        run: |
+          mkdir -p bundles
+          # find, not globstar: macOS runners ship bash 3.2. The path depends on the target.
+          find target -path '*/release/bundle/*' -type f \( -name '*.msi' -o -name '*.exe' \
+            -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.appimage' \) \
+            -exec cp -v {} bundles/ \;
+          ls -la bundles/
+          # Compute SHA-256 for each artifact
+          cd bundles
+          for f in *; do
+            if [ -f "$f" ]; then
+              if command -v shasum >/dev/null 2>&1; then
+                shasum -a 256 "$f" > "${f}.sha256"
+              else
+                sha256sum "$f" > "${f}.sha256"
+              fi
+            fi
+          done
+          ls -la
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.label }}
+          path: bundles/
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}

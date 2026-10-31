@@ -1,10 +1,10 @@
-//! Test d'intégration C29.2 : flow CLI `admin reset-password` + `admin list`
-//! depuis l'API publique du crate (`commands::admin::*`).
+//! C29.2 integration test: the CLI flow `admin reset-password` + `admin list`
+//! through the public API of the crate (`commands::admin::*`).
 //!
-//! Le brief §C29.2 demande : "crée admin, reset, vérifie hash changé +
-//! tokens révoqués". Les unit tests dans `commands/admin.rs` couvrent déjà
-//! la logique fine ; cet intégration vérifie le contrat public et acte la
-//! procédure côté ops.
+//! The brief §C29.2 asks: "create an admin, reset, check the hash changed +
+//! tokens revoked". The unit tests in `commands/admin.rs` already cover the
+//! details; this test checks the public contract and records the ops
+//! procedure.
 
 use chrono::{Duration, Utc};
 use sobria_team_aggregator::{
@@ -20,10 +20,10 @@ fn reset_password_full_cycle() {
     let dir = tempdir().unwrap();
     let paths = DataPaths::new(dir.path());
 
-    // 1. init crée la base + admin "alice"
+    // 1. init creates the database + admin "alice"
     init::run(&paths, "alice", "initial-strong-pw", false).expect("init");
 
-    // 2. Lit le hash initial
+    // 2. Read the initial hash
     let storage = Storage::open(&paths.db()).unwrap();
     let alice_pre = admins_store::find_by_username(storage.connection(), "alice")
         .unwrap()
@@ -31,7 +31,7 @@ fn reset_password_full_cycle() {
     let initial_hash = alice_pre.password_hash.clone();
     let admin_id = alice_pre.id.clone();
 
-    // 3. Pose 3 tokens admin actifs
+    // 3. Add 3 active admin tokens
     let now = Utc::now();
     for (i, secret) in ["a", "b", "c"].iter().enumerate() {
         let h = password::hash_password(secret).unwrap();
@@ -53,7 +53,7 @@ fn reset_password_full_cycle() {
     assert_eq!(out.username, "alice");
     assert_eq!(out.revoked_tokens, 3);
 
-    // 5. Vérifie le hash a changé + verify ok sur le nouveau password
+    // 5. Check the hash changed + verify succeeds with the new password
     let storage = Storage::open(&paths.db()).unwrap();
     let alice_post = admins_store::find_by_username(storage.connection(), "alice")
         .unwrap()
@@ -68,7 +68,7 @@ fn reset_password_full_cycle() {
         "l'ancien password ne doit plus marcher"
     );
 
-    // 6. Tous les tokens sont révoqués
+    // 6. Every token is revoked
     for i in 0..3 {
         let t = tokens::find_by_id(storage.connection(), &format!("t-{i}"))
             .unwrap()

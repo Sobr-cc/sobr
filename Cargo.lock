@@ -5858,7 +5858,6 @@ dependencies = [
  "thiserror 2.0.18",
  "time",
  "tokio",
- "tokio-rustls",
  "tower-http 0.5.2",
  "tracing",
  "tracing-subscriber",

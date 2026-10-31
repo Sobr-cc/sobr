@@ -20,7 +20,7 @@
 | `docs/ROADMAP.md` | Plan initial, conservé pour l'historique (statuts plus tenus) |
 | `docs/adr/*.md` | Pour respecter les décisions architecturales |
 | `docs/adr/ADR-0009-medallion-architecture.md` | **Avant tout travail d'ingestion** — pattern Copper/Silver/Gold imposé |
-| `briefs/chantiers/Cxx-*.md` | Le brief du chantier lié au ticket Linear en cours |
+| `briefs/chantiers/Cxx-*.md` | Only when the Linear issue or its project links one (ADR-0018, Amendment 1) |
 | `docs/sources/CATALOGUE-SOURCES.md` | Avant tout travail sur l'ingestion |
 | `docs/methodology/AFNOR-SPEC-2314-synthese.md` | Avant tout travail sur l'estimateur |
 
@@ -119,7 +119,7 @@ Voir `ADR-0009-medallion-architecture.md` pour le détail (interface du trait, e
 ```
 
 Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
-Scopes : `core`, `estimator`, `referentiel`, `ingest`, `geoloc`, `import`, `export`, `audit`, `app`, `ui`, `ext`, `docs`, `ci`.
+Scopes : `core`, `estimator`, `referentiel`, `ingest`, `geoloc`, `export`, `audit`, `app`, `ui`, `ext`, `docs`, `ci`.
 
 Exemple : `feat(estimator): add Monte-Carlo uncertainty propagation`. Les messages de commit, les titres et les descriptions de PR sont en anglais (§13).
 
@@ -255,10 +255,10 @@ Source : le document Linear [« How we work »](https://linear.app/sobrcc/docume
 
 | Acteur | Fait | Ne fait jamais |
 |--------|------|----------------|
-| Thibault | Priorise, valide le design, relit et merge les PR, gère comptes, paiements, stores et décisions juridiques | — |
+| Thibault | Sets priorities, approves the design, handles accounts, payments, stores and legal decisions. Every PR is assigned to him; the reviewer agents merge on their own "ready to merge" verdict | — |
 | Orchestrateur (session principale de Claude Code, skill `/orchestrate`) | Trie Triage, écrit les tâches avec le skill `linear-issue-writing`, découpe ce qui dépasse 8 points, rédige la mise à jour hebdomadaire de chaque projet | Coder, merger, fermer une tâche |
 | Claude Design | Produit les écrans d'une tâche Design (pas d'accès à Linear : Thibault ou Claude joint le lien à la tâche) | Inventer un écran absent des routes |
-| Claude Code (dans le dépôt, avec le MCP Linear) | Prend une tâche Todo `agent:claude-code`, la passe In Progress, branche au nom de l'identifiant, code, vérifie, ouvre une PR liée, passe In Review avec un résumé | Merger, élargir le périmètre (il crée une tâche en Triage), toucher une tâche `human-only` |
+| Claude Code (dans le dépôt, avec le MCP Linear) | Prend une tâche Todo `agent:claude-code`, la passe In Progress, branche au nom de l'identifiant, code, vérifie, ouvre une PR liée, passe In Review avec un résumé | Merge its own PR, widen the scope (it creates a new issue in Triage instead), touch a `human-only` issue |
 
 Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par rôle). Pour décider, Thibault répond en commentaire d'une tâche Decision. Pour piloter, il change la priorité ou le label Role, ou renvoie une tâche en Backlog.
 
@@ -277,9 +277,10 @@ Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par r
   ```
 
 - Tout écart de périmètre devient une nouvelle tâche en Triage, jamais un ajout silencieux.
-- Au plus trois tâches In Review à la fois ; quand elles sont trois, les agents ne prennent rien de nouveau et attendent.
+- There is no limit on the number of issues In Review at the same time (Thibault, October 31). Agents keep working while PRs wait for review.
+- Merging (Thibault, October 30 and 31): a reviewer agent merges a PR (squash, English message) when its own verdict on the current head is "ready to merge", it has re-read all the comments, there is no conflict, no other reviewer has posted a newer "changes requested" on the same head, and every failing CI job also fails on main for the same cause. A newer "changes requested" from another reviewer on the same head blocks the merge. It does not wait for Thibault, and Thibault moving the issue to Done is not required. Never merge on "changes requested".
 - Le label `human-only` couvre comptes, paiements, stores, secrets et juridique : aucun agent n'y travaille.
-- Toute décision qui change un ADR passe par une tâche Docs et une PR sur l'ADR, validée par Thibault.
+- Any decision that changes an ADR goes through a Docs issue and a PR on the ADR. An ADR PR may be merged as Proposed by the reviewer; the step to Accepted needs Thibault's knowing acceptance. An in-place amendment of an Accepted ADR (a dated section, original text kept) follows the same rule: it is merged with its own status Proposed and takes effect when Thibault knowingly accepts it, unless it only records decisions that he already took in writing (an answered Decision issue), in which case it is in force at merge.
 - Chaque vendredi, mise à jour de chaque projet actif : santé (On track, At risk, Off track) et trois lignes (Progress, Risks, Next), moins de 120 mots, des faits seulement.
 - Décision du 30 octobre : pas de monolithe, les projets vivent dans des dépôts séparés de l'organisation GitHub Sobr-cc ; le découpage est fixé par SOB-65.
 
@@ -308,7 +309,7 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
 À chaque nouvelle session :
 
 1. Lire `CLAUDE.md` (ce fichier).
-2. Identifier le ticket Linear (`SOB-123`) de la tâche et lire le brief du chantier lié (`briefs/chantiers/Cxx-*.md`).
+2. Identify the Linear issue (`SOB-123`). Read a `briefs/chantiers/Cxx-*.md` brief only when the issue or its project links one.
 3. Lire les ADR pertinents pour la tâche.
 4. Pour chaque tâche :
    a. Comprendre — relire CDC §pertinent + ADR + research/biblio si scientifique.
@@ -316,7 +317,7 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
    c. Implémenter — petit commit par sous-étape si possible.
    d. Tester — ajouter tests + faire passer linters.
    e. Documenter — code docs + doc utilisateur si visible.
-   f. PR description : référence CDC + ADR + lien brief + `Fixes SOB-123`.
+   f. PR description: CDC section + ADR + the brief when one is linked + `Fixes SOB-123`.
 
 ---
 

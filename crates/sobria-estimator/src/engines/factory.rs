@@ -1,4 +1,4 @@
-//! Factory pour instancier le bon moteur selon [`EmpreinteMethod`].
+//! Factory that builds the right engine for an [`EmpreinteMethod`].
 
 use sobria_core::DEFAULT_SEED;
 
@@ -8,11 +8,10 @@ use crate::{
     engines::ecologits::EcoLogitsEngine,
 };
 
-/// Instancie le moteur correspondant à une méthodologie.
+/// Builds the engine matching a methodology.
 ///
-/// Le seed `DEFAULT_SEED` (42) est utilisé partout pour garantir la
-/// reproductibilité ; surchargeable au runtime via `SOBRIA_SEED` env var
-/// (cf. CLAUDE.md §6).
+/// Every engine uses the fixed seed `DEFAULT_SEED` (42) for reproducibility;
+/// nothing reads `SOBRIA_SEED` yet (SOB-84).
 #[must_use]
 pub fn engine_for(method: EmpreinteMethod) -> Box<dyn EmpreinteEngine> {
     match method {

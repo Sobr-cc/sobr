@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Sobr.cc orchestrator routine. Triage sorting, In Review limit, Friday update.
+description: Sobr.cc orchestrator routine. Triage sorting, hand-off to the agents, Friday update.
 disable-model-invocation: true
 ---
 
@@ -14,7 +14,7 @@ You never code, never merge, never close an issue, never decide for Thibault. Yo
 
 A single `list_issues` request on team SOB with minimal fields (title, status, labels, estimate, priority, `updatedAt`), then group the issues by status. If the response announces a next page, keep going to the end before counting. Read comments only on Decision issues updated since your last session, and read blocking relations only on the issues you are about to hand off.
 
-Keep: Triage; In Review (count); In Progress; ready Todo; Decision issues Thibault answered.
+Keep: Triage; In Review; In Progress; ready Todo; Decision issues Thibault answered.
 
 ## 2. Sort Triage
 
@@ -35,7 +35,7 @@ For what Thibault validated, apply `linear-issue-writing` and §11 (Ready, 8 poi
 
 ## 4. Hand off to the right role
 
-- When three issues are already In Review, the limit is reached: start no agent on a new issue, agents wait.
+- There is no limit on the number of issues In Review (Thibault, October 31): an idle agent gets the next ready Todo issue of its role.
 - A Todo `agent:claude-code` issue whose blocking issues are Done goes to the agent of its Role label (`.claude/agents/<role>.md`). Start it with the issue's Model label as `model`. Without a Model label the issue is not ready (§11): do not start it.
 - `agent:claude-design` issues go to no Claude Code agent: Claude Design has no Linear access, so Thibault or you attach the link to the issue. `human-only` issues go to nobody.
 - After two blocked attempts, noted in a comment by the agent, change the Model label up one level.

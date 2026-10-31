@@ -1,0 +1,79 @@
+{
+  "indexes": [
+    {
+      "name": "idx_datacenter_iris_link_code",
+      "sql": "CREATE INDEX idx_datacenter_iris_link_code ON datacenter_iris_link(code_iris)"
+    },
+    {
+      "name": "idx_vendor_disclosures_model",
+      "sql": "CREATE INDEX idx_vendor_disclosures_model ON vendor_disclosures(model_id)"
+    },
+    {
+      "name": "idx_vendor_disclosures_vendor",
+      "sql": "CREATE INDEX idx_vendor_disclosures_vendor ON vendor_disclosures(vendor)"
+    }
+  ],
+  "tables": {
+    "comparison_matrix": {
+      "rows": [],
+      "sql": "CREATE TABLE comparison_matrix ( model_id TEXT NOT NULL, method TEXT NOT NULL, co2_g_per_request REAL, computed_at TEXT, PRIMARY KEY (model_id, method) )"
+    },
+    "datacenter_iris_link": {
+      "rows": [],
+      "sql": "CREATE TABLE datacenter_iris_link ( datacenter_id TEXT PRIMARY KEY, code_iris TEXT NOT NULL, distance_km REAL NOT NULL, iris_centroid_lat REAL NOT NULL, iris_centroid_lon REAL NOT NULL )"
+    },
+    "lineage": {
+      "rows": [
+        ["<sha256>","comparia_conversations","comparia","conversations.parquet"],
+        ["<sha256>","comparia_reactions","comparia","reactions.parquet"],
+        ["<sha256>","comparia_votes","comparia","votes.parquet"],
+        ["<sha256>","rte_iris_consommation","rte-iris","consommation_iris.csv"]
+      ],
+      "sql": "CREATE TABLE lineage ( copper_sha256 TEXT NOT NULL, silver_entity TEXT NOT NULL, source_id TEXT NOT NULL, file_name TEXT NOT NULL, PRIMARY KEY (copper_sha256, silver_entity) )"
+    },
+    "model_overview": {
+      "rows": [
+        ["claude-3-5","claude-3-5","claude","Anthropic",0],
+        ["gpt-4o-mini","gpt-4o-mini","gpt","OpenAI",0],
+        ["mistral-large","mistral-large","mistral","Mistral AI",0]
+      ],
+      "sql": "CREATE TABLE model_overview ( id TEXT PRIMARY KEY, name TEXT NOT NULL, family TEXT NOT NULL, vendor TEXT NOT NULL, n_conversations INTEGER NOT NULL DEFAULT 0 )"
+    },
+    "model_overview_fts": {
+      "rows": [
+        ["claude-3-5","claude","Anthropic"],
+        ["gpt-4o-mini","gpt","OpenAI"],
+        ["mistral-large","mistral","Mistral AI"]
+      ],
+      "sql": "CREATE VIRTUAL TABLE model_overview_fts USING fts5(name, family, vendor)"
+    },
+    "scenario_inputs": {
+      "rows": [],
+      "sql": "CREATE TABLE scenario_inputs ( model_id TEXT NOT NULL, country_iso TEXT NOT NULL, pue REAL, if_g_per_kwh REAL, wue_l_per_kwh REAL, PRIMARY KEY (model_id, country_iso) )"
+    },
+    "silver_entities": {
+      "rows": [
+        ["comparia_conversations","comparia","v1","<data_root>/silver/comparia/comparia_conversations-v1.parquet",3],
+        ["comparia_reactions","comparia","v1","<data_root>/silver/comparia/comparia_reactions-v1.parquet",1],
+        ["comparia_votes","comparia","v1","<data_root>/silver/comparia/comparia_votes-v1.parquet",2],
+        ["rte_iris_consommation","rte-iris","v1","<data_root>/silver/rte-iris/rte_iris_consommation-v1.parquet",2]
+      ],
+      "sql": "CREATE TABLE silver_entities ( entity_name TEXT NOT NULL, source_id TEXT NOT NULL, schema_version TEXT NOT NULL, parquet_path TEXT NOT NULL, row_count INTEGER NOT NULL, PRIMARY KEY (entity_name, source_id), FOREIGN KEY (source_id) REFERENCES sources(id) )"
+    },
+    "sources": {
+      "rows": [
+        ["comparia","Compar:IA — Ministère de la Culture / Beta.gouv","https://www.data.gouv.fr/datasets/compar-ia","Etalab 2.0","trimestrielle",1],
+        ["rte-iris","RTE / NaTran / Teréga — Consommation industrielle IRIS (ODRÉ)","https://www.data.gouv.fr/datasets/consommation-annuelle-definitive-delectricite-et-de-gaz-par-iris-des-sites-industriels-raccordes-aux-reseaux-de-transport","Etalab 2.0","annuelle",1]
+      ],
+      "sql": "CREATE TABLE sources ( id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, license TEXT NOT NULL, update_frequency TEXT NOT NULL, tier INTEGER NOT NULL )"
+    },
+    "time_series_mix": {
+      "rows": [],
+      "sql": "CREATE TABLE time_series_mix ( region_iso TEXT NOT NULL, hour_utc TEXT NOT NULL, production_mw REAL NOT NULL, PRIMARY KEY (region_iso, hour_utc) )"
+    },
+    "vendor_disclosures": {
+      "rows": [],
+      "sql": "CREATE TABLE vendor_disclosures ( id TEXT PRIMARY KEY, model_id TEXT NOT NULL, vendor TEXT NOT NULL, scope TEXT NOT NULL CHECK (scope IN ('training', 'inference_per_prompt')), value REAL NOT NULL, unit TEXT NOT NULL, source_url TEXT NOT NULL, published_at TEXT NOT NULL, methodology_note TEXT )"
+    }
+  }
+}

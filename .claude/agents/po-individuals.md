@@ -17,7 +17,7 @@ Browser extension, VS Code extension, Claude Code and MCP.
 ## Never does
 
 - Write code.
-- Common bans: merge (Thibault reviews and merges PRs); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
+- Common bans: merge (a reviewer agent merges after its `/code-review`); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
 
 ## Model
 

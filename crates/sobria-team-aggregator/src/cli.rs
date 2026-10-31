@@ -1,12 +1,12 @@
-//! Définition `clap` du binaire `sobria-team-aggregator`.
+//! `clap` definition of the `sobria-team-aggregator` binary.
 //!
-//! Sous-commandes :
+//! Subcommands:
 //!
-//! - `init`              (C28.1) — prépare un data dir.
-//! - `serve [--regen-cert]` (C28.1 + C29.3) — lance le serveur HTTPS,
-//!   avec option de rotation du cert auto-signé avant bind.
-//! - `code`              (C28.2) — crée / liste / révoque des enrollment codes.
-//! - `admin {list, reset-password}` (C29.2) — gestion des comptes admin.
+//! - `init` — prepares a data dir.
+//! - `serve [--regen-cert]` — starts the HTTPS server, optionally rotating
+//!   the self-signed cert before bind.
+//! - `code` — creates / lists / revokes enrollment codes.
+//! - `admin {list, reset-password}` — manages admin accounts.
 
 use std::path::PathBuf;
 
@@ -15,6 +15,8 @@ use clap::{Parser, Subcommand};
 
 use crate::commands;
 use crate::config::{DataPaths, DEFAULT_BIND, DEFAULT_DATA_DIR, DEFAULT_PORT};
+use crate::crypto::password::MIN_PASSWORD_LEN;
+use crate::policy::{VisibilityPolicy, POLICY_KEY};
 
 /// CLI racine `sobria-team-aggregator`.
 #[derive(Debug, Parser)]
@@ -142,7 +144,7 @@ pub enum CodeAction {
     },
 }
 
-/// Entrée du binaire : parse les args et dispatche.
+/// Binary entry point: parses the args and dispatches.
 pub fn run() -> Result<()> {
     init_tracing();
 
@@ -173,7 +175,7 @@ fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
                 "{:<18} {:>10} {:>8} {:>9}  description",
                 "clé", "effectif", "défaut", "plancher"
             );
-            for spec in commands::config::RUNTIME_KEYS {
+            for spec in crate::config::RUNTIME_KEYS {
                 let value = commands::config::get(paths, spec.key)?;
                 println!(
                     "{:<18} {:>10} {:>8} {:>9}  {}",
@@ -183,9 +185,9 @@ fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
             let (pol, attest) = commands::config::get_policy(paths)?;
             println!(
                 "{:<18} {:>10} {:>8} {:>9}  Politique de visibilité (ADR-0016){}",
-                "visibility_policy",
+                POLICY_KEY,
                 pol,
-                "opt_in",
+                VisibilityPolicy::OptIn.as_str(),
                 "—",
                 attest
                     .map(|a| format!(" — attestation du {}", a.set_at))
@@ -194,7 +196,7 @@ fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
             Ok(())
         },
         ConfigAction::Get { key } => {
-            if key == commands::config::POLICY_KEY_NAME {
+            if key == POLICY_KEY {
                 let (pol, _) = commands::config::get_policy(paths)?;
                 println!("{pol}");
             } else {
@@ -203,9 +205,9 @@ fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
             Ok(())
         },
         ConfigAction::Set { key, value, attest } => {
-            if key == commands::config::POLICY_KEY_NAME {
+            if key == POLICY_KEY {
                 let pol = commands::config::set_policy(paths, &value, attest.as_deref())?;
-                println!("visibility_policy = {pol}");
+                println!("{POLICY_KEY} = {pol}");
             } else {
                 let v = commands::config::set(paths, &key, &value)?;
                 println!("{key} = {v}");
@@ -334,7 +336,7 @@ fn run_init(
         Some(p) => p,
         None => prompt_password().context("lire le password admin")?,
     };
-    if password.len() < 8 {
+    if password.len() < MIN_PASSWORD_LEN {
         anyhow::bail!("le mot de passe admin doit faire au moins 8 caractères");
     }
 

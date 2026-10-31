@@ -1,0 +1,9 @@
+# cargo audit does not read deny.toml: keep these ignores in step with its [advisories] section (SOB-261).
+[advisories]
+ignore = [
+    # zstd 0.13 and zstd-safe 7, pulled by polars 0.46 (sobria-ingest only). Decided in SOB-244;
+    # removed when polars is upgraded (SOB-245). Re-check by 2026-11-14.
+    "RUSTSEC-2026-0391", # zstd: needs with_context, which polars-parquet 0.46.0 never calls (SOB-196)
+    "RUSTSEC-2026-0398", # zstd-safe: needs the seekable feature, which is not built (SOB-196)
+    "RUSTSEC-2026-0403", # zstd-safe: hits only the write-side decoder, polars reads with the read-side one (SOB-196)
+]

@@ -1,10 +1,10 @@
-//! Flow d'intégration C28.2 : init → code create → enroll → estimate
+//! C28.2 integration flow: init → code create → enroll → estimate
 //! → me/usage → admin login → refresh (rotation).
 //!
-//! Démarre un serveur axum HTTPS réel (rustls + cert auto-signé) sur un
-//! port aléatoire, puis attaque les routes via `reqwest`. Le client accepte
-//! les certs invalides — équivalent programmatique du clic « j'accepte le
-//! risque » que feront extension + app en C28.6.
+//! Starts a real axum HTTPS server (rustls + self-signed cert) on a
+//! random port, then hits the routes with `reqwest`. The client accepts
+//! invalid certs: the programmatic equivalent of the "I accept the
+//! risk" click that the extension + app will make in C28.6.
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -21,7 +21,7 @@ struct ServerFixture {
     _tempdir: tempfile::TempDir,
     base_url: String,
     client: reqwest::Client,
-    /// Code clair généré pour les tests d'enrollment (12 chiffres).
+    /// Clear-text code generated for the enrollment tests (12 digits).
     enrollment_code: String,
     handle: tokio::task::JoinHandle<()>,
 }
@@ -50,7 +50,7 @@ impl ServerFixture {
             .build()
             .expect("client");
 
-        // Attend que le handshake TLS soit prêt.
+        // Wait until the TLS handshake is ready.
         wait_for_health(&client, &base_url).await;
 
         Self {
@@ -105,12 +105,12 @@ async fn full_user_flow_enroll_estimate_me_usage() {
     assert!(!access.is_empty());
     assert!(refresh.contains('.'));
 
-    // 1bis. Re-enroller le même fingerprint → 409 conflict
+    // 1bis. Re-use the consumed code with another fingerprint → 401
     let dup = fx
         .client
         .post(format!("{}/api/v1/enroll", fx.base_url))
         .json(&json!({
-            "code": fx.enrollment_code,  // déjà consommé
+            "code": fx.enrollment_code,  // already used
             "password": "x12345678",
             "fingerprint": "chrome-mac-other"
         }))
@@ -123,7 +123,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
         "code déjà consommé → 401 invalid_enrollment_code"
     );
 
-    // 2. POST estimation (sans auth → 401)
+    // 2. POST estimation (no auth → 401)
     let unauth = fx
         .client
         .post(format!("{}/api/v1/estimations", fx.base_url))
@@ -133,7 +133,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
         .expect("unauth send");
     assert_eq!(unauth.status(), 401);
 
-    // 3. POST estimation (avec auth user)
+    // 3. POST estimation (with user auth)
     for (gco2eq, t_in, t_out) in [(0.42, 120u32, 800u32), (0.30, 50, 400)] {
         let r = fx
             .client
@@ -163,7 +163,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
     assert_eq!(usage_json["totals"]["tokens_in"], 170);
     assert_eq!(usage_json["totals"]["tokens_out"], 1200);
 
-    // 5. /me/usage requiert role=user → un token admin doit échouer (cf. /admin login)
+    // 5. /me/usage requires role=user → an admin token must fail (see /admin login)
     let admin_login = fx
         .client
         .post(format!("{}/api/v1/login", fx.base_url))
@@ -188,7 +188,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
         .expect("me forbidden");
     assert_eq!(forbidden.status(), 403);
 
-    // 6. Refresh → rotation. L'ancien refresh ne doit PLUS marcher.
+    // 6. Refresh → rotation. The old refresh must NO LONGER work.
     let refresh_resp = fx
         .client
         .post(format!("{}/api/v1/refresh", fx.base_url))
@@ -207,7 +207,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
     );
     assert_eq!(refreshed["role"], "user");
 
-    // L'ancien refresh est révoqué → 401.
+    // The old refresh is revoked → 401.
     let replay = fx
         .client
         .post(format!("{}/api/v1/refresh", fx.base_url))
@@ -217,7 +217,7 @@ async fn full_user_flow_enroll_estimate_me_usage() {
         .expect("replay refresh");
     assert_eq!(replay.status(), 401, "ancien refresh ne doit plus passer");
 
-    // Le nouvel access fonctionne sur /me/usage.
+    // The new access token works on /me/usage.
     let ok = fx
         .client
         .get(format!("{}/api/v1/me/usage", fx.base_url))
