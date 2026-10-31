@@ -38,9 +38,11 @@
 
 ## Points to decide
 
-Ten questions for Thibault. Each recommendation rests on the matching part
-of the Decision section, which compares the options with their cost, effort
-and risk. Section 9 lists facts about the server for him to confirm.
+Ten questions for Thibault, also listed in the Decision issue SOB-175,
+where he answers them. Each recommendation rests on the matching part of the
+Decision section, which compares the options with their cost, effort and
+risk. Section 9 lists facts about the server for him to confirm. The ADR
+stays Proposed until the answers are recorded here.
 
 1. **Kubernetes distribution** (§1). Recommended: Talos Linux, configured
    from code, with no SSH. Alternative: k3s on a regular Linux that must be
