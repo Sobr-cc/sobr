@@ -19,6 +19,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
   the skip into a failure for a job that builds the bundle.
 
+### Removed — unused `duckdb` dependency (2026-10-31, SOB-168)
+
+- **`sobria-ingest`**: dropped `duckdb`, which no code called (decision
+  SOB-172; it comes back with the analytics step). The bundled `fmt` of
+  `libduckdb-sys` 1.10502.0 used `stdext::checked_array_iterator`, which the
+  MSVC 14.51 STL of the `windows-latest` CI image no longer has, so the
+  workspace no longer built on Windows. Also drops `zip` 6
+  (RUSTSEC-2026-0367, -0368, -0369) and 52 other locked packages.
+
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
 
 - **`docs/sources/CATALOGUE-SOURCES.md`** (version 2.2): the French part (sources
