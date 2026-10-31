@@ -121,10 +121,7 @@ pub async fn handle_csv(
 /// Reads the window then releases the global lock right away: generation
 /// (PDF above all) must not block estimation ingestion.
 fn rows_in_window(state: &ServerState, req: &ExportRequest) -> ApiResult<Vec<EstimationRow>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     Ok(estimations::list_for_window(
         storage.connection(),
         req.from,

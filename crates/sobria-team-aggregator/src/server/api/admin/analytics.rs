@@ -108,10 +108,7 @@ pub async fn handle(
     };
     let top_n = q.top.unwrap_or(10).clamp(1, 100);
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let conn = storage.connection();
 
     // ── Visibility policy (ADR-0016) then k guard (ADR-0015 §2). ──

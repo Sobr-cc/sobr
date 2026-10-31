@@ -61,10 +61,7 @@ pub async fn handle(
         return Err(ApiError::BadRequest("username + password requis".into()));
     }
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let now = Utc::now();
     let role = req.role.map(Role::from).unwrap_or(Role::User);
 

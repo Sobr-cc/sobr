@@ -61,10 +61,7 @@ pub async fn handle_create(
         )));
     }
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let now = Utc::now();
     let expires_at = now + Duration::days(req.ttl_days);
 
@@ -99,10 +96,7 @@ pub async fn handle_revoke(
     _admin: AuthenticatedAdmin,
     Path(id): Path<String>,
 ) -> ApiResult<Json<RevokeResponse>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let revoked = enrollment_codes::revoke(storage.connection(), &id, Utc::now())?;
     Ok(Json(RevokeResponse { revoked }))
 }

@@ -52,10 +52,7 @@ pub async fn handle(
     }
 
     let now = Utc::now();
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
 
     // 1. fingerprint already enrolled? (single-device in v0.7.0)
     if users::find_by_fingerprint(storage.connection(), &req.fingerprint)?.is_some() {

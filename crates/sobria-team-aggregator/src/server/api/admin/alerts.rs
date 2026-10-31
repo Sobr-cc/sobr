@@ -66,10 +66,7 @@ pub async fn handle_create(
         ));
     }
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let id = Ulid::new().to_string();
     let now = Utc::now();
     insert_threshold(
@@ -102,10 +99,7 @@ pub async fn handle_list(
     State(state): State<ServerState>,
     _admin: AuthenticatedAdmin,
 ) -> ApiResult<Json<ListAlertsResponse>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let thresholds = list_thresholds_admin(storage.connection())?;
     Ok(Json(ListAlertsResponse { thresholds }))
 }
@@ -120,10 +114,7 @@ pub async fn handle_delete(
     _admin: AuthenticatedAdmin,
     Path(id): Path<String>,
 ) -> ApiResult<Json<DeleteAlertResponse>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let disabled = delete_threshold(storage.connection(), &id, Utc::now())?;
     Ok(Json(DeleteAlertResponse { disabled }))
 }
@@ -153,10 +144,7 @@ pub async fn handle_triggers(
     Query(q): Query<TriggersQuery>,
 ) -> ApiResult<Json<TriggersResponse>> {
     let limit = q.limit.clamp(1, 500);
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let triggers = list_triggers_admin(storage.connection(), q.from, q.to, limit)?;
     Ok(Json(TriggersResponse { triggers }))
 }

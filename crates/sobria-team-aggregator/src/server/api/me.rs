@@ -5,7 +5,7 @@ use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::server::auth::middleware::AuthenticatedUser;
-use crate::server::error::{ApiError, ApiResult};
+use crate::server::error::ApiResult;
 use crate::server::ServerState;
 use crate::storage::estimations::{self, UsageTotals};
 use crate::storage::users;
@@ -20,10 +20,7 @@ pub async fn handle(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<MyUsage>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let totals = estimations::totals_for_user(storage.connection(), &user.claims.sub)?;
     Ok(Json(MyUsage {
         user_id: user.claims.sub.clone(),
@@ -49,10 +46,7 @@ pub async fn sharing_get(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<SharingState>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let share_identified = users::share_identified(storage.connection(), &user.claims.sub)?;
     let pol = crate::policy::load(&storage);
     Ok(Json(SharingState {
@@ -67,10 +61,7 @@ pub async fn sharing_put(
     user: AuthenticatedUser,
     Json(body): Json<SharingState>,
 ) -> ApiResult<Json<SharingState>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     users::set_share_identified(
         storage.connection(),
         &user.claims.sub,

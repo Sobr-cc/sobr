@@ -35,10 +35,7 @@ pub async fn handle(
     Json(req): Json<RefreshRequest>,
 ) -> ApiResult<Json<RefreshResponse>> {
     let now = Utc::now();
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
 
     let row = tokens::verify_refresh_token(storage.connection(), &req.refresh_token, now)?
         .ok_or(ApiError::InvalidToken)?;

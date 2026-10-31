@@ -84,10 +84,7 @@ pub async fn handle(
     }
 
     let now = Utc::now();
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
 
     // Keep the full payload for audit + reproducibility.
     let raw = serde_json::to_string(&serde_json::json!({

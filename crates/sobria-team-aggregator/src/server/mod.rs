@@ -8,13 +8,14 @@ pub mod error;
 pub mod routes;
 pub mod tls;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::http::{header, Method};
 use axum::Router;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
+use crate::server::error::{ApiError, ApiResult};
 use crate::storage::Storage;
 
 /// State shared by the handlers. `Storage` sits behind a `Mutex` because
@@ -32,6 +33,13 @@ impl ServerState {
             storage: Arc::new(Mutex::new(storage)),
             jwt_signing_key: Arc::new(jwt_signing_key),
         }
+    }
+
+    /// Locks the storage; a poisoned lock is an internal error.
+    pub fn lock_storage(&self) -> ApiResult<MutexGuard<'_, Storage>> {
+        self.storage
+            .lock()
+            .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))
     }
 }
 

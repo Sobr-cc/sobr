@@ -60,10 +60,7 @@ pub async fn handle(
     let from = parse_date_or(q.from.as_deref(), now - Duration::days(30))?;
     let to = parse_date_or(q.to.as_deref(), now)?;
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let conn = storage.connection();
 
     let pol = policy::load(&storage);
