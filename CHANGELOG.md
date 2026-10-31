@@ -12,12 +12,36 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
   crates, and dependencies build without debug info. Backtraces still show
   file and line for workspace crates; dependency frames show names only.
-  A debugger no longer sees local variables: set
-  `CARGO_PROFILE_DEV_DEBUG=true` (`CARGO_PROFILE_TEST_DEBUG=true` for tests)
-  for a full-debug session. A clean
+  A debugger no longer sees local variables. `CARGO_PROFILE_DEV_DEBUG=true`
+  (`CARGO_PROFILE_TEST_DEBUG=true` for tests) restores full debug info for
+  workspace crates; dependencies also need
+  `--config 'profile.dev.package."*".debug=true'`. A clean
   `cargo test --workspace --no-run` on Windows drops from 27.8 GB to 8.1 GB
-  of `target/` (873 s to 631 s); a clean
-  `cargo test -p sobria-estimator --no-run` from 374 MB to 263 MB.
+  of `target/`, and a clean `cargo test -p sobria-estimator --no-run` from
+  374 MB to 263 MB.
+
+### Added — Characterization tests of the team server (2026-10-30, SOB-10)
+
+- **`sobria-team-aggregator`**: `tests/characterization_*.rs` pin the status code,
+  content type and body of every API endpoint, refusals included (enroll, login,
+  refresh, access guards, estimations, `/me/*`, enrollment codes, exports, alert
+  thresholds and triggers), and the privacy rules on aggregates: k-anonymity
+  (default of 5, floor of 3, unreadable value, `k - 1` / `k` boundary, identified
+  mode) checked as hidden below the threshold, and the three visibility policies
+  on analytics, users and user detail. Responses are recorded from a real HTTPS
+  server, random values are masked after a shape check, and the recordings are
+  compared with `tests/golden/*.json` (see the README there). The CSRD export is
+  checked for its header and size only. No production code changed, no
+  dependency added.
+
+### Changed — One golden update run rewrites every file (2026-10-31, SOB-137)
+
+- **`sobria-estimator`** (characterization tests): with `SOBRIA_UPDATE_GOLDEN=1`,
+  a test that checks several golden files now rewrites all the changed ones in
+  one run, then fails once, listing them (new `Goldens` collector in
+  `tests/characterization/golden.rs`). Before, it stopped at the first
+  rewritten file. `assert_golden` is unchanged for single-file tests. Test
+  code only: the estimator and the golden values are untouched.
 
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
