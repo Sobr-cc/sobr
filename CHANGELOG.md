@@ -15,6 +15,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   translated to English (translate when touched, SOB-100); the ADR titles in the
   index are left as they are.
 
+### Changed — ADR-0014 phasing and feature table aligned with October 30 (2026-10-31, SOB-103)
+
+- **ADR-0014, Amendment 3** (Accepted): the phasing follows the calendar of
+  October 30, the data.gouv.fr application is off (SOB-104), the cloud is
+  announced with the V1 launch, and the README changes then. The card for the
+  organizations' trial is kept (SOB-105). Numbered after Amendment 2
+  (SOB-154).
+
 ### Changed — Free personal space (2026-10-31, SOB-154)
 
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
