@@ -520,7 +520,7 @@ later VS Code) uses one upload contract, defined once in the model crate.
 The app and the server use the crate directly. Other clients keep
 hand-written types (ADR-0019, ADR-0021 §2), and a test checks their payloads
 against example payloads that the crate exports. The example payloads and
-the test cases of §3 are published with each release, as ADR-0019 §4 does
+the test cases of §3 are published with each release, as ADR-0019 §3 does
 for its shared cases, so a client in another repo, such as the extension,
 can run them. The contract holds only:
 
@@ -634,6 +634,11 @@ others see: dashboards, exports, alerts and the API.
   that group that day, and is never shown on its own: it only adds to a
   group that passes the all-groups check with it;
 - the device keeps the person's own copy.
+
+These retention and departure rules are for organization spaces. A synced
+personal space is the person's own data, under Sobr as controller: the
+server deletes it with the account at the latest, and issue 15 sets what it
+keeps until then.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -785,7 +790,8 @@ The orchestrator creates these issues once this ADR is accepted. Each is
 split by result. "Waits for" names the Deep cleanup of every existing area
 an issue touches, under the Foundations rule that nothing new is built in an
 area before its cleanup. The screens that use the model (T1 to T3, V1 to V4,
-P1, P2, A7) wait for Design V7 and are not listed.
+P1, P2, A7, and the extension popup that picks a pending session's space)
+wait for Design V7 and are not listed.
 
 | # | Issue | Area | Estimate | Waits for |
 |--|--|--|--|--|
@@ -797,7 +803,7 @@ P1, P2, A7) wait for Design V7 and are not listed.
 | 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables, under the day rule and the all-groups k rule at project and task level (§10, SOB-148), and leave today's `team.sqlite` read-only with an export (§11) | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115; ADR-0016 amended by SOB-153 |
 | 7 | Serve projects, tasks, project links and daily totals with the visibility and k rules, and accept session uploads under the contract | Server | 5 | #6; **SOB-25** |
 | 8 | Upload organization sessions from the desktop app and queue attachment changes offline | Desktop backend | 5 | #2, #7; **SOB-26**; related to SOB-110 and SOB-132 |
-| 9 | Make the extension apply the space rule, let its popup pick the space of a pending session, send each estimate to one place under the contract, retire `both` mode, and keep its old labels and totals read-only (§11) | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
+| 9 | Make the extension apply the space rule, with its own pending store and the call that sets a pending session's space (the popup itself waits for Design V7), send each estimate to one place under the contract, retire `both` mode, and keep its old labels and totals read-only (§11) | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
 | 10 | Link projects and tasks to Linear and GitHub, and classify sessions on the device from project links | Integrations, server, desktop backend | 5 | #7; the Z2 connections of the Linear and GitHub integrations project; **SOB-25**, **SOB-26** |
 | 11 | Read projects from the app in the browser extension, instead of free-text labels | Browser extension, bridge, desktop backend | 3 | #3, #9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 12 | Let a person withdraw a session from an organization to their personal space | Desktop backend, server | 2 | #8; **SOB-25**, **SOB-26** |
