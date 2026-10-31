@@ -68,10 +68,7 @@ fn audit_entry_from_row(audit_id: i64, row: &EstimationRow) -> AuditEntry {
 }
 
 fn estimation_result_from_row(row: &EstimationRow) -> EstimationResult {
-    let method = match row.method.as_str() {
-        "ecologits" => EmpreinteMethod::EcoLogits,
-        _ => EmpreinteMethod::AfnorSobria,
-    };
+    let method = EmpreinteMethod::from_str(&row.method).unwrap_or(EmpreinteMethod::AfnorSobria);
 
     let p50 = row.gco2eq_p50.max(0.0);
     let (p5, p95) = match (row.gco2eq_p5, row.gco2eq_p95) {

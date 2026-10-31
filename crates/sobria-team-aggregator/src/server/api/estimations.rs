@@ -20,6 +20,7 @@
 use axum::{extract::State, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sobria_core::EmpreinteMethod;
 use ulid::Ulid;
 
 use crate::alerts::{self, store::mark_trigger_notified};
@@ -72,10 +73,7 @@ pub async fn handle(
 ) -> ApiResult<Json<EstimateAck>> {
     // Garde-fous métiers : pas de méthode arbitraire, pas de tokens négatifs
     // (le type u32 protège déjà), pas de gCO₂eq aberrant.
-    if !matches!(
-        payload.estimate.method.as_str(),
-        "afnor_sobria" | "ecologits"
-    ) {
+    if EmpreinteMethod::from_str(&payload.estimate.method).is_none() {
         return Err(ApiError::BadRequest(format!(
             "methode inconnue: {}",
             payload.estimate.method

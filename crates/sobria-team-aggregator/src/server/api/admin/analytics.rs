@@ -23,6 +23,7 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::parse_date_or;
+use crate::commands::config::K_ANONYMITY_MIN;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -32,9 +33,9 @@ use crate::storage::analytics::{
 };
 
 /// Seuil k par défaut si `config.k_anonymity_min` est absent/illisible.
-const K_DEFAULT: u32 = 5;
+const K_DEFAULT: u32 = K_ANONYMITY_MIN.default as u32;
 /// Plancher dur : aucune configuration ne peut descendre sous ce k.
-const K_FLOOR: u32 = 3;
+const K_FLOOR: u32 = K_ANONYMITY_MIN.floor as u32;
 
 #[derive(Debug, Deserialize)]
 pub struct AnalyticsQuery {
@@ -116,7 +117,7 @@ pub async fn handle(
     // ── Politique de visibilité (ADR-0016) puis garde k (ADR-0015 §2). ──
     let pol = policy::load(&storage);
     let k_required = storage
-        .get_config("k_anonymity_min")
+        .get_config(K_ANONYMITY_MIN.key)
         .ok()
         .flatten()
         .and_then(|v| v.parse::<u32>().ok())

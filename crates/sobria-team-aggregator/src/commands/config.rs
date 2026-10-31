@@ -66,21 +66,24 @@ pub struct RuntimeKey {
     pub description: &'static str,
 }
 
+/// k-anonymity threshold of the team analytics (ADR-0015 §2).
+pub const K_ANONYMITY_MIN: RuntimeKey = RuntimeKey {
+    key: "k_anonymity_min",
+    default: 5,
+    floor: 3,
+    description: "Seuil k-anonymat des analytics équipe (utilisateurs actifs minimum)",
+};
+
+/// Retention of the estimations, in days.
+pub const RETENTION_DAYS: RuntimeKey = RuntimeKey {
+    key: "retention_days",
+    default: 730,
+    floor: 30,
+    description: "Rétention des estimations en jours (purge quotidienne au-delà)",
+};
+
 /// Allow-list des clés opérateur (ADR-0015).
-pub const RUNTIME_KEYS: &[RuntimeKey] = &[
-    RuntimeKey {
-        key: "k_anonymity_min",
-        default: 5,
-        floor: 3,
-        description: "Seuil k-anonymat des analytics équipe (utilisateurs actifs minimum)",
-    },
-    RuntimeKey {
-        key: "retention_days",
-        default: 730,
-        floor: 30,
-        description: "Rétention des estimations en jours (purge quotidienne au-delà)",
-    },
-];
+pub const RUNTIME_KEYS: &[RuntimeKey] = &[K_ANONYMITY_MIN, RETENTION_DAYS];
 
 fn find_key(key: &str) -> Result<&'static RuntimeKey> {
     RUNTIME_KEYS.iter().find(|k| k.key == key).map_or_else(

@@ -102,21 +102,17 @@ fn spawn_retention_task(state: crate::server::ServerState) {
 
 /// Lit `retention_days` (défaut/plancher via l'allow-list CLI) et purge.
 fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i64, u64)> {
-    use crate::commands::config::RUNTIME_KEYS;
+    use crate::commands::config::RETENTION_DAYS;
 
-    let spec = RUNTIME_KEYS
-        .iter()
-        .find(|k| k.key == "retention_days")
-        .expect("retention_days présent dans RUNTIME_KEYS");
     let storage = state
         .storage
         .lock()
         .map_err(|_| anyhow::anyhow!("storage mutex poisoned"))?;
     let days = storage
-        .get_config("retention_days")?
+        .get_config(RETENTION_DAYS.key)?
         .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(spec.default)
-        .max(spec.floor);
+        .unwrap_or(RETENTION_DAYS.default)
+        .max(RETENTION_DAYS.floor);
     let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
     let purged = crate::storage::estimations::purge_older_than(storage.connection(), cutoff)?;
     Ok((days, purged))
