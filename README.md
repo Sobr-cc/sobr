@@ -1,7 +1,7 @@
 # Sobr.ia
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-lime.svg)](LICENSE)
-[![DOI](https://img.shields.io/badge/DOI-pending--v0.8.0-lightgrey.svg)](https://github.com/BkOff-fr/defis-lia-generatif/releases)
+[![DOI](https://img.shields.io/badge/DOI-pending--v0.8.0-lightgrey.svg)](https://github.com/Sobr-cc/sobr/releases)
 [![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](CHANGELOG.md)
 
 > **Sobr.ia mesure l'empreinte de vos prompts IA en local, agrège les
@@ -311,7 +311,7 @@ logiciel via le DOI Zenodo de la version utilisée :
   author  = {Thibault BRASSAERT and Sobr.ia contributors},
   year    = {2026},
   version = {0.8.0},
-  url     = {https://github.com/BkOff-fr/defis-lia-generatif},
+  url     = {https://github.com/Sobr-cc/sobr},
   doi     = {10.5281/zenodo.PENDING-FIRST-RELEASE},
   license = {MIT}
 }
