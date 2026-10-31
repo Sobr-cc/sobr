@@ -16,6 +16,42 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **ADR-0013 and ADR-0014**: the SOB-87 sentences read in one tense and say
   that the ADR README now carries the rule (SOB-127).
 
+### Changed — ADR-0016 breakdown by project (2026-10-31, SOB-153)
+
+- **ADR-0016, Amendment 1** (Accepted): in the `anonymous` and `opt_in`
+  policies, the breakdown by project appears only when every group shown,
+  "other projects" and "no project" included, has at least k contributors
+  (SOB-148), the rule ADR-0022 sets at task level. The code work waits for
+  the Deep cleanup of the team server (SOB-25).
+
+### Added — ADR-0024, Kubernetes platform on Proxmox (2026-10-31, SOB-72)
+
+- **ADR-0024** (Proposed; Thibault chose every recommendation in SOB-175,
+  and it becomes Accepted once he confirms the server facts in SOB-181):
+  Sobr runs on Kubernetes in Proxmox VMs, with Talos Linux nodes managed
+  from code.
+  - Cilium gives the network, network policies, addresses and the Gateway
+    API entry, and cert-manager gets the certificates. Knative Serving runs
+    functions that scale to zero.
+  - The managed cloud runs one Sobr server for all spaces, as ADR-0022
+    sets. A small EU virtual server in front forwards encrypted traffic and
+    holds no secret.
+  - Customer data is protected in four layers:
+    - a continuous encrypted copy of every database in a three-zone EU
+      object store, from which the server restores itself;
+    - etcd snapshots off the machine;
+    - Proxmox VM rollback;
+    - monthly restore tests and a full rebuild test.
+
+    An erasure log is replayed after any restore.
+  - Disk keys come from a key server on a small machine Thibault controls
+    elsewhere. CI runners are throwaway VMs on a firewalled network.
+  - The managed cloud opens, trial included, only once these protections,
+    erasure, export and the GDPR documents exist. A second failure domain
+    is needed before the public launch.
+  - It records Thibault's ten choices, lists the server facts still to
+    confirm, and lists seventeen issues to create.
+
 ### Changed — One golden-file comparator for the estimator and team server tests (2026-10-31, SOB-150)
 
 - **Tests** (`sobria-estimator`, `sobria-team-aggregator`): the two copies of
