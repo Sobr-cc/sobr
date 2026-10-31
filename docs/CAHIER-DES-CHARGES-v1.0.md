@@ -411,6 +411,8 @@ Pour chaque estimation, l'outil produit (avec intervalles d'incertitude propagé
 
 ### 7.1 Vue d'ensemble
 
+> **Note (2026-10-31, SOB-135):** this diagram is the frozen v1.0 baseline. The workspace has moved on since (for example, `sobria-import` was removed, and `sobria-bridge` and `sobria-team-aggregator` were added): the current members are in the root [`Cargo.toml`](../Cargo.toml) and in [`docs/adr/`](adr/).
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  Tauri 2.x — wrapper natif (desktop/mobile/web)            │

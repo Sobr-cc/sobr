@@ -1,5 +1,5 @@
-# CI Sobr.ia — voir CLAUDE.md §5 (Definition of Done).
-# Tout doit passer en vert avant merge sur main / develop.
+# CI Sobr.ia — see CLAUDE.md §5 (Definition of Done).
+# Everything must be green before a merge to main / develop.
 
 name: CI
 
@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/tauri-linux-deps
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -44,31 +45,35 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/tauri-linux-deps
+        if: runner.os == 'Linux'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # Même commande que CLAUDE.md §10 et que la vérification locale.
-      # --all-features est un no-op ici (aucune crate ne déclare de
-      # features) — on teste exactement ce qui est vérifié.
+      # Same command as CLAUDE.md §10 and the local check. No crate declares
+      # features, so --all-features would add nothing.
       - name: cargo test
         run: cargo test --workspace --no-fail-fast
 
   rust-coverage:
-    name: Rust — couverture (informatif)
+    name: Rust — coverage (informational)
     runs-on: ubuntu-latest
-    # Informatif, pas bloquant : ce job n'a JAMAIS produit un rapport en 41
-    # runs (audit 2026-06-12) — le gate --fail-under 80 gardait la CI rouge
-    # sans jamais mesurer. On mesure d'abord, on regate quand le chiffre
-    # réel est connu (cf. CLAUDE.md §5).
+    # Informational, not blocking: this job never produced a report in 41 runs
+    # (audit 2026-06-12) and its --fail-under 80 gate kept CI red without
+    # measuring. Measure first, gate once the real figure is known (CLAUDE.md §5).
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/tauri-linux-deps
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: install tarpaulin
         run: cargo install cargo-tarpaulin --locked
+      # The default ptrace engine adds -Clink-dead-code, which compiles the
+      # never-called trait methods of polars-arrow and fires their
+      # `const { assert!(false) }`. The LLVM engine does not (SOB-208).
       - name: cargo tarpaulin
-        run: cargo tarpaulin --workspace --out Xml --output-dir coverage
-      - name: publier le rapport
+        run: cargo tarpaulin --workspace --engine llvm --out Xml --output-dir coverage
+      - name: upload the report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -89,7 +94,7 @@ jobs:
       - run: cargo deny check
 
   web-lint-build:
-    name: SvelteKit — lint + build
+    name: web — lint + check + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -106,8 +111,26 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  web-team-lint-build:
+    name: web-team — lint + check + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-team
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web-team/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run check
+      - run: npm run build
+
   ext-lint-build:
-    name: Extension MV3 — lint + tests + build
+    name: Extension MV3 — lint + check + tests + build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -121,13 +144,38 @@ jobs:
           cache-dependency-path: extension/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run check
       - run: npm run test
       - run: npm run build
 
-  a11y:
-    name: Frontend — accessibilité (axe-core)
+  site-lint-build:
+    name: Site (Astro) — check + lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      # Copy the docs into src/content first, as site-deploy does.
+      - run: npm run sync:docs
+      - run: npm run check
+      - run: npm run lint
+      - run: npm run build
+
+  web-playwright:
+    name: web — Playwright
     runs-on: ubuntu-latest
     needs: web-lint-build
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [a11y, smoke]
     defaults:
       run:
         working-directory: web
@@ -140,29 +188,30 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:a11y
+      - run: npm run test:${{ matrix.suite }}
 
   size-budget:
-    name: Frugalité — taille des binaires
+    name: Frugality — binary sizes
     runs-on: ubuntu-latest
     needs: [rust-test, web-lint-build]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/tauri-linux-deps
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: build release
         run: cargo build --release --workspace
-      - name: vérifier tailles (NF-03, NF-04)
+      - name: check sizes (NF-03, NF-04)
         run: |
           set -e
-          # Cible NF-03 : binaire desktop < 20 Mo
+          # NF-03 target: desktop binary < 20 MB
           for bin in target/release/sobria-*; do
             if [ -f "$bin" ] && [ -x "$bin" ]; then
               size=$(stat --printf="%s" "$bin")
               echo "$bin : $size bytes"
               if [ "$size" -gt 20971520 ]; then
-                echo "❌ $bin dépasse 20 Mo (NF-03)" && exit 1
+                echo "❌ $bin exceeds 20 MB (NF-03)" && exit 1
               fi
             fi
           done
-          echo "✅ Toutes les tailles respectent le budget."
+          echo "✅ All sizes are within budget."

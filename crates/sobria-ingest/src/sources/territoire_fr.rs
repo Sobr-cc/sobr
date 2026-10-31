@@ -240,10 +240,21 @@ pub struct DatasetMatch {
 /// Endpoint : `/datasets` (Opendatasoft v2.1 catalog).
 /// Utilise la syntaxe ODSQL `where=search("...")` (v2.1).
 pub async fn discover_datasets(keyword: &str, limit: u32) -> Result<Vec<DatasetMatch>> {
+    discover_datasets_at(ODRE_API_BASE, keyword, limit).await
+}
+
+/// Same as [`discover_datasets`], against another Opendatasoft v2.1 catalog
+/// base URL, such as a stub server in tests. `explore_url` still points at ODRÉ.
+pub async fn discover_datasets_at(
+    base_url: &str,
+    keyword: &str,
+    limit: u32,
+) -> Result<Vec<DatasetMatch>> {
+    let base_url = base_url.trim_end_matches('/');
     let where_clause = format!("search(\"{}\")", keyword.replace('"', "\\\""));
     let url = format!(
         "{base}?limit={limit}&where={kw}",
-        base = ODRE_API_BASE,
+        base = base_url,
         limit = limit.min(50),
         kw = urlencoding(&where_clause),
     );
@@ -322,8 +333,18 @@ pub async fn discover_datasets(keyword: &str, limit: u32) -> Result<Vec<DatasetM
 /// obtenir au moins `target_limit` records valides. Sort côté client par
 /// consommation décroissante après collecte (pas de `order_by` qui dépend
 /// d'un nom de champ exact ODRÉ).
-#[allow(clippy::too_many_lines)]
 pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArtifact> {
+    fetch_industrial_sites_at(ODRE_API_BASE, target_limit).await
+}
+
+/// Same as [`fetch_industrial_sites`], against another Opendatasoft v2.1
+/// catalog base URL, such as a stub server in tests.
+#[allow(clippy::too_many_lines)]
+pub async fn fetch_industrial_sites_at(
+    base_url: &str,
+    target_limit: u32,
+) -> Result<TerritoireFrArtifact> {
+    let base_url = base_url.trim_end_matches('/');
     let client = reqwest::Client::builder()
         .timeout(HTTP_TIMEOUT)
         .user_agent("sobria-ingest/0.1 (+https://sobr.ia)")
@@ -341,8 +362,7 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
     let mut offset: u32 = 0;
     while offset < over_sample {
         let limit = ODRE_PAGE_SIZE.min(over_sample - offset);
-        let url =
-            format!("{ODRE_API_BASE}/{ODRE_IRIS_DATASET}/records?limit={limit}&offset={offset}");
+        let url = format!("{base_url}/{ODRE_IRIS_DATASET}/records?limit={limit}&offset={offset}");
         info!(%url, "fetching ODRÉ IRIS page");
         if first_url.is_none() {
             first_url = Some(url.clone());
@@ -419,7 +439,7 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
 
     let sha = hex_encode(&combined_sha.finalize());
     let url_for_meta =
-        first_url.unwrap_or_else(|| format!("{ODRE_API_BASE}/{ODRE_IRIS_DATASET}/records"));
+        first_url.unwrap_or_else(|| format!("{base_url}/{ODRE_IRIS_DATASET}/records"));
     let meta = ArtifactMeta {
         version: "1.0.0".into(),
         fetched_at: Utc::now().to_rfc3339(),
@@ -446,8 +466,15 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
 }
 
 /// Télécharge eco2mix année complète et agrège en TWh.
-#[allow(clippy::too_many_lines)]
 pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
+    fetch_rte_mix_at(ODRE_API_BASE, year).await
+}
+
+/// Same as [`fetch_rte_mix`], against another Opendatasoft v2.1 catalog base
+/// URL, such as a stub server in tests.
+#[allow(clippy::too_many_lines)]
+pub async fn fetch_rte_mix_at(base_url: &str, year: u32) -> Result<RteMixArtifact> {
+    let base_url = base_url.trim_end_matches('/');
     let where_clause = format!(
         "date_heure>=date'{y}-01-01' AND date_heure<date'{y_plus}-01-01'",
         y = year,
@@ -457,7 +484,7 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
         "nucleaire,hydraulique,eolien,solaire,gaz,charbon,fioul,bioenergies,pompage,ech_physiques";
     let url = format!(
         "{base}/{slug}/exports/json?lang=fr&timezone=UTC&where={where_enc}&select={select_enc}",
-        base = ODRE_API_BASE,
+        base = base_url,
         slug = ODRE_RTE_DATASET,
         where_enc = urlencoding(&where_clause),
         select_enc = urlencoding(select_cols),
