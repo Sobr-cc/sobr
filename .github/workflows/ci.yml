@@ -8,6 +8,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+    # ready_for_review reruns CI when a draft is marked ready: the desktop build skips drafts.
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -215,3 +217,9 @@ jobs:
             fi
           done
           echo "✅ All sizes are within budget."
+
+  app-build:
+    name: Desktop app — unsigned build
+    needs: [rust-fmt-clippy, web-lint-build]
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' && !github.event.pull_request.draft
+    uses: ./.github/workflows/app-build.yml

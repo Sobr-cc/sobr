@@ -1,12 +1,12 @@
-//! Exports du `sobria-team-aggregator` (C28.5).
+//! Exports of `sobria-team-aggregator`.
 //!
-//! Trois formats à destination de l'admin :
+//! Three formats for the admin:
 //!
-//! - [`csrd`]  : PDF AFNOR SPEC 2314 + sidecar PROV-O via `sobria-export`
-//!   (les estimations team sont converties en `AuditEntry` shims).
-//! - [`prov_o`]: variant team-specific du PROV-O (per-user `prov:Agent`,
+//! - [`csrd`]: AFNOR SPEC 2314 PDF + PROV-O sidecar through `sobria-export`
+//!   (team estimations are converted into `AuditEntry` shims).
+//! - [`prov_o`]: team-specific PROV-O variant (per-user `prov:Agent`,
 //!   per-estimation `prov:Activity`).
-//! - [`csv`]   : dump RFC 4180 plat de la fenêtre demandée.
+//! - [`csv`]: flat RFC 4180 dump of the requested window.
 
 pub mod csrd;
 pub mod csv;
@@ -15,16 +15,16 @@ pub mod prov_o;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Paramètres communs des 3 exports.
+/// Parameters shared by the 3 exports.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportRequest {
     pub from: DateTime<Utc>,
     pub to: DateTime<Utc>,
-    /// Nom d'organisation à mettre dans l'en-tête PDF + PROV-O.
+    /// Organization name for the PDF + PROV-O header.
     #[serde(default)]
     pub entity_name: Option<String>,
-    /// Anonymise les fingerprints/display_names dans PROV-O + CSV
-    /// (le PDF agrégé ne dévoile pas d'identité par défaut).
+    /// Anonymizes fingerprints/display_names in PROV-O + CSV
+    /// (the aggregated PDF reveals no identity by default).
     #[serde(default)]
     pub anonymize: bool,
 }

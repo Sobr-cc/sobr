@@ -1,24 +1,25 @@
-//! Politique de visibilité du déploiement (ADR-0016, C44).
+//! Visibility policy of the deployment (ADR-0016, C44).
 //!
-//! Trois régimes, choisis par l'ORGANISATION (pas par l'admin au fil de
-//! l'eau — la valeur vit en `config` et le mode `identified` exige une
-//! attestation tracée) :
+//! Three regimes, chosen by the ORGANIZATION (not by the admin on the fly:
+//! the value lives in `config` and `identified` mode requires a recorded
+//! attestation):
 //!
-//! - `anonymous`  : agrégats k-anonymes uniquement, aucune identification
-//!   individuelle côté admin (les opt-in sont ignorés à l'affichage).
-//! - `opt_in`     : défaut — comportement ADR-0015 (k-anonymat + partage
-//!   identifié contrôlé par chaque salarié).
-//! - `identified` : vues nominatives intégrales ; l'activation exige une
-//!   attestation CSE/salariés informés (stockée en base, affichée).
+//! - `anonymous`: k-anonymous aggregates only, no individual identification
+//!   on the admin side (opt-ins are ignored in the display).
+//! - `opt_in`: the default, ADR-0015 behavior (k-anonymity + identified
+//!   sharing controlled by each employee).
+//! - `identified`: full views by name; turning it on requires an attestation
+//!   that the works council (CSE) and employees were informed (stored in the
+//!   database, displayed).
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AggregatorError, AggregatorResult};
 use crate::storage::Storage;
 
-/// Clé config de la politique.
+/// Config key of the policy.
 pub const POLICY_KEY: &str = "visibility_policy";
-/// Clé config de l'attestation (JSON `{text, set_at, via}`).
+/// Config key of the attestation (JSON `{text, set_at, via}`).
 pub const ATTESTATION_KEY: &str = "visibility_attestation";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,7 +52,7 @@ impl VisibilityPolicy {
     }
 }
 
-/// Lit la politique effective (défaut `opt_in` si absente/illisible).
+/// Reads the effective policy (`opt_in` if missing or unreadable).
 pub fn load(storage: &Storage) -> VisibilityPolicy {
     storage
         .get_config(POLICY_KEY)
@@ -61,13 +62,13 @@ pub fn load(storage: &Storage) -> VisibilityPolicy {
         .unwrap_or(VisibilityPolicy::OptIn)
 }
 
-/// Attestation stockée avec le mode `identified`.
+/// Attestation stored with the `identified` mode.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Attestation {
     pub text: String,
     /// RFC 3339.
     pub set_at: String,
-    /// Origine (`cli`, `api`).
+    /// Origin (`cli`, `api`).
     pub via: String,
 }
 

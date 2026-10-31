@@ -1,24 +1,22 @@
-//! POST /api/v1/admin/codes — crée N enrollment codes.
-//! DELETE /api/v1/admin/codes/:id — révoque un code par id.
+//! POST /api/v1/admin/codes — creates N enrollment codes.
+//! DELETE /api/v1/admin/codes/:id — revokes a code by id.
 //!
-//! Les codes ne sont affichés en clair QUE dans la réponse de POST.
-//! Argon2id PHC en base, plus rien de réversible ensuite.
+//! Codes are shown in clear ONLY in the POST response.
+//! Argon2id PHC in the database, nothing reversible afterwards.
 
 use axum::{
     extract::{Path, State},
     Json,
 };
 use chrono::{Duration, Utc};
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
 use crate::storage::enrollment_codes;
 
-/// Limites raisonnables pour éviter abus.
+/// Reasonable limits to prevent abuse.
 const MAX_CODES_PER_BATCH: u32 = 500;
 const MAX_TTL_DAYS: i64 = 365;
 
@@ -61,32 +59,25 @@ pub async fn handle_create(
         )));
     }
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let now = Utc::now();
     let expires_at = now + Duration::days(req.ttl_days);
 
-    let mut out = Vec::with_capacity(req.count as usize);
-    for _ in 0..req.count {
-        let id = Ulid::new().to_string();
-        let code = random_12_digit_code();
-        enrollment_codes::insert(
-            storage.connection(),
-            &id,
-            &code,
-            &admin.claims.sub,
-            now,
-            expires_at,
-        )?;
-        out.push(CreatedCode {
-            id,
-            code,
-            expires_at: expires_at.to_rfc3339(),
-        });
-    }
-    Ok(Json(CreateCodesResponse { codes: out }))
+    let codes = enrollment_codes::create_batch(
+        storage.connection(),
+        req.count,
+        &admin.claims.sub,
+        now,
+        expires_at,
+    )?
+    .into_iter()
+    .map(|c| CreatedCode {
+        id: c.id,
+        code: c.code,
+        expires_at: c.expires_at.to_rfc3339(),
+    })
+    .collect();
+    Ok(Json(CreateCodesResponse { codes }))
 }
 
 #[derive(Debug, Serialize)]
@@ -99,24 +90,7 @@ pub async fn handle_revoke(
     _admin: AuthenticatedAdmin,
     Path(id): Path<String>,
 ) -> ApiResult<Json<RevokeResponse>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let revoked = enrollment_codes::revoke(storage.connection(), &id, Utc::now())?;
     Ok(Json(RevokeResponse { revoked }))
-}
-
-/// Cf. `commands::code::random_12_digit_code` — version dupliquée pour
-/// pas exporter trop large. Les deux deviennent un helper partagé si on
-/// les fait évoluer.
-fn random_12_digit_code() -> String {
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    let mut acc: u128 = 0;
-    for b in &bytes {
-        acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
-    }
-    let n: u64 = (acc % 1_000_000_000_000u128) as u64;
-    format!("{n:012}")
 }

@@ -1,24 +1,28 @@
-//! Helpers SQL pour la table `enrollment_codes`.
+//! SQL helpers for the `enrollment_codes` table.
 //!
-//! Pattern d'usage :
+//! Usage pattern:
 //!
-//! 1. Un admin appelle [`create_batch`] avec N codes 12 chiffres + un TTL.
-//!    Chaque code est hashé Argon2id (cf. `crypto::password`) et inséré.
-//!    L'admin reçoit en clair UNE seule fois la liste (pour distribution).
-//! 2. À l'enroll, [`verify_active_code`] itère tous les codes encore valides
-//!    et vérifie le PHC. Coût O(N×argon2). Acceptable pour N≤quelques milliers
-//!    (les /enroll restent rares dans une vie d'équipe).
-//! 3. [`mark_used`] verrouille le code (single-use) en posant `used_at` +
+//! 1. An admin calls [`create_batch`](crate::commands::code::create_batch) with N
+//!    12-digit codes + a TTL. Each code is hashed with Argon2id (see
+//!    `crypto::password`) and inserted. The admin gets the plain list ONCE
+//!    (for distribution).
+//! 2. On enroll, [`verify_active_code`] walks every still-valid code and
+//!    checks the PHC. Cost O(N×argon2). Fine for N ≤ a few thousand
+//!    (/enroll calls stay rare over a team's life).
+//! 3. [`mark_used`] locks the code (single-use) by setting `used_at` +
 //!    `used_by_user_id`.
-//! 4. [`revoke`] permet à l'admin d'annuler un code non utilisé.
+//! 4. [`revoke`] lets the admin cancel an unused code.
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
+use ulid::Ulid;
 
 use crate::crypto::password::{self, verify_password};
+use crate::crypto::secret::enrollment_code;
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
-/// Vue d'un code en base (le clear text n'est jamais accessible).
+/// A stored code (the clear text is never available).
 #[derive(Debug, Clone)]
 pub struct EnrollmentCodeRow {
     pub id: String,
@@ -31,16 +35,7 @@ pub struct EnrollmentCodeRow {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-impl EnrollmentCodeRow {
-    /// `true` si le code est utilisable pour enroll (non utilisé, non révoqué,
-    /// non expiré).
-    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
-        self.used_at.is_none() && self.revoked_at.is_none() && self.expires_at > now
-    }
-}
-
-/// Code en clair + métadonnées renvoyés par [`create_batch`] (à présenter
-/// à l'admin UNE seule fois).
+/// Plain code + metadata returned by [`create_batch`] (show it to the admin ONCE).
 #[derive(Debug, Clone)]
 pub struct CreatedCode {
     pub id: String,
@@ -48,7 +43,7 @@ pub struct CreatedCode {
     pub expires_at: DateTime<Utc>,
 }
 
-/// Insère un seul code (`code` en clair, hashé Argon2id avant insertion).
+/// Inserts one code (`code` in clear, Argon2id-hashed before insertion).
 pub fn insert(
     conn: &Connection,
     id: &str,
@@ -73,11 +68,33 @@ pub fn insert(
     Ok(())
 }
 
-/// Itère tous les codes actifs et retourne celui qui matche `candidate`.
+/// Generates and inserts `count` codes in order, stopping at the first failure.
+pub fn create_batch(
+    conn: &Connection,
+    count: u32,
+    created_by: &str,
+    now: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+) -> AggregatorResult<Vec<CreatedCode>> {
+    let mut out = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        let id = Ulid::new().to_string();
+        let code = enrollment_code();
+        insert(conn, &id, &code, created_by, now, expires_at)?;
+        out.push(CreatedCode {
+            id,
+            code,
+            expires_at,
+        });
+    }
+    Ok(out)
+}
+
+/// Walks every active code and returns the one matching `candidate`.
 ///
-/// O(N) en nombre de codes actifs (l'iter Argon2 est lent : ~50 ms/verify).
-/// La verif retourne le row complet ; à l'appelant de poser `mark_used` avant
-/// d'émettre des tokens.
+/// O(N) in active codes (Argon2 is slow: ~50 ms/verify).
+/// Returns the full row; the caller must call `mark_used` before
+/// issuing tokens.
 pub fn verify_active_code(
     conn: &Connection,
     candidate: &str,
@@ -101,8 +118,8 @@ pub fn verify_active_code(
     Ok(None)
 }
 
-/// Marque un code comme consommé (single-use). Renvoie `false` si le code
-/// est introuvable, déjà utilisé, ou révoqué (transaction safe).
+/// Marks a code as consumed (single-use). Returns `false` if the code is
+/// missing, already used, or revoked (transaction safe).
 pub fn mark_used(
     conn: &Connection,
     code_id: &str,
@@ -120,7 +137,7 @@ pub fn mark_used(
     Ok(n == 1)
 }
 
-/// Révoque un code (admin → empêche enroll futur).
+/// Revokes a code (admin → blocks future enrollment).
 pub fn revoke(conn: &Connection, code_id: &str, now: DateTime<Utc>) -> AggregatorResult<bool> {
     let n = conn.execute(
         "UPDATE enrollment_codes
@@ -131,7 +148,7 @@ pub fn revoke(conn: &Connection, code_id: &str, now: DateTime<Utc>) -> Aggregato
     Ok(n == 1)
 }
 
-/// Liste tous les codes (admin view).
+/// Lists every code (admin view).
 pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<EnrollmentCodeRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, code_hash, created_by, created_at, expires_at,
@@ -143,20 +160,6 @@ pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<EnrollmentCodeRow>> {
         .query_map([], map_row)?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
-}
-
-/// Cherche un code par id (utilisé par CLI `code revoke`).
-pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<EnrollmentCodeRow>> {
-    let row = conn
-        .query_row(
-            "SELECT id, code_hash, created_by, created_at, expires_at,
-                    used_at, used_by_user_id, revoked_at
-             FROM enrollment_codes WHERE id = ?1",
-            params![id],
-            map_row,
-        )
-        .optional()?;
-    Ok(row)
 }
 
 fn map_row(row: &rusqlite::Row) -> rusqlite::Result<EnrollmentCodeRow> {
@@ -174,14 +177,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<EnrollmentCodeRow> {
         used_by_user_id: row.get(6)?,
         revoked_at: revoked_at_s.map(|s| parse_ts(&s, 7)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]
@@ -204,13 +199,13 @@ mod tests {
 
         insert(s.connection(), "c-1", "384729104857", &admin_id, now, exp).unwrap();
 
-        // Le code correct est retrouvé.
+        // The right code is found.
         let row = verify_active_code(s.connection(), "384729104857", now)
             .unwrap()
             .expect("code trouvé");
         assert_eq!(row.id, "c-1");
 
-        // Un mauvais code → None.
+        // A wrong code → None.
         let none = verify_active_code(s.connection(), "000000000000", now).unwrap();
         assert!(none.is_none());
     }
@@ -250,8 +245,8 @@ mod tests {
         )
         .unwrap();
 
-        // Crée un user factice (FK sur users non testée ici car FK off ne s'applique
-        // pas à des id arbitraires si l'on désactive ; on garde le contrat dur).
+        // Creates a dummy user (the users FK is not tested here: turning FKs off
+        // would not cover arbitrary ids; we keep the strict contract).
         crate::storage::users::insert(
             s.connection(),
             "u-1",
@@ -266,11 +261,11 @@ mod tests {
         let ok = mark_used(s.connection(), "c-1", "u-1", now).unwrap();
         assert!(ok);
 
-        // Code re-vérifié → plus actif.
+        // Code checked again → no longer active.
         let none = verify_active_code(s.connection(), "222222222222", now).unwrap();
         assert!(none.is_none());
 
-        // Re-mark_used du même code → false (single-use).
+        // mark_used again on the same code → false (single-use).
         let again = mark_used(s.connection(), "c-1", "u-1", now).unwrap();
         assert!(!again);
     }
@@ -293,7 +288,7 @@ mod tests {
         assert!(revoke(s.connection(), "c-1", now).unwrap());
         let none = verify_active_code(s.connection(), "333333333333", now).unwrap();
         assert!(none.is_none());
-        // Re-revoke → false.
+        // Revoke again → false.
         assert!(!revoke(s.connection(), "c-1", now).unwrap());
     }
 }

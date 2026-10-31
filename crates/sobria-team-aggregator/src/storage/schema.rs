@@ -1,28 +1,31 @@
-//! Schéma SQLite v1 du `sobria-team-aggregator`.
+//! SQLite schema of the `sobria-team-aggregator`.
 //!
-//! Voir `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2 pour le détail.
-//! La migration est idempotente (`CREATE TABLE IF NOT EXISTS`) et pilotée par
-//! la `PRAGMA user_version` SQLite. C28.1 installe la **totalité** des tables
-//! v1 ; les sous-chantiers suivants n'auront qu'à les peupler.
+//! Migrations are driven by `PRAGMA user_version`: [`install`] runs each step
+//! above the current version once. The `ALTER TABLE` steps are not idempotent
+//! on their own.
+//! See `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2.
 
 use rusqlite::Connection;
 
 use crate::error::AggregatorResult;
 
-/// Version de schéma cible.
+/// Target schema version.
 ///
-/// - v1 (C28.1) : tables auth + estimations.
-/// - v2 (C29.4) : alertes seuils (`alert_thresholds`, `alert_triggers`).
+/// - v1: auth tables and estimations.
+/// - v2: alert thresholds (`alert_thresholds`, `alert_triggers`).
+/// - v3: privacy (`users.share_identified`, `config.k_anonymity_min`).
+/// - v4: projects and visibility policy (`estimations.project`,
+///   `config.visibility_policy`).
 pub const SCHEMA_VERSION: u32 = 4;
 
-/// DDL complet v1.
+/// Full v1 DDL.
 ///
-/// - `config` : KV store interne (JWT signing key, schema_installed_at…).
-/// - `admins` : comptes administrateurs (login + Argon2id PHC).
-/// - `enrollment_codes` : jetons single-use 12 chiffres distribués aux employés.
-/// - `users` : employés enrollés (1 enrollment_code → 1 user).
-/// - `tokens` : refresh tokens hashés Argon2id (admin OU user, jamais les deux).
-/// - `estimations` : événements remontés du client REST.
+/// - `config`: internal KV store (JWT signing key, schema_installed_at…).
+/// - `admins`: administrator accounts (login + Argon2id PHC).
+/// - `enrollment_codes`: single-use 12-digit codes handed out to employees.
+/// - `users`: enrolled employees (1 enrollment_code → 1 user).
+/// - `tokens`: Argon2id-hashed refresh tokens (admin OR user, never both).
+/// - `estimations`: events sent by the REST client.
 pub const DDL_V1: &str = r"
 CREATE TABLE IF NOT EXISTS config (
     key   TEXT PRIMARY KEY,
@@ -96,12 +99,12 @@ CREATE INDEX IF NOT EXISTS idx_estimations_ts      ON estimations(ts);
 CREATE INDEX IF NOT EXISTS idx_estimations_model   ON estimations(model_id);
 ";
 
-/// DDL incrémental v1 → v2 (C29.4 — alertes seuils).
+/// Incremental v1 → v2 DDL (C29.4, threshold alerts).
 ///
-/// - `alert_thresholds` : règle "si la conso de gco2eq d'un (user OU team)
-///   sur une période (daily/weekly/monthly) dépasse `gco2eq_max`, notifier".
-/// - `alert_triggers`   : journal des déclenchements (1 trigger par
-///   (threshold_id, period_start) garanti par l'index UNIQUE).
+/// - `alert_thresholds`: rule "if the gco2eq usage of a (user OR team)
+///   over a period (daily/weekly/monthly) exceeds `gco2eq_max`, notify".
+/// - `alert_triggers`: trigger log (1 trigger per
+///   (threshold_id, period_start), enforced by the UNIQUE index).
 pub const DDL_V2_ALERTS: &str = r"
 CREATE TABLE IF NOT EXISTS alert_thresholds (
     id                    TEXT PRIMARY KEY,
@@ -141,39 +144,36 @@ CREATE INDEX IF NOT EXISTS idx_alert_triggers_ts
     ON alert_triggers(triggered_at);
 ";
 
-/// DDL incrémental v2 → v3 (C38 — ADR-0015 privacy Mode Équipe).
+/// Incremental v2 → v3 DDL (C38, ADR-0015 team mode privacy).
 ///
-/// - `users.share_identified` : consentement OPT-IN du salarié à apparaître
-///   nommément dans les vues admin (classements, totaux). Défaut 0 : seuls
-///   les agrégats k-anonymes sont visibles côté admin.
-/// - `config.k_anonymity_min` : seuil k (nombre minimal d'utilisateurs
-///   actifs dans la fenêtre) en dessous duquel les analytics équipe sont
-///   bloqués. Plancher dur appliqué côté code : `max(3, valeur)`.
+/// - `users.share_identified`: the employee's OPT-IN consent to appear by
+///   name in admin views (rankings, totals). Default 0: the admin only sees
+///   k-anonymous aggregates.
+/// - `config.k_anonymity_min`: threshold k (minimum number of active users
+///   in the window) below which team analytics are blocked. Hard floor
+///   enforced in code: `max(3, value)`.
 pub const DDL_V3_PRIVACY: &str = r"
 ALTER TABLE users ADD COLUMN share_identified INTEGER NOT NULL DEFAULT 0;
 INSERT OR IGNORE INTO config (key, value) VALUES ('k_anonymity_min', '5');
 ";
 
-/// DDL incrémental v3 → v4 (C44 — ADR-0016 politique + dimension projet).
+/// Incremental v3 → v4 DDL (C44, ADR-0016 policy + project dimension).
 ///
-/// - `estimations.project` : étiquette projet optionnelle (taguée par
-///   conversation côté extension). NULL = hors projet.
-/// - `config.visibility_policy` : `anonymous` | `opt_in` (défaut) |
-///   `identified` (exige une attestation, cf. ADR-0016).
+/// - `estimations.project`: optional project label (tagged per
+///   conversation by the extension). NULL = no project.
+/// - `config.visibility_policy`: `anonymous` | `opt_in` (default) |
+///   `identified` (requires an attestation, see ADR-0016).
 pub const DDL_V4_PROJECTS: &str = r"
 ALTER TABLE estimations ADD COLUMN project TEXT;
 CREATE INDEX IF NOT EXISTS idx_estimations_project ON estimations(project);
 INSERT OR IGNORE INTO config (key, value) VALUES ('visibility_policy', 'opt_in');
 ";
 
-/// Applique le schéma cible sur la connexion et pose `PRAGMA user_version`.
+/// Applies the target schema and sets `PRAGMA user_version`.
 ///
-/// Migrations idempotentes et progressives :
-///
-/// - `current == 0` (DB neuve) → applique `DDL_V1`, `DDL_V2_ALERTS`, `DDL_V3_PRIVACY`.
-/// - `current == 1` (DB C28) → applique `DDL_V2_ALERTS` puis `DDL_V3_PRIVACY`.
-/// - `current == 2` (DB C29) → applique uniquement `DDL_V3_PRIVACY` (C38).
-/// - `current >= SCHEMA_VERSION` → no-op (compat ascendante).
+/// Runs, in order, each step above the current `user_version`: `DDL_V1`,
+/// `DDL_V2_ALERTS`, `DDL_V3_PRIVACY`, `DDL_V4_PROJECTS`. At or above
+/// [`SCHEMA_VERSION`] it does nothing.
 pub fn install(conn: &Connection) -> AggregatorResult<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
 
@@ -217,7 +217,7 @@ mod tests {
     fn migration_v3_adds_share_identified_with_default_zero() {
         let conn = Connection::open_in_memory().unwrap();
         install(&conn).unwrap();
-        // La colonne existe, défaut 0, et le k par défaut est posé.
+        // The column exists with default 0, and the default k is set.
         conn.execute(
             "INSERT INTO users (id, fingerprint, password_hash, created_at)
              VALUES ('u-1', 'fp', 'h', '2026-06-12T00:00:00Z')",
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn migrate_from_v1_to_v2_adds_alert_tables() {
         let conn = Connection::open_in_memory().unwrap();
-        // Simule une base C28 (v1) puis applique la migration v2.
+        // Simulates a C28 (v1) database, then applies the v2 migration.
         conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")
             .unwrap();
         conn.execute_batch(DDL_V1).unwrap();
@@ -327,7 +327,7 @@ mod tests {
             [],
         )
         .unwrap();
-        // scope=user sans target_id → REJECT
+        // scope=user without target_id → REJECT
         let err = conn.execute(
             "INSERT INTO alert_thresholds (id, scope, target_id, period, gco2eq_max,
                 notify_kind, notify_target, created_by_admin_id, created_at)
@@ -336,7 +336,7 @@ mod tests {
             [],
         );
         assert!(err.is_err(), "scope=user sans target_id doit être rejeté");
-        // scope=team avec target_id → REJECT
+        // scope=team with target_id → REJECT
         let err = conn.execute(
             "INSERT INTO alert_thresholds (id, scope, target_id, period, gco2eq_max,
                 notify_kind, notify_target, created_by_admin_id, created_at)
@@ -382,7 +382,7 @@ mod tests {
             [],
         )
         .unwrap();
-        // Même threshold + même period_start → UNIQUE violé
+        // Same threshold + same period_start → UNIQUE violated
         let err = conn.execute(
             "INSERT INTO alert_triggers (id, threshold_id, period_start, period_end,
                 observed_gco2eq, triggered_at)
@@ -397,7 +397,7 @@ mod tests {
     fn tokens_check_enforces_xor_admin_user() {
         let conn = Connection::open_in_memory().unwrap();
         install(&conn).unwrap();
-        // user_id et admin_id tous deux NULL → CHECK violé
+        // user_id and admin_id both NULL → CHECK violated
         let err = conn.execute(
             "INSERT INTO tokens (id, user_id, admin_id, refresh_token_hash, issued_at, expires_at)
              VALUES ('t1', NULL, NULL, 'h', '2026-01-01T00:00:00Z', '2026-01-08T00:00:00Z')",
@@ -405,7 +405,7 @@ mod tests {
         );
         assert!(err.is_err(), "le CHECK XOR doit rejeter NULL/NULL");
 
-        // Les deux renseignés → CHECK violé aussi
+        // Both set → CHECK violated too
         let err = conn.execute(
             "INSERT INTO tokens (id, user_id, admin_id, refresh_token_hash, issued_at, expires_at)
              VALUES ('t2', 'u', 'a', 'h', '2026-01-01T00:00:00Z', '2026-01-08T00:00:00Z')",
