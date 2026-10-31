@@ -14,8 +14,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   undocumented, unstable format), the plugin (status line and hooks),
   OpenTelemetry for organizations, double counting and where the import is
   built (ADR-0019 decision 4), with an official source for each fact and a
-  list of what is stored per session. The open questions are SOB-161, 162,
-  163, 164 and 166. No code changed.
+  list of what is stored per session. Thibault's answers to SOB-162 (read the
+  transcripts, with guard rails) and SOB-164 (one consent step enables the
+  status line) are recorded; the open follow-ups are SOB-161, 163 and 166.
+  No code changed.
 
 ### Changed — Free personal space (2026-10-31, SOB-154)
 

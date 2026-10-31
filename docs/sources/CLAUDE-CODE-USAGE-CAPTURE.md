@@ -14,7 +14,7 @@ Sobr can measure Claude Code three ways. None of them needs to keep prompt text,
 | Plugin: status line and hooks | live model, a cost estimate (a running total), the **last call's** token counts (not totals), session ID, and the path of the transcript | no | only in a few hook events, which we do not subscribe to | Status line for the live display and the cost; a `SessionEnd` hook hands the transcript to the local reader for the totals; no prompt-bearing hook |
 | OpenTelemetry | metrics (model, token totals, cost, session ID) and events | no | **no prompt text** unless `OTEL_LOG_USER_PROMPTS` is set; but it does send the user's email and account IDs, which the receiver must drop | Optional, for organizations; metrics only, through a collector run by the organization |
 
-**Token totals per interactive session come only from the transcript (unofficial) or from OpenTelemetry (official, opt-in).** The status line gives a cost total but no token total. If Thibault refuses to read transcripts (open question 2), a solo user gets token totals only if OpenTelemetry is pointed at the local app (no official statement either way on that use).
+**Token totals per interactive session come only from the transcript (unofficial) or from OpenTelemetry (official, opt-in).** The status line gives a cost total but no token total. Thibault decided on October 31 (SOB-162, option 1) that Sobr reads the transcripts, with the guard rails of section 1, so a solo user gets token totals from them.
 
 What we store per session is below. **No prompt text, response text, tool input or output, file path or command line is stored, on the device or on the server.**
 
@@ -37,7 +37,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 
 - the hook fields `prompt`, `last_assistant_message`, `delta`, `tool_input`, `tool_response`;
 - the status line `session_name` (it can be a title generated from the first prompt), and the Agent SDK `firstPrompt` and `summary`;
-- the OpenTelemetry `user.email`, `user.account_uuid`, `prompt.id` and file path attributes;
+- every OpenTelemetry attribute outside the allow-list, such as `user.email`, `user.account_uuid`, `user.account_id`, `organization.id`, `user.id`, `prompt.id` and the file path attributes;
 - everything in a transcript line other than the few keys in the allow-list.
 
 ## 1. Local logs
@@ -62,7 +62,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 2. *Official script interfaces only* (`claude -p --output-format json`, the Agent SDK result message, hooks and status line). Stable and documented, but they only see runs that we start or sessions that are running with the plugin. No history.
 3. *Allow-list reader (recommended for history).* Option 1 with guard rails: read only the few keys needed (model, token counts, a time, the session ID); never copy a message body into a structure that lives past the line; detect the Claude Code version; **fail closed** (an unknown shape yields "no data", never a guess); pin the shapes with golden files made from real samples; count a message once if it appears twice (the SDK warns that assistant messages sharing an ID must be deduplicated in its stream: [cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked; whether transcripts repeat messages: no official source).
 
-**Recommendation**: option 3 for the history import and for the session totals read at the end of a session (the `SessionEnd` hook gives the transcript path, section 2), labelled as a best-effort unofficial source (`claude-code-log`), plus option 2 where a run is ours. The risk that the format changes is accepted only if Thibault agrees (open question 2).
+**Recommendation**: option 3 for the history import and for the session totals read at the end of a session (the `SessionEnd` hook gives the transcript path, section 2), labelled as a best-effort unofficial source (`claude-code-log`), plus option 2 where a run is ours. Thibault accepted the risk that the format changes on October 31 (SOB-162, option 1), on these guard rails: an allow-list of keys, never keep message text, check the Claude Code version, fail closed on an unknown shape, golden files.
 
 ## 2. Plugin: hooks and status line
 
@@ -74,7 +74,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 - `cost.total_cost_usd` is "computed client-side at list price" and "May differ from your actual bill"; it resets to $0 when `/clear` starts a new session, and a session after `/clear` is a new session ([Manage sessions](https://code.claude.com/docs/en/sessions)), so the reset does not split one session in two. `current_usage` is `null` before the first call and after `/compact`.
 - It runs locally and "does not consume API tokens". It runs at session start, after each assistant message, after `/compact` and on a few other events, debounced at 300 ms.
 - Turn it off: `/statusline delete`, or delete the `statusLine` field.
-- **A plugin cannot ship a status line**: the plugin manifest `settings` key: "Only `agent` and `subagentStatusLine` take effect; other keys are dropped at load" ([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read on the raw page). The user must add the `statusLine` setting.
+- **A plugin cannot ship a status line**: the plugin manifest `settings` key: "Only `agent` and `subagentStatusLine` take effect; other keys are dropped at load" ([Plugins reference](https://code.claude.com/docs/en/plugins-reference), read on the raw page). The setting is added by the one-time consent step decided in SOB-164 (see "Decided").
 
 **Hooks** ([Hooks reference](https://code.claude.com/docs/en/hooks))
 
@@ -96,7 +96,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 2. *Hooks only.* `SessionStart` gives the model, but no usage: they only help to find the transcript (`transcript_path`), which brings back the problems of section 1.
 3. *Both.* Status line for the live display and the cost; `SessionStart` and `SessionEnd` hooks (command, async) to tell the app that a session began or ended. `SessionEnd` gives `transcript_path`, so the app reads that one transcript with the allow-list reader of section 1 to get the totals.
 
-**Recommendation**: option 3 with **no hook that carries text**: subscribe only to `SessionStart`, `SessionEnd` and the model-switch events. The live display and the cost come from the status line; the token totals come from the transcript at the end of the session (or from OpenTelemetry). If Thibault refuses to read transcripts (open question 2), this path gives a cost total and no token totals. The live display can always be turned off by the user (`/statusline delete`, or disabling the plugin).
+**Recommendation**: option 3 with **no hook that carries text**: subscribe only to `SessionStart`, `SessionEnd` and the model-switch events. The live display and the cost come from the status line; the token totals come from the transcript at the end of the session (or from OpenTelemetry). The status line is enabled by the consent step Thibault chose (SOB-164, October 31, option 1): a plugin command, run once and explained on screen, writes the `statusLine` setting. The live display can always be turned off by the user (`/statusline delete`, or disabling the plugin).
 
 ## 3. OpenTelemetry (optional, for organizations)
 
@@ -112,7 +112,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 
 - Metrics include `claude_code.token.usage` (tokens; `type` is input, output, cacheRead or cacheCreation) and `claude_code.cost.usage` (USD), both with `model`; also `claude_code.session.count` and `claude_code.active_time.total`.
 - Events include `claude_code.api_request` (`model`, `cost_usd`, `duration_ms`, input, output and cache token counts) and `claude_code.user_prompt` (`prompt_length`, not the text).
-- Attributes on every signal include `session.id`, `organization.id`, `user.id` (a random anonymous ID), `user.account_uuid`, `user.email`. `OTEL_METRICS_INCLUDE_SESSION_ID` and `OTEL_METRICS_INCLUDE_ACCOUNT_UUID` default to true. No client setting removes `user.email` or `organization.id`: only the receiver can drop them.
+- Attributes on every signal include `session.id`, `organization.id`, `user.id` (a random anonymous ID), `user.account_uuid`, `user.account_id`, `user.email` (and `ccr.session.id` on cloud sessions). `OTEL_METRICS_INCLUDE_SESSION_ID` and `OTEL_METRICS_INCLUDE_ACCOUNT_UUID` default to true. No client setting removes `user.email` or `organization.id`: only the receiver can drop them.
 
 **Privacy of the content**
 
@@ -121,7 +121,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 
 **Privacy limits of this path**
 
-- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `organization.id` and `user.account_uuid`, to whatever endpoint is configured. They reach the collector before any filter runs, so the collector must run in the organization's own infrastructure, never on a third party's.
+- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `organization.id`, `user.account_uuid` and `user.account_id`, to whatever endpoint is configured. They reach the collector before any filter runs, so the collector must run in the organization's own infrastructure, never on a third party's.
 - The allow-list is therefore a hard requirement, enforced twice: by the collector, and by the Sobr server contract, which refuses any field outside the ADR-0022 upload contract. A collector that forwards more than the allow-list breaks that contract.
 - ADR-0022's rule that no clock time leaves a device binds the Sobr clients. It does not constrain what Claude Code sends to a collector; the collector is what brings the data back inside the rule.
 
@@ -142,7 +142,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 
 The rules belong to the session duplicates ADR (**SOB-146, not written yet**, in Backlog; ADR-0022 blocks it and leaves it open). This note gives it the facts:
 
-- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). A test on a real session must check it before any rule relies on it (open question 3).
+- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). A test on a real session must check it before any rule relies on it (SOB-163).
 - Inside one source: assistant messages that share an ID must be counted once (SDK cost tracking). Subagents write their own transcripts; the SDK `usage` field leaves subagents out while `total_cost_usd` includes them ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked). The importer must not add a subagent transcript and its parent's totals.
 - Across sources: one measurement per session and source (ADR-0022), then SOB-146 picks which source wins. Suggested input for it: prefer OpenTelemetry (official, token totals and cost), then the transcript (unofficial, token totals), then the status line, which gives the cost total and the last call only and so cannot stand alone for tokens. The status line stays the live display.
 - The cost figures are client-side estimates at list price, not billing ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), [status line](https://code.claude.com/docs/en/statusline)); they must not be matched to a bill.
@@ -152,18 +152,23 @@ The rules belong to the session duplicates ADR (**SOB-146, not written yet**, in
 ADR-0019 decision 4 (option 4a) puts the **log import in a crate of `sobr`**: it runs in the app and writes to its session store. The plugin goes to the `claude-code` repo, and the MCP server goes to `claude-code` if it is a separate process talking to the HTTP API, or to `sobr` if it is a module of the server. This note confirms it:
 
 - **Log import**: a crate of `sobr` (named with the `sobr-` prefix of ADR-0020), on the device only. It reads the allow-listed keys and writes sessions that follow the ADR-0022 contract. The removed `sobria-import` skeleton (SOB-67) gives nothing to reuse.
-- **Status line script and hooks**: in the `claude-code` plugin. The script prints nothing useful to the user by itself; it hands the numbers to the local app. How it reaches the app (native messaging bridge of ADR-0013, a local socket, a file) is part of the plugin design, after open question 4.
+- **Status line script and hooks**: in the `claude-code` plugin. The script prints nothing useful to the user by itself; it hands the numbers to the local app. How it reaches the app (native messaging bridge of ADR-0013, a local socket, a file) is part of the plugin design.
 - **OpenTelemetry**: a collector configuration plus a small receiver module in the organization server in `sobr`, not in the app.
 
 ## Open questions
 
-Each one is an issue in Triage.
+Each one is a Linear issue.
 
 1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID) from real sample files, and pin them with golden tests.
-2. **Decision, SOB-162**: accept reading an unofficial, unstable transcript format to import history, with the guard rails above? Without it, there is no history.
-3. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
-4. **Decision, SOB-164**: how the live status line is enabled, given that a plugin cannot ship it (a one-time consent step that edits the user settings, or a documented manual step). How the script reaches the app is part of the plugin design.
-5. **Research, SOB-166**: build a collector configuration for the metrics-only path and check, with a real Claude Code run, the paths, the headers, the temporality and what happens when the receiver is down.
+2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
+3. **Research, SOB-166**: build a collector configuration for the metrics-only path and check, with a real Claude Code run, the paths, the headers, the temporality and what happens when the receiver is down.
+
+## Decided
+
+Thibault answered both Decision issues of this note on October 31 (option 1 each), recorded in their comments.
+
+- **SOB-162**: Sobr reads the local transcripts, with guard rails: an allow-list of keys, never keep message text, check the Claude Code version, fail closed on an unknown shape, golden files. SOB-161 (the transcript keys) goes ahead after this note is merged, and the import crate in `sobr` follows from it.
+- **SOB-164**: one consent step. A plugin command, run once and explained on screen, writes the `statusLine` setting in the user's settings. It is reversible (`/statusline delete`) and shown in the Sobr settings. The plugin design uses this; how the script reaches the app is part of that design.
 
 ## How this was checked
 
