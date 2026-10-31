@@ -1,18 +1,18 @@
-//! Erreurs IPC publiques.
+//! Public IPC errors.
 //!
-//! Toutes les commandes Tauri retournent `Result<T, IpcError>`. Côté
-//! frontend, on récupère `T` ou une promesse rejetée avec un objet
-//! `{ code, message, details? }`.
+//! Every Tauri command returns `Result<T, IpcError>`. On the
+//! frontend, this gives either `T` or a promise rejected with a
+//! `{ code, message, details? }` object.
 
 use serde::Serialize;
 use thiserror::Error;
 
-/// Alias `Result` pour les commandes IPC.
+/// `Result` alias for IPC commands.
 pub type IpcResult<T> = Result<T, IpcError>;
 
-/// Erreur structurée envoyée vers le frontend via Tauri IPC.
+/// Structured error sent to the frontend over Tauri IPC.
 ///
-/// Sérialisée en JSON :
+/// Serialized as JSON:
 /// ```json
 /// { "code": "unknown_model",
 ///   "message": "model_id 'foo' inconnu",
@@ -21,11 +21,11 @@ pub type IpcResult<T> = Result<T, IpcError>;
 #[derive(Debug, Error, Serialize)]
 #[error("{code}: {message}")]
 pub struct IpcError {
-    /// Code stable (machine-readable).
+    /// Stable code (machine-readable).
     pub code: &'static str,
-    /// Message humain (déjà localisable côté front).
+    /// Human-readable message (ready to localize on the front end).
     pub message: String,
-    /// Détails optionnels (chemin, ID fautif, etc.).
+    /// Optional details (path, faulty ID, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
 }
@@ -47,8 +47,8 @@ impl IpcError {
     }
 }
 
-/// Erreurs internes au crate `sobria-app`. Converties en `IpcError`
-/// à la frontière de chaque commande.
+/// Internal errors of the `sobria-app` crate. Converted to `IpcError`
+/// at the boundary of each command.
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("modèle inconnu : {0}")]
@@ -90,9 +90,9 @@ impl From<anyhow::Error> for AppError {
 
 impl From<AppError> for IpcError {
     fn from(e: AppError) -> Self {
-        let (code, message) = match &e {
+        let (code, message) = match e {
             AppError::UnknownModel(id) => ("unknown_model", format!("model_id '{id}' inconnu")),
-            AppError::InvalidRequest(m) => ("invalid_request", m.clone()),
+            AppError::InvalidRequest(m) => ("invalid_request", m),
             AppError::Estimator(_) => ("estimator_error", e.to_string()),
             AppError::Audit(_) => ("audit_error", e.to_string()),
             AppError::Core(_) => ("core_error", e.to_string()),

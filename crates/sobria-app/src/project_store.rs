@@ -1,31 +1,33 @@
-//! Stockage des projets (M17 / C20).
+//! Project storage (M17 / C20).
 //!
-//! Un projet est une entité persistante nommée qui regroupe une période
-//! d'estimations dans le ledger d'audit, pour produire un **datasheet
-//! Gebru 2018** reproductible.
+//! A project is a named, persisted entity that groups a period of
+//! estimates in the audit ledger, to produce a reproducible **Gebru 2018
+//! datasheet**.
 //!
-//! Table `projects` dans `referentiel.sqlite` (à côté de `app_preferences`
-//! et `personal_goals`).
+//! `projects` table in `referentiel.sqlite` (next to `app_preferences`
+//! and `personal_goals`).
 
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
-/// Longueur max du `name`.
+/// Max length of `name`.
 pub const PROJECT_NAME_MAX: usize = 200;
-/// Longueur max de la `description`.
+/// Max length of `description`.
 pub const PROJECT_DESCRIPTION_MAX: usize = 5000;
-/// Nombre max de tags par projet.
+/// Max number of tags per project.
 pub const PROJECT_TAGS_MAX: usize = 10;
-/// Longueur max d'un tag.
+/// Max length of a tag.
 pub const PROJECT_TAG_MAX: usize = 50;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+const SELECT_PROJECTS: &str = "SELECT id, name, description, period_start, period_end, tags, \
+                               created_at, updated_at FROM projects";
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Project {
     pub id: i64,
     pub name: String,
@@ -37,7 +39,7 @@ pub struct Project {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NewProject {
     pub name: String,
     pub description: String,
@@ -58,12 +60,11 @@ pub struct ProjectStore {
 }
 
 impl ProjectStore {
-    /// Ouvre (ou crée) la table `projects` dans la base donnée.
+    /// Opens the given database and creates the `projects` table if needed.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS projects (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 name            TEXT NOT NULL,
@@ -83,24 +84,21 @@ impl ProjectStore {
     }
 
     pub fn list_all(&self) -> Result<Vec<Project>, AppError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, period_start, period_end, tags, created_at, updated_at \
-             FROM projects ORDER BY id DESC",
-        )?;
-        let rows = stmt.query_map([], row_to_project)?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
+        let mut stmt = self
+            .conn
+            .prepare_cached(&format!("{SELECT_PROJECTS} ORDER BY id DESC"))?;
+        let projects = stmt
+            .query_map([], row_to_project)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(projects)
     }
 
     pub fn get(&self, id: i64) -> Result<Option<Project>, AppError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, period_start, period_end, tags, created_at, updated_at \
-             FROM projects WHERE id = ?1",
-        )?;
-        let p = stmt.query_row(params![id], row_to_project).optional()?;
+        let p = self
+            .conn
+            .prepare_cached(&format!("{SELECT_PROJECTS} WHERE id = ?1"))?
+            .query_row(params![id], row_to_project)
+            .optional()?;
         Ok(p)
     }
 
@@ -138,8 +136,8 @@ impl ProjectStore {
         })
     }
 
-    /// Met à jour un projet existant. Les dates ne sont **pas** modifiables
-    /// (voir brief §1.1). Au moins un champ doit être fourni.
+    /// Updates an existing project. The dates can **not** be changed
+    /// (see brief §1.1). At least one field must be provided.
     pub fn update(&mut self, id: i64, update: ProjectUpdate) -> Result<Project, AppError> {
         if update.name.is_none() && update.description.is_none() && update.tags.is_none() {
             return Err(AppError::InvalidRequest(
@@ -178,7 +176,7 @@ impl ProjectStore {
         Ok(current)
     }
 
-    /// Supprime un projet. Idempotent — pas d'erreur si déjà absent.
+    /// Deletes a project. Idempotent — no error if already missing.
     pub fn delete(&mut self, id: i64) -> Result<(), AppError> {
         self.conn
             .execute("DELETE FROM projects WHERE id = ?1", params![id])?;
@@ -260,29 +258,17 @@ fn row_to_project(row: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     let tags_str: String = row.get(5)?;
     let created_at_str: String = row.get(6)?;
     let updated_at_str: String = row.get(7)?;
-    let parse_dt = |s: String, col: usize| -> rusqlite::Result<DateTime<Utc>> {
-        DateTime::parse_from_rfc3339(&s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    col,
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })
-    };
-    let tags: Vec<String> = serde_json::from_str(&tags_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
-    })?;
+    let tags: Vec<String> =
+        serde_json::from_str(&tags_str).map_err(|e| db::conversion_failure(5, e))?;
     Ok(Project {
         id,
         name,
         description,
-        period_start: parse_dt(period_start_str, 3)?,
-        period_end: parse_dt(period_end_str, 4)?,
+        period_start: db::parse_rfc3339_col(&period_start_str, 3)?,
+        period_end: db::parse_rfc3339_col(&period_end_str, 4)?,
         tags,
-        created_at: parse_dt(created_at_str, 6)?,
-        updated_at: parse_dt(updated_at_str, 7)?,
+        created_at: db::parse_rfc3339_col(&created_at_str, 6)?,
+        updated_at: db::parse_rfc3339_col(&updated_at_str, 7)?,
     })
 }
 
@@ -395,7 +381,7 @@ mod tests {
         assert_eq!(updated.name, "Étude renommée");
         assert_eq!(updated.description, p.description, "desc inchangée");
         assert_eq!(updated.tags, p.tags, "tags inchangés");
-        // updated_at doit avoir bougé
+        // updated_at must not go back
         assert!(updated.updated_at >= p.updated_at);
     }
 

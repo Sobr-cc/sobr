@@ -1,9 +1,9 @@
-//! State partagé entre les commandes IPC.
+//! State shared by the IPC commands.
 //!
-//! `AppState` est instancié une fois au démarrage de Tauri et passé à
-//! chaque commande via `tauri::State<'_, AppState>`. Le `AuditLedger`
-//! est derrière un `Mutex` parce que les écritures (`append`) doivent
-//! être sérielles pour garantir la chaîne SHA-256.
+//! `AppState` is built once when Tauri starts and passed to
+//! each command through `tauri::State<'_, AppState>`. The `AuditLedger`
+//! sits behind a `Mutex` because writes (`append`) must be
+//! serialized to keep the SHA-256 chain intact.
 
 use std::{
     path::{Path, PathBuf},
@@ -20,38 +20,38 @@ use crate::{
     team_settings::TeamSettingsStore,
 };
 
-/// State partagé de l'application.
+/// Shared application state.
 pub struct AppState {
-    /// Racine de données (`~/.local/share/sobria` sur Linux, etc.).
+    /// Data root (`~/.local/share/sobria` on Linux, etc.).
     pub data_root: PathBuf,
-    /// Chemin absolu du ledger SQLite.
+    /// Absolute path of the SQLite ledger.
     pub audit_path: PathBuf,
-    /// Chemin absolu de la base référentiel (préférences + futurs catalogues).
+    /// Absolute path of the referentiel database (preferences + future catalogs).
     pub referentiel_path: PathBuf,
-    /// Ledger d'audit (toutes les écritures sérielles).
+    /// Audit ledger (all writes serialized).
     pub ledger: Mutex<AuditLedger>,
-    /// Store de préférences utilisateur — voir ADR-0010.
+    /// User preferences store — see ADR-0010.
     pub preferences: Mutex<PreferencesStore>,
-    /// Store des objectifs eco-budget — voir brief C19 (M25).
+    /// Eco-budget goals store — see brief C19 (M25).
     pub goals: Mutex<PersonalGoalsStore>,
-    /// Store des projets scientifiques — voir brief C20 (M17).
+    /// Scientific projects store — see brief C20 (M17).
     pub projects: Mutex<ProjectStore>,
-    /// Moteur Monte-Carlo (immuable, partageable).
+    /// Monte-Carlo engine (immutable, shareable).
     pub estimator: MonteCarloEngine,
-    /// Code de pairing extension en attente d'utilisation (C27.5.c).
-    /// `None` tant qu'aucun pairing n'a été initié ou que le précédent est consommé/expiré.
+    /// Extension pairing code waiting to be used (C27.5.c).
+    /// `None` until a pairing starts, or once the previous one is used or expired.
     pub pending_code: Mutex<Option<PendingCode>>,
-    /// Store SQLite des pairings + events extension (C27.5.d).
+    /// SQLite store for extension pairings + events (C27.5.d).
     pub extension_store: Mutex<ExtensionStore>,
-    /// Store SQLite KV du Mode Équipe self-hosted (C28.6).
+    /// SQLite KV store for the self-hosted Team Mode (C28.6).
     pub team_settings: Mutex<TeamSettingsStore>,
 }
 
 impl AppState {
-    /// Construit un `AppState` en initialisant la racine de données, le
-    /// ledger d'audit et le store de préférences.
+    /// Builds an `AppState`: the data root, the audit ledger and every store
+    /// (preferences, goals, projects, extension, team settings).
     ///
-    /// Si `data_root` est `None`, on utilise `dirs::data_dir() / "sobria"`.
+    /// If `data_root` is `None`, `dirs::data_dir() / "sobria"` is used.
     pub fn init(data_root: Option<PathBuf>) -> Result<Self, AppError> {
         let data_root = data_root
             .or_else(|| dirs::data_dir().map(|d| d.join("sobria")))
@@ -74,7 +74,6 @@ impl AppState {
         let team_settings = TeamSettingsStore::open(&referentiel_path)
             .map_err(|e| AppError::Internal(format!("team_settings: {e}")))?;
 
-        let estimator = MonteCarloEngine::default();
         Ok(Self {
             data_root,
             audit_path,
@@ -83,14 +82,14 @@ impl AppState {
             preferences: Mutex::new(preferences),
             goals: Mutex::new(goals),
             projects: Mutex::new(projects),
-            estimator,
+            estimator: MonteCarloEngine::default(),
             pending_code: Mutex::new(None),
             extension_store: Mutex::new(extension_store),
             team_settings: Mutex::new(team_settings),
         })
     }
 
-    /// Construit un `AppState` dans un dossier explicite (utile pour les tests).
+    /// Builds an `AppState` in an explicit folder (handy for tests).
     pub fn init_in(dir: &Path) -> Result<Self, AppError> {
         Self::init(Some(dir.to_path_buf()))
     }
@@ -106,7 +105,7 @@ mod tests {
         let state = AppState::init_in(tmp.path()).unwrap();
         assert!(state.audit_path.exists());
         assert_eq!(state.data_root, tmp.path());
-        // Ledger ouvert : len() == 0
+        // Ledger open: len() == 0
         let ledger = state.ledger.lock().unwrap();
         assert_eq!(ledger.len().unwrap(), 0);
     }
@@ -116,7 +115,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let state = AppState::init_in(tmp.path()).unwrap();
         assert!(state.referentiel_path.exists());
-        // Préférences vides au boot
+        // Preferences are empty at boot
         let store = state.preferences.lock().unwrap();
         let prefs = store.read_all().unwrap();
         assert!(prefs.persona.is_none());
@@ -128,6 +127,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let _s1 = AppState::init_in(tmp.path()).unwrap();
         let _s2 = AppState::init_in(tmp.path()).unwrap();
-        // Pas de panic, pas d'erreur.
+        // No panic, no error.
     }
 }

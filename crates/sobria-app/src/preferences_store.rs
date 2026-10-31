@@ -1,87 +1,87 @@
-//! Persistance des préférences utilisateur dans `referentiel.sqlite`.
+//! User preferences stored in `referentiel.sqlite`.
 //!
-//! Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md)
-//! et `docs/archive/chantiers/C10-onboarding-personas.md` §2.
+//! See [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md)
+//! and `docs/archive/chantiers/C10-onboarding-personas.md` §2.
 //!
-//! Schéma :
+//! Schema:
 //! ```sql
 //! CREATE TABLE IF NOT EXISTS app_preferences (
 //!     key         TEXT PRIMARY KEY,
-//!     value       TEXT NOT NULL,        -- JSON sérialisé
+//!     value       TEXT NOT NULL,        -- serialized JSON
 //!     updated_at  TEXT NOT NULL          -- RFC 3339 UTC
 //! );
 //! ```
 //!
-//! Quatre clés réservées en v1.0 : `persona`, `enabled_modules`,
-//! `onboarded`, `lang`. Toute autre clé est ignorée par les consommateurs
-//! (forward-compatibility).
+//! Reserved keys: `persona`, `enabled_modules`, `onboarded`, `lang`,
+//! `default_method`, `also_show_methods`, `default_datacenter_id` (the `KEY_*`
+//! constants). Consumers ignore any other key (forward compatibility).
 
 use std::path::Path;
 
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::{de::DeserializeOwned, Serialize};
 use sobria_core::{EmpreinteMethod, ModuleId, Persona};
 use tracing::info;
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
-/// Clé de la table `app_preferences` qui stocke le persona courant.
+/// Key of the `app_preferences` table that stores the current persona.
 pub const KEY_PERSONA: &str = "persona";
-/// Clé qui stocke la liste JSON des modules activés.
+/// Key that stores the JSON list of enabled modules.
 pub const KEY_ENABLED_MODULES: &str = "enabled_modules";
-/// Clé qui stocke le flag d'onboarding (`"true"` / `"false"`).
+/// Key that stores the onboarding flag (`"true"` / `"false"`).
 pub const KEY_ONBOARDED: &str = "onboarded";
-/// Clé qui stocke la langue courante (`"fr"` / `"en"`).
+/// Key that stores the current language (`"fr"` / `"en"`).
 pub const KEY_LANG: &str = "lang";
-/// Clé qui stocke la méthodologie par défaut de l'utilisateur (C24).
+/// Key that stores the user's default methodology (C24).
 pub const KEY_DEFAULT_METHOD: &str = "default_method";
-/// Clé qui stocke la liste JSON des méthodologies affichées en référence (C24).
+/// Key that stores the JSON list of methodologies shown for reference (C24).
 pub const KEY_ALSO_SHOW_METHODS: &str = "also_show_methods";
-/// Clé qui stocke l'id du datacenter sélectionné par défaut (C25).
+/// Key that stores the id of the default selected datacenter (C25).
 pub const KEY_DEFAULT_DATACENTER: &str = "default_datacenter_id";
 
-/// Représentation interne des préférences avant traversée IPC.
+/// Internal form of the preferences before they cross IPC.
 ///
-/// Les `Option<_>` traduisent l'absence physique de la clé en SQLite
-/// (table vide ou clé non-écrite). Le caller (`logic::*`) applique
-/// alors les valeurs par défaut.
+/// Each `Option<_>` means the key is missing in SQLite
+/// (empty table or key never written). The caller (`logic::*`) then
+/// applies the defaults.
 #[derive(Debug, Clone, Default)]
 pub struct StoredPreferences {
-    /// Persona sélectionné lors de l'onboarding.
+    /// Persona chosen during onboarding.
     pub persona: Option<Persona>,
-    /// Modules activés (chevauche / dépasse le bundle persona).
+    /// Enabled modules (may overlap or go beyond the persona bundle).
     pub enabled_modules: Option<Vec<ModuleId>>,
-    /// Vrai si l'utilisateur a complété l'onboarding.
+    /// True once the user has completed onboarding.
     pub onboarded: Option<bool>,
-    /// Langue courante (`"fr"` ou `"en"`).
+    /// Current language (`"fr"` or `"en"`).
     pub lang: Option<String>,
-    /// Méthodologie utilisée par défaut pour les calculs (C24).
-    /// `None` → fallback `EmpreinteMethod::default_method()`
-    /// (= `AfnorSobria`, le référentiel français).
+    /// Default methodology for computations (C24).
+    /// `None` → falls back to `EmpreinteMethod::default_method()`
+    /// (= `AfnorSobria`, the French standard).
     pub default_method: Option<EmpreinteMethod>,
-    /// Méthodologies additionnelles affichées en panneau "Voir aussi"
-    /// à côté du résultat principal (C24). `None` → liste vide (aucune
-    /// référence comparée par défaut, l'utilisateur active manuellement).
+    /// Extra methodologies shown in the "Voir aussi" panel
+    /// next to the main result (C24). `None` → empty list (no
+    /// reference compared by default, the user turns them on manually).
     pub also_show_methods: Option<Vec<EmpreinteMethod>>,
-    /// Dernier datacenter sélectionné par l'utilisateur dans /estimate,
-    /// /comparer ou /simuler (C25). `None` = aucun choisi → l'estimation
-    /// utilise les `EstimationParams` par défaut.
+    /// Last datacenter the user selected in /estimate,
+    /// /comparer or /simuler (C25). `None` = none chosen → the estimate
+    /// uses the default `EstimationParams`.
     pub default_datacenter_id: Option<String>,
 }
 
-/// Magasin de préférences adossé à SQLite (`referentiel.sqlite`).
+/// Preferences store backed by SQLite (`referentiel.sqlite`).
 pub struct PreferencesStore {
     conn: Connection,
 }
 
 impl PreferencesStore {
-    /// Ouvre (ou crée) la base `referentiel.sqlite` et crée la table
-    /// `app_preferences` si elle n'existe pas.
+    /// Opens (or creates) the `referentiel.sqlite` database and creates the
+    /// `app_preferences` table if it does not exist.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS app_preferences (
                 key         TEXT PRIMARY KEY,
                 value       TEXT NOT NULL,
@@ -93,32 +93,14 @@ impl PreferencesStore {
         Ok(Self { conn })
     }
 
-    /// Lit l'intégralité des 4 clés réservées en une seule passe.
+    /// Reads every reserved key (one query per key).
     pub fn read_all(&self) -> Result<StoredPreferences, AppError> {
-        let persona = self
-            .read_raw(KEY_PERSONA)?
-            .map(|v| serde_json::from_str::<Persona>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let enabled_modules = self
-            .read_raw(KEY_ENABLED_MODULES)?
-            .map(|v| serde_json::from_str::<Vec<ModuleId>>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let onboarded = self
-            .read_raw(KEY_ONBOARDED)?
-            .map(|v| matches!(v.as_str(), "true"));
+        let persona = self.read_json::<Persona>(KEY_PERSONA)?;
+        let enabled_modules = self.read_json::<Vec<ModuleId>>(KEY_ENABLED_MODULES)?;
+        let onboarded = self.read_raw(KEY_ONBOARDED)?.map(|v| v == "true");
         let lang = self.read_raw(KEY_LANG)?;
-        let default_method = self
-            .read_raw(KEY_DEFAULT_METHOD)?
-            .map(|v| serde_json::from_str::<EmpreinteMethod>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let also_show_methods = self
-            .read_raw(KEY_ALSO_SHOW_METHODS)?
-            .map(|v| serde_json::from_str::<Vec<EmpreinteMethod>>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
+        let default_method = self.read_json::<EmpreinteMethod>(KEY_DEFAULT_METHOD)?;
+        let also_show_methods = self.read_json::<Vec<EmpreinteMethod>>(KEY_ALSO_SHOW_METHODS)?;
         let default_datacenter_id = self.read_raw(KEY_DEFAULT_DATACENTER)?;
         Ok(StoredPreferences {
             persona,
@@ -131,30 +113,26 @@ impl PreferencesStore {
         })
     }
 
-    /// Écrit les préférences persistées en une seule transaction.
+    /// Writes the persisted preferences in a single transaction.
     ///
-    /// Sémantique des `Option` :
-    /// - `persona` : `None` supprime la clé (comportement historique, opt-in).
-    /// - Tous les autres champs `Option` : `None` **ne modifie pas** la clé
-    ///   existante. Utiliser les setters dédiés (`set_default_datacenter_id`,
-    ///   etc.) pour effacer une clé spécifique.
+    /// `Option` semantics:
+    /// - `persona`: `None` deletes the key (legacy behavior, opt-in).
+    /// - Every other `Option` field: `None` **leaves the existing key
+    ///   unchanged**. Use the dedicated setters (`set_default_datacenter_id`,
+    ///   etc.) to clear a specific key.
     pub fn write_all(&mut self, prefs: &StoredPreferences) -> Result<(), AppError> {
         let now = Utc::now().to_rfc3339();
         let tx = self.conn.transaction()?;
 
-        // persona : null → DELETE, sinon UPSERT JSON.
+        // persona: null → DELETE, otherwise JSON UPSERT.
         match &prefs.persona {
-            Some(p) => {
-                let v = serde_json::to_string(p)?;
-                upsert(&tx, KEY_PERSONA, &v, &now)?;
-            },
+            Some(p) => upsert_json(&tx, KEY_PERSONA, p, &now)?,
             None => delete(&tx, KEY_PERSONA)?,
         }
 
         // enabled_modules
         if let Some(modules) = &prefs.enabled_modules {
-            let v = serde_json::to_string(modules)?;
-            upsert(&tx, KEY_ENABLED_MODULES, &v, &now)?;
+            upsert_json(&tx, KEY_ENABLED_MODULES, modules, &now)?;
         }
 
         // onboarded
@@ -170,14 +148,12 @@ impl PreferencesStore {
 
         // default_method (C24)
         if let Some(method) = &prefs.default_method {
-            let v = serde_json::to_string(method)?;
-            upsert(&tx, KEY_DEFAULT_METHOD, &v, &now)?;
+            upsert_json(&tx, KEY_DEFAULT_METHOD, method, &now)?;
         }
 
         // also_show_methods (C24)
         if let Some(methods) = &prefs.also_show_methods {
-            let v = serde_json::to_string(methods)?;
-            upsert(&tx, KEY_ALSO_SHOW_METHODS, &v, &now)?;
+            upsert_json(&tx, KEY_ALSO_SHOW_METHODS, methods, &now)?;
         }
 
         // default_datacenter_id (C25)
@@ -192,56 +168,55 @@ impl PreferencesStore {
     fn read_raw(&self, key: &str) -> Result<Option<String>, AppError> {
         let v: Option<String> = self
             .conn
-            .query_row(
-                "SELECT value FROM app_preferences WHERE key = ?1",
-                params![key],
-                |r| r.get(0),
-            )
+            .prepare_cached("SELECT value FROM app_preferences WHERE key = ?1")?
+            .query_row(params![key], |r| r.get(0))
             .optional()?;
         Ok(v)
     }
 
-    fn write_raw(&mut self, key: &str, value: &str) -> Result<(), AppError> {
-        let now = Utc::now().to_rfc3339();
-        let tx = self.conn.transaction()?;
-        upsert(&tx, key, value, &now)?;
-        tx.commit()?;
-        Ok(())
+    fn read_json<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, AppError> {
+        Ok(self
+            .read_raw(key)?
+            .map(|v| serde_json::from_str::<T>(&v))
+            .transpose()?)
     }
 
-    fn delete_raw(&mut self, key: &str) -> Result<(), AppError> {
-        let tx = self.conn.transaction()?;
-        delete(&tx, key)?;
-        tx.commit()?;
-        Ok(())
-    }
-
-    /// Persiste l'id du datacenter par défaut (C25). `None` efface la clé.
+    /// Persists the default datacenter id (C25). `None` clears the key.
     pub fn set_default_datacenter_id(&mut self, id: Option<&str>) -> Result<(), AppError> {
         match id {
-            Some(v) => self.write_raw(KEY_DEFAULT_DATACENTER, v),
-            None => self.delete_raw(KEY_DEFAULT_DATACENTER),
+            Some(v) => upsert(
+                &self.conn,
+                KEY_DEFAULT_DATACENTER,
+                v,
+                &Utc::now().to_rfc3339(),
+            ),
+            None => delete(&self.conn, KEY_DEFAULT_DATACENTER),
         }
     }
 }
 
-fn upsert(
-    tx: &rusqlite::Transaction<'_>,
-    key: &str,
-    value: &str,
-    now: &str,
-) -> Result<(), AppError> {
-    tx.execute(
+fn upsert(conn: &Connection, key: &str, value: &str, now: &str) -> Result<(), AppError> {
+    conn.prepare_cached(
         "INSERT INTO app_preferences (key, value, updated_at) \
          VALUES (?1, ?2, ?3) \
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-        params![key, value, now],
-    )?;
+    )?
+    .execute(params![key, value, now])?;
     Ok(())
 }
 
-fn delete(tx: &rusqlite::Transaction<'_>, key: &str) -> Result<(), AppError> {
-    tx.execute("DELETE FROM app_preferences WHERE key = ?1", params![key])?;
+fn upsert_json<T: Serialize>(
+    conn: &Connection,
+    key: &str,
+    value: &T,
+    now: &str,
+) -> Result<(), AppError> {
+    upsert(conn, key, &serde_json::to_string(value)?, now)
+}
+
+fn delete(conn: &Connection, key: &str) -> Result<(), AppError> {
+    conn.prepare_cached("DELETE FROM app_preferences WHERE key = ?1")?
+        .execute(params![key])?;
     Ok(())
 }
 

@@ -1,20 +1,18 @@
-//! Stockage des objectifs personnels (eco-budget, M25 / C19).
+//! Storage for personal goals (eco-budget, M25 / C19).
 //!
-//! Table `personal_goals` dans `referentiel.sqlite` (à côté de
-//! `app_preferences` introduit en C10).
+//! `personal_goals` table in `referentiel.sqlite` (next to
+//! `app_preferences`, added in C10).
 
 use std::path::Path;
 
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
-/// Indicateur sur lequel un objectif s'applique.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+/// Indicator a goal applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GoalIndicator {
     Co2Eq,
     Energy,
@@ -41,20 +39,25 @@ impl GoalIndicator {
         }
     }
 
-    /// Unité attendue (cohérence indicator ↔ unit).
+    /// Matching `sobria_core` indicator.
+    #[must_use]
+    pub fn indicator(self) -> sobria_core::Indicator {
+        match self {
+            Self::Co2Eq => sobria_core::Indicator::Co2Eq,
+            Self::Energy => sobria_core::Indicator::Energy,
+            Self::Water => sobria_core::Indicator::Water,
+        }
+    }
+
+    /// Expected unit (keeps indicator ↔ unit consistent).
     #[must_use]
     pub fn expected_unit(self) -> &'static str {
-        match self {
-            Self::Co2Eq => "gCO2eq",
-            Self::Energy => "Wh",
-            Self::Water => "L",
-        }
+        self.indicator().default_unit()
     }
 }
 
-/// Période d'application d'un objectif.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+/// Period a goal applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GoalPeriod {
     Daily,
     Weekly,
@@ -82,8 +85,8 @@ impl GoalPeriod {
     }
 }
 
-/// Objectif personnel persisté.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Persisted personal goal.
+#[derive(Debug, Clone, PartialEq)]
 pub struct PersonalGoal {
     pub indicator: GoalIndicator,
     pub period: GoalPeriod,
@@ -92,7 +95,7 @@ pub struct PersonalGoal {
 }
 
 impl PersonalGoal {
-    /// Valide les invariants : `value_max > 0`, `unit` cohérent.
+    /// Checks the invariants: `value_max > 0` and a consistent `unit`.
     pub fn validate(&self) -> Result<(), AppError> {
         if !self.value_max.is_finite() || self.value_max <= 0.0 {
             return Err(AppError::InvalidRequest(format!(
@@ -112,19 +115,18 @@ impl PersonalGoal {
     }
 }
 
-/// Store SQLite des objectifs personnels.
+/// SQLite store for personal goals.
 pub struct PersonalGoalsStore {
     conn: Connection,
 }
 
 impl PersonalGoalsStore {
-    /// Ouvre (ou crée) la table `personal_goals` dans la base donnée.
-    /// Utilise la même base `referentiel.sqlite` que `PreferencesStore`.
+    /// Opens the given database and creates the `personal_goals` table if needed.
+    /// Uses the same `referentiel.sqlite` database as `PreferencesStore`.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS personal_goals (
                 indicator   TEXT NOT NULL,
                 period      TEXT NOT NULL,
@@ -139,7 +141,7 @@ impl PersonalGoalsStore {
         Ok(Self { conn })
     }
 
-    /// Liste tous les objectifs, triés par (indicator, period).
+    /// Lists every goal, sorted by (indicator, period).
     pub fn list_all(&self) -> Result<Vec<PersonalGoal>, AppError> {
         let mut stmt = self.conn.prepare(
             "SELECT indicator, period, value_max, unit \
@@ -152,24 +154,23 @@ impl PersonalGoalsStore {
             let unit: String = row.get(3)?;
             Ok((indicator, period, value_max, unit))
         })?;
-        let mut out = Vec::new();
-        for r in rows {
+        rows.map(|r| -> Result<PersonalGoal, AppError> {
             let (i, p, v, u) = r?;
             let indicator = GoalIndicator::parse(&i)
                 .ok_or_else(|| AppError::Internal(format!("indicator '{i}' inconnu en base")))?;
             let period = GoalPeriod::parse(&p)
                 .ok_or_else(|| AppError::Internal(format!("period '{p}' inconnue en base")))?;
-            out.push(PersonalGoal {
+            Ok(PersonalGoal {
                 indicator,
                 period,
                 value_max: v,
                 unit: u,
-            });
-        }
-        Ok(out)
+            })
+        })
+        .collect()
     }
 
-    /// UPSERT d'un objectif (PK = `(indicator, period)`).
+    /// Upserts a goal (PK = `(indicator, period)`).
     pub fn upsert(&mut self, goal: &PersonalGoal) -> Result<(), AppError> {
         goal.validate()?;
         let now = Utc::now().to_rfc3339();
@@ -197,7 +198,7 @@ impl PersonalGoalsStore {
         Ok(())
     }
 
-    /// Supprime un objectif. Idempotent (pas d'erreur si absent).
+    /// Deletes a goal. Idempotent (no error if missing).
     pub fn delete(&mut self, indicator: GoalIndicator, period: GoalPeriod) -> Result<(), AppError> {
         self.conn.execute(
             "DELETE FROM personal_goals WHERE indicator = ?1 AND period = ?2",
@@ -278,7 +279,7 @@ mod tests {
             indicator: GoalIndicator::Energy,
             period: GoalPeriod::Daily,
             value_max: 10.0,
-            unit: "gCO2eq".into(), // attendu : Wh
+            unit: "gCO2eq".into(), // expected: Wh
         };
         assert!(g.validate().is_err());
     }
@@ -303,7 +304,7 @@ mod tests {
     #[test]
     fn delete_missing_goal_is_idempotent() {
         let (_tmp, mut store) = open_temp();
-        // Aucun goal présent → delete ne doit pas paniquer.
+        // No goal stored → delete must not panic.
         store
             .delete(GoalIndicator::Energy, GoalPeriod::Daily)
             .unwrap();
