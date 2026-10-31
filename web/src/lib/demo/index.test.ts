@@ -1,72 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AppPreferencesDto, CountryAggregateDto } from '../api';
+import type {
+  AppPreferencesDto,
+  CountryAggregateDto,
+  DailySeriesPointDto,
+  DashboardSummaryDto,
+  EstimationResultDto,
+  ModelDetailDto,
+  TripletDto
+} from '../api';
 
 type Handlers = (typeof import('./index'))['demoHandlers'];
 
-interface Triplet {
-  p5: number | undefined;
-  p50: number | undefined;
-  p95: number | undefined;
-}
-interface Indicator {
-  indicator: string;
-  p5: number;
-  p50: number;
-  p95: number;
-  unit: string;
-  bins?: unknown;
-}
-interface Estimate {
-  method: string;
-  request: Record<string, unknown>;
-  indicators: Indicator[];
-  equivalents: unknown[];
-  hypotheses: { key: string; value: unknown; source: string }[];
-  computed_at: string;
-  seed: number;
-  audit_id: number;
-}
-interface ModelDetail {
-  id: string;
-  architecture: string;
-  thinking_token_multiplier?: number[];
-  baseline_co2eq_p5_g: number;
-  baseline_co2eq_p50_g: number;
-  baseline_co2eq_p95_g: number;
-  baseline_energy_wh_p50: number;
-  baseline_water_l_p50: number;
-  vendor_disclosures: unknown[];
+// SOB-183: the demo returns these triplets with undefined values.
+type Triplet = { [K in keyof TripletDto]: TripletDto[K] | undefined };
+type ModelDetail = Omit<
+  ModelDetailDto,
+  'epsilon_prefill_mj_per_token' | 'epsilon_decode_mj_per_token' | 'embodied_g_per_request'
+> & {
   epsilon_prefill_mj_per_token: Triplet;
   epsilon_decode_mj_per_token: Triplet;
   embodied_g_per_request: Triplet;
-}
-interface Day {
-  date: string;
-  request_count: number;
-  co2eq_g_p50: number;
-  energy_wh_p50: number;
-  water_l_p50: number;
-}
-interface Dashboard {
-  period_label: string;
-  period_start: string;
-  period_end: string;
-  total_requests: number;
-  total_co2eq_g_p50: number;
-  total_energy_wh_p50: number;
-  total_water_l_p50: number;
-  vs_previous: {
-    previous_total_co2eq_g_p50: number;
-    delta_co2eq_pct: number;
-    previous_total_requests: number;
-    delta_requests_pct: number;
-  };
-  top_models: { model_id: string; request_count: number; total_co2eq_g_p50: number }[];
-  daily_series: Day[];
-  method_breakdown: unknown[];
-  warning_multi_method: boolean;
-}
+};
+type Dashboard = Omit<DashboardSummaryDto, 'vs_previous'> & {
+  vs_previous: NonNullable<DashboardSummaryDto['vs_previous']>;
+};
 interface Thrown {
   code: string;
   message: string;
@@ -242,7 +200,7 @@ describe('estimate_prompt and estimate_for_comparison', () => {
   });
 
   it('serves the fixture of the grid point as a DTO with the demo hypothesis added', () => {
-    const r = call<Estimate>('estimate_prompt', req(1200, 800));
+    const r = call<EstimationResultDto>('estimate_prompt', req(1200, 800));
 
     expect(r.method).toBe('afnor_sobria');
     expect(r.request).toEqual({
@@ -283,7 +241,7 @@ describe('estimate_prompt and estimate_for_comparison', () => {
 
   it('picks the nearest grid point in log distance of both token counts', () => {
     const grid = (a: number, b: number) => {
-      const r = call<Estimate>('estimate_prompt', req(a, b));
+      const r = call<EstimationResultDto>('estimate_prompt', req(a, b));
       return [r.request.tokens_in, r.request.tokens_out_estimated];
     };
 
@@ -294,23 +252,29 @@ describe('estimate_prompt and estimate_for_comparison', () => {
   });
 
   it('uses the demo default method, and the request method when given', () => {
-    expect(call<Estimate>('estimate_prompt', req(1200, 800)).method).toBe('afnor_sobria');
-    expect(call<Estimate>('estimate_prompt', req(1200, 800, { method: 'ecologits' })).method).toBe(
-      'ecologits'
+    expect(call<EstimationResultDto>('estimate_prompt', req(1200, 800)).method).toBe(
+      'afnor_sobria'
     );
+    expect(
+      call<EstimationResultDto>('estimate_prompt', req(1200, 800, { method: 'ecologits' })).method
+    ).toBe('ecologits');
   });
 
   it('follows the default method saved with set_app_preferences', () => {
     call('set_app_preferences', { prefs: { default_method: 'ecologits' } });
 
-    expect(call<Estimate>('estimate_prompt', req(1200, 800)).method).toBe('ecologits');
+    expect(call<EstimationResultDto>('estimate_prompt', req(1200, 800)).method).toBe('ecologits');
     expect(
-      call<Estimate>('estimate_prompt', req(1200, 800, { method: 'afnor_sobria' })).method
+      call<EstimationResultDto>('estimate_prompt', req(1200, 800, { method: 'afnor_sobria' }))
+        .method
     ).toBe('afnor_sobria');
   });
 
   it('estimate_for_comparison takes the method from its own argument', () => {
-    const r = call<Estimate>('estimate_for_comparison', { ...req(1200, 800), method: 'ecologits' });
+    const r = call<EstimationResultDto>('estimate_for_comparison', {
+      ...req(1200, 800),
+      method: 'ecologits'
+    });
 
     expect(r.method).toBe('ecologits');
     expect(r.audit_id).toBe(0);
@@ -318,12 +282,13 @@ describe('estimate_prompt and estimate_for_comparison', () => {
 
   it('rejects a model without fixtures and lists the covered ones', () => {
     const e = thrown(() =>
-      call<Estimate>('estimate_prompt', {
+      call<EstimationResultDto>('estimate_prompt', {
         req: { model_id: 'zz', tokens_in: 1, tokens_out_estimated: 1 }
       })
     );
 
     expect(e.code).toBe('unknown_model');
+    // SOB-204: the catalogue size is hardcoded and stale (34 models in the registry).
     expect(e.message).toMatch(
       /^La démo couvre 34 modèles précalculés \(claude-opus-4-8, claude-opus-4-7, .*, gemini-2-0-flash\)\. Installez l'application pour estimer les 25 modèles du catalogue\.$/
     );
@@ -474,10 +439,19 @@ describe('preferences', () => {
     expect(call('get_app_preferences')).toEqual(INITIAL);
   });
 
-  it('returns a copy, so editing the answer does not change the stored preferences', () => {
+  it('returns a shallow copy: editing a top-level field does not change the stored preferences', () => {
     call<AppPreferencesDto>('get_app_preferences').lang = 'en';
 
     expect(call<AppPreferencesDto>('get_app_preferences').lang).toBe('fr');
+  });
+
+  it('shares its arrays with the stored preferences, so pushing into one changes the next answer', () => {
+    call<AppPreferencesDto>('get_app_preferences').enabled_modules.push('m2');
+    call<AppPreferencesDto>('get_app_preferences').also_show_methods.push('afnor_sobria');
+
+    const next = call<AppPreferencesDto>('get_app_preferences');
+    expect(next.enabled_modules).toContain('m2');
+    expect(next.also_show_methods).toEqual(['ecologits', 'afnor_sobria']);
   });
 
   it('merges the saved fields into the in-memory preferences and returns null', () => {
@@ -627,7 +601,7 @@ describe('get_dashboard_summary', () => {
 
   it('derives the totals from the daily series and the previous period from the totals', () => {
     const s = call<Dashboard>('get_dashboard_summary', { period: 'this_month' });
-    const sum = (key: Exclude<keyof Day, 'date'>) =>
+    const sum = (key: Exclude<keyof DailySeriesPointDto, 'date'>) =>
       s.daily_series.reduce((acc, d) => acc + d[key], 0);
 
     expect(sum('request_count')).toBe(s.total_requests);
