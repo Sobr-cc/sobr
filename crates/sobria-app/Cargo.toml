@@ -54,3 +54,6 @@ reqwest = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# SOB-188 — `tauri::test` (mock app) gives the tests a real `tauri::State` and
+# an `AppHandle`. The feature is an empty flag; it adds no crate.
+tauri = { workspace = true, features = ["test"] }

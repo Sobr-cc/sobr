@@ -1,11 +1,14 @@
-//! Tests d'intégration du `bridge_server` côté app — patch C27 v0.6.0.
+//! Tests of the public `bridge_server` API of the app (patch C27 v0.6.0).
 //!
-//! Sur Unix : démarre le serveur sur un socket tempdir, envoie une requête
-//! via `tokio::net::UnixStream`, vérifie la réponse.
-//!
-//! Sur Windows : le serveur natif tokio (`named_pipe::ServerOptions`) tourne
-//! avec un nom de pipe unique, le test ouvre `ClientOptions::open` et fait
-//! le roundtrip. Marqué `#[cfg(windows)]`.
+//! - `ping_roundtrip_via_unix_socket` (Unix only) does not start the real
+//!   server: it runs its own accept loop on a temp socket and calls
+//!   `dispatch_request`. The `SOBRIA_BRIDGE_SOCKET` variable it sets is read by
+//!   nothing: on Unix `default_socket_path` only looks at `XDG_RUNTIME_DIR`,
+//!   and on Windows it is a fixed pipe name.
+//! - There is no Windows test in this file; on Windows only
+//!   `dispatch_ping_returns_pong_via_public_api` runs.
+//! - The real server, through a real socket or pipe, is tested in
+//!   `src/bridge_socket_tests.rs` (SOB-188).
 
 use std::sync::Arc;
 
