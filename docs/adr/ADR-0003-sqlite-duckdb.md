@@ -4,6 +4,8 @@
 - **Date** : 2026-05-12
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : Sprint S1
+- **Amendment 1** : in force at merge (2026-10-31, SOB-174), duckdb-rs
+  deferred to the analytics step. See the section before the links.
 
 ## Contexte
 
@@ -71,6 +73,25 @@ DuckDB — analytique (vues sur Parquet + lectures SQLite)
 **Négatives** :
 - Maintenance double schéma.
 - Onboarding développeur légèrement plus complexe.
+
+## Amendment 1 — duckdb-rs deferred to the analytics step (2026-10-31)
+
+**Status.** In force at merge (SOB-174). It only records a decision that
+Thibault took in writing on October 31, in the answered Decision issue
+[SOB-172](https://linear.app/sobrcc/issue/SOB-172/decide-whether-to-keep-the-unused-duckdb-dependency): remove the
+unused `duckdb` dependency now and add it back with the analytics step.
+The text above is kept.
+
+The decision stands: SQLite for the referential and the ledger, DuckDB for
+analytics. What changes is the timing. The `duckdb` crate is **not in the
+build today**: no code called it, and its bundled library did not build on
+Windows with MSVC 14.50 and later (SOB-168). SOB-172 decided to add it back
+**with the analytics step**. Until then, "Décision" and "Schéma directeur"
+describe the plan for DuckDB, not the build, and no crate uses it.
+
+**For whoever adds it back:** use `duckdb` 1.10506.1 or newer. The `fmt`
+bundled with older versions (`libduckdb-sys` 1.10502.0) does not build with
+MSVC 14.50 and later.
 
 ## Liens
 - ADR-0001.
