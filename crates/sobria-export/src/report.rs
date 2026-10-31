@@ -493,17 +493,26 @@ mod tests {
     }
 
     #[test]
-    fn pdf_is_dated_now_not_the_unix_epoch() {
+    fn pdf_is_dated_today_not_the_unix_epoch() {
         let req = sample_request();
+        let day = || Utc::now().format("%Y%m%d").to_string();
+        let before = day();
         let art = generate_report(&req, &[make_entry(1, req.period_start, 1.0)]).unwrap();
+        let after = day();
         let text = String::from_utf8_lossy(&art.pdf_bytes);
-        let at = text.find("/CreationDate").expect("creation date present");
-        let date: String = text[at..].chars().take(40).collect();
-        assert!(
-            date.contains("D:20"),
-            "creation date is this century: {date}"
-        );
-        assert!(!date.contains("19700101"), "PDF dated with the Unix epoch");
+        for key in ["/CreationDate", "/ModDate"] {
+            let at = text.find(key).unwrap_or_else(|| panic!("{key} present"));
+            let date: String = text[at + key.len()..]
+                .chars()
+                .skip_while(|c| *c != ':')
+                .skip(1)
+                .take(8)
+                .collect();
+            assert!(
+                date == before || date == after,
+                "{key} is {date}, not today ({before})"
+            );
+        }
     }
 
     #[test]
