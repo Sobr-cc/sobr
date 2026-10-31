@@ -11,15 +11,11 @@ use serde::{Deserialize, Serialize};
 use sobria_core::{EstimationRequest, Indicator};
 
 use crate::{
+    engine_trait::find_indicator,
     error::{EstimatorError, EstimatorResult},
     forecast,
     params::EstimationParams,
 };
-// `MonteCarloEngine` n'est plus référencé par la signature publique
-// (`forecast_yearly` prend désormais `&dyn EmpreinteEngine`, C24) ; il reste
-// utilisé par les tests internes.
-#[cfg(test)]
-use crate::engine::MonteCarloEngine;
 
 /// Nombre maximum de scénarios par requête de forecast.
 pub const MAX_FORECAST_SCENARIOS: usize = 10;
@@ -83,9 +79,6 @@ pub struct YearlyForecastResult {
 
 /// Lance le forecast sur 1-60 mois pour 1-10 scénarios de croissance.
 ///
-/// Polish G (C24) — `engine` est devenu `&dyn EmpreinteEngine` pour
-/// honorer la méthodologie choisie par l'utilisateur.
-///
 /// **Errors** :
 /// - `Schema` si `scenarios` est vide ou > `MAX_FORECAST_SCENARIOS`.
 /// - `Schema` si `months` hors `[1, MAX_FORECAST_HORIZON_MONTHS]`.
@@ -99,19 +92,14 @@ pub fn forecast_yearly(
 ) -> EstimatorResult<YearlyForecastResult> {
     validate(req)?;
 
-    // 1. Estimation baseline (1 appel Monte-Carlo).
     let params = EstimationParams::for_model(&req.baseline.model_id)?;
     let result = engine.estimate(&req.baseline, &params)?;
-    let co2 = result
-        .indicators
-        .iter()
-        .find(|i| matches!(i.indicator, Indicator::Co2Eq))
+    let co2 = find_indicator(&result, Indicator::Co2Eq)
         .ok_or_else(|| EstimatorError::Schema("CO2eq indicator manquant".into()))?;
     let p5 = co2.interval.p5;
     let p50 = co2.interval.p50;
     let p95 = co2.interval.p95;
 
-    // 2. Pour chaque scénario, projection des 3 quantiles indépendamment.
     let mut outcomes = Vec::with_capacity(req.scenarios.len());
     for s in &req.scenarios {
         let outcome = project_scenario(
@@ -149,7 +137,7 @@ fn validate(req: &YearlyForecastRequest) -> EstimatorResult<()> {
     forecast::check_volume_per_day(req.base_volume_per_day)?;
     let mut seen_labels = std::collections::HashSet::new();
     for s in &req.scenarios {
-        if !(-50.0..=50.0).contains(&s.monthly_growth_pct) {
+        if !forecast::growth_in_bounds(s.monthly_growth_pct) {
             return Err(EstimatorError::Schema(format!(
                 "monthly_growth_pct {} hors bornes [-50, 50] pour '{}'",
                 s.monthly_growth_pct, s.label
@@ -172,62 +160,50 @@ fn project_scenario(
     baseline_p50: f64,
     baseline_p95: f64,
 ) -> YearlyScenarioOutcome {
-    let growth = 1.0 + growth_pct / 100.0;
-    let base_factor = volume_per_day * 30.0;
-    let mut monthly_p5 = Vec::with_capacity(months as usize);
-    let mut monthly_p50 = Vec::with_capacity(months as usize);
-    let mut monthly_p95 = Vec::with_capacity(months as usize);
-    let mut cum_p5 = Vec::with_capacity(months as usize);
-    let mut cum_p50 = Vec::with_capacity(months as usize);
-    let mut cum_p95 = Vec::with_capacity(months as usize);
-    let mut running_p5 = 0.0_f64;
-    let mut running_p50 = 0.0_f64;
-    let mut running_p95 = 0.0_f64;
-    for n in 0..months {
-        let factor = forecast::grown(base_factor, growth, n);
-        let m_p5 = baseline_p5 * factor;
-        let m_p50 = baseline_p50 * factor;
-        let m_p95 = baseline_p95 * factor;
-        running_p5 += m_p5;
-        running_p50 += m_p50;
-        running_p95 += m_p95;
-        monthly_p5.push(m_p5);
-        monthly_p50.push(m_p50);
-        monthly_p95.push(m_p95);
-        cum_p5.push(running_p5);
-        cum_p50.push(running_p50);
-        cum_p95.push(running_p95);
-    }
+    let growth = forecast::growth_factor(growth_pct);
+    let base_factor = volume_per_day * forecast::DAYS_PER_MONTH;
+    let factors: Vec<f64> = (0..months)
+        .map(|n| forecast::grown(base_factor, growth, n))
+        .collect();
+    let (monthly_p5_g, cumulative_p5_g, annual_p5_g) = project(baseline_p5, &factors);
+    let (monthly_p50_g, cumulative_p50_g, annual_p50_g) = project(baseline_p50, &factors);
+    let (monthly_p95_g, cumulative_p95_g, annual_p95_g) = project(baseline_p95, &factors);
     YearlyScenarioOutcome {
         label: label.to_string(),
         monthly_growth_pct: growth_pct,
-        monthly_p5_g: monthly_p5,
-        monthly_p50_g: monthly_p50,
-        monthly_p95_g: monthly_p95,
-        cumulative_p5_g: cum_p5,
-        cumulative_p50_g: cum_p50,
-        cumulative_p95_g: cum_p95,
-        annual_p5_g: running_p5,
-        annual_p50_g: running_p50,
-        annual_p95_g: running_p95,
+        monthly_p5_g,
+        monthly_p50_g,
+        monthly_p95_g,
+        cumulative_p5_g,
+        cumulative_p50_g,
+        cumulative_p95_g,
+        annual_p5_g,
+        annual_p50_g,
+        annual_p95_g,
     }
+}
+
+/// Monthly values, running totals and total of one quantile.
+fn project(baseline: f64, factors: &[f64]) -> (Vec<f64>, Vec<f64>, f64) {
+    let monthly: Vec<f64> = factors.iter().map(|factor| baseline * factor).collect();
+    let mut total = 0.0_f64;
+    let cumulative = monthly
+        .iter()
+        .map(|m| {
+            total += m;
+            total
+        })
+        .collect();
+    (monthly, cumulative, total)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        EstimationRequest {
-            model_id: "gpt-4o-mini".into(),
-            tokens_in: 100,
-            tokens_out_estimated: 500,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
+        crate::validation::request_for("gpt-4o-mini", 100, 500)
     }
 
     fn simple_request(scenarios: Vec<YearlyScenario>) -> YearlyForecastRequest {

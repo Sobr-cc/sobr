@@ -1,4 +1,4 @@
-//! **C34.3** — Bridge entre [`sobria_core::InputModality`] +
+//! Bridge entre [`sobria_core::InputModality`] +
 //! [`sobria_core::ContextOverhead`] et [`crate::model_presets::VisionPricing`].
 //!
 //! Calcule les **effective tokens** (input et output) à utiliser dans les
@@ -16,33 +16,28 @@
 
 use sobria_core::{ContextOverhead, EstimationRequest, InputModality};
 
-use crate::model_presets::{ModelPreset, VisionPricing};
+use crate::model_presets::ModelPreset;
 
 /// Calcule les tokens de la modalité, avec préférence au `vision_pricing`
 /// du preset s'il est disponible. Fallback générique pour Text / Document /
 /// AudioInput (preset-indépendant).
 #[must_use]
 pub fn modality_tokens(modality: &InputModality, preset_opt: Option<&ModelPreset>) -> u32 {
-    match modality {
-        InputModality::VisionLow { image_count } => preset_opt
-            .and_then(|p| p.vision_pricing.as_ref())
-            .map_or_else(
-                || modality.default_token_count(),
-                // Low detail : 512×512 typique, high_detail=false
-                |vp: &VisionPricing| vp.tokens_for(*image_count, 512, 512, false),
-            ),
-        InputModality::VisionHigh {
-            image_count,
-            avg_width,
-            avg_height,
-        } => preset_opt
-            .and_then(|p| p.vision_pricing.as_ref())
-            .map_or_else(
-                || modality.default_token_count(),
-                |vp| vp.tokens_for(*image_count, *avg_width, *avg_height, true),
-            ),
-        // Text / Document / AudioInput : formule preset-indépendante (déjà
-        // dans InputModality::default_token_count).
+    let pricing = preset_opt.and_then(|p| p.vision_pricing.as_ref());
+    match (modality, pricing) {
+        // Low detail: a typical 512×512 image.
+        (InputModality::VisionLow { image_count }, Some(vp)) => {
+            vp.tokens_for(*image_count, 512, 512, false)
+        },
+        (
+            InputModality::VisionHigh {
+                image_count,
+                avg_width,
+                avg_height,
+            },
+            Some(vp),
+        ) => vp.tokens_for(*image_count, *avg_width, *avg_height, true),
+        // Text, Document, AudioInput, and images without preset pricing.
         _ => modality.default_token_count(),
     }
 }
@@ -132,11 +127,7 @@ pub fn overhead_from_preset(preset: &ModelPreset, output_tokens: u32) -> Context
         system_prompt_tokens: preset.default_context_overhead_tokens,
         tools_definition_tokens: 0,
         memory_tokens: 0,
-        thinking_tokens_p50: if preset.reasoning_capable {
-            auto_thinking_tokens(output_tokens, Some(preset))
-        } else {
-            0
-        },
+        thinking_tokens_p50: auto_thinking_tokens(output_tokens, Some(preset)),
     }
 }
 

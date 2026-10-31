@@ -21,7 +21,7 @@ const IF_FR: f64 = 56.0;
 /// Mix électrique US-Virginie (Electricity Maps moyenne) — ~412 gCO₂eq/kWh.
 const IF_US_VA: f64 = 412.0;
 
-/// **C34.6** — Helper : ContextOverhead à zéro (cas legacy texte).
+/// Helper : ContextOverhead à zéro (cas legacy texte).
 const ZERO_OVERHEAD: ContextOverhead = ContextOverhead {
     system_prompt_tokens: 0,
     tools_definition_tokens: 0,
@@ -29,7 +29,7 @@ const ZERO_OVERHEAD: ContextOverhead = ContextOverhead {
     thinking_tokens_p50: 0,
 };
 
-/// **C34.6** — Helper : pas de modalités (cas legacy texte).
+/// Helper : pas de modalités (cas legacy texte).
 const NO_MODALITIES: &[InputModality] = &[];
 
 // ─── Constantes modalités pour les cas C34.6 ────────────────────────────

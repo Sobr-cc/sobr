@@ -23,9 +23,12 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sobria_core::{EstimationRequest, EstimationResult};
+use sobria_core::{
+    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
+    UncertaintyInterval,
+};
 
-use crate::{error::EstimatorResult, params::EstimationParams};
+use crate::{distributions::Distribution, error::EstimatorResult, params::EstimationParams};
 
 /// Re-export du type énumératif défini dans `sobria-core::methodology`.
 ///
@@ -81,13 +84,13 @@ pub struct MethodologyInfo {
     pub maintained_by: &'static str,
 }
 
-/// Catalogue complet des méthodologies disponibles dans Sobr.ia v1.0.
+/// Every methodology Sobr.ia can run.
 ///
-/// Ajout d'une nouvelle méthodologie en v1.1+ :
+/// To add one:
 /// 1. Étendre l'enum [`EmpreinteMethod`].
 /// 2. Ajouter l'entry ici.
 /// 3. Implémenter [`EmpreinteEngine`] dans `crates/sobria-estimator/src/engines/`.
-/// 4. Câbler dans la factory [`engine_for`].
+/// 4. Câbler dans la factory [`crate::engine_for`].
 pub static AVAILABLE_METHODS: &[MethodologyInfo] = &[
     MethodologyInfo {
         method: EmpreinteMethod::AfnorSobria,
@@ -131,10 +134,7 @@ pub trait EmpreinteEngine: Send + Sync {
     ///
     /// Never: [`AVAILABLE_METHODS`] lists every [`EmpreinteMethod`].
     fn methodology_info(&self) -> &'static MethodologyInfo {
-        AVAILABLE_METHODS
-            .iter()
-            .find(|m| m.method == self.method())
-            .expect("AVAILABLE_METHODS doit couvrir tous les EmpreinteMethod variants")
+        info_for(self.method())
     }
 
     /// Lance l'estimation pour une requête + jeu de paramètres.
@@ -160,6 +160,42 @@ pub fn info_for(method: EmpreinteMethod) -> &'static MethodologyInfo {
         .iter()
         .find(|m| m.method == method)
         .expect("AVAILABLE_METHODS doit couvrir tous les EmpreinteMethod variants")
+}
+
+/// The CO₂eq, energy and water indicators, in the order every engine returns them.
+pub(crate) fn indicator_values(
+    co2eq: (UncertaintyInterval, Option<DistributionBins>),
+    energy: (UncertaintyInterval, Option<DistributionBins>),
+    water: (UncertaintyInterval, Option<DistributionBins>),
+) -> Vec<IndicatorValue> {
+    [
+        (Indicator::Co2Eq, co2eq),
+        (Indicator::Energy, energy),
+        (Indicator::Water, water),
+    ]
+    .into_iter()
+    .map(|(indicator, (interval, bins))| IndicatorValue {
+        indicator,
+        interval,
+        unit: indicator.default_unit().into(),
+        bins,
+    })
+    .collect()
+}
+
+pub(crate) fn distribution_hypothesis(key: &str, dist: &Distribution, source: &str) -> Hypothesis {
+    Hypothesis {
+        key: key.into(),
+        value: serde_json::to_value(dist).unwrap_or(serde_json::Value::Null),
+        source: source.into(),
+    }
+}
+
+pub(crate) fn find_indicator(
+    result: &EstimationResult,
+    indicator: Indicator,
+) -> Option<&IndicatorValue> {
+    result.indicators.iter().find(|i| i.indicator == indicator)
 }
 
 #[cfg(test)]

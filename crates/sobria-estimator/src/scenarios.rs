@@ -13,15 +13,11 @@ use sobria_core::{EstimationRequest, EstimationResult, Indicator};
 
 use crate::{
     distributions::Distribution,
+    engine_trait::find_indicator,
     error::{EstimatorError, EstimatorResult},
     forecast,
     params::EstimationParams,
 };
-// `MonteCarloEngine` n'est plus référencé par la signature publique
-// (`simulate` prend désormais `&dyn EmpreinteEngine`, C24) ; il reste utilisé
-// par les tests internes.
-#[cfg(test)]
-use crate::engine::MonteCarloEngine;
 
 /// Borne haute du nombre de scénarios autorisés par requête (anti-abus).
 pub const MAX_SCENARIOS: usize = 20;
@@ -147,18 +143,10 @@ pub struct SimulationResult {
 
 /// Exécute le baseline + tous les scénarios + la projection.
 ///
-/// Polish G (C24) — Le paramètre `engine` est devenu `&dyn EmpreinteEngine`
-/// pour que la simulation honore la méthodologie choisie par l'utilisateur
-/// (AFNOR Sobr.ia ou EcoLogits 2026-01). Les wrappers existants qui
-/// passaient `&MonteCarloEngine` continuent de fonctionner via coercion
-/// `&MonteCarloEngine` → `&dyn EmpreinteEngine` (trait impl additif).
-///
-/// C25-A8 — Le paramètre `baseline_params` est désormais fourni par
-/// l'appelant. Cela permet à la couche IPC (`sobria-app::logic`) d'y
-/// appliquer un override datacenter (PUE/IF/WUE) avant de déléguer.
-/// Les scénarios partent toujours de `baseline_params` (sauf
-/// `model_id` override qui reconstruit les params depuis le nouveau
-/// preset — comportement préservé dans `apply_overrides`).
+/// `engine` runs the methodology the user chose. `baseline_params` comes from
+/// the caller, which can apply a datacenter override (PUE, IF, WUE); the
+/// scenarios start from it, except a `model_id` override, which rebuilds the
+/// params from that model's preset.
 ///
 /// **Erreurs** :
 /// - `Schema` si plus de `MAX_SCENARIOS` scénarios,
@@ -181,17 +169,17 @@ pub fn simulate(
         validate_forecast(f)?;
     }
 
-    // 1. Baseline
     let baseline = engine.estimate(&request.baseline, baseline_params)?;
     let baseline_co2_p50 = co2_p50(&baseline)?;
 
-    // 2. Scénarios
     let mut outcomes: Vec<ScenarioOutcome> = Vec::with_capacity(request.scenarios.len());
+    let mut scenario_p50s = Vec::with_capacity(request.scenarios.len());
     for scenario in &request.scenarios {
         let (req_derived, params_derived) =
             apply_overrides(&request.baseline, baseline_params, &scenario.overrides)?;
         let result = engine.estimate(&req_derived, &params_derived)?;
         let p50 = co2_p50(&result)?;
+        scenario_p50s.push(p50);
         let delta = p50 - baseline_co2_p50;
         let delta_pct = if baseline_co2_p50.abs() > f64::EPSILON {
             (delta / baseline_co2_p50) * 100.0
@@ -206,16 +194,12 @@ pub fn simulate(
         });
     }
 
-    // 3. Forecast (optionnel)
     let forecast = request.forecast.as_ref().map(|f| {
         let baseline_monthly = monthly_series(baseline_co2_p50, f);
         let baseline_annual: f64 = baseline_monthly.iter().sum();
-        let scenarios_annual: Vec<f64> = outcomes
+        let scenarios_annual: Vec<f64> = scenario_p50s
             .iter()
-            .map(|o| {
-                let p50 = co2_p50(&o.result).unwrap_or(0.0);
-                monthly_series(p50, f).iter().sum()
-            })
+            .map(|&p50| monthly_series(p50, f).iter().sum())
             .collect();
         ForecastResult {
             months: f.months,
@@ -240,7 +224,7 @@ pub fn simulate(
 
 fn validate_forecast(f: &ForecastConfig) -> EstimatorResult<()> {
     forecast::check_months(f.months, MAX_FORECAST_MONTHS)?;
-    if !(-50.0..=50.0).contains(&f.monthly_growth_pct) {
+    if !forecast::growth_in_bounds(f.monthly_growth_pct) {
         return Err(EstimatorError::Schema(format!(
             "monthly_growth_pct {} hors bornes [-50, 50]",
             f.monthly_growth_pct
@@ -250,10 +234,7 @@ fn validate_forecast(f: &ForecastConfig) -> EstimatorResult<()> {
 }
 
 fn co2_p50(result: &EstimationResult) -> EstimatorResult<f64> {
-    result
-        .indicators
-        .iter()
-        .find(|i| matches!(i.indicator, Indicator::Co2Eq))
+    find_indicator(result, Indicator::Co2Eq)
         .map(|i| i.interval.p50)
         .ok_or_else(|| EstimatorError::Schema("CO2eq indicator missing".into()))
 }
@@ -300,8 +281,8 @@ fn apply_overrides(
 ///
 /// `mois_n = (P50 × volume_jour × 30) × (1 + growth)^n`.
 fn monthly_series(p50_per_req_g: f64, cfg: &ForecastConfig) -> Vec<f64> {
-    let base_monthly = p50_per_req_g * cfg.base_volume_per_day * 30.0;
-    let growth = 1.0 + cfg.monthly_growth_pct / 100.0;
+    let base_monthly = p50_per_req_g * cfg.base_volume_per_day * forecast::DAYS_PER_MONTH;
+    let growth = forecast::growth_factor(cfg.monthly_growth_pct);
     (0..cfg.months)
         .map(|n| forecast::grown(base_monthly, growth, n))
         .collect()
@@ -310,18 +291,10 @@ fn monthly_series(p50_per_req_g: f64, cfg: &ForecastConfig) -> Vec<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        EstimationRequest {
-            model_id: "gpt-4o-mini".into(),
-            tokens_in: 100,
-            tokens_out_estimated: 500,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
+        crate::validation::request_for("gpt-4o-mini", 100, 500)
     }
 
     fn sim_request_with(scenarios: Vec<Scenario>) -> SimulationRequest {

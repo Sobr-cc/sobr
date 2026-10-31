@@ -31,15 +31,12 @@
 //!   *ignorés* car remplacés par les formules EcoLogits internes).
 
 use chrono::Utc;
-use sobria_core::{
-    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
-    UncertaintyInterval,
-};
+use sobria_core::{EstimationRequest, EstimationResult, Hypothesis, UncertaintyInterval};
 
 use crate::{
     distributions::Distribution,
     effective_tokens,
-    engine_trait::{EmpreinteEngine, EmpreinteMethod},
+    engine_trait::{distribution_hypothesis, indicator_values, EmpreinteEngine, EmpreinteMethod},
     equivalents,
     error::{EstimatorError, EstimatorResult},
     model_presets::find_preset,
@@ -263,42 +260,16 @@ impl EcoLogitsEngine {
 
         // Sortie : ECoLogits est déterministe en v1 — P5 = P50 = P95.
         let degenerate = |v: f64| {
-            UncertaintyInterval::new(v, v, v)
+            UncertaintyInterval::point(v)
                 .map_err(|e| EstimatorError::Validation(format!("interval EcoLogits ({v}): {e}")))
         };
-        let co2_interval = degenerate(total_co2_g)?;
-        let energy_interval = degenerate(energy_watt_hours)?;
-        let water_interval = degenerate(water_l)?;
-
-        // Pas d'histogramme (samples tous identiques par construction).
-        let no_bins: Option<DistributionBins> = None;
-
-        let indicators = vec![
-            IndicatorValue {
-                indicator: Indicator::Co2Eq,
-                interval: co2_interval,
-                unit: Indicator::Co2Eq.default_unit().into(),
-                bins: no_bins.clone(),
-            },
-            IndicatorValue {
-                indicator: Indicator::Energy,
-                interval: energy_interval,
-                unit: Indicator::Energy.default_unit().into(),
-                bins: no_bins.clone(),
-            },
-            IndicatorValue {
-                indicator: Indicator::Water,
-                interval: water_interval,
-                unit: Indicator::Water.default_unit().into(),
-                bins: no_bins,
-            },
-        ];
-
-        let equivalents = vec![
-            equivalents::co2eq_to_car_km(total_co2_g),
-            equivalents::energy_wh_to_shower_seconds(energy_watt_hours),
-            equivalents::energy_wh_to_screen_hours(energy_watt_hours),
-        ];
+        // No histogram: every sample would be the same value.
+        let indicators = indicator_values(
+            (degenerate(total_co2_g)?, None),
+            (degenerate(energy_watt_hours)?, None),
+            (degenerate(water_l)?, None),
+        );
+        let equivalents = equivalents::standard(total_co2_g, energy_watt_hours);
 
         // Hypothèses : on documente les coefficients EcoLogits + les
         // paramètres user (PUE / IF / WUE) effectivement utilisés.
@@ -318,23 +289,21 @@ impl EcoLogitsEngine {
                 value: serde_json::Value::from(n_gpu(p_billions)),
                 source: "EcoLogits formula: next_pow2(ceil(1.2×P×16/8 / 80))".into(),
             },
-            Hypothesis {
-                key: "pue".into(),
-                value: serde_json::to_value(params.pue).unwrap_or(serde_json::Value::Null),
-                source: "User param (réduit à la médiane pour EcoLogits déterministe)".into(),
-            },
-            Hypothesis {
-                key: "if_electrical_g_per_kwh".into(),
-                value: serde_json::to_value(params.if_electrical_g_per_kwh)
-                    .unwrap_or(serde_json::Value::Null),
-                source: "User param (réduit à la médiane)".into(),
-            },
-            Hypothesis {
-                key: "wue_l_per_kwh".into(),
-                value: serde_json::to_value(params.wue_l_per_kwh)
-                    .unwrap_or(serde_json::Value::Null),
-                source: "User param (réduit à la médiane)".into(),
-            },
+            distribution_hypothesis(
+                "pue",
+                &params.pue,
+                "User param (réduit à la médiane pour EcoLogits déterministe)",
+            ),
+            distribution_hypothesis(
+                "if_electrical_g_per_kwh",
+                &params.if_electrical_g_per_kwh,
+                "User param (réduit à la médiane)",
+            ),
+            distribution_hypothesis(
+                "wue_l_per_kwh",
+                &params.wue_l_per_kwh,
+                "User param (réduit à la médiane)",
+            ),
         ];
 
         Ok(EstimationResult {
@@ -372,18 +341,8 @@ impl EmpreinteEngine for EcoLogitsEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn req(model_id: &str, t_in: u32, t_out: u32) -> EstimationRequest {
-        EstimationRequest {
-            model_id: model_id.into(),
-            tokens_in: t_in,
-            tokens_out_estimated: t_out,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
-    }
+    use crate::validation::request_for as req;
+    use sobria_core::Indicator;
 
     fn params_point(pue: f64, if_elec: f64, wue: f64) -> EstimationParams {
         EstimationParams::for_model("llama-3-1-70b")

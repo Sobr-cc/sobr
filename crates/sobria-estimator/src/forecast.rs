@@ -6,6 +6,18 @@ use crate::error::{EstimatorError, EstimatorResult};
 /// Largest `base_volume_per_day` accepted (prompts per day).
 const MAX_VOLUME_PER_DAY: f64 = 1_000_000.0;
 
+/// Days counted in one forecast month.
+pub(crate) const DAYS_PER_MONTH: f64 = 30.0;
+
+pub(crate) fn growth_in_bounds(monthly_growth_pct: f64) -> bool {
+    (-50.0..=50.0).contains(&monthly_growth_pct)
+}
+
+/// Monthly multiplier for a growth in percent (`5.0` → `1.05`).
+pub(crate) fn growth_factor(monthly_growth_pct: f64) -> f64 {
+    1.0 + monthly_growth_pct / 100.0
+}
+
 pub(crate) fn check_scenario_count(count: usize, max: usize) -> EstimatorResult<()> {
     if count > max {
         return Err(EstimatorError::Schema(format!(

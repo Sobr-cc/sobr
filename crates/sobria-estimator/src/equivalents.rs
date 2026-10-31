@@ -17,6 +17,15 @@ const SHOWER_WH: f64 = 1_750.0;
 /// Source : ADEME — guide écrans 2023.
 const SCREEN_HOUR_WH: f64 = 25.0;
 
+/// The equivalents shown with every result: car km, shower, screen hours.
+pub(crate) fn standard(g_co2eq: f64, wh: f64) -> Vec<Equivalent> {
+    vec![
+        co2eq_to_car_km(g_co2eq),
+        energy_wh_to_shower_seconds(wh),
+        energy_wh_to_screen_hours(wh),
+    ]
+}
+
 /// Convertit un résultat CO₂eq (en grammes) en équivalent kilomètres voiture.
 #[must_use]
 pub fn co2eq_to_car_km(g_co2eq: f64) -> Equivalent {

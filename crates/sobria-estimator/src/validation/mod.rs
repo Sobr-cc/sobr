@@ -10,11 +10,15 @@
 
 use chrono::Utc;
 use serde::Serialize;
-use sobria_core::{ContextOverhead, EstimationRequest, Indicator, InputModality};
+use sobria_core::{ContextOverhead, EstimationRequest, EstimationResult, Indicator, InputModality};
 
 use crate::{
-    distributions::Distribution, engine::MonteCarloEngine, engine_trait::EmpreinteMethod,
-    engines::ecologits::EcoLogitsEngine, error::EstimatorResult, params::EstimationParams,
+    distributions::Distribution,
+    engine::MonteCarloEngine,
+    engine_trait::{find_indicator, EmpreinteMethod},
+    engines::ecologits::EcoLogitsEngine,
+    error::EstimatorResult,
+    params::EstimationParams,
 };
 
 pub mod cases;
@@ -69,10 +73,10 @@ pub struct ReproductionCase {
     pub disable_embodied: bool,
     /// Notes méthodologiques.
     pub notes: &'static str,
-    /// **C34.6** — Modalités d'input à ajouter à la requête (vision, doc,
+    /// Modalités d'input à ajouter à la requête (vision, doc,
     /// audio). Vide par défaut (cas legacy textuels).
     pub modalities: &'static [InputModality],
-    /// **C34.6** — Overhead système à ajouter à la requête. Zéros par
+    /// Overhead système à ajouter à la requête. Zéros par
     /// défaut (cas legacy textuels).
     pub overhead: ContextOverhead,
 }
@@ -125,7 +129,7 @@ pub enum Expectation {
 }
 
 /// Helper : construit un `EstimationRequest` pour un cas.
-fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationRequest {
+pub(crate) fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationRequest {
     EstimationRequest {
         model_id: model_id.into(),
         tokens_in,
@@ -137,18 +141,20 @@ fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationReq
     }
 }
 
-/// **C34.6** — Construit un `EstimationRequest` pour un `ReproductionCase`
+/// Construit un `EstimationRequest` pour un `ReproductionCase`
 /// avec ses modalités et overhead injectés (cas legacy : vides).
 fn request_for_reproduction(case: &ReproductionCase) -> EstimationRequest {
     EstimationRequest {
-        model_id: case.model_id.into(),
-        tokens_in: case.tokens_in,
-        tokens_out_estimated: case.tokens_out,
-        datacenter_id: None,
-        timestamp: Utc::now(),
         modalities: case.modalities.to_vec(),
         overhead: case.overhead,
+        ..request_for(case.model_id, case.tokens_in, case.tokens_out)
     }
+}
+
+fn co2eq_p50(result: &EstimationResult) -> EstimatorResult<f64> {
+    find_indicator(result, Indicator::Co2Eq)
+        .map(|i| i.interval.p50)
+        .ok_or_else(|| crate::error::EstimatorError::Other("CO2eq absent du résultat".into()))
 }
 
 /// Exécute un cas de plausibilité.
@@ -162,12 +168,7 @@ pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationRe
         &request_for(case.model_id, case.tokens_in, case.tokens_out),
         &params,
     )?;
-    let co2eq = result
-        .indicators
-        .iter()
-        .find(|i| i.indicator == Indicator::Co2Eq)
-        .ok_or_else(|| crate::error::EstimatorError::Other("CO2eq absent du résultat".into()))?;
-    let p50 = co2eq.interval.p50;
+    let p50 = co2eq_p50(&result)?;
     let (min, max) = case.expected_range_g_co2eq;
     let passed = p50 >= min && p50 <= max;
     let message = if passed {
@@ -216,12 +217,7 @@ pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationRe
             engine.estimate(&request, &params)?
         },
     };
-    let co2eq = result
-        .indicators
-        .iter()
-        .find(|i| i.indicator == Indicator::Co2Eq)
-        .ok_or_else(|| crate::error::EstimatorError::Other("CO2eq absent du résultat".into()))?;
-    let p50 = co2eq.interval.p50;
+    let p50 = co2eq_p50(&result)?;
     let relative_error = (p50 - case.expected_p50_g_co2eq).abs() / case.expected_p50_g_co2eq;
     let passed = relative_error <= case.tolerance;
     let message = if passed {

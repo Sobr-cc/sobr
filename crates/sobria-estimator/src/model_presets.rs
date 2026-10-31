@@ -1,29 +1,9 @@
-//! Registry de paramètres distributionnels par modèle.
+//! Registry of distribution parameters per model.
 //!
-//! Voir `docs/archive/chantiers/C06-model-presets.md` pour la méthodologie
-//! d'extrapolation et `docs/methodology/MODEL-PRESETS.md` pour la
-//! documentation chiffre par chiffre.
-//!
-//! **Garde-fou méthodologique** : les valeurs fournies ici sont
-//! *indicatives* ou *extrapolées* pour les modèles fermés. Elles
-//! seront raffinées en chantier #7 par validation croisée contre
-//! Luccioni 2023 et EcoLogits.
-//!
-//! ## C34.2 — Catalogue 2026
-//!
-//! Étendu en v0.9.0 (chantier C34.2, complété ensuite — le compte exact
-//! vit dans le doc-comment de [`MODEL_REGISTRY`]) avec :
-//! - les presets 2025-2026 (Claude 4.x, GPT-5.5, Gemini 3.x, Llama 4,
-//!   Mistral Large 3, DeepSeek V4, Grok 4, Qwen 3.6, Phi-4 reasoning).
-//! - Anciens presets 2024 marqués `deprecated: true` (conservés pour
-//!   reproductibilité historique audit ledger).
-//! - Nouveaux enums : [`ModelFamily`], [`ArchitectureKind`],
-//!   [`VisionPricing`].
-//! - Nouveaux champs de capabilities : `release_date`, `model_family`,
-//!   `architecture`, `vision_capable`, `vision_pricing`, `audio_capable`,
-//!   `reasoning_capable`, `thinking_token_multiplier`,
-//!   `default_context_overhead_tokens`, `deprecated`, `source_url`,
-//!   `active_params_b`.
+//! Method: `docs/archive/chantiers/C06-model-presets.md` (extrapolation) and
+//! `docs/methodology/MODEL-PRESETS.md` (each figure). Values of closed models
+//! are indicative or extrapolated (missing sources: SOB-209). Older presets
+//! stay, with `deprecated: true`, so the audit ledger can be reproduced.
 //!
 //! Shortlist source : `docs/archive/chantiers/C34-shortlist-models-validated.md`.
 
@@ -97,7 +77,7 @@ pub enum VendorUnit {
 // C34.2 — Nouveaux enums : ModelFamily, ArchitectureKind, VisionPricing
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// **C34.2** — Famille du fabricant. Sert au filtrage et au regroupement UI.
+/// Famille du fabricant. Sert au filtrage et au regroupement UI.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelFamily {
@@ -123,7 +103,7 @@ pub enum ModelFamily {
     Other,
 }
 
-/// **C34.2** — Architecture interne du modèle.
+/// Architecture interne du modèle.
 ///
 /// L'énergie d'inférence (`ε_decode`) est calculée à partir des paramètres
 /// **actifs** (cf. [`ModelPreset::active_params_b`]). Pour MoE, c'est
@@ -146,7 +126,7 @@ pub enum ArchitectureKind {
     Hybrid,
 }
 
-/// **C34.2** — Formule de tarification tokens vision par fabricant.
+/// Formule de tarification tokens vision par fabricant.
 ///
 /// Sourcée des docs publiques officielles (voir [`ModelPreset::source_url`]) :
 /// - **OpenAI** : <https://platform.openai.com/docs/guides/vision/calculating-costs>
@@ -251,7 +231,7 @@ impl VisionPricing {
 
 /// Chiffre officiel publié par un fabricant (Mistral, Google, Meta…).
 ///
-/// **C32.4** — agrégation des vendor disclosures officielles (audit datasets
+/// agrégation des vendor disclosures officielles (audit datasets
 /// Q3 2026 §D). Sobr.ia est le tiers de confiance qui les normalise et les
 /// présente avec leur lineage, **sans se substituer aux méthodologies
 /// indépendantes** (AFNOR/EcoLogits restent calculées en parallèle).
@@ -283,7 +263,7 @@ pub struct VendorDisclosure {
 /// qui ne sont pas désérialisables). `Serialize` suffit pour exposer le
 /// catalogue côté frontend.
 ///
-/// **C34.2** — 4 bools de capabilities (vision/audio/reasoning/deprecated) :
+/// 4 bools de capabilities (vision/audio/reasoning/deprecated) :
 /// allow `struct_excessive_bools` car chaque flag a une sémantique distincte
 /// et indépendante (refactor en enum/bitflags rendrait le code moins lisible).
 #[allow(clippy::struct_excessive_bools)]
@@ -303,7 +283,7 @@ pub struct ModelPreset {
     /// - Pour MoE : peut être beaucoup plus grand (Llama 4 Maverick =
     ///   400B total / 17B actifs).
     pub approx_params_billions: f64,
-    /// **C34.2** — Nombre de paramètres **actifs** par token (en
+    /// Nombre de paramètres **actifs** par token (en
     /// milliards). Drive l'énergie d'inférence.
     ///
     /// - Pour dense : `= approx_params_billions`.
@@ -322,7 +302,7 @@ pub struct ModelPreset {
     pub calibration: CalibrationStatus,
     /// Sources documentaires.
     pub sources: &'static [&'static str],
-    /// **C32.4** — Chiffres officiels publiés par le fabricant (training
+    /// Chiffres officiels publiés par le fabricant (training
     /// et inference). Liste vide si le fabricant n'a pas de disclosure
     /// publique (cas Anthropic, OpenAI au 2026-05).
     ///
@@ -330,28 +310,28 @@ pub struct ModelPreset {
     /// disclosure » qui présente la valeur officielle **à côté** de
     /// l'estimation Sobr.ia Monte-Carlo (transparence multi-méthodologie).
     pub vendor_disclosures: &'static [VendorDisclosure],
-    /// **C34.2** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    /// Date de sortie publique (ISO `YYYY-MM-DD`).
     ///
     /// Format `&'static str` au lieu de `chrono::NaiveDate` pour rester
     /// compatible `static` (NaiveDate n'a pas de constructeur const).
     /// Format validé en test (10 chars, 3 segments `YYYY-MM-DD`).
     pub release_date: &'static str,
-    /// **C34.2** — Famille typée du fabricant.
+    /// Famille typée du fabricant.
     pub model_family: ModelFamily,
-    /// **C34.2** — Architecture du modèle.
+    /// Architecture du modèle.
     pub architecture: ArchitectureKind,
-    /// **C34.2** — `true` si le modèle accepte les images en entrée.
+    /// `true` si le modèle accepte les images en entrée.
     pub vision_capable: bool,
-    /// **C34.2** — Formule de tarification tokens vision selon vendor.
+    /// Formule de tarification tokens vision selon vendor.
     /// `None` si `vision_capable = false`.
     pub vision_pricing: Option<VisionPricing>,
-    /// **C34.2** — `true` si le modèle accepte l'audio en entrée.
+    /// `true` si le modèle accepte l'audio en entrée.
     pub audio_capable: bool,
-    /// **C34.2** — `true` si le modèle a un mode reasoning intégré
+    /// `true` si le modèle a un mode reasoning intégré
     /// (chain-of-thought tokens visibles ou cachés : o3, R1, V4, Claude
     /// extended thinking, Gemini thinking, Phi-4 reasoning, etc.).
     pub reasoning_capable: bool,
-    /// **C34.2** — `(P5, P95)` du ratio thinking/output tokens pour
+    /// `(P5, P95)` du ratio thinking/output tokens pour
     /// reasoning models. `None` si `reasoning_capable = false`.
     ///
     /// Sources :
@@ -361,7 +341,7 @@ pub struct ModelPreset {
     /// - Gemini 2.5+ thinking : `(3.0, 25.0)` (Google doc)
     /// - Phi-4 reasoning : `(5.0, 15.0)` (Phi-4 reasoning technical report)
     pub thinking_token_multiplier: Option<(f64, f64)>,
-    /// **C34.2** — Overhead système typique (system prompt + tools) en
+    /// Overhead système typique (system prompt + tools) en
     /// tokens pour l'INTERFACE app vendor par défaut.
     ///
     /// Valeurs P50 utilisées (cf. brief C34 §3 sources) :
@@ -375,11 +355,11 @@ pub struct ModelPreset {
     /// (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert
     /// si l'utilisateur connaît sa valeur exacte.
     pub default_context_overhead_tokens: u32,
-    /// **C34.2** — `true` for obsolete models kept only so the audit ledger
+    /// `true` for obsolete models kept only so the audit ledger
     /// stays reproducible; [`available_models_filtered`] can leave them out
     /// (the app lists [`available_models`] today).
     pub deprecated: bool,
-    /// **C34.2** — URL canonique de la source vendor (model card, blog
+    /// URL canonique de la source vendor (model card, blog
     /// post, system card). Toujours HTTPS, validé en test.
     pub source_url: &'static str,
 }
@@ -394,7 +374,7 @@ pub struct ModelPreset {
 // vérifient que chaque preset reste cohérent avec ces formules.
 // Voir `docs/methodology/MODEL-PRESETS.md` §2.
 //
-// **C34.2** : les formules prennent `active_params_b` (pas total) pour
+// les formules prennent `active_params_b` (pas total) pour
 // les MoE. Pour dense, active == total donc identique.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1641,7 +1621,7 @@ pub fn available_models() -> Vec<&'static ModelPreset> {
     MODEL_REGISTRY.iter().collect()
 }
 
-/// **C34.2** — Retourne la liste de tous les modèles avec filtrage des
+/// Retourne la liste de tous les modèles avec filtrage des
 /// deprecated.
 ///
 /// Si `include_deprecated = false`, exclut les presets avec
@@ -1702,20 +1682,8 @@ impl EstimationParams {
 mod tests {
     use super::*;
     use crate::engine::MonteCarloEngine;
-    use chrono::Utc;
-    use sobria_core::{EstimationRequest, Indicator};
-
-    fn request_for(model_id: &str, t_in: u32, t_out: u32) -> EstimationRequest {
-        EstimationRequest {
-            model_id: model_id.into(),
-            tokens_in: t_in,
-            tokens_out_estimated: t_out,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
-    }
+    use crate::validation::request_for;
+    use sobria_core::Indicator;
 
     #[test]
     fn registry_has_at_least_25_presets() {
@@ -1963,7 +1931,7 @@ mod tests {
         assert!((p50 - 2.0).abs() < 1e-12);
     }
 
-    /// **C34.2** — les formules d'extrapolation utilisent `active_params_b`
+    /// les formules d'extrapolation utilisent `active_params_b`
     /// (pour MoE), pas `approx_params_billions` qui est le total.
     ///
     /// Tolérance : ±2 % (les valeurs sont hardcodées arrondies).

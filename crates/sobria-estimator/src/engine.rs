@@ -6,14 +6,14 @@
 use chrono::Utc;
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus};
 use sobria_core::{
-    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, Indicator, IndicatorValue,
-    UncertaintyInterval, DEFAULT_SEED,
+    DistributionBins, EstimationRequest, EstimationResult, Hypothesis, UncertaintyInterval,
+    DEFAULT_SEED,
 };
 use tracing::debug;
 
 use crate::{
     effective_tokens,
-    engine_trait::{EmpreinteEngine, EmpreinteMethod},
+    engine_trait::{distribution_hypothesis, indicator_values, EmpreinteEngine, EmpreinteMethod},
     equivalents,
     error::{EstimatorError, EstimatorResult},
     model_presets::find_preset,
@@ -141,32 +141,12 @@ impl MonteCarloEngine {
         let energy_interval = quantile_interval(&mut energy_samples)?;
         let water_interval = quantile_interval(&mut water_samples)?;
 
-        let indicators = vec![
-            IndicatorValue {
-                indicator: Indicator::Co2Eq,
-                interval: co2eq_interval,
-                unit: Indicator::Co2Eq.default_unit().into(),
-                bins: co2eq_bins,
-            },
-            IndicatorValue {
-                indicator: Indicator::Energy,
-                interval: energy_interval,
-                unit: Indicator::Energy.default_unit().into(),
-                bins: energy_bins,
-            },
-            IndicatorValue {
-                indicator: Indicator::Water,
-                interval: water_interval,
-                unit: Indicator::Water.default_unit().into(),
-                bins: water_bins,
-            },
-        ];
-
-        let equivalents = vec![
-            equivalents::co2eq_to_car_km(co2eq_interval.p50),
-            equivalents::energy_wh_to_shower_seconds(energy_interval.p50),
-            equivalents::energy_wh_to_screen_hours(energy_interval.p50),
-        ];
+        let indicators = indicator_values(
+            (co2eq_interval, co2eq_bins),
+            (energy_interval, energy_bins),
+            (water_interval, water_bins),
+        );
+        let equivalents = equivalents::standard(co2eq_interval.p50, energy_interval.p50);
 
         let hypotheses = hypotheses_from_params(params);
 
@@ -289,11 +269,11 @@ pub fn bin_samples(samples: &[f64], n_bins: usize) -> Option<DistributionBins> {
 /// Une ligne par paramètre, valeur sérialisée en JSON.
 fn hypotheses_from_params(params: &EstimationParams) -> Vec<Hypothesis> {
     fn h(key: &str, dist: &crate::distributions::Distribution) -> Hypothesis {
-        Hypothesis {
-            key: key.into(),
-            value: serde_json::to_value(dist).unwrap_or(serde_json::Value::Null),
-            source: "Sobr.ia — paramètres distributionnels (voir docs/methodology/)".into(),
-        }
+        distribution_hypothesis(
+            key,
+            dist,
+            "Sobr.ia — paramètres distributionnels (voir docs/methodology/)",
+        )
     }
     vec![
         h(
