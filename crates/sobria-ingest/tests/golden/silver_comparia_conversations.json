@@ -1,0 +1,40 @@
+{
+  "columns": [
+    {
+      "dtype": "u32",
+      "name": "id"
+    },
+    {
+      "dtype": "str",
+      "name": "model"
+    },
+    {
+      "dtype": "str",
+      "name": "_copper_sha256"
+    },
+    {
+      "dtype": "str",
+      "name": "_ingested_at"
+    }
+  ],
+  "rows": [
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "id": "1",
+      "model": "gpt-4o-mini"
+    },
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "id": "2",
+      "model": "claude-3-5"
+    },
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "id": "3",
+      "model": "mistral-large"
+    }
+  ]
+}

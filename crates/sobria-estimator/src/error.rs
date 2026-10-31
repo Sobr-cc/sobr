@@ -1,22 +1,22 @@
-//! Erreurs publiques de `sobria-estimator`.
+//! Public errors of `sobria-estimator`.
 
 use thiserror::Error;
 
-/// Alias `Result` pour la crate.
+/// `Result` alias for the crate.
 pub type EstimatorResult<T> = Result<T, EstimatorError>;
 
-/// Catégories d'erreurs publiques.
+/// Public error categories.
 #[derive(Debug, Error)]
 pub enum EstimatorError {
-    /// Donnée d'entrée non conforme.
+    /// Non-conforming input data.
     #[error("schéma : {0}")]
     Schema(String),
 
-    /// Échec de validation interne.
+    /// Internal validation failure.
     #[error("validation : {0}")]
     Validation(String),
 
-    /// Erreur arbitraire.
+    /// Arbitrary error.
     #[error("erreur : {0}")]
     Other(String),
 }

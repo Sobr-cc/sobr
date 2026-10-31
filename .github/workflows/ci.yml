@@ -68,8 +68,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: install tarpaulin
         run: cargo install cargo-tarpaulin --locked
+      # The default ptrace engine adds -Clink-dead-code, which compiles the
+      # never-called trait methods of polars-arrow and fires their
+      # `const { assert!(false) }`. The LLVM engine does not (SOB-208).
       - name: cargo tarpaulin
-        run: cargo tarpaulin --workspace --out Xml --output-dir coverage
+        run: cargo tarpaulin --workspace --engine llvm --out Xml --output-dir coverage
       - name: upload the report
         if: always()
         uses: actions/upload-artifact@v4
