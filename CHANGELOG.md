@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
+
+- **`docs/sources/CATALOGUE-SOURCES.md`** (version 2.2): the French part (sources
+  S01 to S09, tiers, quick matrix, Silver schema overview, prerequisites,
+  retention policy) is translated to English, following "translate when touched"
+  (SOB-100). No fact, URL, identifier or number changed; the model catalog
+  section of SOB-6 is untouched. Proper names (Teréga, ODRÉ) keep their accents.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
