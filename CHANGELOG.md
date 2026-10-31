@@ -5,6 +5,11 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
 ### Changed — printpdf 0.12 for the PDF reports (2026-10-31, SOB-197)
@@ -93,8 +98,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
   within the rights of the person who connected it. Thibault answered its
-  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
-  ADR-0019 and ADR-0022 are merged, so it is Accepted.
+  eight points on 2026-10-31 (SOB-152): every recommendation. It is
+  Accepted because ADR-0019 and ADR-0022 are merged.
   - Two front doors share one contract and one repo (`sobr`): a stdio server
     for the personal space and a Streamable HTTP route in the Sobr server for
     an organization. One connection serves one space.
@@ -259,11 +264,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
   is free for individuals; the 30-day trial and the per-seat price apply to
   organizations only. It settles the two open points of Amendment 1: the price
-  and the conflict with ADR-0013.
+  and the conflict with ADR-0013. Limits on the free space and the date of sync
+  between machines are not decided here.
 - **ADR-0013, Amendment 2** (Accepted): the personal space is an explicit
   exception to "no hosted accounts" and "no multi-device sync"; organizations
-  keep the rule. Thibault's answer: SOB-136. Limits on the free space and the
-  date of sync between machines are not decided here.
+  keep the rule. Thibault's answer: SOB-136.
 
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
