@@ -5,6 +5,7 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-143)
+- **Amendment 1** (Accepted 2026-10-31, SOB-146): sessions and measurements, settled by ADR-0025. See the section below.
 - **Related**: ADR-0003 (SQLite), ADR-0009 (medallion), ADR-0013 (pairing,
   team mode), ADR-0014 (cloud, personal space), ADR-0015 and ADR-0016
   (privacy, visibility), ADR-0019 (repos), ADR-0021 (one app)
@@ -69,6 +70,21 @@ the options with their cost, effort and risk.
    Chosen, because nothing has been published (ADR-0020), so
    conversion code would serve only test data. Alternatives: carry over
    settings and consent, or migrate every old estimate.
+
+## Amendment 1 — Sessions and measurements, settled by ADR-0025 (2026-10-31)
+
+**Status.** Accepted (2026-10-31) with ADR-0025 (SOB-146). Written in place by PR (SOB-87): the original text is kept, and notes mark the passages that change.
+
+**What changes.**
+
+1. The tie between a session and its measurements is no longer provisional. A source's report for a session, with a measurement per day and model, replaces its previous report whole. The numbers of a session come whole from the most precise source whose report is complete, and the other reports stay as history and context. A measurement is one day and model of a report, not a turn.
+2. The upload contract of section 10 gains one item: a session merge, carrying the retired session ID and the surviving one. Source references (the IDs that each source gives a session) are local context and never leave the device.
+3. Billing reports are not measurements. The server stores a billed figure per space, model and day, shown beside the totals, outside the upload contract.
+4. The server needs no finer time than the day to match billing with sessions. The consequence that reserved this question for SOB-146 is closed.
+
+**Why.** ADR-0022 left these points to SOB-146. ADR-0025 decides them, so the references to a decision still to come would otherwise stay open.
+
+**Issues.** SOB-146, SOB-87 (amendment by PR).
 
 ## Context and problem statement
 
@@ -143,6 +159,7 @@ Four facts shape the design:
 
 - How reports from several sources form one session, and duplicates across
   sources: SOB-146, which this ADR blocks.
+  > Amendment 1 (2026-10-31): settled by ADR-0025.
 - The sources themselves (what each captures, which account it can see,
   and whether an estimate made in the Understand pages counts as use), and
   screen design.
@@ -176,6 +193,8 @@ erDiagram
   PERSON ||--o{ RULE : writes
 ```
 
+> Amendment 1 (2026-10-31): the tie between a session and its measurements is no longer provisional. See ADR-0025.
+
 | Entity | What it is | Owner | Required | Optional | Where it lives |
 |--|--|--|--|--|--|
 | Person | Someone who uses Sobr: the guest of one install, or a Sobr account | Themself | — | Their accounts in the sources (Claude, Linear, GitHub), each mapped to one of their spaces | Their devices; only the device and the accounts database know all of a person's memberships |
@@ -195,6 +214,8 @@ and its measurements is provisional: SOB-146 decides how reports from
 several sources form one session, which may change it. Billing reports,
 which cover a workspace or a key per day rather than one person's use, are
 left to SOB-146.
+
+> Amendment 1 (2026-10-31): ADR-0025 settles both. A measurement is one day and model of a source's report, not a turn. Billing is not a measurement.
 
 ### 2. Spaces, members and storage
 
@@ -537,6 +558,8 @@ can run them. The contract holds only:
   project ID, a task ID or "no project";
 - for a withdrawal (§3): the session ID.
 
+> Amendment 1 (2026-10-31): ADR-0025 adds one item to this list: a session merge, with the retired session ID and the surviving one.
+
 **What never leaves a device:**
 
 - prompt or response text, and anything derived from it, such as a title,
@@ -565,6 +588,8 @@ reading totals or refreshing a sign-in, still show when a member opens the
 app; they carry no use data. The person's own views on the device are
 up to date at once; the organization's totals and new tasks appear the next
 day.
+
+> Amendment 1 (2026-10-31): the batch also holds session merges (ADR-0025).
 
 **How it is enforced:**
 
@@ -768,6 +793,7 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
 - Whoever runs a self-hosted server can read its database, at day grain.
 - SOB-146 may need finer times on the server to match billing with sessions;
   it must weigh that against §10.
+  > Amendment 1 (2026-10-31): it does not. ADR-0025 cuts billing to the space's day on the server.
 - Rules stay on one device.
 - A withdrawal lowers a day's total after the fact. Someone who saw that
   day's total before and after can work out that one session's metrics,

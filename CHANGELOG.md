@@ -5,32 +5,63 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
-### Added — Characterization tests of the app's team logic and bridge socket (2026-10-31, SOB-188)
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
-- **`sobria-app`**: tests record what the code does today. They call the
-  eight `team_*` commands of `main.rs` (status, URL, mode, certificates,
-  ping, enroll, logout, push of an estimation) against a local stub HTTP
-  server, and start the real bridge server to talk to it through a real Unix
-  socket or Windows named pipe (valid and refused requests, a connection that
-  breaks the protocol, a silent client, the size limit, the real
-  `sobria-bridge` client). They are `#[cfg(test)]` modules of `main.rs`: a
-  test executable that links Tauri does not start on Windows outside the
-  binary target (`STATUS_ENTRYPOINT_NOT_FOUND`).
-- **Test hooks, no behavior change**: `bridge_server::serve` runs the server
-  on an explicit endpoint and `run` calls it; the server functions are generic
-  over the Tauri runtime, so a test can use a mock app; `tauri`'s empty `test`
-  feature is enabled in the dev-dependencies.
-- The header of `tests/bridge_server.rs` said that a Windows test and a
-  `SOBRIA_BRIDGE_SOCKET` variable existed; neither does. It now says what the
-  file does.
-- Not covered: the effect of the "accept invalid certificates" setting on a
-  TLS connection (only the stored flag is pinned).
-- Pinned quirks, filed in Triage: the new token pair is lost when the retry
-  after a refresh fails (SOB-199), and `team_set_url("https://")` is stored as
-  `https:` (SOB-201). The certificate setting is SOB-200; the dead variable
-  of `tests/bridge_server.rs` is SOB-202.
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
+
+### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
+
+- **`sobria-bridge`**, no behavior change (same replies, error texts and spool
+  lines; same tests): one `MAX_MESSAGE_BYTES` constant and one frame writer
+  for the stdio replies and the forward to the app, each frame and spool line
+  sent in a single write, `unsafe` code denied, `append_to_spool` private.
+  Doc comments that were wrong are fixed (the local channel is not restricted
+  to the user, SOB-107; no forward timeout on Windows, SOB-96; `short_hash`,
+  SOB-81). The README is rewritten, and the unused
+  `manifest/com.sobria.bridge.json.tmpl` is removed (the scripts use
+  `manifest.template.json`). Test helpers are shared through `tests/common`.
+- Audit findings that change behavior are filed: SOB-190 (fallback after the
+  app received the request, exit on a bad message) and SOB-193 (estimate
+  mapping in the app).
+
+### Added — Characterization tests of the browser extension (2026-10-31, SOB-158)
+
+- **`extension`**: Vitest tests in `tests/unit/` record what the code does
+  today, without changing it: the service worker (every message, local
+  storage, forwarding to the native bridge and to the team server), native
+  messaging, the team client (token refresh on 401, errors), team storage
+  (including the browser fingerprint) and storage; the three site adapters,
+  driven through their own `extractModelId` and `onSubmit` so the real alias
+  tables and selectors are used; and a comparison of the 34 presets with the
+  Rust registry (read from the estimator's `model_registry.json`). Line
+  coverage goes from 40 % to 74 % and function coverage from 53 % to 88 %.
+  Quirks found are pinned and filed: SOB-171 (four preset labels differ from
+  the Rust registry) and SOB-176 (labels resolved to the wrong model); the
+  double counting is SOB-118.
+
+### Removed — unused `duckdb` dependency (2026-10-31, SOB-168)
+
+- **`sobria-ingest`**: dropped `duckdb`, which no code called (decision
+  SOB-172; it comes back with the analytics step). The bundled `fmt` of
+  `libduckdb-sys` 1.10502.0 used `stdext::checked_array_iterator`, which the
+  MSVC 14.51 STL of the `windows-latest` CI image no longer has, so the
+  workspace no longer built on Windows. Also drops `zip` 6
+  (RUSTSEC-2026-0367, -0368, -0369) and 52 other locked packages.
 
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
 
@@ -49,8 +80,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
   within the rights of the person who connected it. Thibault answered its
-  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
-  ADR-0019 and ADR-0022 are merged, so it is Accepted.
+  eight points on 2026-10-31 (SOB-152): every recommendation. It is
+  Accepted because ADR-0019 and ADR-0022 are merged.
   - Two front doors share one contract and one repo (`sobr`): a stdio server
     for the personal space and a Streamable HTTP route in the Sobr server for
     an organization. One connection serves one space.
@@ -215,11 +246,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
   is free for individuals; the 30-day trial and the per-seat price apply to
   organizations only. It settles the two open points of Amendment 1: the price
-  and the conflict with ADR-0013.
+  and the conflict with ADR-0013. Limits on the free space and the date of sync
+  between machines are not decided here.
 - **ADR-0013, Amendment 2** (Accepted): the personal space is an explicit
   exception to "no hosted accounts" and "no multi-device sync"; organizations
-  keep the rule. Thibault's answer: SOB-136. Limits on the free space and the
-  date of sync between machines are not decided here.
+  keep the rule. Thibault's answer: SOB-136.
 
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
