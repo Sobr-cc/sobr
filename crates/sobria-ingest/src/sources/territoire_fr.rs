@@ -244,12 +244,13 @@ pub async fn discover_datasets(keyword: &str, limit: u32) -> Result<Vec<DatasetM
 }
 
 /// Same as [`discover_datasets`], against another Opendatasoft v2.1 catalog
-/// base URL: a mirror, or a stub server in tests.
+/// base URL, such as a stub server in tests. `explore_url` still points at ODRÉ.
 pub async fn discover_datasets_at(
     base_url: &str,
     keyword: &str,
     limit: u32,
 ) -> Result<Vec<DatasetMatch>> {
+    let base_url = base_url.trim_end_matches('/');
     let where_clause = format!("search(\"{}\")", keyword.replace('"', "\\\""));
     let url = format!(
         "{base}?limit={limit}&where={kw}",
@@ -337,12 +338,13 @@ pub async fn fetch_industrial_sites(target_limit: u32) -> Result<TerritoireFrArt
 }
 
 /// Same as [`fetch_industrial_sites`], against another Opendatasoft v2.1
-/// catalog base URL: a mirror, or a stub server in tests.
+/// catalog base URL, such as a stub server in tests.
 #[allow(clippy::too_many_lines)]
 pub async fn fetch_industrial_sites_at(
     base_url: &str,
     target_limit: u32,
 ) -> Result<TerritoireFrArtifact> {
+    let base_url = base_url.trim_end_matches('/');
     let client = reqwest::Client::builder()
         .timeout(HTTP_TIMEOUT)
         .user_agent("sobria-ingest/0.1 (+https://sobr.ia)")
@@ -469,9 +471,10 @@ pub async fn fetch_rte_mix(year: u32) -> Result<RteMixArtifact> {
 }
 
 /// Same as [`fetch_rte_mix`], against another Opendatasoft v2.1 catalog base
-/// URL: a mirror, or a stub server in tests.
+/// URL, such as a stub server in tests.
 #[allow(clippy::too_many_lines)]
 pub async fn fetch_rte_mix_at(base_url: &str, year: u32) -> Result<RteMixArtifact> {
+    let base_url = base_url.trim_end_matches('/');
     let where_clause = format!(
         "date_heure>=date'{y}-01-01' AND date_heure<date'{y_plus}-01-01'",
         y = year,

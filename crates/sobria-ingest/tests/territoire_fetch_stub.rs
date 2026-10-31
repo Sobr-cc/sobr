@@ -411,3 +411,24 @@ async fn rte_mix_fails_on_a_body_that_is_not_a_json_array() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_trailing_slash_on_the_base_url_is_ignored() {
+    let server = MockServer::start().await;
+    for (at, body) in [
+        (CATALOG, json!({})),
+        (IRIS_RECORDS, json!({"results": []})),
+        (RTE_EXPORT, json!([])),
+    ] {
+        Mock::given(method("GET"))
+            .and(path(at))
+            .respond_with(ok_json(&body))
+            .mount(&server)
+            .await;
+    }
+    let slashed = format!("{}/", base(&server));
+
+    discover_datasets_at(&slashed, "iris", 10).await.unwrap();
+    fetch_industrial_sites_at(&slashed, 10).await.unwrap();
+    fetch_rte_mix_at(&slashed, 2023).await.unwrap();
+}
