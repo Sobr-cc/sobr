@@ -69,14 +69,21 @@ loaded by a lazy `import()`, so "the Tauri bundle does not contain them".
 
 **Evidence (October 31).** A `vite build` of `web/` at `95a5192` wrote the
 fixtures into one chunk, `build/_app/immutable/chunks/<hash>.js`
-(466,667 bytes). That matches the "~500 Ko" of the Consequences below.
+(466,667 bytes, from 499,334 bytes of fixture sources).
+
+**Cost.** The Consequences below count the "~500 Ko" as loaded by the web
+demo only. The desktop binary also carries those files, about 467 KB before
+Tauri's compression, and never loads them (CLAUDE.md §8). Removing them from
+the desktop build is out of scope here.
 
 **Related.**
 
-* ADR-0021 amends the activation part of rule 2. The demo now turns on
-  when the app is neither in Tauri nor served by the organization server.
-* ADR-0027 relies on the same behavior for the WebAssembly estimator: the
-  desktop app carries it without loading it.
+* **ADR-0021 (Accepted)** changes the activation part of rule 2: the demo
+  turns on when the app is neither in Tauri nor served by the organization
+  server. That rule is not implemented yet: today `call()` checks only
+  `!isTauriContext()` (`web/src/lib/api.ts:644`). SOB-42 implements it.
+* **ADR-0027 (Proposed, PR #79)** relies on the same behavior for the
+  WebAssembly estimator: the desktop app carries it without loading it.
 
 ## Conséquences
 
