@@ -2,12 +2,14 @@
 
 ## « L'impact environnemental de l'IA générative »
 
+> Devenu Sobr.cc : <https://github.com/Sobr-cc/sobr> (ADR-0020). Le dossier ci-dessous est conservé tel que déposé.
+
 ---
 
 **Projet** : Sobr.ia
 **Auteur** : Thibault (étudiant, contributeur Sobr.ia)
 **Date** : Mai 2026 — **dernière mise à jour : 2026-06-12**
-**Lien dépôt** : <https://github.com/Sobr-cc/sobr>
+**Lien dépôt** : <https://github.com/BkOff-fr/defis-lia-generatif>
 **Licence code** : MIT
 **Statut** : v0.9.0 (taguée 2026-05-20) — 13 modules app livrés et testés,
 plus extension navigateur MV3 (Chrome + Firefox), Mode Équipe self-hosted,
