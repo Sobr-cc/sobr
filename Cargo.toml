@@ -116,9 +116,9 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# Full debug info filled the shared build disk (SOB-106): line tables for our crates, none for dependencies.
 [profile.dev]
 opt-level = 0
-# Line tables keep file:line in backtraces at a fraction of full debug info's disk cost (SOB-106).
 debug = "line-tables-only"
 incremental = true
 
