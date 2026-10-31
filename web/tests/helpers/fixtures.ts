@@ -1,7 +1,26 @@
+import type {
+  AppPreferencesDto,
+  DatasheetDto,
+  IndustrialSiteSummaryDto,
+  ProjectDto,
+  RegionFrAggregateDto,
+  SankeyDataDto
+} from '../../src/lib/api';
+
 /**
- * Small hand-written fixtures for the IPC stub, shaped like the DTOs of `src/lib/api.ts`.
+ * Small hand-written fixtures for the IPC stub, typed with the DTOs of `src/lib/api.ts`.
  * They only feed the desktop code paths of the pages; the numbers mean nothing.
  */
+
+/** Preferences as the desktop app returns them once the onboarding is done. */
+export const ONBOARDED_PREFS = {
+  persona: null,
+  enabled_modules: ['m1', 'm3', 'm7', 'm8', 'm9', 'm12', 'm13', 'm15', 'm17', 'm20', 'm22', 'm25'],
+  onboarded: true,
+  lang: 'fr',
+  default_method: 'afnor_sobria',
+  also_show_methods: ['ecologits']
+} satisfies AppPreferencesDto;
 
 const REGIONS = [
   { iso: 'FR-IDF', name: 'Île-de-France', insee: '11', lat: 48.7, lon: 2.6, nuclear: 0 },
@@ -9,7 +28,7 @@ const REGIONS = [
   { iso: 'FR-HDF', name: 'Hauts-de-France', insee: '32', lat: 50.0, lon: 2.7, nuclear: 78.4 }
 ];
 
-export function industrialSites(count: number) {
+export function industrialSites(count: number): IndustrialSiteSummaryDto[] {
   return Array.from({ length: count }, (_, i) => {
     const region = REGIONS[i % REGIONS.length] as (typeof REGIONS)[number];
     return {
@@ -28,7 +47,7 @@ export function industrialSites(count: number) {
   });
 }
 
-export function regionAggregates(sites: ReturnType<typeof industrialSites>) {
+export function regionAggregates(sites: IndustrialSiteSummaryDto[]): RegionFrAggregateDto[] {
   return REGIONS.map((region) => {
     const own = sites.filter((s) => s.region_iso === region.iso);
     return {
@@ -51,7 +70,7 @@ export function regionAggregates(sites: ReturnType<typeof industrialSites>) {
   });
 }
 
-export const SANKEY = {
+export const SANKEY: SankeyDataDto = {
   nodes: [
     { id: 'prod-nuclear', label: 'Nucléaire', layer: 0, value_twh: 300 },
     { id: 'prod-hydro', label: 'Hydraulique', layer: 0, value_twh: 60 },
@@ -67,7 +86,7 @@ export const SANKEY = {
   source_sha256: 'deadbeef00000000000000000000000000000000000000000000000000000000'
 };
 
-export const PROJECT = {
+export const PROJECT: ProjectDto = {
   id: 1,
   name: 'Étude pilote Été 2026',
   description: 'Projet de test',
@@ -78,7 +97,7 @@ export const PROJECT = {
   updated_at: '2026-05-02T08:00:00Z'
 };
 
-export const DATASHEET = {
+export const DATASHEET: DatasheetDto = {
   project: PROJECT,
   jsonld: {
     '@context': { '@vocab': 'https://schema.org/' },

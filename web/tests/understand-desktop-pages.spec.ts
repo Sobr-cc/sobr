@@ -1,22 +1,32 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-import { DATASHEET, industrialSites, PROJECT, regionAggregates, SANKEY } from './helpers/fixtures';
-import { installTauriStub, ipcCalls, ONBOARDED_PREFS } from './helpers/tauri-stub';
+import {
+  DATASHEET,
+  industrialSites,
+  ONBOARDED_PREFS,
+  PROJECT,
+  regionAggregates,
+  SANKEY
+} from './helpers/fixtures';
+import { installTauriStub, ipcCalls } from './helpers/tauri-stub';
 
 /**
  * `/territoire` and `/datasheets` on the desktop path (SOB-224), through the IPC stub: no
  * Playwright run reaches these paths in demo mode. Tests named `quirk` pin a defect as it is.
  */
 
+// The map loads Leaflet on first view, which can wait for the dev server.
+const MAP_READY = { timeout: 20_000 };
+
 test.describe('/territoire', () => {
   const SITES = industrialSites(200);
 
   test.beforeEach(async ({ page }) => {
-    // The map tiles come from a CDN: the specs run without network access.
-    await page.route('**/basemaps.cartocdn.com/**', (route) => route.abort());
+    // The map tiles come from a CDN (a-d.basemaps.cartocdn.com): the specs run without network.
+    await page.route(/\.basemaps\.cartocdn\.com\//, (route) => route.abort());
   });
 
-  async function openWith(page: import('@playwright/test').Page, sites: typeof SITES) {
+  async function openWith(page: Page, sites: typeof SITES) {
     await installTauriStub(page, {
       responses: {
         list_industrial_sites_fr: sites,
@@ -33,7 +43,7 @@ test.describe('/territoire', () => {
   }) => {
     await openWith(page, SITES);
 
-    await expect(page.locator('.leaflet-container')).toBeAttached();
+    await expect(page.locator('.leaflet-container')).toBeAttached(MAP_READY);
     await expect(page.locator('.sankey-card')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
     const calls = await ipcCalls(page, 'list_industrial_sites_fr');
@@ -45,7 +55,7 @@ test.describe('/territoire', () => {
     page
   }) => {
     await openWith(page, SITES);
-    await expect(page.locator('.leaflet-container')).toBeAttached();
+    await expect(page.locator('.leaflet-container')).toBeAttached(MAP_READY);
 
     expect(await ipcCalls(page, 'list_industrial_sites_fr')).toHaveLength(1);
     await expect(
@@ -57,7 +67,7 @@ test.describe('/territoire', () => {
   test('quirk — the hero says 200 sites whatever the backend returned', async ({ page }) => {
     await openWith(page, industrialSites(3));
 
-    await expect(page.locator('.leaflet-container')).toBeAttached();
+    await expect(page.locator('.leaflet-container')).toBeAttached(MAP_READY);
     await expect(page.getByText(/200 sites industriels FR top-consommateurs/)).toBeVisible();
   });
 });

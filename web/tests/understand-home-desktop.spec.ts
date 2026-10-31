@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 import { demoAnswers } from './helpers/demo-answers';
-import { installTauriStub, ipcCalls, ONBOARDED_PREFS } from './helpers/tauri-stub';
+import { estimateFromHome } from './helpers/estimate';
+import { ONBOARDED_PREFS } from './helpers/fixtures';
+import { installTauriStub, ipcCalls } from './helpers/tauri-stub';
 
 /**
  * Home `/` on the desktop path (SOB-224), through the IPC stub: the "Voir aussi" panel needs the
@@ -31,22 +33,17 @@ test.beforeEach(async ({ page }) => {
     state: { prefs: ONBOARDED_PREFS }
   });
   await page.goto('/');
-  await page
-    .locator('form.composer textarea')
-    .fill('Explique-moi la photosynthèse en trois phrases.');
-  await page.getByRole('button', { name: /Estimer l'impact/ }).click();
-  await expect(page.locator('div.signature')).toBeVisible({ timeout: 15_000 });
+  await estimateFromHome(page, 'Explique-moi la photosynthèse en trois phrases.');
 });
 
 test('the "Voir aussi" panel runs the reference methodology and says every calculation is audited', async ({
   page
 }) => {
-  const panel = page.locator('section', {
-    has: page.getByText('Voir aussi (autres méthodologies)')
-  });
+  await expect(page.locator('section.also-show')).toContainText('Tous les calculs sont audités.');
 
-  await expect(panel).toContainText('Tous les calculs sont audités.');
-  expect(await ipcCalls(page, 'estimate_for_comparison')).toHaveLength(1);
+  const calls = await ipcCalls(page, 'estimate_for_comparison');
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.args).toMatchObject({ method: 'ecologits' });
 });
 
 // SOB-224 audit: the panel says "audited" above and "not logged" on each card.

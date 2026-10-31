@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { estimateFromHome } from './helpers/estimate';
+
 /**
  * Characterization of the Understand pages in demo mode (SOB-224): what the pages do today,
  * including the behaviors the audit found. Tests named `quirk` pin a defect as it is.
@@ -35,7 +37,16 @@ test.describe('/comparer', () => {
   }) => {
     await page.goto('/comparer?models=gpt-5-5,o3,grok-4,deepseek-r1');
     await expect(page.getByText('8 / 8')).toBeVisible(FIRST_PAINT);
-    await expect(page.locator(CHIP_ON)).toHaveCount(8);
+    expect((await page.locator(CHIP_ON).allInnerTexts()).sort()).toEqual([
+      'Claude 3.5 Sonnet',
+      'DeepSeek R1',
+      'GPT-4o mini',
+      'GPT-5.5',
+      'Grok 4',
+      'Llama 3.1 70B',
+      'Mistral Large 2',
+      'OpenAI o3'
+    ]);
   });
 
   test('?models= sharing a model with the defaults adds only the missing ones', async ({
@@ -43,7 +54,13 @@ test.describe('/comparer', () => {
   }) => {
     await page.goto('/comparer?models=gpt-4o-mini,o3');
     await expect(page.getByText('5 / 8')).toBeVisible(FIRST_PAINT);
-    await expect(page.locator(CHIP_ON)).toHaveCount(5);
+    expect((await page.locator(CHIP_ON).allInnerTexts()).sort()).toEqual([
+      'Claude 3.5 Sonnet',
+      'GPT-4o mini',
+      'Llama 3.1 70B',
+      'Mistral Large 2',
+      'OpenAI o3'
+    ]);
   });
 
   test('without ?models= the 4 defaults are selected', async ({ page }) => {
@@ -112,13 +129,11 @@ test.describe('home /', () => {
     page
   }) => {
     await page.goto('/');
-    await page
-      .locator('form.composer textarea')
-      .fill('Explique-moi la photosynthèse en trois phrases.');
-    await page.getByRole('button', { name: /Estimer l'impact/ }).click();
+    const signature = await estimateFromHome(
+      page,
+      'Explique-moi la photosynthèse en trois phrases.'
+    );
 
-    const signature = page.locator('div.signature');
-    await expect(signature).toBeVisible({ timeout: 15_000 });
     await expect(signature).toContainText("Estimation journalisée dans le ledger d'audit · entrée");
     await expect(signature.locator('a.hash')).toHaveText(/#0 · seed 42/);
     await expect(signature.locator('a.hash')).toHaveAttribute('href', '/journal?focus=0');
@@ -129,9 +144,7 @@ test.describe('home /', () => {
     page
   }) => {
     await page.goto('/');
-    await page.locator('form.composer textarea').fill('Bonjour');
-    await page.getByRole('button', { name: /Estimer l'impact/ }).click();
-    await expect(page.locator('div.signature')).toBeVisible({ timeout: 15_000 });
+    await estimateFromHome(page, 'Bonjour');
 
     await expect(page.getByText('Voir aussi (autres méthodologies)')).toHaveCount(0);
   });
