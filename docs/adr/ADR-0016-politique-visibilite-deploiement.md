@@ -10,23 +10,23 @@
 
 ## Amendment 1 — Breakdown by project: every group must reach k (2026-10-31)
 
-**Status.** Accepted (2026-10-31), SOB-153; merging the PR is Thibault's approval. Written in place by PR (SOB-87): the original text is kept, and a note marks the rule that changes.
+**Status.** Accepted (2026-10-31), SOB-153; merging the PR is Thibault's approval. Written in place by PR (SOB-87): the original text is kept, and a note marks the rule that changes. The header line "implémenté en C44" describes the previous rule; the new one is not implemented yet (code work below).
 
 **What changes.** In the `anonymous` and `opt_in` policies, the rule of the "dimension projet" (C44) is replaced:
 
-1. A space's breakdown by project appears only when every group shown has at least k distinct contributors (k as in ADR-0015, rule 2). The groups are the projects shown, the remainder ("other projects") and "no project". Otherwise only the organization total shows. The organization-level check of ADR-0015 comes first: when fewer than k people were active, nothing shows.
+1. A space's breakdown by project appears only when every group shown has at least k distinct contributors (k as in ADR-0015, rule 2). The groups are the projects shown, the remainder ("other projects") and "no project". A group's contributors are the distinct people across all the projects it holds, not the largest count among them. Otherwise only the organization total shows. The organization-level check of ADR-0015 comes first: when fewer than k people were active, nothing shows.
 2. Empty groups are left out of the check.
 3. Under `identified`, the live views are unchanged, since k-anonymity does not apply there. The totals kept after the retention period follow the same all-groups rule whatever the policy (ADR-0022, section 10).
 
-ADR-0022 (section 10) sets the day-by-day check and the retention of kept totals; this ADR points to it.
+The check is made for each day, as ADR-0022 sets for tasks and projects (section 10): a longer view adds up only the days that passed, so "month minus the days shown" gives nothing back. The same section sets the retention of kept totals.
 
 **Previous wording.** « les agrégats par projet n'affichent que les projets comptant ≥ k contributeurs distincts (modes 1-2), les autres étant fondus dans « autres projets » ».
 
 **Why.** Merging only the small projects leaves a hole: the organization total minus the projects shown gives the merged line, which can hold one or two people. The code shows it: `project_breakdown` (`storage/analytics.rs`) gives the merged line the largest contributor count among the projects it merged, so the line always stands below k. Thibault chose option 1 on SOB-148 (October 31): the same rule as ADR-0022 at task level. The alternative, which keeps the previous rule, shows more breakdowns but lets anyone subtract the projects shown from the total.
 
-**Cost.** Under the default policy, a space whose projects have few people shows its total only. A member still sees their own usage by project (ADR-0015).
+**Cost.** Under the default policy, a space whose projects have few people shows its total only. A "no project" group below k hides the breakdown of the whole space too, since it must pass like the others; ADR-0022 accepts this. A member still sees their own usage by project (ADR-0015).
 
-**Code work that follows.** This ADR changes no code. The work is in the issues of ADR-0022 that touch the team server ("Issues to create": 6, 7 and 13 apply the rule), and in SOB-114 (exports) and SOB-115 (analytics, alerts, user list), which apply the visibility policy and k to those outputs. All of it waits for the Deep cleanup of the team server (SOB-25), under the Foundations rule; `project_breakdown` changes in those issues, not before.
+**Code work that follows.** This ADR changes no code. The work is in the issues of ADR-0022 that touch the team server ("Issues to create": 6, 7 and 13 apply the rule), and in SOB-114 (exports) and SOB-115 (analytics, alerts, user list), which apply the visibility policy and k to those outputs. All of it waits for the Deep cleanup of the team server (SOB-25), under the Foundations rule; `project_breakdown` and its test `project_breakdown_folds_below_k` change in those issues, not before. So does the admin dashboard text that tells admins that projects below k fold into "Autres projets" (`web-team/src/routes/admin/dashboard/+page.svelte`, moving to `web/` under ADR-0021).
 
 **Issues.** SOB-153, SOB-148 (the answer), SOB-143 (ADR-0022), SOB-114, SOB-115, SOB-25.
 
@@ -77,12 +77,12 @@ Règles transverses :
 
 - (+) Le besoin opérationnel (« qui consomme quoi, par projet ») est
   servi sans imposer la surveillance par défaut à tous les déployeurs.
-  > Amendment 1 (2026-10-31): under the default policy, a small space may see its total only.
 - (+) La responsabilité juridique est portée par celui qui la détient
   réellement : l'employeur, via une attestation tracée.
 - (−) Trois chemins de code à tester (matrice de politique).
 - (−) L'attestation est déclarative : Sobr.ia ne peut pas vérifier la
   réalité de l'information du CSE — assumé et documenté.
+  > Amendment 1 (2026-10-31), a further (−): under the default policy, a small space may see its total only.
 
 ## Options rejetées
 
