@@ -16,6 +16,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   workspace no longer built on Windows. Also drops `zip` 6
   (RUSTSEC-2026-0367, -0368, -0369) and 52 other locked packages.
 
+### Added — Audit ledger migration test (2026-10-31, SOB-160)
+
+- **`sobria-audit`**: `tests/ledger_migration.rs` opens a committed v1 ledger
+  (`tests/fixtures/ledger-v1.sqlite`, no `method` column; `make_ledger_v1.py`
+  rebuilds it) and pins the v1 to v2 migration: the `method` column is added last
+  with `afnor_sobria` on every entry, the existing rows, their order, signatures and
+  the purged entry are unchanged, the chain still verifies and the indexes exist.
+  A second test pins that opening the migrated file again changes nothing.
+  `*.sqlite` is now marked binary in `.gitattributes`.
+
 ### Changed — ADR-0016 breakdown by project (2026-10-31, SOB-153)
 
 - **ADR-0016, Amendment 1** (Accepted): in the `anonymous` and `opt_in`
