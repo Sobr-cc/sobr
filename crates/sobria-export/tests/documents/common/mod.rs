@@ -1,23 +1,22 @@
 //! Helpers of the characterization tests of `sobria-export` (SOB-221): fixed
-//! ledger entries and requests, and a reader for the text of a generated PDF.
+//! ledger entries and requests, and readers for a generated PDF.
 //!
 //! Each test file uses a different part of this module.
 #![allow(dead_code)]
 
-#[path = "../../../../test-support/golden.rs"]
+#[path = "../../../../../test-support/golden.rs"]
 pub mod golden;
 
 use chrono::{DateTime, TimeZone, Utc};
-use printpdf::{Op, PdfDocument, PdfParseOptions, TextItem};
-use serde_json::Value;
+use printpdf::{Op, PdfDocument, PdfPage, PdfParseOptions, PdfWarnMsg, TextItem};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use sobria_audit::AuditEntry;
 use sobria_core::{
-    ContextOverhead, EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
+    ContextOverhead, EmpreinteMethod, EstimationRequest, EstimationResult, Indicator,
     IndicatorValue, UncertaintyInterval,
 };
-use sobria_export::{ProjectMeta, ReportRequest};
-
-pub const AFNOR_HEADER: &str = "Rapport conforme AFNOR SPEC 2314";
+use sobria_export::{generate_report, ProjectMeta, ReportArtifacts, ReportRequest};
 
 pub fn at(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(year, month, day, hour, minute, 0)
@@ -65,12 +64,8 @@ pub fn entry_at(
                 bins: None,
             },
         ],
-        equivalents: vec![],
-        hypotheses: vec![Hypothesis {
-            key: "k".into(),
-            value: serde_json::json!(1),
-            source: "test".into(),
-        }],
+        equivalents: Vec::new(),
+        hypotheses: Vec::new(),
         computed_at: timestamp,
         seed: 42,
     };
@@ -111,6 +106,11 @@ pub fn report_request(locale: &str) -> ReportRequest {
     }
 }
 
+/// The report of the first quarter of 2026 for these entries.
+pub fn report(locale: &str, entries: &[AuditEntry]) -> ReportArtifacts {
+    generate_report(&report_request(locale), entries).expect("report")
+}
+
 pub fn project() -> ProjectMeta {
     ProjectMeta {
         id: 1,
@@ -123,24 +123,48 @@ pub fn project() -> ProjectMeta {
     }
 }
 
-/// The node of a JSON-LD `@graph` whose `@id` starts with `prefix`.
-pub fn node<'a>(document: &'a Value, prefix: &str) -> &'a Value {
+/// The node of a JSON-LD `@graph` with this `@id`.
+pub fn node<'a>(document: &'a Value, id: &str) -> &'a Value {
     document["@graph"]
         .as_array()
         .expect("a @graph")
         .iter()
-        .find(|n| n["@id"].as_str().is_some_and(|id| id.starts_with(prefix)))
-        .unwrap_or_else(|| panic!("no node with an @id starting with {prefix}"))
+        .find(|n| n["@id"] == id)
+        .unwrap_or_else(|| panic!("no node with the @id {id}"))
 }
 
-/// The lines of text a PDF shows, in drawing order: one per `ShowText`
-/// operation, read back with the parser of `printpdf` (the streams are
-/// compressed, so the text cannot be read from the bytes).
-pub fn pdf_text(pdf: &[u8]) -> Vec<String> {
+/// Replaces the value at a JSON pointer.
+pub fn mask(value: &mut Value, pointer: &str, placeholder: &str) {
+    *value
+        .pointer_mut(pointer)
+        .unwrap_or_else(|| panic!("nothing at {pointer}")) = json!(placeholder);
+}
+
+/// SHA-256 in lower-case hexadecimal.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+/// Reads a PDF back with the parser of `printpdf`: the streams are compressed,
+/// so the text cannot be read from the bytes.
+fn parse(pdf: &[u8]) -> (PdfDocument, Vec<PdfWarnMsg>) {
     let mut warnings = Vec::new();
     let document = PdfDocument::parse(pdf, &PdfParseOptions::default(), &mut warnings)
         .expect("a PDF that printpdf can read back");
-    document
+    (document, warnings)
+}
+
+/// The pages of a PDF as `printpdf` reads them: no date, no document id.
+pub fn pdf_pages(pdf: &[u8]) -> Vec<PdfPage> {
+    parse(pdf).0.pages
+}
+
+/// The lines of text a PDF shows, in drawing order: one per `ShowText`
+/// operation. (`PdfDocument::extract_text` trims and drops lines, which would
+/// hide the indentation of the report.)
+pub fn pdf_text(pdf: &[u8]) -> Vec<String> {
+    let (document, warnings) = parse(pdf);
+    let lines: Vec<String> = document
         .pages
         .iter()
         .flat_map(|page| page.ops.iter())
@@ -156,21 +180,15 @@ pub fn pdf_text(pdf: &[u8]) -> Vec<String> {
             ),
             _ => None,
         })
-        .collect()
+        .collect();
+    assert!(
+        !lines.is_empty(),
+        "printpdf read no text from the PDF: {warnings:?}"
+    );
+    lines
 }
 
-/// The PDF without its trailer `/ID`, the only part that differs between two
-/// runs on the same input (the document id is random).
-pub fn without_document_id(pdf: &[u8]) -> Vec<u8> {
-    let start = pdf
-        .windows(4)
-        .position(|w| w == b"/ID[")
-        .expect("a trailer /ID");
-    let end = start
-        + pdf[start..]
-            .iter()
-            .position(|&b| b == b']')
-            .expect("the end of /ID")
-        + 1;
-    [&pdf[..start], &pdf[end..]].concat()
+/// The text of the report of the first quarter of 2026 for these entries.
+pub fn report_text(entries: &[AuditEntry]) -> Vec<String> {
+    pdf_text(&report("fr", entries).pdf_bytes)
 }

@@ -1,22 +1,14 @@
-//! Characterization tests of the Gebru datasheet (SOB-221).
-//!
-//! They record what the datasheet says today. Tests named `quirk` pin behavior
-//! the codebase audit flagged; SOB-23 (cleanup) decides what to do with it.
-//!
-//! To rewrite the golden files, see `test-support/golden.rs`
-//! (`SOBRIA_UPDATE_GOLDEN=1`).
+//! The Gebru datasheet.
 
-mod common;
-
-use std::time::Duration;
-
-use common::{
-    at, entry, entry_at, golden::assert_golden, node, project, raw_entry, report_request,
-};
-use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
+use chrono::{DateTime, Utc};
+use serde_json::Value;
 use sobria_core::EmpreinteMethod::{AfnorSobria, EcoLogits};
 use sobria_export::{build_datasheet, generate_report, DatasheetOptions, ExportError};
+
+use crate::common::{
+    at, entry, entry_at, golden::assert_golden, mask, node, project, raw_entry, report_request,
+    sha256_hex,
+};
 
 const DATE_MODIFIED: &str = "/@graph/1/sobria:maintenance/schema:dateModified";
 
@@ -39,7 +31,7 @@ fn datasheet_of_a_ledger_with_two_methods_is_pinned() {
     ];
     let mut sheet = build_datasheet(&project(), &entries, &options()).jsonld;
     // The only value that comes from the clock.
-    *sheet.pointer_mut(DATE_MODIFIED).expect("dateModified") = json!("<time>");
+    mask(&mut sheet, DATE_MODIFIED, "<time>");
     assert_golden("datasheet_two_methods", &sheet);
 }
 
@@ -68,33 +60,41 @@ fn datasheet_quirk_the_default_options_state_seed_42_n_10000_and_the_crate_versi
     );
 }
 
-/// `jsonld` without the one value that comes from the clock.
-fn without_date_modified(mut jsonld: Value) -> Value {
-    *jsonld.pointer_mut(DATE_MODIFIED).expect("dateModified") = Value::Null;
-    jsonld
+fn pretty(jsonld: &Value) -> String {
+    serde_json::to_string_pretty(jsonld).expect("pretty JSON")
 }
 
 #[test]
 fn datasheet_quirk_date_modified_is_the_clock_and_part_of_the_hashed_content() {
     let entries = [entry(1, EcoLogits, "gpt-4o-mini", 1.0)];
+    let before = Utc::now();
     let first = build_datasheet(&project(), &entries, &options());
-    std::thread::sleep(Duration::from_millis(5));
-    let second = build_datasheet(&project(), &entries, &options());
+    let after = Utc::now();
 
-    // Same input, other hash: the "SHA-256 of the canonical JSON-LD" changes on
-    // every call because of `schema:dateModified`.
-    assert_ne!(
-        first.jsonld.pointer(DATE_MODIFIED),
-        second.jsonld.pointer(DATE_MODIFIED)
-    );
-    assert_ne!(first.sha256, second.sha256);
-    assert_eq!(
-        without_date_modified(first.jsonld.clone()),
-        without_date_modified(second.jsonld)
-    );
-    // The hash covers the pretty-printed document, `dateModified` included.
-    let pretty = serde_json::to_string_pretty(&first.jsonld).expect("pretty JSON");
-    assert_eq!(first.sha256, format!("{:x}", Sha256::digest(pretty)));
+    // `schema:dateModified` is the time of the call ...
+    let stamp = first
+        .jsonld
+        .pointer(DATE_MODIFIED)
+        .and_then(Value::as_str)
+        .expect("a string");
+    let stamp = DateTime::parse_from_rfc3339(stamp)
+        .expect("an RFC 3339 time")
+        .with_timezone(&Utc);
+    assert!(before <= stamp && stamp <= after, "{stamp}");
+
+    // ... and the hash covers the pretty-printed document, so it covers that time:
+    // the "SHA-256 of the canonical JSON-LD" changes on every call.
+    assert_eq!(first.sha256, sha256_hex(pretty(&first.jsonld).as_bytes()));
+    let mut other = first.jsonld.clone();
+    mask(&mut other, DATE_MODIFIED, "1970-01-01T00:00:00+00:00");
+    assert_ne!(first.sha256, sha256_hex(pretty(&other).as_bytes()));
+
+    // It is the only value that comes from the clock.
+    let mut second = build_datasheet(&project(), &entries, &options()).jsonld;
+    let mut first = first.jsonld;
+    mask(&mut first, DATE_MODIFIED, "<time>");
+    mask(&mut second, DATE_MODIFIED, "<time>");
+    assert_eq!(first, second);
 }
 
 #[test]
