@@ -1,0 +1,36 @@
+# OpenTelemetry Collector (contrib) in front of the Sobr server, for Claude Code metrics (SOB-166).
+# Claude Code sends its raw signals here, so run it in your own infrastructure (docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md, section 3).
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4318
+      grpc:
+        endpoint: 127.0.0.1:4317
+
+processors:
+  filter/allow-list:
+    error_mode: propagate
+    metrics:
+      metric:
+        - 'not (name == "claude_code.token.usage" or name == "claude_code.cost.usage")'
+  transform/minimize:
+    error_mode: propagate
+    metric_statements:
+      - keep_keys(resource.attributes, [])
+      - keep_keys(datapoint.attributes, ["model", "type", "session.id"])
+      - set(datapoint.time, TruncateTime(datapoint.time, Duration("24h")))
+      - set(datapoint.start_time, TruncateTime(datapoint.start_time, Duration("24h")))
+  batch: {}
+
+exporters:
+  otlp_http/sobr:
+    endpoint: ${env:SOBR_OTLP_ENDPOINT}
+
+# Only a metrics pipeline exists: logs and traces sent to this collector are refused.
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [filter/allow-list, transform/minimize, batch]
+      exporters: [otlp_http/sobr]
