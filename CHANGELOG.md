@@ -16,6 +16,17 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   its three accepted messages (tightening it is SOB-157). No production code
   changed.
 
+### Changed — Free personal space (2026-10-31, SOB-154)
+
+- **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
+  is free for individuals; the 30-day trial and the per-seat price apply to
+  organizations only. It settles the two open points of Amendment 1: the price
+  and the conflict with ADR-0013.
+- **ADR-0013, Amendment 2** (Accepted): the personal space is an explicit
+  exception to "no hosted accounts" and "no multi-device sync"; organizations
+  keep the rule. Thibault's answer: SOB-136. Limits on the free space and the
+  date of sync between machines are not decided here.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
@@ -216,6 +227,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   fait jamais et son modèle par défaut, d'après « How we work » et le
   document Organisation de Linear (SOB-43). L'orchestrateur reste la
   session principale.
+
+### Added — Split into several repos (2026-10-30, SOB-65)
+
+- **ADR-0019** (Accepted): split the code into several repos of the Sobr-cc
+  organization by delivery unit, in three waves (`.github`, `site` and
+  `design-system`, then `extension`, then `data`). The engine, desktop app,
+  organization server, Svelte app, ADRs and technical documentation stay in
+  `sobr`; the public documentation and the community files go to `.github`.
+  It maps every folder to a repo, shares no Rust code across repos, and
+  lists the contracts, the order of the moves and the issues to create.
+  Thibault's four answers are recorded (SOB-113) and his reading of answer 1
+  is confirmed (SOB-139).
 
 ### Added — Pilotage dans Linear (2026-10-30)
 
