@@ -110,7 +110,7 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 - **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
 - **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (set by Thibault on October 31, SOB-213). The 64 to 80 GB of §8 do not fit.
 - **One failure domain** until §7's second one exists.
-- **Reachability from outside is limited at the host,** so the default mesh port may not be reachable (A4).
+- **Reachability from outside is limited at the host,** so tunnels are dialed out from the host side (A4).
 - **Open facts** that Thibault still has to confirm are listed in SOB-181 (private), among them the third place for the small key machine of §6 and for a third copy of the backups.
 
 ### A2. The ten points against the facts
@@ -121,10 +121,10 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
 | 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
 | 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
-| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date: the other site's front end is replaced by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The original text about the other site keeping its address and its nginx is out of date: the other site's front end is replaced by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
 | 6 Layout of the services | Yes | None |
 | 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network or to the other project's machines. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
-| 8 The cloud opens after its protections | Yes | The assumption about power in the availability text is not relied on. The risk is in A6 |
+| 8 The cloud opens after its protections | Yes | The assumption in the availability text that short interruptions are covered is not relied on. The risk is in A6 |
 | 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (VM rollback by the backup server) goes: a bad node upgrade is rolled back by rebuilding the node from code (§1), with the data back from layers 1 and 2. A copy in a third place is a further layer, open until the third place is known. The erasure log (§6) is replayed after any restore of layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
 | 10 Disk keys from a key server | Yes | The third place is still open (A1) |
 
@@ -142,10 +142,7 @@ The managed cloud does not open on this cap: §6 already makes its opening depen
 
 ### A4. The mesh port and the front-end link
 
-§1 uses Talos KubeSpan only for a machine at another site, and §4 forwards Sobr's traffic over WireGuard from the front server to the cluster. The default KubeSpan port, UDP 51820, may not be reachable from outside the host's network.
-
-- **The front-end link needs no inbound port on the host side.** The router VM dials out to the front server, which listens on a public port of its own, with a keepalive. WireGuard carries traffic both ways once the tunnel is up.
-- **KubeSpan between sites** may need an inbound port on the host side. Whether KubeSpan accepts another port is not stated on the pages read; it is a fact to verify before a second site (§7) depends on it. IPv6 is a third path to test.
+KubeSpan is not needed on a single host: an inbound port matters only for a future second site (§7), and whether KubeSpan accepts another port is not stated on the pages read, so it is a fact to verify before that site depends on it. The tunnel between the front server and the cluster is dialed out from the host side by the router VM, with a keepalive, so it needs no inbound port.
 
 ### A5. The rule of portability (SOB-211)
 
@@ -247,7 +244,7 @@ figures; the sizing in §8 does. §9 lists what Thibault should confirm.
 
 ### 1. Kubernetes distribution, and how a machine joins
 
-> Amendment 1 (2026-10-31): the default KubeSpan port may not be reachable from outside (A4), and the first cluster is one small node (A3).
+> Amendment 1 (2026-10-31): KubeSpan is not needed on a single host, and the first cluster is one small node (A4, A3).
 
 **Talos Linux in Proxmox VMs.** Talos is a Linux built only to run
 Kubernetes:
@@ -507,7 +504,7 @@ The repos are public, so pull requests from forks never run on them
 
 ### 6. Customer data: availability, backups, encryption and the GDPR
 
-> Amendment 1 (2026-10-31): the assumption about power is not relied on, and layer 3 is replaced (A2, points 8 and 9, and A6).
+> Amendment 1 (2026-10-31): the assumption that short interruptions are covered is not relied on, and layer 3 is replaced (A2, points 8 and 9, and A6).
 
 **Availability.** One machine is one failure domain: power, the internet
 line, a disk or the motherboard.
@@ -654,7 +651,7 @@ These are legal documents, so they are human-only work (issue 9).
 
 ### 7. What a second failure domain needs
 
-> Amendment 1 (2026-10-31): a KubeSpan link to the first site may need a port that is not reachable there (A4).
+> Amendment 1 (2026-10-31): a KubeSpan link to the first site may need an inbound port there (A4).
 
 **Setup:** a Proxmox install, VMs created from the infrastructure code, and
 Talos configurations applied.
