@@ -18,7 +18,8 @@
 > a session may approve and start a deployment, as Thibault decided on October 31,
 > replacing the rule of October 30, but only for what belongs to Sobr: the Sobr
 > VMs and containers and Kubernetes inside them. Changes to the host and anything
-> that touches BrilliantStudio or its game VM need Thibault's explicit go.
+> that touches the other project on the host (BrilliantStudio) need Thibault's
+> explicit go.
 > Controls replace the gate, and they are enforced by the script, which Thibault
 > installs on the server and which no session can change: an approver who is never the author, green checks, a plan
 > recorded before each apply, a guard on destruction, a daily drift check,
@@ -48,10 +49,10 @@ SOB-207, in his own words, then confirmed his reading of each.
 4. **The scope of Claude's approval (SOB-212):** only what belongs to Sobr, that
    is the VMs and containers owned by Sobr and Kubernetes inside them. Host-level
    changes (network, storage, Proxmox updates, reboots), anything that touches
-   BrilliantStudio, and any restart of the game VM need Thibault's explicit go.
-   Chosen. Alternative (not taken): Claude approves everything on the host.
+   BrilliantStudio, and any restart of its production machines need Thibault's
+   explicit go. Chosen. Alternative (not taken): Claude approves everything on the host.
 5. **Portability (SOB-211):** "on peut tout faire mais il faut veiller à la
-   portabilité". Sobr may run everything on this home host, and nothing of Sobr may
+   portabilité". Sobr may run everything on this host, and nothing of Sobr may
    depend on this particular host. Chosen.
 6. **Two repos and a host contract (SOB-213):** `infra` (Sobr, English, private)
    and `brilliantstudio-infra` (French) stay separate. A short host contract says
@@ -75,10 +76,12 @@ repo name `infra`.
 ### Facts read on the official pages (2026-10-31)
 
 - **GitHub Free.** Branch restrictions are available in public repositories of a
-  Free organization and in all repositories of a Team one, and environments
-  with required reviewers work for private repositories only on Team or Pro
+  Free organization and in all repositories of a Team one. On GitHub's reference
+  page, required reviewers on environments "are only available for public
+  repositories" on Free, Pro and Team; deployment branches and tags are available
+  for private repositories on Pro and Team
   ([protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches),
-  [environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)).
+  [environments](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)).
   So on a private repo on the Free plan GitHub cannot stop a push to `main` or
   require a review: the rules must be enforced elsewhere. Sobr-cc is on the Free
   plan (read through the API).
@@ -104,11 +107,10 @@ repo name `infra`.
 
 ### The host is shared (SOB-181)
 
-The host also runs BrilliantStudio's production, a game server VM with players.
-It has one NVMe disk with no RAID, no UPS, a shared public IPv4 address, and RAM
-and CPU that Sobr shares with it. Thibault's rule for it is a test copy first,
-then his explicit go before any change of production, and host-level changes
-touch both projects. This ADR keeps Sobr's automation inside what Sobr owns.
+The host also runs BrilliantStudio's production. Thibault's rule for it is a test
+copy first, then his explicit go before any change of production, and host-level
+changes touch both projects. This ADR keeps Sobr's automation inside what Sobr
+owns. The facts of the host are in the private host contract.
 
 ### A fact about our own setup
 
@@ -189,7 +191,7 @@ machines (section 5, scope).
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
 | **A — A script and cron on the server (chosen)** | The script is ours to write and test | Medium | The controls are ours to get right; no GitHub setting backs them (section 5) |
-| B — GitHub Actions with environments and a deploy runner | A paid plan for a private repo | Medium | Approval by a GitHub setting, but our sessions share Thibault's account, and the deploy runner holds production secrets |
+| B — GitHub Actions with environments and a deploy runner | A paid plan, and Enterprise for required reviewers on a private repo | Medium | Approval by a GitHub setting, but our sessions share Thibault's account, and the deploy runner holds production secrets |
 | C — Atlantis or a hosted service | A service to run, or a subscription | Medium | Applies before the merge by default, or a third party holds the credentials |
 
 ### 4. The flow
@@ -243,21 +245,22 @@ script is what replaces the gate, so no session may change it.
 **The approver accounts.** Sessions act as Thibault's everyday account (see
 Context). For "the approver is not the author" to mean anything, reviewer
 sessions act as a second account, a machine user, listed on the server; author
-sessions keep the everyday account. The two tokens are kept in separate
-credential stores.
+sessions keep the everyday account. Where each token lives is for build issue 2 to
+settle. The control is real only if the reviewer token can be read by reviewer
+sessions alone; if every session on the machine can read both tokens, the control
+is nominal, and the risk below is the whole risk.
 
 **What the approval covers (SOB-212).** A session may approve and start changes to
 the VMs and containers owned by Sobr and to Kubernetes inside them. It may not
 approve a change to the host (network, storage, Proxmox updates, reboots),
-anything that touches BrilliantStudio, or a restart of the game VM; those need
+anything that touches BrilliantStudio, or a restart of its production machines; those need
 Thibault's explicit go, and the token could not make them anyway. `proxmox/`
 describes only resources inside the Sobr pool.
 
 **The risk that remains.** A session that held both tokens could approve its own
 change. The controls do not make that impossible; they make it visible and
 limited. Destructive changes need Thibault's hands, every deployment leaves a
-comment and a log entry, and the stop switch is his. Thibault chose to remove the
-human gate with this risk in view.
+comment and a log entry, and the stop switch is his.
 
 ### 6. Drift and rollback
 
@@ -286,7 +289,9 @@ human gate with this risk in view.
   file sets longer than a node restart.
 - **By hand:** revert the merge commit by a pull request; it goes through the
   same flow.
-- **A VM:** restore from Proxmox Backup Server (ADR-0024 section 6, layer 3).
+- **A VM:** rebuilt from the code, with its data restored from the off-host
+  layers of ADR-0024 (section 6, layers 1 and 2). The host's own backup server is
+  not a Sobr layer.
 - **The state:** the object store keeps versions of the state file.
 - **Data** is not rolled back by any of this; ADR-0024 section 6 covers it.
 
@@ -337,15 +342,20 @@ the clones, which are not in the state.
   runner holds no secret beyond the job's own, on its own firewalled network
   (ADR-0024 section 5), with no route to the management network where the script
   and the Proxmox API are. The number of CI VMs at once and their CPU and RAM
-  limits come from the host contract (SOB-213), so builds cannot starve the game
-  servers.
+  limits come from the host contract (SOB-213), so builds cannot starve the other
+  project's production. The starting cap of Sobr's budget is small, so a CI VM fits
+  only if the budget allows; until then CI stays on GitHub's runners (SOB-75).
 - **Code from our own branches only.** A pull request from a fork never runs on a
   self-hosted runner. The reusable CI workflow in `.github` (ADR-0019 section 3)
   picks the runner with `github.event.pull_request.head.repo.fork`: GitHub's
   runner for a fork, ours otherwise. A fork's pull request carries its own copy of
   the workflow file and could ask for a self-hosted label itself, so the guard
   that holds is the repo setting "Require approval for all outside collaborators"
-  (the `sobr` repo asks only first-time contributors today). The `infra` repo is
+  (the `sobr` repo asks only first-time contributors today). GitHub lets anyone
+  with write access give that approval, sessions included; by decision SOB-207
+  point 3 the orchestrator releases runs in batches, and for a fork run it
+  approves only after reading the diff, workflow files included. Build issue 9
+  settles this with Thibault. The `infra` repo is
   private and has no forks.
 - **There is no deploy runner.** The script on the server deploys; GitHub's
   runners never hold production credentials.
@@ -380,20 +390,20 @@ Nothing of Sobr may depend on this particular host (SOB-211).
   written by hand outside the code. Host-specific values (VMID and address ranges,
   bridge or VLAN, storage IDs, CPU and RAM budgets) are variables in one file per
   host, so a second host is a second file.
-- **Backups restore on another machine,** and are kept off the one NVMe (the
-  object store of ADR-0024), not only on the Proxmox Backup Server of the same disk.
+- **Backups restore on another machine,** and are kept off the host's disk (the
+  object store of ADR-0024).
 - **No feature tied to this box.** A resource or setting that only this host can
   provide is refused in review.
 - **The host contract (SOB-213, written under SOB-217)** says who owns what on the
   host: the VMID and address ranges, the bridge or VLAN, the CPU and RAM budget with
-  limits and pinning to protect the game servers, and which changes need whose go.
+  limits and pinning to protect the other project's production, and which changes
+  need whose go.
   The Sobr pool, the Proxmox token's privileges and the script's policy file follow
   from it. `infra` (Sobr, English) and `brilliantstudio-infra` (French) stay
   separate, each with its own history.
 
-The Free contract clause on services to third parties and the single-disk risk
-stay recorded as accepted risks until a second disk and a UPS exist (SOB-211);
-ADR-0024 carries them (SOB-218).
+The accepted risks of the host are recorded in SOB-211 and carried by ADR-0024
+(SOB-218).
 
 ## Examples
 
@@ -415,7 +425,7 @@ everyday account, which is also the author. At the next run the script finds tha
 approver and author are the same account and does nothing; it comments why.
 In another case a plan would destroy the volume of a database VM: the destruction
 guard refuses it, and it waits for Thibault to apply it by hand. A plan that
-touches the game VM, or a host bridge, is refused by the scope control, and the
+touches the other project's machines, or a host bridge, is refused by the scope control, and the
 Proxmox token could not do it anyway. If Thibault creates the `halt` file, no run
 does anything until he removes it.
 
@@ -441,7 +451,7 @@ does anything until he removes it.
   bad push. The script ignores it, but someone must revert it.
 - The gate is a script we write and maintain, and a bug in it is a bug in the
   protection.
-- The host is shared with a production game server. The Sobr pool and the token's
+- The host is shared with another project's production. The Sobr pool and the token's
   privileges keep Sobr's automation away from it, but a mistake in the host
   contract would not be caught by the script.
 - A second GitHub account (a machine user) for reviewer sessions, and a change
@@ -462,6 +472,10 @@ does anything until he removes it.
   can read on a private repo on the Free plan, and whether reviews survive a squash
   merge in the API the script uses. The pages read do not say. Build issue 4 waits
   for this check; if it fails, the control changes by an amendment of this ADR.
+- **Whether a Proxmox role can give the Sobr pool token no console and no restore
+  privilege.** The built-in `PVEVMAdmin` role includes both. If no custom role does,
+  the rule becomes "the console of Sobr's own VMs", and the secrets inside them are
+  in reach of the script's token.
 - **Runner groups on a Free organization.** The pages read do not say whether they
   are available. If not, runners are registered per repo.
 - **Whether `talosctl apply-config --dry-run` prints a diff, and whether a
