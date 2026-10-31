@@ -17,6 +17,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   A second test pins that opening the migrated file again changes nothing.
   `*.sqlite` is now marked binary in `.gitattributes`.
 
+### Changed — ADR-0016 breakdown by project (2026-10-31, SOB-153)
+
+- **ADR-0016, Amendment 1** (Accepted): in the `anonymous` and `opt_in`
+  policies, the breakdown by project appears only when every group shown,
+  "other projects" and "no project" included, has at least k contributors
+  (SOB-148), the rule ADR-0022 sets at task level. The code work waits for
+  the Deep cleanup of the team server (SOB-25).
+
 ### Added — ADR-0024, Kubernetes platform on Proxmox (2026-10-31, SOB-72)
 
 - **ADR-0024** (Proposed; Thibault chose every recommendation in SOB-175,
