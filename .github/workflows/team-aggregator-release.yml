@@ -134,4 +134,4 @@ jobs:
             Docker, troubleshooting). Aucun cloud Sobr.ia n'est impliqué.
 
             Image Docker (bonus) :
-            `docker build -t sobria-team-aggregator -f crates/sobria-team-aggregator/Dockerfile .`
+            `docker build -t sobria-team-aggregator -f deploy/team/Dockerfile .`

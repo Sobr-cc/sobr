@@ -20,8 +20,8 @@
 | Session ID | `sessionId` | string | a UUID |
 | Time | `timestamp` | string | ISO 8601 UTC, `2026-..-..T..:..:..Z` |
 | Claude Code version | `version` | string | `2.1.314` |
-| Working directory | `cwd` | string | a path (**do not store**) |
-| Branch | `gitBranch` | string | a branch name (**do not store**; see SOB-203) |
+| Working directory | `cwd` | string | a path (**keep on the device only, never upload**; SOB-198) |
+| Branch | `gitBranch` | string | a branch name (**keep on the device only, never upload**; SOB-198) |
 | Message ID (dedupe key) | `message.id` | string | `msg_<id>`; a UUID on some lines (not checked which) |
 | Request ID | `requestId` | string | on 33,029 assistant lines of the main files |
 | Model | `message.model` | string | `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-opus-5`, and `<synthetic>` (28 lines: not a real call, skip) |
