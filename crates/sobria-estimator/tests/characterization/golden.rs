@@ -67,7 +67,8 @@ fn golden_dir() -> PathBuf {
 
 /// The golden-file checks of one test. In an update run, [`Goldens::assert`]
 /// rewrites each changed file and dropping the value fails the test once,
-/// listing them; otherwise it compares and panics at the first difference.
+/// listing them (or only prints them if the test is already failing);
+/// otherwise it compares and panics at the first difference.
 pub struct Goldens {
     dir: PathBuf,
     update: bool,
@@ -75,6 +76,7 @@ pub struct Goldens {
 }
 
 impl Goldens {
+    /// Reads `SOBRIA_UPDATE_GOLDEN` and `CI`; an update run is refused in CI.
     pub fn new() -> Self {
         let update = std::env::var(UPDATE_ENV).is_ok_and(|v| v == "1");
         Self::with(golden_dir(), update, std::env::var_os("CI").is_some())
@@ -100,9 +102,7 @@ impl Goldens {
         let path = self.dir.join(format!("{name}.json"));
 
         if self.update {
-            let mut text = String::new();
-            render(&actual, 0, &mut text);
-            text.push('\n');
+            let text = golden_text(&actual);
             if !fs::read_to_string(&path).is_ok_and(|current| current == text) {
                 fs::write(&path, text).expect("écriture du golden file");
                 self.rewritten.push(path);
@@ -150,22 +150,30 @@ impl Goldens {
     }
 }
 
+fn summary(rewritten: &[PathBuf]) -> String {
+    let files: String = rewritten
+        .iter()
+        .map(|path| format!("  {}\n", path.display()))
+        .collect();
+    format!(
+        "{} golden file(s) rewritten:\n{files}\
+         Rerun WITHOUT {UPDATE_ENV} to check, and review `git diff`.",
+        rewritten.len()
+    )
+}
+
 impl Drop for Goldens {
     fn drop(&mut self) {
-        // Never panic while unwinding: that would abort and hide the real failure.
-        if self.rewritten.is_empty() || std::thread::panicking() {
+        if self.rewritten.is_empty() {
             return;
         }
-        let files: String = self
-            .rewritten
-            .iter()
-            .map(|path| format!("  {}\n", path.display()))
-            .collect();
-        panic!(
-            "{} golden file(s) rewritten:\n{files}\
-             Rerun WITHOUT {UPDATE_ENV} to check, and review `git diff`.",
-            self.rewritten.len()
-        );
+        let report = summary(&self.rewritten);
+        if std::thread::panicking() {
+            // A second panic would abort and hide the real failure: only report.
+            eprintln!("The test failed after rewriting golden files:\n{report}");
+        } else {
+            panic!("{report}");
+        }
     }
 }
 
@@ -173,6 +181,14 @@ impl Drop for Goldens {
 /// golden file. A test with several files uses one [`Goldens`] instead.
 pub fn assert_golden<T: Serialize + ?Sized>(name: &str, actual: &T) {
     Goldens::new().assert(name, actual);
+}
+
+/// The text of a golden file: the rendered JSON and a final newline.
+fn golden_text(value: &Value) -> String {
+    let mut text = String::new();
+    render(value, 0, &mut text);
+    text.push('\n');
+    text
 }
 
 /// Rend le JSON indenté, mais garde les tableaux de scalaires (histogrammes,
@@ -370,7 +386,7 @@ mod tests {
         }
 
         fn seed(&self, name: &str, value: &Value) {
-            fs::write(self.file(name), rendered(value)).expect("seed golden file");
+            fs::write(self.file(name), golden_text(value)).expect("seed golden file");
         }
 
         fn read(&self, name: &str) -> String {
@@ -386,13 +402,6 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
-    }
-
-    fn rendered(value: &Value) -> String {
-        let mut text = String::new();
-        render(value, 0, &mut text);
-        text.push('\n');
-        text
     }
 
     /// The panic message of `f`, or `None` if it returns normally.
@@ -429,8 +438,8 @@ mod tests {
             "{message}"
         );
         assert!(!message.contains("c.json"), "{message}");
-        assert_eq!(dir.read("a"), rendered(&json!({"x": 1})));
-        assert_eq!(dir.read("b"), rendered(&json!({"x": 2})));
+        assert_eq!(dir.read("a"), golden_text(&json!({"x": 1})));
+        assert_eq!(dir.read("b"), golden_text(&json!({"x": 2})));
     }
 
     #[test]
@@ -471,7 +480,21 @@ mod tests {
             .expect("an update run must fail");
 
         assert!(message.contains("1 golden file(s) rewritten"), "{message}");
-        assert_eq!(dir.read("new"), rendered(&json!({"x": 1})));
+        assert_eq!(dir.read("new"), golden_text(&json!({"x": 1})));
+        assert!(
+            dir.read("new").ends_with("}\n"),
+            "a golden file ends with a newline"
+        );
+    }
+
+    #[test]
+    fn summary_names_every_rewritten_file() {
+        let text = summary(&["a.json", "b.json"].map(PathBuf::from));
+
+        assert!(
+            text.contains("2 golden file(s) rewritten:\n  a.json\n  b.json\n"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -483,7 +506,7 @@ mod tests {
             .expect("must be refused");
 
         assert!(message.contains("interdit en CI"), "{message}");
-        assert_eq!(dir.read("a"), rendered(&json!({"x": 0})));
+        assert_eq!(dir.read("a"), golden_text(&json!({"x": 0})));
     }
 
     #[test]
@@ -510,5 +533,6 @@ mod tests {
         .expect("must fail");
 
         assert_eq!(message, "the test itself failed");
+        assert_eq!(dir.read("a"), golden_text(&json!({"x": 1})));
     }
 }
