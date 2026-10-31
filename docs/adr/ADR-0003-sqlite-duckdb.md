@@ -4,8 +4,8 @@
 - **Date** : 2026-05-12
 - **Décideurs** : Thibault, Cowork
 - **Contexte** : Sprint S1
-- **Amendment 1** : Proposed (2026-10-31, SOB-174), duckdb-rs deferred to
-  the analytics step. See the section before the links.
+- **Amendment 1** : in force at merge (2026-10-31, SOB-174), duckdb-rs
+  deferred to the analytics step. See the section before the links.
 
 ## Contexte
 
@@ -76,8 +76,11 @@ DuckDB — analytique (vues sur Parquet + lectures SQLite)
 
 ## Amendment 1 — duckdb-rs deferred to the analytics step (2026-10-31)
 
-**Status.** Proposed (SOB-174). A reviewer may merge it as it is; it is in
-force when Thibault approves it. The text above is kept.
+**Status.** In force at merge (SOB-174). It only records a decision that
+Thibault took in writing on October 31, in the answered Decision issue
+[SOB-172](https://linear.app/sobrcc/issue/SOB-172/decide-whether-to-keep-the-unused-duckdb-dependency): remove the
+unused `duckdb` dependency now and add it back with the analytics step.
+The text above is kept.
 
 The decision stands: SQLite for the referential and the ledger, DuckDB for
 analytics. What changes is the timing. The `duckdb` crate is **not in the
