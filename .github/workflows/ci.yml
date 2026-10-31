@@ -1,5 +1,5 @@
 # CI Sobr.ia — see CLAUDE.md §5 (Definition of Done).
-# Everything must be green before a merge to main / develop.
+# CI must be green before a merge to main / develop, or fail only on jobs that also fail on main for the same cause (CLAUDE.md §11).
 
 name: CI
 
