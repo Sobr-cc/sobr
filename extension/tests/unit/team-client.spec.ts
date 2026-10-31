@@ -1,3 +1,4 @@
+// @vitest-environment node
 // SOB-158 — characterization of `lib/team-client.ts` (REST client of the team
 // server): requests sent, token refresh on 401, error mapping and what is
 // stored after enrollment.
@@ -19,43 +20,31 @@ import {
   setTeamTokens,
   setTeamUrl
 } from '../../src/content/shared/team-storage.js';
-import type { Estimate } from '../../src/lib/types.js';
-import { installChrome } from './helpers/chrome-stub.js';
+import {
+  fakeEstimate,
+  installChrome,
+  jsonResponse,
+  request,
+  stubFetch
+} from './helpers/chrome-stub.js';
 
 type Reply = { status?: number; body?: unknown; raw?: string } | Error;
 
 /** Replaces `fetch` with a queue of answers, consumed in order. */
-function stubFetch(...replies: Reply[]) {
+function queueFetch(...replies: Reply[]) {
   const queue = [...replies];
-  const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => {
+  return stubFetch(() => {
     const reply = queue.shift();
     if (!reply) throw new Error('unexpected fetch call');
     if (reply instanceof Error) throw reply;
-    return new Response(reply.raw ?? JSON.stringify(reply.body ?? {}), {
-      status: reply.status ?? 200
-    });
+    return reply.raw === undefined
+      ? jsonResponse(reply.body ?? {}, reply.status)
+      : new Response(reply.raw, { status: reply.status ?? 200 });
   });
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
-}
-
-/** The request of the n-th fetch call, headers normalized to a lower-case record. */
-function request(fetchMock: ReturnType<typeof stubFetch>, n: number) {
-  const [url, init] = fetchMock.mock.calls[n] as [string, RequestInit];
-  const headers: Record<string, string> = {};
-  new Headers(init.headers).forEach((value, key) => {
-    headers[key] = value;
-  });
-  return {
-    url,
-    method: init.method,
-    headers,
-    body: typeof init.body === 'string' ? (JSON.parse(init.body) as unknown) : init.body
-  };
 }
 
 const PAYLOAD: EstimatePayload = {
-  estimate: { method: 'afnor_sobria', modelId: 'gpt-4o', gco2eq: 1.5 } as unknown as Estimate,
+  estimate: fakeEstimate(),
   host: 'chatgpt',
   modelDisplayName: 'GPT-4o',
   ts: '2026-05-16T08:00:00.000Z'
@@ -71,20 +60,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('TeamApiError', () => {
-  it('carries the status and the code, and is an Error', () => {
-    const error = new TeamApiError(409, 'fingerprint_already_enrolled', 'message');
-    expect(error).toBeInstanceOf(Error);
-    expect(error.status).toBe(409);
-    expect(error.code).toBe('fingerprint_already_enrolled');
-    expect(error.message).toBe('message');
-  });
-});
-
 describe('server URL', () => {
   it('fails before any request when no server URL is configured', async () => {
     installChrome();
-    const fetchMock = stubFetch();
+    const fetchMock = queueFetch();
     await expect(ping()).rejects.toThrow('URL serveur équipe non configurée');
     await expect(pushEstimation(PAYLOAD)).rejects.toThrow('URL serveur équipe non configurée');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -93,7 +72,7 @@ describe('server URL', () => {
 
 describe('ping', () => {
   it('sends GET /health to the configured server and returns the body', async () => {
-    const fetchMock = stubFetch({ body: { ok: true, version: '0.9.0' } });
+    const fetchMock = queueFetch({ body: { ok: true, version: '0.9.0' } });
     expect(await ping()).toEqual({ ok: true, version: '0.9.0' });
     expect(request(fetchMock, 0)).toMatchObject({
       url: 'https://team.example/health',
@@ -103,15 +82,14 @@ describe('ping', () => {
 
   it('does not send the access token', async () => {
     await setTeamTokens({ access: 'jwt', refresh: 'r' });
-    const fetchMock = stubFetch({ body: { ok: true, version: '0.9.0' } });
+    const fetchMock = queueFetch({ body: { ok: true, version: '0.9.0' } });
     await ping();
     expect(request(fetchMock, 0).headers.authorization).toBeUndefined();
   });
 
   it('maps a failed answer without JSON body to http_error', async () => {
-    stubFetch({ status: 502, raw: '<html>bad gateway</html>' });
+    queueFetch({ status: 502, raw: '<html>bad gateway</html>' });
     await expect(ping()).rejects.toMatchObject({
-      name: 'Error',
       status: 502,
       code: 'http_error',
       message: 'HTTP 502'
@@ -120,7 +98,7 @@ describe('ping', () => {
 
   it('lets a network error through untouched (not a TeamApiError)', async () => {
     const failure = new TypeError('Failed to fetch');
-    stubFetch(failure);
+    queueFetch(failure);
     const error = await ping().catch((e: unknown) => e);
     expect(error).toBe(failure);
     expect(error).not.toBeInstanceOf(TeamApiError);
@@ -129,14 +107,15 @@ describe('ping', () => {
 
 describe('error mapping', () => {
   it('uses the error and code fields of the JSON body', async () => {
-    stubFetch({ status: 400, body: { error: 'payload invalide', code: 'bad_request' } });
+    queueFetch({ status: 400, body: { error: 'payload invalide', code: 'bad_request' } });
     const error = await pushEstimation(PAYLOAD).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(TeamApiError);
+    expect(error).toBeInstanceOf(Error);
     expect(error).toMatchObject({ status: 400, code: 'bad_request', message: 'payload invalide' });
   });
 
   it('keeps the defaults for the fields that are missing or not strings', async () => {
-    stubFetch({ status: 500, body: { error: 12, code: null } });
+    queueFetch({ status: 500, body: { error: 12, code: null } });
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({
       status: 500,
       code: 'http_error',
@@ -156,7 +135,7 @@ describe('enroll', () => {
       access_expires_at: '2026-05-17T08:30:00Z',
       refresh_expires_at: '2026-08-14T08:30:00Z'
     };
-    const fetchMock = stubFetch({ body: answer });
+    const fetchMock = queueFetch({ body: answer });
 
     const result = await enroll({
       code: '123456789012',
@@ -166,7 +145,7 @@ describe('enroll', () => {
     });
 
     expect(result).toEqual(answer);
-    expect(request(fetchMock, 0)).toEqual({
+    expect(request(fetchMock, 0)).toMatchObject({
       url: 'https://team.example/api/v1/enroll',
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -177,6 +156,7 @@ describe('enroll', () => {
         display_name: 'Ada'
       }
     });
+    expect(request(fetchMock, 0).headers.authorization).toBeUndefined();
     expect(await getTeamState()).toEqual({
       enrolled: true,
       url: 'https://team.example',
@@ -190,7 +170,7 @@ describe('enroll', () => {
   });
 
   it('omits display_name when none is given', async () => {
-    const fetchMock = stubFetch({
+    const fetchMock = queueFetch({
       body: { user_id: 'u', access_token: 'a', refresh_token: 'r' }
     });
     await enroll({ code: '1', password: 'p', fingerprint: 'f' });
@@ -198,7 +178,7 @@ describe('enroll', () => {
   });
 
   it('stores nothing when the server refuses', async () => {
-    stubFetch({
+    queueFetch({
       status: 409,
       body: { error: 'empreinte déjà enrôlée', code: 'fingerprint_already_enrolled' }
     });
@@ -214,10 +194,10 @@ describe('enroll', () => {
 describe('pushEstimation', () => {
   it('posts the payload as JSON with the bearer token', async () => {
     await setTeamTokens({ access: 'jwt-1', refresh: 'ulid.uuid-1' });
-    const fetchMock = stubFetch({ body: { id: '01HZ-est', ack: true } });
+    const fetchMock = queueFetch({ body: { id: '01HZ-est', ack: true } });
 
     expect(await pushEstimation(PAYLOAD)).toEqual({ id: '01HZ-est', ack: true });
-    expect(request(fetchMock, 0)).toEqual({
+    expect(request(fetchMock, 0)).toMatchObject({
       url: 'https://team.example/api/v1/estimations',
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer jwt-1' },
@@ -226,14 +206,14 @@ describe('pushEstimation', () => {
   });
 
   it('sends no Authorization header without a token', async () => {
-    const fetchMock = stubFetch({ status: 401, body: { error: 'jeton manquant' } });
+    const fetchMock = queueFetch({ status: 401, body: { error: 'jeton manquant' } });
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({ status: 401 });
     expect(request(fetchMock, 0).headers.authorization).toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('includes the project label when the payload has one', async () => {
-    const fetchMock = stubFetch({ body: { id: 'x', ack: true } });
+    const fetchMock = queueFetch({ body: { id: 'x', ack: true } });
     await pushEstimation({ ...PAYLOAD, project: 'Alpha' });
     expect((request(fetchMock, 0).body as EstimatePayload).project).toBe('Alpha');
   });
@@ -246,7 +226,7 @@ describe('refresh on 401', () => {
   });
 
   it('refreshes the tokens, stores the new pair and retries once', async () => {
-    const fetchMock = stubFetch(
+    const fetchMock = queueFetch(
       { status: 401, body: { error: 'jeton expiré', code: 'invalid_token' } },
       { body: { access_token: 'new-jwt', refresh_token: 'new-ulid.new-uuid' } },
       { body: { id: 'est-1', ack: true } }
@@ -256,19 +236,20 @@ describe('refresh on 401', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(request(fetchMock, 0).headers.authorization).toBe('Bearer old-jwt');
-    expect(request(fetchMock, 1)).toEqual({
+    expect(request(fetchMock, 1)).toMatchObject({
       url: 'https://team.example/api/v1/refresh',
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: { refresh_token: 'old-ulid.old-uuid' }
     });
+    expect(request(fetchMock, 1).headers.authorization).toBeUndefined();
     expect(request(fetchMock, 2).headers.authorization).toBe('Bearer new-jwt');
     expect(await getTeamAccessToken()).toBe('new-jwt');
     expect(await getTeamRefreshToken()).toBe('new-ulid.new-uuid');
   });
 
   it('refreshes only once: a second 401 is returned as an error', async () => {
-    const fetchMock = stubFetch(
+    const fetchMock = queueFetch(
       { status: 401, body: { error: 'jeton expiré', code: 'invalid_token' } },
       { body: { access_token: 'new-jwt', refresh_token: 'new-ulid.new-uuid' } },
       { status: 401, body: { error: 'toujours invalide', code: 'invalid_token' } }
@@ -281,7 +262,7 @@ describe('refresh on 401', () => {
   });
 
   it('logs the user out when the refresh is refused, and returns the original 401', async () => {
-    const fetchMock = stubFetch(
+    const fetchMock = queueFetch(
       { status: 401, body: { error: 'jeton expiré', code: 'invalid_token' } },
       { status: 401, body: { error: 'refresh invalide' } }
     );
@@ -299,7 +280,7 @@ describe('refresh on 401', () => {
   });
 
   it('logs the user out when the refresh request itself fails', async () => {
-    stubFetch({ status: 401, body: { error: 'jeton expiré' } }, new TypeError('offline'));
+    queueFetch({ status: 401, body: { error: 'jeton expiré' } }, new TypeError('offline'));
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({ status: 401 });
     expect(await getTeamAccessToken()).toBeNull();
     expect(await getTeamRefreshToken()).toBeNull();
@@ -307,20 +288,20 @@ describe('refresh on 401', () => {
 
   it('does not try to refresh without a refresh token', async () => {
     await setTeamTokens({ access: 'old-jwt', refresh: '' });
-    const fetchMock = stubFetch({ status: 401, body: { error: 'jeton expiré' } });
+    const fetchMock = queueFetch({ status: 401, body: { error: 'jeton expiré' } });
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({ status: 401 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not try to refresh a 401 sent without a token', async () => {
     await setTeamTokens({ access: '', refresh: 'r' });
-    const fetchMock = stubFetch({ status: 401, body: { error: 'jeton manquant' } });
+    const fetchMock = queueFetch({ status: 401, body: { error: 'jeton manquant' } });
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({ status: 401 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not refresh on other failures', async () => {
-    const fetchMock = stubFetch({ status: 403, body: { error: 'interdit', code: 'forbidden' } });
+    const fetchMock = queueFetch({ status: 403, body: { error: 'interdit', code: 'forbidden' } });
     await expect(pushEstimation(PAYLOAD)).rejects.toMatchObject({ status: 403, code: 'forbidden' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

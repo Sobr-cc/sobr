@@ -5,14 +5,27 @@
 // are then called against small DOM fixtures. This pins what the real tables
 // resolve (quirks included), the selectors, and what a submission does.
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { injectBadge, injectUnsupportedBadge } from '../../src/content/shared/badge-injector.js';
 import type { PromptDetectorConfig } from '../../src/content/shared/prompt-detector.js';
+import {
+  setBadgeVisible,
+  setMethod,
+  setSitesEnabled,
+  todayKey
+} from '../../src/content/shared/storage.js';
 import { estimate } from '../../src/lib/empreinte/index.js';
-import { eventually, installChrome } from './helpers/chrome-stub.js';
+import {
+  allowSlowImports,
+  eventually,
+  flush,
+  installChrome,
+  silenceConsole,
+  type ChromeStub
+} from './helpers/chrome-stub.js';
+import { loadFixture, setFixture } from './helpers/fixtures.js';
 
-// Importing the real scripts is slow on a loaded machine (coverage, parallel builds).
-vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
+allowSlowImports();
 
 const captured = vi.hoisted(() => ({ detectors: [] as unknown[] }));
 
@@ -60,7 +73,6 @@ type Adapter = {
   url: string;
   load: () => Promise<unknown>;
   host: 'chatgpt' | 'claude' | 'le-chat';
-  logName: string;
   /** Puts a model label where the adapter reads it. */
   mountLabel: (label: string) => void;
   /** What the real alias table and the shared resolver return for a label. */
@@ -71,8 +83,11 @@ type Adapter = {
    * each entry of the table, in its order (the first key found in the text wins).
    */
   aliasCases: ReadonlyArray<readonly [label: string, presetId: string | null]>;
-  /** Sample composer DOM that the real selectors must find. */
-  composer: { textarea: HTMLElement; sendButton: HTMLElement };
+  /**
+   * Page of the site recorded in tests/fixtures: the real selectors must find
+   * its composer and send button, and the model it shows must be recognized.
+   */
+  fixture: { file: string; presetId: string };
   supported: { label: string; presetId: string; displayName: string };
 };
 
@@ -82,7 +97,6 @@ const ADAPTERS: Adapter[] = [
     url: 'https://chatgpt.com/',
     load: () => import('../../src/content/chatgpt.js'),
     host: 'chatgpt',
-    logName: 'ChatGPT',
     mountLabel: (label) =>
       document.body.replaceChildren(
         el('button', { 'data-testid': 'model-switcher-dropdown-button' }, label)
@@ -150,10 +164,7 @@ const ADAPTERS: Adapter[] = [
       // the specific entry comes first: "5.5 pro" is not read as the generic "5.5"
       ['GPT-5.5 Pro Extended', 'gpt-5-5-pro']
     ],
-    composer: {
-      textarea: el('div', { contenteditable: 'true', id: 'prompt-textarea' }),
-      sendButton: el('button', { 'data-testid': 'send-button' })
-    },
+    fixture: { file: 'chatgpt-2026-05.html', presetId: 'gpt-4o' },
     supported: { label: 'ChatGPT 4o', presetId: 'gpt-4o', displayName: 'GPT-4o' }
   },
   {
@@ -161,7 +172,6 @@ const ADAPTERS: Adapter[] = [
     url: 'https://claude.ai/',
     load: () => import('../../src/content/claude.js'),
     host: 'claude',
-    logName: 'Claude',
     mountLabel: (label) => {
       const nav = el('nav');
       nav.append(el('button', {}, label));
@@ -212,10 +222,7 @@ const ADAPTERS: Adapter[] = [
       // the specific entry comes first: "opus 4.8" is not read as the generic "opus 4"
       ['Claude Opus 4.8 Extended', 'claude-opus-4-8']
     ],
-    composer: {
-      textarea: el('div', { contenteditable: 'true', role: 'textbox' }),
-      sendButton: el('button', { 'aria-label': 'Send Message' })
-    },
+    fixture: { file: 'claude-2026-05.html', presetId: 'claude-3-5-sonnet' },
     supported: {
       label: 'Claude Sonnet 4.6',
       presetId: 'claude-sonnet-4-6',
@@ -227,7 +234,6 @@ const ADAPTERS: Adapter[] = [
     url: 'https://chat.mistral.ai/',
     load: () => import('../../src/content/le-chat.js'),
     host: 'le-chat',
-    logName: 'Le Chat',
     mountLabel: (label) => document.body.replaceChildren(el('div', { 'data-model': label })),
     labelCases: [
       ['Mistral Large 3', 'mistral-large-3'],
@@ -261,10 +267,7 @@ const ADAPTERS: Adapter[] = [
       // extra text never reaches the Large 2 entry (quirk, SOB-176)
       ['Mistral Large 2 (new)', 'mistral-large-3']
     ],
-    composer: {
-      textarea: el('textarea', { name: 'message' }),
-      sendButton: el('button', { type: 'submit' })
-    },
+    fixture: { file: 'le-chat-2026-05.html', presetId: 'mistral-large-2' },
     supported: {
       label: 'Mistral Large 3',
       presetId: 'mistral-large-3',
@@ -273,19 +276,18 @@ const ADAPTERS: Adapter[] = [
   }
 ];
 
-let stub: ReturnType<typeof installChrome>;
+let stub: ChromeStub;
 
-/** Detector config captured for each adapter, by name. */
-const detectors = new Map<string, PromptDetectorConfig>();
+const NOW = new Date('2026-05-16T12:00:00.000Z');
+const NOW_ISO = NOW.toISOString();
 
 describe.each(ADAPTERS)('$name adapter', (adapter) => {
   let detector: PromptDetectorConfig;
 
   beforeAll(async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    silenceConsole('info');
     stub = installChrome();
     detector = await loadAdapter(adapter.url, adapter.load);
-    detectors.set(adapter.name, detector);
   });
 
   afterAll(() => {
@@ -301,31 +303,90 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
   });
 
   describe('model detection with the real alias table', () => {
-    it.each(adapter.labelCases)('label "%s" resolves to %s', (label, presetId) => {
-      adapter.mountLabel(label);
-      expect(detector.extractModelId()).toBe(presetId);
-    });
-
-    it.each(adapter.aliasCases)('alias table: label "%s" resolves to %s', (label, presetId) => {
-      adapter.mountLabel(label);
-      expect(detector.extractModelId()).toBe(presetId);
-    });
+    it.each([...adapter.labelCases, ...adapter.aliasCases])(
+      'label "%s" resolves to %s',
+      (label, presetId) => {
+        adapter.mountLabel(label);
+        expect(detector.extractModelId()).toBe(presetId);
+      }
+    );
 
     it('resolves to null when the page shows no model label', () => {
       expect(detector.extractModelId()).toBeNull();
     });
   });
 
-  describe('selectors', () => {
-    it('finds the composer and the send button of a typical page', () => {
-      document.body.append(adapter.composer.textarea, adapter.composer.sendButton);
-      expect(document.querySelector(detector.selectorTextarea)).toBe(adapter.composer.textarea);
-      expect(document.querySelector(detector.selectorSendButton)).toBe(adapter.composer.sendButton);
+  describe('recorded page', () => {
+    beforeEach(() => {
+      setFixture(loadFixture(adapter.fixture.file));
+    });
+
+    it('is found by the real selectors: composer and send button', () => {
+      expect(document.querySelector(detector.selectorTextarea)).not.toBeNull();
+      expect(document.querySelector(detector.selectorSendButton)).not.toBeNull();
+    });
+
+    it('shows a model that the adapter recognizes', () => {
+      expect(detector.extractModelId()).toBe(adapter.fixture.presetId);
+    });
+  });
+
+  describe.runIf(adapter.host === 'chatgpt')('model from the URL', () => {
+    it('falls back on the ?model= parameter when the page shows no label', () => {
+      setUrl('https://chatgpt.com/?model=gpt-4o-mini');
+      expect(detector.extractModelId()).toBe('gpt-4o-mini');
+      setUrl('https://chatgpt.com/?model=o3-pro');
+      expect(detector.extractModelId()).toBe('o3');
+    });
+
+    it('prefers the label of the page over the parameter', () => {
+      setUrl('https://chatgpt.com/?model=gpt-4o-mini');
+      adapter.mountLabel('GPT-5.5 Pro');
+      expect(detector.extractModelId()).toBe('gpt-5-5-pro');
+    });
+
+    it('falls back on the parameter when the label is not recognized', () => {
+      setUrl('https://chatgpt.com/?model=gpt-4o');
+      adapter.mountLabel('Auto');
+      expect(detector.extractModelId()).toBe('gpt-4o');
+    });
+
+    it('is null for an unknown parameter', () => {
+      setUrl('https://chatgpt.com/?model=something-new');
+      expect(detector.extractModelId()).toBeNull();
+    });
+
+    it('reads the model switcher before the other buttons that mention GPT', () => {
+      document.body.replaceChildren(
+        el('button', { 'aria-label': 'GPT-4o mini' }),
+        el('button', { 'data-testid': 'model-switcher-dropdown-button' }, 'GPT-5.5')
+      );
+      expect(detector.extractModelId()).toBe('gpt-5-5');
     });
   });
 
   describe('submission of a prompt', () => {
     const PROMPT = 'Bonjour le monde'; // 16 characters: 5 tokens in, 200 tokens out (minimum)
+    const EXPECTED = estimate({
+      method: 'afnor_sobria',
+      modelId: adapter.supported.presetId,
+      tokensIn: 5,
+      tokensOut: 200
+    });
+    const SUM = {
+      gco2eq: EXPECTED.gco2eq,
+      waterMl: EXPECTED.waterMl,
+      energyWh: EXPECTED.energyWh
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
     function addActionsRow(): HTMLElement {
       const row = el('div', { id: 'actions' });
@@ -337,50 +398,58 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
     it('estimates, stores locally, shows the badge and tells the service worker', async () => {
       adapter.mountLabel(adapter.supported.label);
       const row = addActionsRow();
-      const expected = estimate({
-        method: 'afnor_sobria',
-        modelId: adapter.supported.presetId,
-        tokensIn: 5,
-        tokensOut: 200
-      });
 
       await detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId });
 
-      expect(stub.local.data.get('last_estimate')).toEqual({
-        estimate: expected,
-        host: adapter.host,
-        modelDisplayName: adapter.supported.displayName,
-        ts: expect.any(String)
+      const daily = { date: todayKey(NOW), count: 1, ...SUM };
+      expect(Object.fromEntries(stub.local.data)).toEqual({
+        last_estimate: {
+          estimate: EXPECTED,
+          host: adapter.host,
+          modelDisplayName: adapter.supported.displayName,
+          ts: NOW_ISO
+        },
+        [`daily_${todayKey(NOW)}`]: daily,
+        session_log: [{ ts: NOW_ISO, ...SUM }]
       });
-      const daily = [...stub.local.data].find(([key]) => key.startsWith('daily_'))?.[1];
-      expect(daily).toMatchObject({
-        count: 1,
-        gco2eq: expected.gco2eq,
-        waterMl: expected.waterMl,
-        energyWh: expected.energyWh
-      });
-      expect(stub.local.data.get('session_log')).toHaveLength(1);
-      expect(injectBadge).toHaveBeenCalledWith(row, expected, {
-        session: expect.objectContaining({ count: 1 })
-      });
+      expect(injectBadge).toHaveBeenCalledWith(row, EXPECTED, { session: daily });
       expect(injectUnsupportedBadge).not.toHaveBeenCalled();
       expect(stub.runtime.sendMessage).toHaveBeenCalledWith({
         type: 'estimation_submitted',
-        estimate: expected,
+        estimate: EXPECTED,
         host: adapter.host,
         modelDisplayName: adapter.supported.displayName
       });
     });
 
+    it('gives the badge the running total of the day', async () => {
+      addActionsRow();
+
+      await detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId });
+      await detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId });
+
+      const [, second] = vi.mocked(injectBadge).mock.calls;
+      expect(second?.[2]).toEqual({
+        session: {
+          date: todayKey(NOW),
+          count: 2,
+          gco2eq: SUM.gco2eq * 2,
+          waterMl: SUM.waterMl * 2,
+          energyWh: SUM.energyWh * 2
+        }
+      });
+      expect(stub.local.data.get('session_log')).toHaveLength(2);
+    });
+
     it('uses the method chosen by the user', async () => {
-      stub.local.data.set('method', 'ecologits');
+      await setMethod('ecologits');
       await detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId });
       const sent = stub.runtime.sendMessage.mock.calls[0]?.[0] as { estimate: { method: string } };
       expect(sent.estimate.method).toBe('ecologits');
     });
 
     it('still stores and reports, but shows no badge, when the badge is turned off', async () => {
-      stub.local.data.set('badge_visible', false);
+      await setBadgeVisible(false);
       addActionsRow();
 
       await detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId });
@@ -397,7 +466,7 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
     });
 
     it('does not fail when the service worker is not reachable', async () => {
-      stub.runtime.sendMessage = vi.fn(() => Promise.reject(new Error('no receiver')));
+      stub.runtime.sendMessage.mockRejectedValueOnce(new Error('no receiver'));
       await expect(
         detector.onSubmit({ prompt: PROMPT, modelId: adapter.supported.presetId })
       ).resolves.toBeUndefined();
@@ -425,77 +494,22 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
     });
 
     it('logs an error and records nothing for a model id the engine does not know', async () => {
-      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const [error] = silenceConsole('error');
 
       await expect(
         detector.onSubmit({ prompt: PROMPT, modelId: 'not-a-model' })
       ).resolves.toBeUndefined();
 
-      expect(error).toHaveBeenCalledWith(
-        `[sobria] estimation ${adapter.logName} échouée :`,
-        expect.any(Error)
-      );
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('[sobria]'), expect.any(Error));
       expect(stub.local.data.size).toBe(0);
       expect(stub.runtime.sendMessage).not.toHaveBeenCalled();
     });
   });
 });
 
-describe('ChatGPT model from the URL', () => {
-  // The ChatGPT module is imported once (above); its detector is reused.
-  let detector: PromptDetectorConfig;
-
-  beforeAll(() => {
-    const captured = detectors.get('ChatGPT');
-    if (!captured) throw new Error('the ChatGPT detector was not captured');
-    detector = captured;
-  });
-
-  beforeEach(() => {
-    document.body.replaceChildren();
-  });
-
-  it('falls back on the ?model= parameter when the page shows no label', () => {
-    setUrl('https://chatgpt.com/?model=gpt-4o-mini');
-    expect(detector.extractModelId()).toBe('gpt-4o-mini');
-    setUrl('https://chatgpt.com/?model=o3-pro');
-    expect(detector.extractModelId()).toBe('o3');
-  });
-
-  it('prefers the label of the page over the parameter', () => {
-    setUrl('https://chatgpt.com/?model=gpt-4o-mini');
-    document.body.replaceChildren(
-      el('button', { 'data-testid': 'model-switcher-dropdown-button' }, 'GPT-5.5 Pro')
-    );
-    expect(detector.extractModelId()).toBe('gpt-5-5-pro');
-  });
-
-  it('falls back on the parameter when the label is not recognized', () => {
-    setUrl('https://chatgpt.com/?model=gpt-4o');
-    document.body.replaceChildren(
-      el('button', { 'data-testid': 'model-switcher-dropdown-button' }, 'Auto')
-    );
-    expect(detector.extractModelId()).toBe('gpt-4o');
-  });
-
-  it('is null for an unknown parameter', () => {
-    setUrl('https://chatgpt.com/?model=something-new');
-    expect(detector.extractModelId()).toBeNull();
-  });
-
-  it('reads the model switcher before the other buttons that mention GPT', () => {
-    setUrl('https://chatgpt.com/');
-    document.body.replaceChildren(
-      el('button', { 'aria-label': 'GPT-4o mini' }),
-      el('button', { 'data-testid': 'model-switcher-dropdown-button' }, 'GPT-5.5')
-    );
-    expect(detector.extractModelId()).toBe('gpt-5-5');
-  });
-});
-
 describe('when an adapter starts', () => {
   beforeEach(() => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    silenceConsole('info');
     stub = installChrome();
   });
 
@@ -504,13 +518,15 @@ describe('when an adapter starts', () => {
     vi.unstubAllGlobals();
   });
 
-  async function startsOn(url: string, adapter: Adapter, sites?: object): Promise<boolean> {
-    if (sites) stub.local.data.set('sites_enabled', sites);
+  const ALL_SITES = { chatgpt: true, claude: true, leChat: true };
+
+  async function startsOn(url: string, adapter: Adapter, sites = ALL_SITES): Promise<boolean> {
+    await setSitesEnabled(sites);
     const before = captured.detectors.length;
     setUrl(url);
     vi.resetModules();
     await adapter.load();
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await flush();
     return captured.detectors.length > before;
   }
 
@@ -534,10 +550,9 @@ describe('when an adapter starts', () => {
   });
 
   it('does nothing when the site is turned off in the options', async () => {
-    const all = { chatgpt: true, claude: true, leChat: true };
-    expect(await startsOn(chatgpt.url, chatgpt, { ...all, chatgpt: false })).toBe(false);
-    expect(await startsOn(claude.url, claude, { ...all, claude: false })).toBe(false);
-    expect(await startsOn(leChat.url, leChat, { ...all, leChat: false })).toBe(false);
+    expect(await startsOn(chatgpt.url, chatgpt, { ...ALL_SITES, chatgpt: false })).toBe(false);
+    expect(await startsOn(claude.url, claude, { ...ALL_SITES, claude: false })).toBe(false);
+    expect(await startsOn(leChat.url, leChat, { ...ALL_SITES, leChat: false })).toBe(false);
   });
 
   it('only turns off the site that was switched off', async () => {

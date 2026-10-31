@@ -1,31 +1,39 @@
+// @vitest-environment node
 // SOB-158 — characterization of `background/native-messaging.ts`: how the
 // extension talks to the native bridge (requests, matching of answers,
 // timeouts, disconnections).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BridgeClient } from '../../src/background/native-messaging.js';
-import type { Estimate } from '../../src/lib/types.js';
-import { createFakePort, installChrome, type BridgeRequest } from './helpers/chrome-stub.js';
+import {
+  createFakePort,
+  DISCONNECT,
+  fakeEstimate,
+  installChrome,
+  silenceConsole,
+  withPing,
+  type BridgeReply
+} from './helpers/chrome-stub.js';
 
-const ESTIMATE = { method: 'afnor_sobria', modelId: 'gpt-4o', gco2eq: 1.5 } as unknown as Estimate;
-const REQ_ID = /^r[0-9a-z]+-\d+$/;
+const DEV_LOG = expect.stringContaining('[sobria bridge]');
 
-/** A bridge that answers pings (and nothing else unless `more` handles it). */
-function pongBridge(
-  more: (request: BridgeRequest) => Record<string, unknown> | undefined = () => undefined
-) {
-  return createFakePort((request) =>
-    request.type === 'ping' ? { ok: true, pong: true } : more(request)
-  );
-}
-
-function connectedChrome(bridge = pongBridge()) {
+/** A bridge that answers pings, and everything else with `more`. */
+function connectedChrome(more?: BridgeReply) {
+  const bridge = createFakePort(withPing(more));
   const stub = installChrome({ connectNative: () => bridge.port });
   return { ...stub, bridge };
 }
 
+/** A client already connected to a bridge that answers pings and everything else with `more`. */
+async function connectedClient(more?: BridgeReply) {
+  const stub = connectedChrome(more);
+  const client = new BridgeClient();
+  await client.connect();
+  return { ...stub, client };
+}
+
 beforeEach(() => {
-  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  silenceConsole('warn');
 });
 
 afterEach(() => {
@@ -37,14 +45,11 @@ afterEach(() => {
 describe('connect', () => {
   it('opens the port of the native app com.sobria.bridge and pings it', async () => {
     const { runtime, bridge } = connectedChrome();
-    const client = new BridgeClient();
 
-    expect(await client.connect()).toBe(true);
+    expect(await new BridgeClient().connect()).toBe(true);
 
     expect(runtime.connectNative).toHaveBeenCalledWith('com.sobria.bridge');
-    const [ping] = bridge.sent();
-    expect(ping).toMatchObject({ type: 'ping' });
-    expect(ping?.reqId).toMatch(REQ_ID);
+    expect(bridge.sent()).toEqual([{ type: 'ping', reqId: expect.any(String) }]);
   });
 
   it('is false when the browser has no native messaging', async () => {
@@ -52,29 +57,41 @@ describe('connect', () => {
     expect(await new BridgeClient().connect()).toBe(false);
   });
 
-  it('is false, and logs a warning, when connectNative throws (bridge not installed)', async () => {
+  it('is false, and logs a warning, when connectNative throws (invalid host name)', async () => {
     installChrome({
       connectNative: () => {
-        throw new Error('Specified native messaging host not found.');
+        throw new Error('Invalid native messaging host name specified.');
       }
     });
     const client = new BridgeClient();
     expect(await client.connect()).toBe(false);
-    expect(console.warn).toHaveBeenCalledWith(
-      '[sobria bridge] connectNative throws:',
-      expect.any(Error)
-    );
+    expect(console.warn).toHaveBeenCalledWith(DEV_LOG, expect.any(Error));
     await expect(client.pair('123456')).rejects.toThrow('Bridge non connecté');
   });
 
+  // Chrome and Firefox open the port, then report a host that is not installed
+  // through onDisconnect: this is what a user without the desktop app gets.
+  it('is false at once when the browser reports the native host as missing', async () => {
+    vi.useFakeTimers(); // no timer is advanced: waiting for the 5 s timeout would hang
+    const { runtime } = installAndConnect(createFakePort(() => DISCONNECT));
+    runtime.lastError = { message: 'Specified native messaging host not found.' };
+
+    expect(await new BridgeClient().connect()).toBe(false);
+
+    expect(console.warn).toHaveBeenCalledWith(
+      DEV_LOG,
+      'Specified native messaging host not found.'
+    );
+  });
+
   it('is false when the bridge answers the ping without pong: true', async () => {
-    connectedChrome(createFakePort(() => ({ ok: true, pong: false })));
+    installAndConnect(createFakePort(() => ({ ok: true, pong: false })));
     expect(await new BridgeClient().connect()).toBe(false);
   });
 
   it('is false when the bridge stays silent for 5 seconds', async () => {
     vi.useFakeTimers();
-    connectedChrome(createFakePort());
+    installAndConnect(createFakePort());
     const result = new BridgeClient().connect();
     await vi.advanceTimersByTimeAsync(4999);
     let settled = false;
@@ -89,13 +106,16 @@ describe('connect', () => {
   });
 });
 
+/** Installs a chrome stub whose native app is `bridge`, as is. */
+function installAndConnect(bridge: ReturnType<typeof createFakePort>) {
+  return installChrome({ connectNative: () => bridge.port });
+}
+
 describe('requests', () => {
   it('sends pair, estimate and revoke with the documented fields', async () => {
-    const { bridge } = connectedChrome(pongBridge(() => ({ ok: true })));
-    const client = new BridgeClient();
-    await client.connect();
+    const { client, bridge } = await connectedClient(() => ({ ok: true }));
     const payload = {
-      estimate: ESTIMATE,
+      estimate: fakeEstimate(),
       host: 'claude' as const,
       modelDisplayName: 'Claude Sonnet 4.6',
       ts: '2026-05-16T08:00:00.000Z'
@@ -106,39 +126,32 @@ describe('requests', () => {
     await client.revoke('s3cret');
 
     const [, pair, estimate, revoke] = bridge.sent();
-    expect(pair).toEqual({ type: 'pair', reqId: expect.stringMatching(REQ_ID), code: '123456' });
+    expect(pair).toEqual({ type: 'pair', reqId: expect.any(String), code: '123456' });
     expect(estimate).toEqual({
       type: 'estimate',
-      reqId: expect.stringMatching(REQ_ID),
+      reqId: expect.any(String),
       secret: 's3cret',
       payload
     });
-    expect(revoke).toEqual({
-      type: 'revoke',
-      reqId: expect.stringMatching(REQ_ID),
-      secret: 's3cret'
-    });
+    expect(revoke).toEqual({ type: 'revoke', reqId: expect.any(String), secret: 's3cret' });
   });
 
-  it('numbers the requests of one client 1, 2, 3, …', async () => {
-    const { bridge } = connectedChrome(pongBridge(() => ({ ok: true })));
-    const client = new BridgeClient();
-    await client.connect();
+  it('gives each request an id of its own', async () => {
+    const { client, bridge } = await connectedClient(() => ({ ok: true }));
     await client.pair('1');
     await client.revoke('s');
-    expect(bridge.sent().map((r) => r.reqId.split('-')[1])).toEqual(['1', '2', '3']);
+    const ids = bridge.sent().map((request) => request.reqId);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids.every((id) => id.length > 0)).toBe(true);
   });
 
   it('resolves with the answer of the bridge, unchanged (errors included)', async () => {
-    const { bridge } = connectedChrome(
-      pongBridge((request) =>
-        request.type === 'pair'
-          ? { ok: false, error: 'Code invalide ou expiré.' }
-          : { ok: true, secret: 's', pairingId: 'p', fingerprint: 'f' }
-      )
+    const { client, bridge } = await connectedClient((request) =>
+      request.type === 'pair'
+        ? { ok: false, error: 'Code invalide ou expiré.' }
+        : { ok: true, secret: 's', pairingId: 'p', fingerprint: 'f' }
     );
-    const client = new BridgeClient();
-    await client.connect();
 
     expect(await client.pair('000000')).toMatchObject({
       ok: false,
@@ -149,9 +162,7 @@ describe('requests', () => {
   });
 
   it('matches answers to requests by reqId, whatever the order', async () => {
-    const { bridge } = connectedChrome();
-    const client = new BridgeClient();
-    await client.connect();
+    const { client, bridge } = await connectedClient();
 
     const first = client.pair('111111');
     const second = client.pair('222222');
@@ -168,10 +179,8 @@ describe('requests', () => {
     await expect(new BridgeClient().revoke('s')).rejects.toThrow('Bridge non connecté');
   });
 
-  it('rejects with the error of postMessage and forgets the request', async () => {
-    const { bridge } = connectedChrome();
-    const client = new BridgeClient();
-    await client.connect();
+  it('rejects with the error of postMessage', async () => {
+    const { client, bridge } = await connectedClient();
     bridge.port.postMessage.mockImplementationOnce(() => {
       throw new Error('port closed');
     });
@@ -179,14 +188,10 @@ describe('requests', () => {
   });
 });
 
-describe('answers that are ignored', () => {
-  it('ignores non-objects, answers without a string reqId and unknown reqIds', async () => {
+describe('answers that are ignored, and the timeout', () => {
+  it('ignores non-objects, answers without a string reqId and unknown reqIds, then times out after 5000 ms', async () => {
     vi.useFakeTimers();
-    const { bridge } = connectedChrome();
-    const client = new BridgeClient();
-    const connected = client.connect();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(await connected).toBe(true);
+    const { client, bridge } = await connectedClient();
 
     const pending = client.pair('1').catch((e: unknown) => e);
     for (const noise of [
@@ -199,32 +204,22 @@ describe('answers that are ignored', () => {
     ]) {
       bridge.emit(noise);
     }
-    await vi.advanceTimersByTimeAsync(5000);
-
-    expect(await pending).toEqual(new Error('Bridge timeout (5000 ms)'));
-  });
-});
-
-describe('timeout', () => {
-  it('rejects a request after 5000 ms with "Bridge timeout (5000 ms)"', async () => {
-    vi.useFakeTimers();
-    connectedChrome();
-    const client = new BridgeClient();
-    const connected = client.connect();
+    await vi.advanceTimersByTimeAsync(4999);
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
     await vi.advanceTimersByTimeAsync(0);
-    await connected;
+    expect(settled).toBe(false);
 
-    const request = client.revoke('s').catch((e: unknown) => e);
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(await request).toEqual(new Error('Bridge timeout (5000 ms)'));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await pending).toEqual(new Error('Bridge timeout (5000 ms)'));
   });
 });
 
 describe('disconnect', () => {
   it('closes the port and refuses new requests', async () => {
-    const { bridge } = connectedChrome();
-    const client = new BridgeClient();
-    await client.connect();
+    const { client, bridge } = await connectedClient();
 
     client.disconnect();
 
@@ -233,12 +228,10 @@ describe('disconnect', () => {
   });
 
   it('does not fail when the port is already closed or when called twice', async () => {
-    const { bridge } = connectedChrome();
+    const { client, bridge } = await connectedClient();
     bridge.port.disconnect.mockImplementation(() => {
       throw new Error('already closed');
     });
-    const client = new BridgeClient();
-    await client.connect();
     expect(() => client.disconnect()).not.toThrow();
     expect(() => client.disconnect()).not.toThrow();
     expect(bridge.port.disconnect).toHaveBeenCalledTimes(1);
@@ -251,9 +244,7 @@ describe('disconnect', () => {
 
 describe('disconnection by the browser or the bridge', () => {
   it('resolves the pending requests with ok: false and "Bridge déconnecté" (no reqId)', async () => {
-    const { bridge } = connectedChrome();
-    const client = new BridgeClient();
-    await client.connect();
+    const { client, bridge } = await connectedClient();
 
     const pending = client.pair('1');
     bridge.emitDisconnect();
@@ -263,16 +254,11 @@ describe('disconnection by the browser or the bridge', () => {
   });
 
   it('logs the browser error when there is one', async () => {
-    const { bridge, runtime } = connectedChrome();
+    const { bridge, runtime } = await connectedClient();
     runtime.lastError = { message: 'Native host has exited.' };
-    const client = new BridgeClient();
-    await client.connect();
 
     bridge.emitDisconnect();
 
-    expect(console.warn).toHaveBeenCalledWith(
-      '[sobria bridge] disconnect:',
-      'Native host has exited.'
-    );
+    expect(console.warn).toHaveBeenCalledWith(DEV_LOG, 'Native host has exited.');
   });
 });

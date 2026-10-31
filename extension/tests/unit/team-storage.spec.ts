@@ -1,3 +1,4 @@
+// @vitest-environment node
 // SOB-158 — characterization of `content/shared/team-storage.ts` (Team mode
 // persistence): keys, defaults, what a logout keeps, and the browser
 // fingerprint sent to the server at enrollment.
@@ -15,9 +16,9 @@ import {
   setTeamTokens,
   setTeamUrl
 } from '../../src/content/shared/team-storage.js';
-import { installChrome } from './helpers/chrome-stub.js';
+import { installChrome, type ChromeStub } from './helpers/chrome-stub.js';
 
-let local: ReturnType<typeof installChrome>['local'];
+let local: ChromeStub['local'];
 
 beforeEach(() => {
   ({ local } = installChrome());
@@ -78,22 +79,45 @@ describe('getTeamState', () => {
   });
 });
 
-describe('storage keys', () => {
+describe('stored format', () => {
   it('writes each Team mode setting under its historical key', async () => {
     await setTeamUrl('https://team.example');
     await setTeamMode('both');
     await setTeamTokens({ access: 'a', refresh: 'r' });
     await recordEnrollment({ userId: 'u', fingerprint: 'f', enrolledAt: 't' });
 
-    expect([...local.data.keys()].sort()).toEqual([
-      'team_access',
-      'team_enrolled_at',
-      'team_fingerprint',
-      'team_mode',
-      'team_refresh',
-      'team_url',
-      'team_user_id'
-    ]);
+    expect(Object.fromEntries(local.data)).toEqual({
+      team_url: 'https://team.example',
+      team_mode: 'both',
+      team_access: 'a',
+      team_refresh: 'r',
+      team_user_id: 'u',
+      team_fingerprint: 'f',
+      team_enrolled_at: 't'
+    });
+  });
+
+  it('reads what a previous version of the extension stored', async () => {
+    for (const [key, value] of Object.entries({
+      team_url: 'https://team.example',
+      team_mode: 'team',
+      team_access: 'jwt',
+      team_refresh: 'ulid.uuid',
+      team_user_id: 'u',
+      team_fingerprint: 'f',
+      team_enrolled_at: 't'
+    })) {
+      local.data.set(key, value);
+    }
+    expect(await getTeamState()).toEqual({
+      enrolled: true,
+      url: 'https://team.example',
+      userId: 'u',
+      mode: 'team',
+      fingerprint: 'f',
+      enrolledAt: 't'
+    });
+    expect(await getTeamRefreshToken()).toBe('ulid.uuid');
   });
 });
 
@@ -186,11 +210,6 @@ describe('browserFingerprint', () => {
     expect(browserFingerprint()).toBe('ext-linuxx-6af2ea9c');
   });
 
-  it('is stable for the same browser', () => {
-    stubBrowser('UA', 'MacIntel');
-    expect(browserFingerprint()).toBe(browserFingerprint());
-  });
-
   it('changes with the user agent, the platform and the time zone', () => {
     stubBrowser('UA', 'Linux x86_64', 'UTC');
     const base = browserFingerprint();
@@ -203,21 +222,19 @@ describe('browserFingerprint', () => {
     expect(browserFingerprint()).not.toBe(base);
   });
 
-  it('keeps the letters of the platform only, lower-cased, at most 8 of them', () => {
-    stubBrowser('UA', 'Linux x86_64');
-    expect(browserFingerprint()).toMatch(/^ext-linuxx-[0-9a-f]{8}$/);
-    stubBrowser('UA', 'MacIntel');
-    expect(browserFingerprint()).toMatch(/^ext-macintel-[0-9a-f]{8}$/);
-    stubBrowser('UA', 'Win32');
-    expect(browserFingerprint()).toMatch(/^ext-win-[0-9a-f]{8}$/);
-    stubBrowser('UA', 'VeryLongPlatformName');
-    expect(browserFingerprint()).toMatch(/^ext-verylong-[0-9a-f]{8}$/);
-  });
-
-  it('uses "unknown" for an empty platform and "ext" for a platform without letters', () => {
-    stubBrowser('UA', '');
-    expect(browserFingerprint()).toMatch(/^ext-unknown-/);
-    stubBrowser('UA', '1234');
-    expect(browserFingerprint()).toMatch(/^ext-ext-/);
-  });
+  it.each([
+    ['Linux x86_64', 'linuxx'],
+    ['MacIntel', 'macintel'],
+    ['Win32', 'win'],
+    ['VeryLongPlatformName', 'verylong'],
+    // no platform at all, then a platform made of digits only
+    ['', 'unknown'],
+    ['1234', 'ext']
+  ])(
+    'platform "%s" gives the slug "%s" (letters only, lower case, 8 at most)',
+    (platform, slug) => {
+      stubBrowser('UA', platform);
+      expect(browserFingerprint()).toMatch(new RegExp(`^ext-${slug}-[0-9a-f]{8}$`));
+    }
+  );
 });

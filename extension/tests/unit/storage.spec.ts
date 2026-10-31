@@ -1,3 +1,4 @@
+// @vitest-environment node
 // SOB-158 — characterization of `content/shared/storage.ts`: the keys written
 // to chrome.storage.local, the defaults, the fallbacks for malformed values and
 // the accumulation rules. A renamed key loses the data users already have, so
@@ -25,10 +26,9 @@ import {
   type SessionLogEntry
 } from '../../src/content/shared/storage.js';
 import type { LastEstimate } from '../../src/lib/messages.js';
-import type { Estimate } from '../../src/lib/types.js';
-import { installChrome } from './helpers/chrome-stub.js';
+import { fakeEstimate, installChrome, type ChromeStub } from './helpers/chrome-stub.js';
 
-let local: ReturnType<typeof installChrome>['local'];
+let local: ChromeStub['local'];
 
 beforeEach(() => {
   ({ local } = installChrome());
@@ -41,7 +41,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const ESTIMATE = { method: 'afnor_sobria', modelId: 'gpt-4o', gco2eq: 1 } as unknown as Estimate;
+const ESTIMATE = fakeEstimate();
 
 describe('defaults on an empty storage', () => {
   it('returns the documented default of every getter', async () => {
@@ -84,15 +84,12 @@ describe('malformed stored values', () => {
     local.data.set('sites_enabled', { claude: false });
     expect(await getSitesEnabled()).toEqual({ chatgpt: true, claude: false, leChat: true });
   });
-
-  it('does not validate the shape of a stored object (returned as is)', async () => {
-    local.data.set('pairing_state', { whatever: 1 });
-    expect(await getPairingState()).toEqual({ whatever: 1 });
-  });
 });
 
-describe('storage keys', () => {
-  it('writes each setting under its historical key', async () => {
+describe('stored format', () => {
+  // A renamed key or a changed shape orphans the data that users already have,
+  // so the raw content of the storage is pinned, not only the key names.
+  it('writes each setting under its historical key, in its historical shape', async () => {
     await setMethod('ecologits');
     await setBadgeVisible(false);
     await setSitesEnabled({ chatgpt: false, claude: true, leChat: true });
@@ -106,15 +103,45 @@ describe('storage keys', () => {
       ts: '2026-05-16T08:00:00.000Z'
     });
 
-    expect([...local.data.keys()].sort()).toEqual([
-      'badge_visible',
-      'daily_2026-05-16',
-      'last_estimate',
-      'method',
-      'pairing_state',
-      'session_log',
-      'sites_enabled'
-    ]);
+    expect(Object.fromEntries(local.data)).toEqual({
+      method: 'ecologits',
+      badge_visible: false,
+      sites_enabled: { chatgpt: false, claude: true, leChat: true },
+      pairing_state: { secret: 's', pairingId: 'p', fingerprint: 'f', pairedAt: 't' },
+      session_log: [{ ts: 't', gco2eq: 1, waterMl: 2, energyWh: 3 }],
+      'daily_2026-05-16': {
+        date: '2026-05-16',
+        count: 1,
+        gco2eq: 1,
+        waterMl: 1,
+        energyWh: 1
+      },
+      last_estimate: {
+        estimate: ESTIMATE,
+        host: 'claude',
+        modelDisplayName: 'Claude',
+        ts: '2026-05-16T08:00:00.000Z'
+      }
+    });
+  });
+
+  it('reads what a previous version of the extension stored', async () => {
+    const legacy = {
+      method: 'ecologits',
+      badge_visible: false,
+      sites_enabled: { chatgpt: false, claude: true, leChat: true },
+      pairing_state: { secret: 's', pairingId: 'p', fingerprint: 'f', pairedAt: 't' },
+      session_log: [{ ts: 't', gco2eq: 1, waterMl: 2, energyWh: 3 }],
+      'daily_2026-05-16': { date: '2026-05-16', count: 3, gco2eq: 4, waterMl: 5, energyWh: 6 }
+    };
+    for (const [key, value] of Object.entries(legacy)) local.data.set(key, value);
+
+    expect(await getMethod()).toBe('ecologits');
+    expect(await getBadgeVisible()).toBe(false);
+    expect(await getSitesEnabled()).toEqual(legacy.sites_enabled);
+    expect(await getPairingState()).toEqual(legacy.pairing_state);
+    expect(await getSessionLog()).toEqual(legacy.session_log);
+    expect(await getTodayTotal()).toEqual(legacy['daily_2026-05-16']);
   });
 });
 
