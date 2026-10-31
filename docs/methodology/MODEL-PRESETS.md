@@ -164,7 +164,7 @@ le code Rust, `MODEL_REGISTRY`.
    (coefficients §2, statuts §3, limites §5).
 4. Si validation paper-based : passer `calibration` à `Validated` et ajouter
    un test de reproduction dans `validation::`.
-5. CHANGELOG.md.
+5. Add a fragment in `changelog.d/` (see `changelog.d/README.md`).
 
 ## 8. FAQ
 

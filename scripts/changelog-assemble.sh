@@ -86,6 +86,10 @@ entries() {
       # PowerShell 5.1 writes UTF-8 files with a BOM.
       entry_title=$(head -n 1 "$f" | tr -d '\r')
       entry_title=${entry_title#"$bom"}
+      if [[ $entry_title =~ ^[[:space:]]*# ]]; then
+        echo "Title starts with '#' in $f: write the title only, the script adds the heading." >&2
+        exit 1
+      fi
       body=$(tail -n +2 "$f" | tr -d '\r' | awk '
         NF { if (seen) for (i = 0; i < blank; i++) print ""; blank = 0; seen = 1; print; next }
         { blank++ }

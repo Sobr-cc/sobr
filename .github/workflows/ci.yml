@@ -148,6 +148,18 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  # Linux (mawk) and macOS (BWK awk, bash 3.2) catch shell differences before a release.
+  changelog-script:
+    name: Changelog script — golden test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/tests/changelog-assemble/run.sh
+
   site-lint-build:
     name: Site (Astro) — check + lint + build
     runs-on: ubuntu-latest
