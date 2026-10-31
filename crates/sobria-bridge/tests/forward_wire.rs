@@ -12,32 +12,14 @@
 
 mod common;
 
-use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use common::fake_app::{serve, Reply};
+use common::fake_app::{bind, exchange, serve, Reply};
 use common::{err_text, frame, MAX_MESSAGE_BYTES};
-use serde_json::{json, Value};
-use sobria_bridge::{try_forward_to, BridgeRequest, BridgeResponse};
+use serde_json::json;
+use sobria_bridge::{try_forward_to, BridgeRequest};
 use tempfile::TempDir;
-
-fn bind() -> (TempDir, PathBuf, UnixListener) {
-    let dir = TempDir::new().unwrap();
-    let path = dir.path().join("b.sock");
-    let listener = UnixListener::bind(&path).unwrap();
-    (dir, path, listener)
-}
-
-/// Returns the forward result and the request as the app received it.
-fn exchange(req: &BridgeRequest, reply: Reply) -> (anyhow::Result<BridgeResponse>, Value) {
-    let (_dir, path, listener) = bind();
-    let server = serve(listener, vec![reply]);
-    let result = try_forward_to(&path, req);
-    let mut received = server.join().expect("fake server");
-    (result, received.remove(0))
-}
 
 fn ping() -> BridgeRequest {
     BridgeRequest::Ping { req_id: "a".into() }
