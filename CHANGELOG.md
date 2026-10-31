@@ -18,9 +18,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     hidden project.
   - Only the person attaches their own sessions; project editors act
     through project links, and others see daily totals, never single
-    sessions (ADR-0015).
-    A session can be withdrawn from an organization to the personal space,
-    never the other way.
+    sessions (ADR-0015). A session can be withdrawn from an organization to
+    the personal space, never the other way.
   - One Rust crate holds the model for the desktop app and the server. Each
     space has its own database and member IDs, with random UUIDs. Every
     client uploads through one contract with no text and no clock time,
