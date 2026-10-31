@@ -1,0 +1,89 @@
+{
+  "indexes": [
+    {
+      "name": "idx_datacenter_iris_link_code",
+      "sql": "CREATE INDEX idx_datacenter_iris_link_code\n                ON datacenter_iris_link(code_iris)"
+    },
+    {
+      "name": "idx_vendor_disclosures_model",
+      "sql": "CREATE INDEX idx_vendor_disclosures_model\n                ON vendor_disclosures(model_id)"
+    },
+    {
+      "name": "idx_vendor_disclosures_vendor",
+      "sql": "CREATE INDEX idx_vendor_disclosures_vendor\n                ON vendor_disclosures(vendor)"
+    }
+  ],
+  "tables": {
+    "comparison_matrix": {
+      "row_count": 0,
+      "rows": [],
+      "sql": "CREATE TABLE comparison_matrix (\n                model_id TEXT NOT NULL,\n                method TEXT NOT NULL,\n                co2_g_per_request REAL,\n                computed_at TEXT,\n                PRIMARY KEY (model_id, method)\n            )"
+    },
+    "datacenter_iris_link": {
+      "row_count": 0,
+      "rows": [],
+      "sql": "CREATE TABLE datacenter_iris_link (\n                datacenter_id TEXT PRIMARY KEY,\n                code_iris TEXT NOT NULL,\n                distance_km REAL NOT NULL,\n                iris_centroid_lat REAL NOT NULL,\n                iris_centroid_lon REAL NOT NULL\n            )"
+    },
+    "lineage": {
+      "row_count": 4,
+      "rows": [
+        ["<sha256>","comparia_conversations","comparia","conversations.parquet"],
+        ["<sha256>","comparia_reactions","comparia","reactions.parquet"],
+        ["<sha256>","comparia_votes","comparia","votes.parquet"],
+        ["<sha256>","rte_iris_consommation","rte-iris","consommation_iris.csv"]
+      ],
+      "sql": "CREATE TABLE lineage (\n                copper_sha256 TEXT NOT NULL,\n                silver_entity TEXT NOT NULL,\n                source_id TEXT NOT NULL,\n                file_name TEXT NOT NULL,\n                PRIMARY KEY (copper_sha256, silver_entity)\n            )"
+    },
+    "model_overview": {
+      "row_count": 3,
+      "rows": [
+        ["claude-3-5","claude-3-5","claude","Anthropic",0],
+        ["gpt-4o-mini","gpt-4o-mini","gpt","OpenAI",0],
+        ["mistral-large","mistral-large","mistral","Mistral AI",0]
+      ],
+      "sql": "CREATE TABLE model_overview (\n                id TEXT PRIMARY KEY,\n                name TEXT NOT NULL,\n                family TEXT NOT NULL,\n                vendor TEXT NOT NULL,\n                n_conversations INTEGER NOT NULL DEFAULT 0\n            )"
+    },
+    "model_overview_fts": {
+      "row_count": 3,
+      "rows": [
+        ["claude-3-5","claude","Anthropic"],
+        ["gpt-4o-mini","gpt","OpenAI"],
+        ["mistral-large","mistral","Mistral AI"]
+      ],
+      "sql": "CREATE VIRTUAL TABLE model_overview_fts\n                USING fts5(name, family, vendor)"
+    },
+    "scenario_inputs": {
+      "row_count": 0,
+      "rows": [],
+      "sql": "CREATE TABLE scenario_inputs (\n                model_id TEXT NOT NULL,\n                country_iso TEXT NOT NULL,\n                pue REAL,\n                if_g_per_kwh REAL,\n                wue_l_per_kwh REAL,\n                PRIMARY KEY (model_id, country_iso)\n            )"
+    },
+    "silver_entities": {
+      "row_count": 4,
+      "rows": [
+        ["comparia_conversations","comparia","v1","<data_root>/silver/comparia/comparia_conversations-v1.parquet",3],
+        ["comparia_reactions","comparia","v1","<data_root>/silver/comparia/comparia_reactions-v1.parquet",1],
+        ["comparia_votes","comparia","v1","<data_root>/silver/comparia/comparia_votes-v1.parquet",2],
+        ["rte_iris_consommation","rte-iris","v1","<data_root>/silver/rte-iris/rte_iris_consommation-v1.parquet",2]
+      ],
+      "sql": "CREATE TABLE silver_entities (\n                entity_name TEXT NOT NULL,\n                source_id TEXT NOT NULL,\n                schema_version TEXT NOT NULL,\n                parquet_path TEXT NOT NULL,\n                row_count INTEGER NOT NULL,\n                PRIMARY KEY (entity_name, source_id),\n                FOREIGN KEY (source_id) REFERENCES sources(id)\n            )"
+    },
+    "sources": {
+      "row_count": 2,
+      "rows": [
+        ["comparia","Compar:IA — Ministère de la Culture / Beta.gouv","https://www.data.gouv.fr/datasets/compar-ia","Etalab 2.0","trimestrielle",1],
+        ["rte-iris","RTE / NaTran / Teréga — Consommation industrielle IRIS (ODRÉ)","https://www.data.gouv.fr/datasets/consommation-annuelle-definitive-delectricite-et-de-gaz-par-iris-des-sites-industriels-raccordes-aux-reseaux-de-transport","Etalab 2.0","annuelle",1]
+      ],
+      "sql": "CREATE TABLE sources (\n                id TEXT PRIMARY KEY,\n                name TEXT NOT NULL,\n                url TEXT NOT NULL,\n                license TEXT NOT NULL,\n                update_frequency TEXT NOT NULL,\n                tier INTEGER NOT NULL\n            )"
+    },
+    "time_series_mix": {
+      "row_count": 0,
+      "rows": [],
+      "sql": "CREATE TABLE time_series_mix (\n                region_iso TEXT NOT NULL,\n                hour_utc TEXT NOT NULL,\n                production_mw REAL NOT NULL,\n                PRIMARY KEY (region_iso, hour_utc)\n            )"
+    },
+    "vendor_disclosures": {
+      "row_count": 0,
+      "rows": [],
+      "sql": "CREATE TABLE vendor_disclosures (\n                id TEXT PRIMARY KEY,\n                model_id TEXT NOT NULL,\n                vendor TEXT NOT NULL,\n                scope TEXT NOT NULL CHECK (scope IN ('training', 'inference_per_prompt')),\n                value REAL NOT NULL,\n                unit TEXT NOT NULL,\n                source_url TEXT NOT NULL,\n                published_at TEXT NOT NULL,\n                methodology_note TEXT\n            )"
+    }
+  }
+}

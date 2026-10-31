@@ -1,0 +1,171 @@
+{
+  "@context": {
+    "datasheet": "https://sobr.ia/vocab/datasheet#",
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "schema": "https://schema.org/",
+    "sobria": "https://sobr.ia/vocab#"
+  },
+  "@id": "sobria:gold",
+  "@type": ["schema:Dataset","dcat:Dataset","prov:Entity"],
+  "datasheet:collection_process": {
+    "consent": "N/A — sources ouvertes.",
+    "ethical_review": "N/A (données publiques agrégées, licence ouverte Etalab 2.0).",
+    "how_collected": "Téléchargement HTTPS depuis data.gouv.fr et Open Data Réseaux Énergies (ODRÉ). Hash SHA-256 calculé à la réception ; manifest immuable conservé dans Copper. Voir `crates/sobria-ingest/src/sources/`.",
+    "instruments": "`reqwest` + `polars` + `rusqlite` (Rust stable). Chaque téléchargement passe par le trait `Downloader` qui normalise les en-têtes HTTP et journalise les durées.",
+    "time_frame": "Snapshot Gold du <time>"
+  },
+  "datasheet:composition": {
+    "confidential_data": false,
+    "data_split": "N/A (pas de split train/test — usage analytique).",
+    "instance_count": "2 sources, 4 entités Silver, 4 fichiers Copper.",
+    "instances": "Le Gold est un agrégat de 4 entité(s) Silver issues de 2 source(s) amont, traçables jusqu'à 4 fichier(s) Copper unique(s). La table `sources` recense les producteurs ; `silver_entities` les datasets typés ; `lineage` relie chaque entité à son hash Copper d'origine.",
+    "noise_or_redundancy": "Aucun nettoyage destructif côté Silver (passthrough enrichi de colonnes lineage). Les déduplications inter-sources se font côté Gold avec règles documentées.",
+    "personal_data": false,
+    "sampling": "Pas d'échantillonnage : toutes les sources Tier 1 du défi sont incluses intégralement.",
+    "self_contained": true
+  },
+  "datasheet:distribution": {
+    "distributed_to": "Public — application Tauri Sobr.ia + remote DVC (snapshot tagué par version SemVer).",
+    "export_controls": "Aucun.",
+    "ip_restrictions": "Aucune.",
+    "license": "Référentiel : MIT (code) + Etalab 2.0 (données). Snapshot Gold lui-même : Etalab 2.0 (compatible avec les sources amont)."
+  },
+  "datasheet:maintenance": {
+    "contact": "https://github.com/<TBD>/sobria/issues",
+    "errata_url": "https://github.com/<TBD>/sobria/issues?q=label%3Adata-correction",
+    "maintainer": "Sobr.ia contributors.",
+    "retention_policy": "Voir ADR-0009 §Politique de rétention.",
+    "update_policy": "Régénération automatique nocturne via `dvc repro` ; release manuelle à chaque snapshot Tier 1 amont. Versionnage SemVer du Gold (cf. CHANGELOG.md)."
+  },
+  "datasheet:motivation": {
+    "creators": "Sobr.ia contributors (équipe candidate au défi data.gouv.fr).",
+    "funding": "Projet open source — pas de financement direct.",
+    "why_created": "Mesurer et visualiser l'impact environnemental (CO₂eq, énergie, eau) de l'usage des LLMs en France et en Europe à partir de sources officielles, pour le défi data.gouv.fr 2026 « L'impact environnemental de l'IA générative »."
+  },
+  "datasheet:preprocessing": {
+    "raw_data_location": "data/copper/<source>/<YYYY-MM-DD>/ — conservés 30 jours pleins, mensuels 2 ans, annuels indéfiniment (cf. ADR-0009 §Politique de rétention).",
+    "raw_data_saved": true,
+    "software_used": "sobria-ingest (Rust 2021 / tokio / polars 0.46), versionné via DVC.",
+    "steps": "Pipeline médaillon ADR-0009 en 3 étapes : Copper (brut immutable + manifest hashé) → Silver (Parquet validé par JSON Schema 2020-12 versionné, lineage `_copper_sha256` + `_ingested_at`) → Gold (jointures, vues matérialisées, FTS5)."
+  },
+  "datasheet:uses": {
+    "out_of_scope_uses": "Pas conçu pour décider individuellement de l'usage d'un modèle (les valeurs sont des estimations d'incertitude P5-P95). Ne pas utiliser pour benchmarks marketing : c'est un outil de réflexion, pas une note de produit.",
+    "recommended_uses": "Calcul d'empreinte LLM (CO₂eq, énergie, eau) à l'échelle France ; comparaison de modèles ; analyse territoriale par maille IRIS ; reproductibilité scientifique (notebook Quarto qui cite les hashes Copper).",
+    "tasks_used_for": "Module M1 (Atelier estimation), M9 (fiche modèle), M12 (territoire IRIS), M13 (simulateur), M16 (forecaster), M17 (datasheet)."
+  },
+  "prov:wasDerivedFrom": [
+    {
+      "@id": "sobria:silver:comparia_conversations",
+      "@type": "prov:Entity",
+      "prov:wasDerivedFrom": ["sobria:copper:a1afed3b2b880085f0991eb0ede289249b4503999da2a8256aed4c86525a83a7"],
+      "schema:name": "comparia_conversations",
+      "schema:version": "v1",
+      "sobria:rowCount": 3
+    },
+    {
+      "@id": "sobria:silver:comparia_votes",
+      "@type": "prov:Entity",
+      "prov:wasDerivedFrom": ["sobria:copper:b45c923409722351d2ef91aa40db17bfc29c07b85b46ad43d84df88ae4735511"],
+      "schema:name": "comparia_votes",
+      "schema:version": "v1",
+      "sobria:rowCount": 2
+    },
+    {
+      "@id": "sobria:silver:comparia_reactions",
+      "@type": "prov:Entity",
+      "prov:wasDerivedFrom": ["sobria:copper:f951a0cf3b5f09383419535df197258524f137661cf91a3fa9a0ecc2b65e5ab2"],
+      "schema:name": "comparia_reactions",
+      "schema:version": "v1",
+      "sobria:rowCount": 1
+    },
+    {
+      "@id": "sobria:silver:rte_iris_consommation",
+      "@type": "prov:Entity",
+      "prov:wasDerivedFrom": ["sobria:copper:d515a0b67e114d44a4519fc80a3eff0cbb0d8a363dd04edd138831dedbd72de5"],
+      "schema:name": "rte_iris_consommation",
+      "schema:version": "v1",
+      "sobria:rowCount": 2
+    }
+  ],
+  "schema:creator": {
+    "@type": "schema:Organization",
+    "schema:name": "Sobr.ia contributors",
+    "schema:url": "https://sobr.ia"
+  },
+  "schema:dateCreated": "<time>",
+  "schema:description": "Référentiel transactionnel + Parquet analytique assemblés à partir des sources officielles (ComparIA, RTE IRIS, …) pour mesurer l'impact environnemental de l'usage des LLMs. Conforme à AFNOR SPEC 2314 et à la méthodologie EcoLogits.",
+  "schema:distribution": [
+    {
+      "@type": "dcat:Distribution",
+      "schema:contentSize": "<size>",
+      "schema:encodingFormat": "application/x-sqlite3",
+      "schema:name": "referentiel.sqlite",
+      "schema:sha256": "<sha256>"
+    },
+    {
+      "@type": "dcat:Distribution",
+      "schema:contentSize": "<size>",
+      "schema:encodingFormat": "application/vnd.apache.parquet",
+      "schema:name": "analytics.parquet",
+      "schema:sha256": "<sha256>"
+    }
+  ],
+  "schema:isBasedOn": [
+    {
+      "@id": "sobria:source:comparia",
+      "@type": ["dcat:Dataset","schema:Dataset"],
+      "schema:license": "Etalab 2.0",
+      "schema:name": "Compar:IA — Ministère de la Culture / Beta.gouv",
+      "schema:url": "https://www.data.gouv.fr/datasets/compar-ia",
+      "sobria:copperHash": "<sha256>",
+      "sobria:tier": 1,
+      "sobria:updateFrequency": "trimestrielle"
+    },
+    {
+      "@id": "sobria:source:rte-iris",
+      "@type": ["dcat:Dataset","schema:Dataset"],
+      "schema:license": "Etalab 2.0",
+      "schema:name": "RTE / NaTran / Teréga — Consommation industrielle IRIS (ODRÉ)",
+      "schema:url": "https://www.data.gouv.fr/datasets/consommation-annuelle-definitive-delectricite-et-de-gaz-par-iris-des-sites-industriels-raccordes-aux-reseaux-de-transport",
+      "sobria:copperHash": "<sha256>",
+      "sobria:tier": 1,
+      "sobria:updateFrequency": "annuelle"
+    }
+  ],
+  "schema:keywords": ["LLM","empreinte carbone","énergie","EcoLogits","AFNOR SPEC 2314","frugal AI","data.gouv.fr"],
+  "schema:license": "MIT (code) — Etalab 2.0 (données publiques agrégées)",
+  "schema:name": "Sobr.ia — Référentiel Gold (pipeline médaillon)",
+  "schema:version": "<crate-version>",
+  "sobria:copperReferences": [
+    {
+      "@id": "sobria:copper:a1afed3b2b880085f0991eb0ede289249b4503999da2a8256aed4c86525a83a7",
+      "@type": "prov:Entity",
+      "prov:wasAttributedTo": "sobria:source:comparia",
+      "schema:identifier": "<sha256>",
+      "schema:name": "conversations.parquet"
+    },
+    {
+      "@id": "sobria:copper:b45c923409722351d2ef91aa40db17bfc29c07b85b46ad43d84df88ae4735511",
+      "@type": "prov:Entity",
+      "prov:wasAttributedTo": "sobria:source:comparia",
+      "schema:identifier": "<sha256>",
+      "schema:name": "votes.parquet"
+    },
+    {
+      "@id": "sobria:copper:f951a0cf3b5f09383419535df197258524f137661cf91a3fa9a0ecc2b65e5ab2",
+      "@type": "prov:Entity",
+      "prov:wasAttributedTo": "sobria:source:comparia",
+      "schema:identifier": "<sha256>",
+      "schema:name": "reactions.parquet"
+    },
+    {
+      "@id": "sobria:copper:d515a0b67e114d44a4519fc80a3eff0cbb0d8a363dd04edd138831dedbd72de5",
+      "@type": "prov:Entity",
+      "prov:wasAttributedTo": "sobria:source:rte-iris",
+      "schema:identifier": "<sha256>",
+      "schema:name": "consommation_iris.csv"
+    }
+  ],
+  "sobria:lineageVersion": "1"
+}

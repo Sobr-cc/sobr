@@ -1,0 +1,52 @@
+{
+  "columns": [
+    {
+      "dtype": "i64",
+      "name": "code_iris"
+    },
+    {
+      "dtype": "f64",
+      "name": "conso_elec_mwh"
+    },
+    {
+      "dtype": "f64",
+      "name": "conso_gaz_mwh"
+    },
+    {
+      "dtype": "i64",
+      "name": "nb_sites"
+    },
+    {
+      "dtype": "i64",
+      "name": "annee"
+    },
+    {
+      "dtype": "str",
+      "name": "_copper_sha256"
+    },
+    {
+      "dtype": "str",
+      "name": "_ingested_at"
+    }
+  ],
+  "rows": [
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "annee": "2023",
+      "code_iris": "751010101",
+      "conso_elec_mwh": "12500.5",
+      "conso_gaz_mwh": "4200.0",
+      "nb_sites": "3"
+    },
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "annee": "2023",
+      "code_iris": "920400404",
+      "conso_elec_mwh": "33000.0",
+      "conso_gaz_mwh": "0.0",
+      "nb_sites": "5"
+    }
+  ]
+}
