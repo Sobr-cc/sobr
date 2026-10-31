@@ -1,8 +1,8 @@
 # ADR-0025 — Session identity and duplicates across sources
 
-- **Status**: Accepted (2026-10-31). Thibault took the recommendation on the two
-  open points (SOB-195) and on the local context question (SOB-198). One point
-  stays open (point 3 below, SOB-206); build issue 8 waits for it.
+- **Status**: Accepted (2026-10-31). Thibault took the recommendation on the
+  open points (SOB-195, SOB-206) and on the local context question (SOB-198).
+  Two design points inside point 3 stay open (section 6).
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-146)
@@ -29,9 +29,10 @@
 
 ## Points decided
 
-Thibault answered these two points on October 31 in the Decision issue
-SOB-195, and took the recommendation of each. Each rests on the matching
-section, which compares the options with their cost, effort and risk.
+Thibault answered these points on October 31 in the Decision issues SOB-195
+(points 1 and 2) and SOB-206 (point 3), and took the recommendation of each.
+Each rests on the matching section, which compares the options with their
+cost, effort and risk.
 
 1. **How billing enters the totals** (section 6). The billed figure is shown
    beside the total Sobr saw, with the gap and the ratio; no session and no
@@ -42,13 +43,12 @@ section, which compares the options with their cost, effort and risk.
    the organization's collector forwarding to the server with Claude Code's
    session ID in the upload; or the same with a keyed hash of that ID. This
    changes the recommendation of the capture note (section 3, option 2).
-3. **Open: where an organization's billing credential lives** (section 6,
-   Decision issue SOB-206).
-   Recommended: on the Sobr server, opt-in per organization, with the
-   protections of section 6. Alternatives: on an admin's own app, which uploads
-   only the aggregated billed figure (no credential on the server, but the figure
-   appears only when an admin's app is open, and the upload contract gains an
-   item); or no billing in v1.
+3. **Where an organization's billing credential lives** (section 6). On the
+   Sobr server, opt-in per organization, with the protections of section 6.
+   Chosen. Alternatives: on an admin's own app, which uploads only the
+   aggregated billed figure (no credential on the server, but the figure appears
+   only when an admin's app is open, and the upload contract gains an item); or
+   no billing in v1.
 
 The other choices are the CTO's recommendation, justified where they are made.
 The identity rule of section 3 and the tests of section 11 do not depend on
@@ -302,7 +302,11 @@ follows these protections:
 - an Enterprise organization uses the `read:analytics` key instead;
 - each use leaves an entry in the audit log (ADR-0023).
 
-Where it lives, on the server or on an admin's own app, is point 3 (SOB-206).
+It lives on the Sobr server (point 3, SOB-206). Two design points inside that
+choice stay open, for build issue 8 to settle and not for Thibault: how the key
+is rotated (the Admin API page advises rotating keys periodically, and keys can
+carry an `expires_at`), and whether Anthropic offers a read-only credential for
+a Console organization (the pages read document none).
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -561,8 +565,8 @@ them. She works on Monday.
   move to the next day.
 - The organization view has two figures to read.
 - Billing needs an Admin credential that, for a Console organization, can do
-  more than read usage (section 6). The protections limit the harm, and point 3
-  decides where it lives. The Analytics API is in beta; the legacy API remains
+  more than read usage (section 6). The protections limit the harm, and the
+  server holds the credential (point 3). The Analytics API is in beta; the legacy API remains
   the fallback.
 - The precedence function runs on the device only, and the server stores what
   it receives, so a wrong choice on the device reaches the totals. The
@@ -594,7 +598,7 @@ The numbers refer to the issues of ADR-0022.
 | 5 | Make the extension send one report per conversation and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 6 | Store the winning report of each session on the server with the replaced ones as history, and accept a session merge | Server | 5 | #1; ADR-0022 issues 6 and 7; **SOB-25** |
 | 7 | Apply rules again when a session gains context, and merge two sessions with the person's attachment winning | Model crate, desktop backend | 3 | #1; ADR-0022 issue 5; **SOB-26** |
-| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap, with the credential protections of section 6 | Server, integrations | 8 | The answer to point 3 (SOB-206); ADR-0022 issue 6; **SOB-25** |
+| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap, with the credential protections of section 6, and settle its rotation and whether a read-only credential exists | Server, integrations | 8 | ADR-0022 issue 6; **SOB-25** |
 | 9 | Update the capture note with the result of SOB-163 and this ADR (OpenTelemetry through the app, section 3 option 2) | Docs | 1 | SOB-163 |
 
 ## Links

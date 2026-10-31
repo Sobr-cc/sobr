@@ -29,8 +29,9 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     the folder, repo and branch of a session for 24 months, on the device only
     (SOB-198).
   - The billing credential of an organization can do more than read usage, so
-    the ADR lists protections for it. Where it lives (server or admin's app) is
-    an open point (SOB-206), and build issue 8 waits for it.
+    the ADR lists protections for it. It lives on the Sobr server (SOB-206,
+    option A); its rotation, and whether a read-only credential exists, are
+    design points of build issue 8.
 - **ADR-0022, Amendment 1** (Accepted): closes the references that left these points to
   SOB-146, and adds one item to its upload contract (a session merge).
 - Corrects one sentence of the ADR-0023 entry (SOB-144).
