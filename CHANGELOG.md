@@ -5,36 +5,63 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
-### Added — ADR-0025, session identity and duplicates across sources (2026-10-31, SOB-146)
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
-- **ADR-0025** (Accepted): a session has one random Sobr ID and, on the
-  device only, the references that each source gives it. Two reports are one
-  session only when a reference proves it, whether or not Claude Code uses one
-  session ID in all its sources (to be confirmed by SOB-163).
-  - A source's report for a session replaces its own previous report. The
-    numbers come whole from the most precise source whose report is complete
-    (OpenTelemetry, transcript, extension); a partial report never beats a
-    complete one. A better report arriving later replaces the numbers and
-    the older one stays in the history.
-  - Billing names no session, so it never changes a session or a total: its
-    figure is shown beside the total Sobr saw, with the gap.
-  - A correction by the person belongs to the session and survives every
-    change of winner. 16 shared test cases, 3 worked examples, 9 build issues
-    (38 points), marking those that wait for a Deep cleanup.
-  - Thibault took the recommendation on both open points (SOB-195): the
-    billed figure is shown beside the total, and the desktop app receives
-    OpenTelemetry on the same machine. He also decided that the device keeps
-    the folder, repo and branch of a session for 24 months, on the device only
-    (SOB-198).
-  - The billing credential of an organization can do more than read usage, so
-    the ADR lists protections for it. It lives on the Sobr server (SOB-206,
-    option A); its rotation, and whether a read-only credential exists, are
-    design points of build issue 8.
-- **ADR-0022, Amendment 1** (Accepted): closes the references that left these points to
-  SOB-146, and adds one item to its upload contract (a session merge).
-- Corrects one sentence of the ADR-0023 entry (SOB-144).
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
+
+### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
+
+- **`sobria-bridge`**, no behavior change (same replies, error texts and spool
+  lines; same tests): one `MAX_MESSAGE_BYTES` constant and one frame writer
+  for the stdio replies and the forward to the app, each frame and spool line
+  sent in a single write, `unsafe` code denied, `append_to_spool` private.
+  Doc comments that were wrong are fixed (the local channel is not restricted
+  to the user, SOB-107; no forward timeout on Windows, SOB-96; `short_hash`,
+  SOB-81). The README is rewritten, and the unused
+  `manifest/com.sobria.bridge.json.tmpl` is removed (the scripts use
+  `manifest.template.json`). Test helpers are shared through `tests/common`.
+- Audit findings that change behavior are filed: SOB-190 (fallback after the
+  app received the request, exit on a bad message) and SOB-193 (estimate
+  mapping in the app).
+
+### Added — Characterization tests of the browser extension (2026-10-31, SOB-158)
+
+- **`extension`**: Vitest tests in `tests/unit/` record what the code does
+  today, without changing it: the service worker (every message, local
+  storage, forwarding to the native bridge and to the team server), native
+  messaging, the team client (token refresh on 401, errors), team storage
+  (including the browser fingerprint) and storage; the three site adapters,
+  driven through their own `extractModelId` and `onSubmit` so the real alias
+  tables and selectors are used; and a comparison of the 34 presets with the
+  Rust registry (read from the estimator's `model_registry.json`). Line
+  coverage goes from 40 % to 74 % and function coverage from 53 % to 88 %.
+  Quirks found are pinned and filed: SOB-171 (four preset labels differ from
+  the Rust registry) and SOB-176 (labels resolved to the wrong model); the
+  double counting is SOB-118.
+
+### Removed — unused `duckdb` dependency (2026-10-31, SOB-168)
+
+- **`sobria-ingest`**: dropped `duckdb`, which no code called (decision
+  SOB-172; it comes back with the analytics step). The bundled `fmt` of
+  `libduckdb-sys` 1.10502.0 used `stdext::checked_array_iterator`, which the
+  MSVC 14.51 STL of the `windows-latest` CI image no longer has, so the
+  workspace no longer built on Windows. Also drops `zip` 6
+  (RUSTSEC-2026-0367, -0368, -0369) and 52 other locked packages.
 
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
 

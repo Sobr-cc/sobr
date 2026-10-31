@@ -11,57 +11,43 @@ use sobria_bridge::{try_forward_to, BridgeRequest};
 #[cfg(unix)]
 mod unix {
     use super::*;
-    use crate::common::fake_app::{serve, Reply};
+    use crate::common::fake_app::{exchange, Reply};
     use serde_json::json;
-    use std::os::unix::net::UnixListener;
     use tempfile::TempDir;
 
     #[test]
     fn forward_ping_returns_pong() {
-        let tmp = TempDir::new().unwrap();
-        let path = tmp.path().join("sobria-bridge-test.sock");
-        let handle = serve(
-            UnixListener::bind(&path).expect("bind"),
-            vec![Reply::Json(
-                json!({"reqId": "ping-1", "ok": true, "pong": true}),
-            )],
-        );
-
         let req = BridgeRequest::Ping {
             req_id: "ping-1".into(),
         };
-        let resp = try_forward_to(&path, &req).expect("forward ok");
+        let (resp, received) = exchange(
+            &req,
+            Reply::Json(json!({"reqId": "ping-1", "ok": true, "pong": true})),
+        );
+        let resp = resp.expect("forward ok");
         assert_eq!(resp.req_id, "ping-1");
         assert!(resp.ok);
         assert_eq!(resp.pong, Some(true));
-        assert_eq!(
-            handle.join().expect("server done"),
-            [json!({"type": "ping", "reqId": "ping-1"})]
-        );
+        assert_eq!(received, json!({"type": "ping", "reqId": "ping-1"}));
     }
 
     #[test]
     fn forward_pair_returns_serialized_request() {
-        let tmp = TempDir::new().unwrap();
-        let path = tmp.path().join("sobria-bridge-test.sock");
-        let handle = serve(
-            UnixListener::bind(&path).expect("bind"),
-            vec![Reply::Json(
-                json!({"reqId": "pair-1", "ok": true, "pong": false}),
-            )],
-        );
-
         let req = BridgeRequest::Pair {
             req_id: "pair-1".into(),
             code: "123456".into(),
         };
-        let resp = try_forward_to(&path, &req).expect("forward ok");
+        let (resp, received) = exchange(
+            &req,
+            Reply::Json(json!({"reqId": "pair-1", "ok": true, "pong": false})),
+        );
+        let resp = resp.expect("forward ok");
         assert_eq!(resp.req_id, "pair-1");
         assert!(resp.ok);
         assert_eq!(resp.pong, Some(false));
         assert_eq!(
-            handle.join().expect("server done"),
-            [json!({"type": "pair", "reqId": "pair-1", "code": "123456"})]
+            received,
+            json!({"type": "pair", "reqId": "pair-1", "code": "123456"})
         );
     }
 

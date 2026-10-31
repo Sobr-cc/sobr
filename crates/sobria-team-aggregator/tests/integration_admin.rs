@@ -489,7 +489,11 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .await
         .unwrap();
     let alice_id = users["users"][0]["id"].as_str().unwrap().to_string();
-    let detail_url = format!("{}/api/v1/admin/users/{}/analytics", fx.base_url, alice_id);
+    // Fixed window around the estimation's `ts`: the default (last 30 days) depends on today.
+    let detail_url = format!(
+        "{}/api/v1/admin/users/{}/analytics?from=2026-05-15T00:00:00Z&to=2026-05-17T00:00:00Z",
+        fx.base_url, alice_id
+    );
 
     // opt_in (défaut) sans consentement → 403.
     let denied = fx
@@ -537,6 +541,43 @@ async fn admin_user_detail_route_respects_visibility_policy() {
     assert_eq!(body["user"]["share_identified"], true);
     assert_eq!(body["totals"]["count"], 1);
     assert_eq!(body["top_models"][0]["model_id"], "llama-3-1-70b");
+
+    // Without `from`/`to`, the window is the last 30 days: `top_models` counts the
+    // recent estimation only, while `totals` stay lifetime (both estimations).
+    let recent = fx
+        .client
+        .post(format!("{}/api/v1/estimations", fx.base_url))
+        .bearer_auth(&alice_access)
+        .json(&json!({
+            "estimate": {
+                "method": "afnor_sobria",
+                "modelId": "llama-3-1-70b",
+                "tokensIn": 100,
+                "tokensOut": 200,
+                "gco2eq": 0.4,
+                "waterMl": 0.5,
+                "energyWh": 0.2
+            },
+            "ts": chrono::Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(recent.status(), 200);
+    let default_window = fx
+        .client
+        .get(format!(
+            "{}/api/v1/admin/users/{}/analytics",
+            fx.base_url, alice_id
+        ))
+        .bearer_auth(&fx.admin_access)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(default_window.status(), 200);
+    let default_window: serde_json::Value = default_window.json().await.unwrap();
+    assert_eq!(default_window["totals"]["count"], 2);
+    assert_eq!(default_window["top_models"][0]["count"], 1);
 
     // anonymous → 403 même avec consentement individuel.
     set_policy("anonymous");
