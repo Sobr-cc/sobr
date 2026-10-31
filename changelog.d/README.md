@@ -9,10 +9,12 @@ fragments into `CHANGELOG.md`.
 
 `<issue>-<slug>.<category>.md`, in lower case:
 
-- `<issue>`: the Linear issue, such as `sob-123`;
+- `<issue>`: the Linear issue, such as `sob-123`. A contributor without a
+  Linear issue uses `gh-` and the number of their pull request, such as
+  `gh-58`;
 - `<slug>`: a few words joined by hyphens;
-- `<category>`: one of `added`, `changed`, `deprecated`, `fixed`,
-  `removed`, `security`.
+- `<category>`: one of `added`, `changed`, `deprecated`, `removed`,
+  `fixed`, `security`, in that order in the release.
 
 Any other file in this folder, except this README, makes the release script
 stop, so a typo in a name is caught.

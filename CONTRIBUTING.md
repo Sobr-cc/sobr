@@ -18,7 +18,7 @@ Thank you for your interest in the project. Sobr.ia is open source (MIT, Etalab 
 2. **Fork or branch:** branch `feature/<scope>-<short-desc>` or `fix/<short-desc>`
    (maintainers: prefix with the Linear issue, for example `feature/sob-123-<short-desc>`; ADR-0018).
 3. **Code** following the [Definition of Done](CLAUDE.md#5-definition-of-done-dod).
-4. **Changelog:** add one fragment file in [`changelog.d/`](changelog.d/README.md), named `<issue>-<slug>.<category>.md`. Do not edit `CHANGELOG.md`: the fragments are moved there at release.
+4. **Changelog:** add one fragment file in [`changelog.d/`](changelog.d/README.md), named `<issue>-<slug>.<category>.md`. Without a Linear issue, `<issue>` is `gh-` and the number of your pull request, for example `gh-58-retry-the-upload.fixed.md`. Do not edit `CHANGELOG.md`: the fragments are moved there at release.
 5. **Commits** in the Conventional Commits format (see CLAUDE.md §4.3).
 6. **Pull request:** reference the issue and the ADRs it touches.
 7. **Review:** at least one maintainer, green CI, and every discussion resolved.

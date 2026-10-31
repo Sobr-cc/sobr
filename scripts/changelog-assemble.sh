@@ -46,8 +46,10 @@ if [ "$write" -eq 1 ] && [ -z "$version" ]; then
   exit 2
 fi
 
-categories="added changed deprecated fixed removed security"
-name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|deprecated|fixed|removed|security)\.md$'
+# Keep a Changelog's order, as in the header of CHANGELOG.md.
+categories="added changed deprecated removed fixed security"
+name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|deprecated|removed|fixed|security)\.md$'
+bom=$(printf '\357\273\277')
 
 # Every file except the README must be a well-named fragment, so a typo
 # fails here instead of being skipped.
@@ -76,22 +78,23 @@ title_case() {
 # Each body loses its leading and trailing blank lines, and each entry ends
 # with exactly one blank line.
 entries() {
-  local category label f entry_title
+  local category label f entry_title body
   for category in $categories; do
     label=$(title_case "$category")
     for f in "${fragments[@]}"; do
       case "$f" in *".$category.md") ;; *) continue ;; esac
+      # PowerShell 5.1 writes UTF-8 files with a BOM.
       entry_title=$(head -n 1 "$f" | tr -d '\r')
-      if [ -z "$entry_title" ]; then
-        echo "Empty title in $f." >&2
-        exit 1
-      fi
-      printf '### %s — %s\n\n' "$label" "$entry_title"
-      tail -n +2 "$f" | tr -d '\r' | awk '
+      entry_title=${entry_title#"$bom"}
+      body=$(tail -n +2 "$f" | tr -d '\r' | awk '
         NF { if (seen) for (i = 0; i < blank; i++) print ""; blank = 0; seen = 1; print; next }
         { blank++ }
-      '
-      printf '\n'
+      ')
+      if [ -z "$entry_title" ] || [ -z "$body" ]; then
+        echo "Empty title or entry in $f." >&2
+        exit 1
+      fi
+      printf '### %s — %s\n\n%s\n\n' "$label" "$entry_title" "$body"
     done
   done
 }
@@ -100,7 +103,9 @@ if [ -n "$version" ]; then
   heading="## [$version] — $release_date"
   [ -n "$title" ] && heading="$heading — $title"
 else
-  heading="## [Unreleased]"
+  # The preview reuses the file's own unreleased heading, if it has one.
+  heading=$(awk '/^## / { if (/^## \[(Non publié|Unreleased)\]/) print; exit }' "$changelog" 2>/dev/null | tr -d '\r')
+  [ -n "$heading" ] || heading="## [Unreleased]"
 fi
 
 section=$(mktemp)
@@ -116,7 +121,10 @@ fi
 # Only the first release heading is looked at. If it is the unreleased one,
 # it becomes the release heading and the fragments' entries go first;
 # otherwise the section goes before it.
-awk -v heading="$heading" -v section="$section" '
+# Values go through the environment: awk -v would turn backslashes into
+# control characters.
+HEADING=$heading SECTION=$section awk '
+  BEGIN { heading = ENVIRON["HEADING"]; section = ENVIRON["SECTION"] }
   function print_section(   line) {
     print heading
     print ""
