@@ -321,13 +321,14 @@ self-signed certificate. In the cluster:
 - the Helm chart needs a plain-HTTP mode for this (Cloud and self-hosting
   project).
 
-**Certificates.** cert-manager gets them from Let's Encrypt. The Cloud
-project chooses how organizations are reached: one shared hostname, or one
+**Certificates.** cert-manager gets every certificate from Let's Encrypt
+through DNS-01, since port 80 only redirects to HTTPS. The Cloud project
+chooses how organizations are reached: one shared hostname, or one
 subdomain each.
 
-- With subdomains, only a wildcard certificate is used, obtained through
-  DNS-01. One certificate per organization would publish every customer's
-  name in the public certificate logs.
+- With subdomains, only a wildcard certificate is used. One certificate per
+  organization would publish every customer's name in the public
+  certificate logs.
 - DNS-01 needs a DNS provider with an API, which is a human-only account; an
   EU provider is preferred.
 
@@ -459,8 +460,11 @@ line, a disk or the motherboard.
      when a space is created.
    - The object store keeps copies in three EU zones, as ADR-0014's feature
      table promises.
+   - The copy's history, which allows a restore to a past point, is kept
+     30 days.
 2. **etcd snapshots** every day, encrypted and sent to the same object
-   store, so the cluster's own state survives the machine.
+   store, so the cluster's own state survives the machine. They are kept
+   30 days.
 3. **VM rollback.** Proxmox Backup Server snapshots every VM nightly, onto a
    disk other than the VMs', and keeps them 30 days at most. It rolls back a
    whole VM after a bad upgrade. It is not a backup against losing the
@@ -485,7 +489,9 @@ The log lives outside every layer that a restore brings back: write-once
 objects in the object store, never on the server's volume or in a database.
 It is replayed after any restore and any VM rollback, so neither brings
 erased data back. Live data goes at once. Every copy expires within 30
-days, the retention of all three backup layers.
+days, the retention of all three backup layers. Each entry of the log is
+kept at least as long as the longest backup retention, so no restore can
+outlive the record of an erasure.
 
 **Encryption and keys.**
 
@@ -575,7 +581,7 @@ against a cut of the power or the line.
 | Option | Cost (orders of magnitude; quotes needed) | Effort | Risk |
 |--|--|--|--|
 | **A — Buy a second machine and place it at another site (chosen)** | Roughly €1,000 to €3,000 one-off, plus electricity: about 100 W at about €0.25 per kWh is roughly €220 a year (approximate) | Medium: a place with a good line to find | Low once placed: Sobr controls the hardware |
-| B — Rent a dedicated server in an EU data centre | Hetzner's AX42 was listed at €46.52 a month, excluding VAT, in February 2026 ([whtop](https://www.whtop.com/amp/plans/hetzner.com/128296)). A comparison checked on July 8, 2026 lists the AX41-NVMe at $59 a month, plus a setup fee, and marks it for review ([comparedge](https://comparedge.com/tools/hetzner/pricing)). | Small | The provider can read what the server holds; it must be listed as a sub-processor |
+| B — Rent a dedicated server in an EU data centre | Hetzner's AX42: €99.00 a month plus a €49.00 one-time setup fee, both excluding VAT, on its official page, checked October 31, 2026 ([Hetzner](https://www.hetzner.com/dedicated-rootserver/ax42/)) | Small | The provider can read what the server holds; it must be listed as a sub-processor |
 | C — A second machine at the same site | As A, without finding a place | Small | Covers hardware faults, not a power or line cut |
 
 **Other costs:**
@@ -679,9 +685,9 @@ The orchestrator creates these issues once this ADR is accepted.
 | 1 | Create the Talos cluster in Proxmox VMs from code, with encrypted disks whose keys come from the key server | 5 | SOB-73 accepted; the infra repo (SOB-74); #12 | agent:claude-code, role:infra, model:opus |
 | 2 | Install Cilium with its Gateway API, network policies and addresses, cert-manager, and the EU front over WireGuard | 5 | #1; the DNS and virtual-server accounts (#11) | agent:claude-code, role:infra, model:sonnet |
 | 3 | Install Knative Serving with Kourier, and run one test function that scales to zero | 3 | #2 | agent:claude-code, role:infra, model:sonnet |
-| 4 | Set up the object store with write-once storage for the erasure log, daily etcd snapshots, and Proxmox Backup Server rollback kept 30 days | 3 | #1; the object store (#11) | agent:claude-code, role:sre, model:sonnet |
+| 4 | Set up the object store with write-once storage for the erasure log (each entry kept at least as long as the longest backup), daily etcd snapshots kept 30 days, and Proxmox Backup Server rollback kept 30 days | 3 | #1; the object store (#11) | agent:claude-code, role:sre, model:sonnet |
 | 5 | Set up monitoring, alerts, a probe outside the machine and a public status page | 5 | #2 | agent:claude-code, role:sre, model:sonnet |
-| 6 | Run the Sobr server from its Helm chart, with the continuous encrypted copy of every database, restore on an empty volume, the erasure log replayed after a restore or a rollback, and a first timed restore | 5 | #2, #4, #16; the Helm chart, the image and the plain-HTTP mode (Cloud and self-hosting project) | agent:claude-code, role:infra, model:opus |
+| 6 | Run the Sobr server from its Helm chart, with the continuous encrypted copy of every database and its history kept 30 days, restore on an empty volume, the erasure log replayed after a restore or a rollback, and a first timed restore | 5 | #2, #4, #16; the Helm chart, the image and the plain-HTTP mode (Cloud and self-hosting project) | agent:claude-code, role:infra, model:opus |
 | 7 | Move the site and the web demo to a static container behind the gateway | 2 | #2, #17; SOB-73 (deploy flow) | agent:claude-code, role:infra, model:sonnet |
 | 8 | Put the CI runners in throwaway VMs on their own firewalled network | 3 | #1 | agent:claude-code, role:infra, model:opus |
 | 9 | Write the managed cloud's GDPR documents: DPO, DPIA, privacy policy, processing contract, record of processing, sub-processors, breach procedures as processor and as controller | 5 | — | human-only |
