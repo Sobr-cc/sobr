@@ -35,6 +35,38 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - It records Thibault's ten choices, lists the server facts still to
     confirm, and lists seventeen issues to create.
 
+### Changed — One golden-file comparator for the estimator and team server tests (2026-10-31, SOB-150)
+
+- **Tests** (`sobria-estimator`, `sobria-team-aggregator`): the two copies of
+  the golden-file comparator are now one file, `test-support/golden.rs`,
+  included by both crates with `#[path]`. No new crate and no new dependency.
+  Tolerance (1e-9), update mode and the CI guard are unchanged. The team server
+  tests now get the estimator's `Goldens` collector and its layout for rewritten
+  files (arrays of numbers on one line, which its committed files already
+  have: an update run on them rewrites nothing). Two differences remain for
+  them: a `computed_at` field would be masked, and a difference in an array of
+  integers is reported on one summary line (pass or fail is the same). The
+  comparator's messages are in English. The estimator keeps the comparator's
+  unit tests in `tests/characterization/golden.rs`.
+
+### Fixed — deterministic wrong-code pairing test (2026-10-31, SOB-92)
+
+- **`sobria-app`** (`bridge_server.rs`, test module):
+  `pair_with_wrong_code_returns_invalid_error` sent the fixed code `000000`,
+  which matched the random pending code once in a million runs. It now sends
+  `wrong_code_for(pending code)`, which always differs. The assertion keeps
+  its three accepted messages (tightening it is SOB-157). No production code
+  changed.
+
+### Changed — Two estimator golden files in the renderer's layout (2026-10-31, SOB-141)
+
+- **`sobria-estimator`** (characterization tests): `simulate_ecologits.json` and
+  `forecast_yearly_ecologits.json` now use the layout the golden renderer
+  writes (arrays of numbers on one line). Parsed as JSON they equal the
+  previous files, number text included, so no golden value changed. An update
+  run (`SOBRIA_UPDATE_GOLDEN=1`) no longer rewrites them, which keeps the
+  water formula change (SOB-120) free of layout-only diffs.
+
 ### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
 
 - **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in
