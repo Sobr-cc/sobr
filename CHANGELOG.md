@@ -9,8 +9,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — ADR-0024, Kubernetes platform on Proxmox (2026-10-31, SOB-72)
 
-- **ADR-0024** (Proposed): Sobr runs on Kubernetes in Proxmox VMs, with
-  Talos Linux nodes managed from code.
+- **ADR-0024** (Proposed; Thibault chose every recommendation in SOB-175,
+  and it becomes Accepted once he confirms the server facts in SOB-181):
+  Sobr runs on Kubernetes in Proxmox VMs, with Talos Linux nodes managed
+  from code.
   - Cilium gives the network, network policies, addresses and the Gateway
     API entry, and cert-manager gets the certificates. Knative Serving runs
     functions that scale to zero.
@@ -30,8 +32,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - The managed cloud opens, trial included, only once these protections,
     erasure, export and the GDPR documents exist. A second failure domain
     is needed before the public launch.
-  - It lists ten points for Thibault, the server facts to confirm, and
-    seventeen issues to create.
+  - It records Thibault's ten choices, lists the server facts still to
+    confirm, and lists seventeen issues to create.
 
 ### Changed — Free personal space (2026-10-31, SOB-154)
 

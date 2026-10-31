@@ -1,7 +1,8 @@
 # ADR-0024 — Kubernetes platform on Proxmox
 
-- **Status**: Proposed (becomes Accepted when Thibault answers the points
-  below and approves the PR)
+- **Status**: Proposed. Thibault chose every recommendation on October 31
+  (SOB-175). The ADR becomes Accepted once he confirms the server facts of
+  §9 (SOB-181) and approves the PR.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Infrastructure project (SOB-72)
@@ -36,47 +37,47 @@
 > erasure, export and the GDPR documents exist. A second failure domain is
 > needed before the public launch.
 
-## Points to decide
+## Points decided
 
-Ten questions for Thibault, also listed in the Decision issue SOB-175,
-where he answers them. Each recommendation rests on the matching part of the
-Decision section, which compares the options with their cost, effort and
-risk. Section 9 lists facts about the server for him to confirm. The ADR
-stays Proposed until the answers are recorded here.
+Thibault answered these ten points on October 31 in the Decision issue
+SOB-175, and chose the recommendation of each. Each choice rests on the
+matching part of the Decision section, which compares the options with their
+cost, effort and risk. The facts about the server in §9 are still to be
+confirmed, in SOB-181.
 
-1. **Kubernetes distribution** (§1). Recommended: Talos Linux, configured
+1. **Kubernetes distribution** (§1). Chosen: Talos Linux, configured
    from code, with no SSH. Alternative: k3s on a regular Linux that must be
    patched and kept in line by hand.
-2. **Serverless runtime** (§2). Recommended: Knative Serving, with Kourier
+2. **Serverless runtime** (§2). Chosen: Knative Serving, with Kourier
    as its internal router. Alternative: KEDA, whose scale-to-zero for HTTP
    is a beta add-on.
-3. **Storage** (§3). Recommended: local volumes, with the server restoring
+3. **Storage** (§3). Chosen: local volumes, with the server restoring
    itself from its database copies when its volume is lost. Volumes are
    replicated only between machines at the same site. Alternative: Longhorn
    from the start.
-4. **Network** (§4). Recommended: Cilium, including its Gateway API.
+4. **Network** (§4). Chosen: Cilium, including its Gateway API.
    Alternative: Flannel and Traefik, with no network policies.
-5. **Entry from the internet** (§4). Recommended: a small EU virtual server
+5. **Entry from the internet** (§4). Chosen: a small EU virtual server
    in front. It holds no secret and forwards Sobr's encrypted traffic over
    WireGuard. Sobr then needs no fixed home address, and the other site on
    the home line stays as it is. Alternative: the home address directly,
    with a hostname router that moves the existing nginx. Never a proxy
    outside the EU that decrypts the traffic.
-6. **Managed-cloud layout** (§5). Recommended: as ADR-0022 sets, one
+6. **Managed-cloud layout** (§5). Chosen: as ADR-0022 sets, one
    deployment of the Sobr server for all spaces, with the accounts database.
    Alternative: one deployment per organization, which needs a separate
    accounts service and an amendment of ADR-0022.
-7. **CI runners** (§5). Recommended: throwaway VMs, rebuilt for each job, on
+7. **CI runners** (§5). Chosen: throwaway VMs, rebuilt for each job, on
    a separate network that cannot reach the cluster, the backups or the
    Proxmox interface. Alternative: runners as pods in the cluster.
 8. **When the managed cloud opens** (§6). The trial needs a card and turns
    into a paid plan (ADR-0014 Amendment 1), so the gate applies to the
-   trial. Recommended: open once backups, monitoring, encrypted disks, a
+   trial. Chosen: open once backups, monitoring, encrypted disks, a
    timed restore, erasure, export and the GDPR documents are in place, with
    a second failure domain before the public launch of March 2027.
    Alternatives: open on one machine now, with best effort in the contract;
    or wait for the second failure domain before opening anything.
-9. **Backups** (§6). Recommended: four layers.
+9. **Backups** (§6). Chosen: four layers.
    - A continuous, encrypted copy of every database to an EU object store
      that keeps copies in three zones, as ADR-0014's feature table promises.
    - etcd snapshots off the machine.
@@ -85,7 +86,7 @@ stays Proposed until the answers are recorded here.
      replayed after any restore.
 
    Alternative: nightly VM backups only.
-10. **Disk keys and the third node** (§6). Recommended: the nodes get their
+10. **Disk keys and the third node** (§6). Chosen: the nodes get their
     disk keys from a key server on a small machine that Thibault controls,
     at another place. The same machine later holds the third quorum vote.
     After a long outage, such as a power cut, a move or a theft, it waits
