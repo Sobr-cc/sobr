@@ -6,6 +6,7 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Infrastructure project (SOB-72)
+- **Amendment 1** (2026-10-31, SOB-218): the shared host, a smaller starting cap, a shared front end and the portability rule. See the section below.
 - **Related**: ADR-0013 (team server), ADR-0014 (managed cloud, same binary,
   Amendment 1), ADR-0015 and ADR-0016 (privacy), ADR-0021 (one app, served
   by the server), ADR-0022 (one database per space, accounts database);
@@ -96,7 +97,86 @@ confirmed, in SOB-181.
     derived on the host, so a stolen machine unlocks itself; or a
     passphrase typed at each boot.
 
+## Amendment 1 — The shared host, a smaller starting cap and the portability rule (2026-10-31)
+
+**Status.** In force when the PR is merged (SOB-218, SOB-87: amendment by PR); where it conflicts with the original text, the amendment wins. The ADR itself stays Proposed until Thibault confirms the facts of A1 that are still open. The original text is kept, and a note under each heading marks what changes. The sections of this amendment are numbered A1 to A7, and "§" points to the sections of the original.
+
+**Why.** This ADR was written before the survey of the host (SOB-181). The host is shared with another project's production, and Thibault decided that Sobr may run everything on it with one rule, portability (SOB-211). He set the scope of Claude's approvals (SOB-212), the split with BrilliantStudio's repo and the shared front end (SOB-213), and a starting cap for Sobr. The layout of the host, its ranges, limits and rules are in the host contract, which is private because it describes a private host. ADR-0026 holds how Sobr deploys.
+
+### A1. What the survey changes
+
+The details of the host are in the private contract and in SOB-181. This ADR keeps what its decisions need:
+
+- **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
+- **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (SOB-213 and the draft of the host contract). The 64 to 80 GB of §8 do not fit.
+- **No redundancy is assumed** for the host's disk or its power, and no spare machine until §7's second failure domain exists.
+- **The public address is shared and not fixed,** and only some ports can be forwarded at home. The default KubeSpan port is outside them (A4).
+- **Open facts** that Thibault still has to confirm (SOB-181): upload speed, a spare disk, backup power, and a third place for the small key machine of §6. ECC memory has been checked and is absent.
+
+### A2. The ten points against the facts
+
+| Point | Holds? | What changes, or the risk accepted |
+|--|--|--|
+| 1 Talos | Yes | One small node (A3). Its VMs are created in the Sobr pool with the token of ADR-0026, which has no host-level privilege |
+| 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
+| 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
+| 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys at home. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from home, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 6 Layout of the services | Yes | None |
+| 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
+| 8 The cloud opens after its protections | Yes | "A UPS covers short power cuts" is not assumed. The risk is in A6 |
+| 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (rollback copies on another disk) is replaced by a copy in a third place. A restore test somewhere other than the host proves portability (A5, P3) |
+| 10 Disk keys from a key server | Yes | The third place is still open (A1) |
+
+### A3. Sizing under the cap
+
+§8 adds up to 28 vCPU and 64 to 80 GB, plus mirrored disks ("Hypervisor and ZFS cache" and "1 TB of mirrored disk" no longer apply). Under the cap of 10 GB, 4 vCPU and 200 GB:
+
+| Option | Cost | Effort | Risk |
+|--|--|--|--|
+| **A — One small Talos node that holds the control plane and the workloads (8 GB, 3 vCPU, about 150 GB), plus the router VM (2 GB, 1 vCPU); monitoring kept to metrics with a short retention (recommended)** | No high availability and no second worker: an upgrade of the node stops the lab for its duration | Small | Medium: it fits the cap exactly, with no room for growth or for CI. It is a lab, not the managed cloud |
+| B — Three very small nodes (about 3 GB each) and the router | A three-member etcd | Medium | 3 GB cannot hold a control plane, Cilium and Knative together; the overhead of three nodes eats the cap for no gain on one machine |
+| C — Keep §8 and raise the cap first | Memory to buy or a second machine | Small | The launch waits |
+
+The managed cloud does not open on this cap: §6 already makes its opening depend on its protections and on a second failure domain (§7), and the cap must rise before then. The figures are starting figures, as §8 says. The cap, the limits and the pinning belong to the host contract, and the daily check of ADR-0026 compares the real machines with them.
+
+### A4. The mesh port and the front-end link
+
+§1 uses Talos KubeSpan only for a machine at another site, and §4 forwards Sobr's traffic over WireGuard from the front server to the cluster. The default KubeSpan port, UDP 51820, is outside the ports that can be forwarded at home.
+
+- **The front-end link needs no inbound port at home.** The router VM dials out to the front server, which listens on a public port of its own, with a keepalive. WireGuard carries traffic both ways once the tunnel is up.
+- **KubeSpan between sites** may need an inbound port at home. Whether KubeSpan accepts another port is not stated on the pages read; it is a fact to verify before a second site (§7) depends on it. IPv6, available at home, is a third path to test.
+
+### A5. The rule of portability (SOB-211)
+
+Nothing of Sobr may depend on this particular host. The rule has five parts, each with its check:
+
+| # | Rule | Check |
+|--|--|--|
+| P1 | All infrastructure is in code | A rebuild from the repo on an empty host reproduces the platform (the full rebuild test of §6) |
+| P2 | No address, host name, VMID or storage ID is written by hand outside the code | A check in `infra` fails on one outside the host file |
+| P3 | Backups restore on another machine and are kept off the host | The monthly restore into a spare environment elsewhere than the host, and the rebuild on a second machine before launch |
+| P4 | No feature that only this box offers | A review refuses it |
+| P5 | Host-specific values are variables in one file per host | `infra` plans against a second host file without error |
+
+### A6. Risks accepted until the host improves
+
+Thibault accepted the host's risks on October 31 (SOB-211, private). The design draws these consequences:
+
+- **One failure domain** until §7's second one exists, and no redundancy of the host's disk or power is assumed.
+- **After a power cut,** the nodes need the key server and the line to unlock their disks on restart, and the key machine's own disk needs a typed passphrase (§6). A long outage while Thibault is away leaves the lab down. The offline copies of the keys (§6) and a runbook (ADR-0026 issue 10) are the break-glass path. §6 lists the conditions for opening the cloud: this risk joins them, for Thibault to accept again at launch.
+- **The line's terms of use** are an accepted risk recorded in SOB-211, until a business line exists.
+
+### A7. Who approves
+
+The sentence of the Context that says deployments follow Thibault's approval from his GitHub account is replaced by ADR-0026 and SOB-212: Claude may approve and apply changes to what Sobr owns, and anything on the host or touching BrilliantStudio needs Thibault's explicit go.
+
+**Issues.** SOB-218, SOB-181, SOB-175, SOB-211, SOB-212, SOB-213, SOB-217.
+
 ## Context and problem statement
+
+> Amendment 1 (2026-10-31): the host is shared with another project's production, it is not an Ubuntu machine with nginx, the address is shared and not fixed (A1), and the sentence on approvals is replaced (A7).
+
 
 On October 30 Thibault decided that his dedicated Proxmox server hosts every
 Sobr service: CI builds, the organization server, the app on the web, the
@@ -165,6 +245,8 @@ figures; the sizing in §8 does. §9 lists what Thibault should confirm.
 ## Decision
 
 ### 1. Kubernetes distribution, and how a machine joins
+
+> Amendment 1 (2026-10-31): the default KubeSpan port, UDP 51820, is outside the ports that can be forwarded at home (A4), and the first cluster is one small node (A3).
 
 **Talos Linux in Proxmox VMs.** Talos is a Linux built only to run
 Kubernetes:
@@ -265,6 +347,8 @@ mature, and can replace Kourier later.
 
 ### 3. Storage
 
+> Amendment 1 (2026-10-31): the token that powers a VM off is limited to Sobr's own VMs (A2, point 3).
+
 **Local volumes.** Each node's volumes sit on its own virtual disk, given
 out by a local-path provisioner. SQLite with WAL wants a local disk, and
 the Sobr server keeps its databases on one volume.
@@ -303,6 +387,8 @@ replica before confirming it, so replicas belong on one local network.
 | C — Longhorn across two sites | Every write waits for the other site | Medium | Slow writes on home lines, and a cut link stalls the volume |
 
 ### 4. Network, entry point, certificates and exposure
+
+> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, the other site is a container to be replaced, and the tunnel is dialed out from home (A2, point 5, and A4).
 
 **Cilium** is the network of the cluster:
 
@@ -375,6 +461,8 @@ The registration and the DNS account are human-only (issue 11), and issue
 
 ### 5. How the Sobr services run
 
+> Amendment 1 (2026-10-31): the CI runners' firewall also protects the other project's machines, and the cap leaves no room for them yet (A2, point 7).
+
 | Service | How it runs |
 |--|--|
 | Managed cloud | One deployment of the Sobr server from the Cloud project's Helm chart, serving every organization space (one database each) and the accounts database, as ADR-0022 sets |
@@ -417,6 +505,8 @@ The repos are public, so pull requests from forks never run on them
 | B — Runners as pods in the cluster | Shares the cluster's capacity | Small | Code from a pull request runs next to customer data |
 
 ### 6. Customer data: availability, backups, encryption and the GDPR
+
+> Amendment 1 (2026-10-31): no backup power is assumed, and layer 3 is replaced (A2, points 8 and 9, and A6).
 
 **Availability.** One machine is one failure domain: power, the internet
 line, a disk or the motherboard.
@@ -563,6 +653,8 @@ These are legal documents, so they are human-only work (issue 9).
 
 ### 7. What a second failure domain needs
 
+> Amendment 1 (2026-10-31): a KubeSpan link to the home site may need a port that cannot be forwarded there (A4).
+
 **Setup:** a Proxmox install, VMs created from the infrastructure code, and
 Talos configurations applied.
 
@@ -596,6 +688,8 @@ against a cut of the power or the line.
 
 ### 8. Sizing on one machine
 
+> Amendment 1 (2026-10-31): this sizing does not fit the starting cap; see A3.
+
 These are starting figures, to adjust once the facts of §9 are known:
 
 | Part | vCPU | Memory | Disk | Role |
@@ -616,6 +710,8 @@ smaller machine, the CI runners are the part to cut first.
 
 ### 9. Facts for Thibault to confirm
 
+> Amendment 1 (2026-10-31): A1 answers most of these; upload speed, a spare disk, backup power and the third place stay open.
+
 - **Hardware:** CPU (cores), memory, disks (type, size, mirror or ZFS), and
   a spare disk for backups.
 - **Place:** at home or in a data centre.
@@ -628,6 +724,8 @@ smaller machine, the CI runners are the part to cut first.
   host's.
 
 ## Consequences
+
+> Amendment 1 (2026-10-31): the other site is a container that a replacement will change, and the host's risks are in A6.
 
 **Positive:**
 
@@ -670,6 +768,8 @@ smaller machine, the CI runners are the part to cut first.
 - macOS builds stay on GitHub.
 
 ## Issues to create
+
+> Amendment 1 (2026-10-31): issue 4 builds Sobr's backup layers off the host (A2, point 9), not on the host's backup server; issue 8 (CI runner VMs) waits for a cap that allows it; issues 1 and 8 follow the host contract, and a host-level change needs Thibault's go; issue 11 adds a second disk to the purchases to consider.
 
 The orchestrator creates these issues once this ADR is accepted.
 
