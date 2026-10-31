@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "fetched_at": "2026-05-13T13:55:07.230448800+00:00",
+    "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-cons-def/exports/json?lang=fr&timezone=UTC",
+    "source_sha256": "a2250fe722dd39b0399bb2c66e638a178ebe324901d42fc9bb79ceb4bd0b0637",
+    "license": "Etalab 2.0",
+    "notes": [
+      "Mix électrique national FR — agrégat annuel TWh par source.",
+      "Calcul : Σ(MW × 0.5h)/1e6 sur les pas 30-min réalisés."
+    ]
+  },
+  "mix": {
+    "nuclear_twh": 320.208,
+    "hydro_twh": 58.108,
+    "wind_twh": 50.866,
+    "solar_twh": 22.204,
+    "gas_twh": 29.104,
+    "coal_twh": 0.826,
+    "oil_twh": 0.952,
+    "bioenergies_twh": 10.318,
+    "pumped_twh": -5.72,
+    "exchange_net_twh": -50.688,
+    "total_production_twh": 486.866,
+    "records_processed": 35040,
+    "year": 2023
+  }
+}

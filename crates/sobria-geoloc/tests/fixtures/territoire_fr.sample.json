@@ -1,0 +1,71 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "fetched_at": "2026-05-13T13:54:58.621908300+00:00",
+    "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/consommation-annuelle-par-iris/records?limit=100&offset=0",
+    "source_sha256": "66b2d2558e5b002fa4ce36357b6d2e5d4d237244fd1372a6b592c85eff915aeb",
+    "license": "Etalab 2.0",
+    "notes": [
+      "Top sites industriels par consommation électrique annuelle ODRÉ.",
+      "Records bruts paginés : 2, retenus (top 2) : 2, écartés (DROM, géoloc manquante, conso ≤ 0) : 0."
+    ]
+  },
+  "regions": [
+    {
+      "region_iso": "FR-ARA",
+      "name": "Auvergne-Rhône-Alpes",
+      "insee_code": "84",
+      "centroid_lat": 45.5,
+      "centroid_lon": 4.8,
+      "nuclear_share_pct": 74.5
+    },
+    {
+      "region_iso": "FR-IDF",
+      "name": "Île-de-France",
+      "insee_code": "11",
+      "centroid_lat": 48.7,
+      "centroid_lon": 2.6,
+      "nuclear_share_pct": 0.0
+    }
+  ],
+  "industrial_sites": [
+    {
+      "code_iris": "262350104",
+      "commune": "Pierrelatte",
+      "commune_code": "26235",
+      "department_code": "26",
+      "department_label": "Drôme",
+      "region_insee_code": "84",
+      "region_iso": "FR-ARA",
+      "lat": 44.3421380616,
+      "lon": 4.7120785605,
+      "consumption_mwh_elec": 2450882.008,
+      "consumption_mwh_gas_grtgaz": 0.0,
+      "consumption_mwh_gas_terega": 0.0,
+      "consumption_total_mwh": 2450882.008,
+      "pdl_count_elec": 5,
+      "pdl_count_gas": 0,
+      "pdl_total": 5,
+      "year": 0
+    },
+    {
+      "code_iris": "751010101",
+      "commune": "Paris 1er",
+      "commune_code": "75101",
+      "department_code": "75",
+      "department_label": "Paris",
+      "region_insee_code": "11",
+      "region_iso": "FR-IDF",
+      "lat": 48.86,
+      "lon": 2.34,
+      "consumption_mwh_elec": 12345.6,
+      "consumption_mwh_gas_grtgaz": 200.5,
+      "consumption_mwh_gas_terega": 30.25,
+      "consumption_total_mwh": 12576.35,
+      "pdl_count_elec": 3,
+      "pdl_count_gas": 2,
+      "pdl_total": 5,
+      "year": 2022
+    }
+  ]
+}
