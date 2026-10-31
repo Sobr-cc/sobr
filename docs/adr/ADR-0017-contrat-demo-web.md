@@ -6,6 +6,9 @@
 - **Contexte** : avant C37, le frontend appliquait un « contrat no-mock »
   strict (CLAUDE.md §13 : pas de données factices) — hors contexte Tauri,
   chaque page rejetait `tauri_unavailable` et n'affichait RIEN.
+- **Amendment 1** (2026-10-31, Proposed, SOB-271): correction of a fact in
+  rule 2. The demo files are in the desktop binary; the lazy import only
+  keeps them from being loaded. No rule changes. See the section below.
 
 ## Contexte et problème
 
@@ -31,6 +34,9 @@ Le contrat no-mock devient un **contrat démo**, aux règles suivantes :
    `isTauriContext()` est faux ; le module démo et ses fixtures sont
    chargés par `import()` paresseux — le bundle Tauri ne les contient
    pas.
+
+   *Amendment 1 corrects the last clause: the desktop binary does contain
+   them, and the lazy import keeps them from being loaded.*
 3. **Transparence permanente.** Bannière « Mode démo » sur toutes les
    pages, suffixe `· DÉMO` dans le rail, hypothèse `mode_demo` injectée
    dans chaque résultat (l'utilisateur qui inspecte les hypothèses voit
@@ -45,6 +51,39 @@ Le contrat no-mock devient un **contrat démo**, aux règles suivantes :
 5. **La suite e2e teste CE contrat** (`web/playwright.config.ts`) :
    pages couvertes → contenu + bannière démo ; non couvertes → bandeau
    explicite sans jargon développeur.
+
+## Amendment 1 — What the desktop binary contains (2026-10-31)
+
+**Status.** Proposed (SOB-271). It corrects a fact in rule 2 and changes no
+rule. The original text above stays as written.
+
+**The correction.** Rule 2 says that the demo module and its fixtures are
+loaded by a lazy `import()`, so "the Tauri bundle does not contain them".
+
+* **The lazy import changes when the files are loaded, not where they
+  are.** Vite still writes them into `web/build`.
+* **Tauri embeds all of `web/build`** (`crates/sobria-app/tauri.conf.json:10`,
+  `frontendDist`), so the demo files are in the desktop binary.
+* **On desktop they are never loaded**, because the demo only turns on
+  outside Tauri. The rest of rule 2 holds.
+
+**Evidence (October 31).** A `vite build` of `web/` at `95a5192` wrote the
+fixtures into one chunk, `build/_app/immutable/chunks/<hash>.js`
+(466,667 bytes, from 499,334 bytes of fixture sources).
+
+**Cost.** The Consequences below count the "~500 Ko" as loaded by the web
+demo only. The desktop binary also carries those files, about 467 KB before
+Tauri's compression, and never loads them (CLAUDE.md §8). Removing them from
+the desktop build is out of scope here.
+
+**Related.**
+
+* **ADR-0021 (Accepted)** changes the activation part of rule 2: the demo
+  turns on when the app is neither in Tauri nor served by the organization
+  server. That rule is not implemented yet: today `call()` checks only
+  `!isTauriContext()` (`web/src/lib/api.ts:644`). SOB-42 implements it.
+* **ADR-0027 (Accepted)** relies on the same behavior for the
+  WebAssembly estimator: the desktop app carries it without loading it.
 
 ## Conséquences
 
