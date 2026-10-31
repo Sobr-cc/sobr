@@ -1,9 +1,9 @@
-//! Commandes CLI du `sobria-team-aggregator`.
+//! CLI commands of `sobria-team-aggregator`.
 //!
-//! - [`init`]  : prépare un data dir vierge (DB + cert + admin).
-//! - [`serve`] : lance le serveur HTTPS axum.
-//! - [`code`]  : crée / liste / révoque des enrollment codes (C28.2).
-//! - [`admin`] : reset-password + list (C29.2).
+//! - [`init`]: prepares a blank data dir (DB + cert + admin).
+//! - [`serve`]: starts the axum HTTPS server.
+//! - [`code`]: creates / lists / revokes enrollment codes.
+//! - [`admin`]: reset-password + list.
 
 pub mod admin;
 pub mod code;

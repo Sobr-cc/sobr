@@ -1,8 +1,8 @@
-//! Émission + vérification des access tokens JWT HS256.
+//! Issues and verifies HS256 JWT access tokens.
 //!
-//! Claims : `{ sub, role, iat, exp }`. TTL 24 h (cf. brief C28.2).
-//! Le secret HS256 est lu depuis `config.jwt_signing_key` (hex 64 chars,
-//! posé à `init`).
+//! Claims: `{ sub, role, iat, exp }`. TTL 24 h (see brief C28.2).
+//! The HS256 secret is read from `config.jwt_signing_key` (64 hex chars,
+//! set at `init`).
 
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::server::error::ApiError;
 
-/// TTL des access tokens (24 h).
+/// Access token TTL (24 h).
 pub const ACCESS_TTL: Duration = Duration::hours(24);
 
-/// Rôle stocké dans le JWT (le serveur connaît la vérité — c'est juste un hint).
+/// Role stored in the JWT (the server holds the truth — this is just a hint).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -30,10 +30,10 @@ impl Role {
     }
 }
 
-/// Claims signés.
+/// Signed claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    /// Sujet : `user_id` (ULID) ou `admin_id` (ULID) selon `role`.
+    /// Subject: `user_id` (ULID) or `admin_id` (ULID) depending on `role`.
     pub sub: String,
     /// `"user"` | `"admin"`.
     pub role: Role,
@@ -43,7 +43,7 @@ pub struct Claims {
     pub exp: i64,
 }
 
-/// Émet un access token JWT HS256.
+/// Issues an HS256 JWT access token.
 pub fn issue(
     signing_key_hex: &str,
     sub: &str,
@@ -61,11 +61,11 @@ pub fn issue(
         .map_err(|e| ApiError::InternalMsg(format!("jwt encode: {e}")))
 }
 
-/// Vérifie un access token et retourne ses claims si OK.
+/// Verifies an access token and returns its claims if valid.
 pub fn verify(signing_key_hex: &str, token: &str) -> Result<Claims, ApiError> {
     let key = decode_hex(signing_key_hex)?;
     let mut validation = Validation::default();
-    // Pas de leeway : exp strict. Le client refresh dès qu'il reçoit 401.
+    // No leeway: strict exp. The client refreshes as soon as it gets a 401.
     validation.leeway = 0;
     let data = decode::<Claims>(token, &DecodingKey::from_secret(&key), &validation)
         .map_err(|_| ApiError::InvalidToken)?;
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn verify_rejects_expired_token() {
-        // Émis très loin dans le passé → exp < now.
+        // Issued far in the past → exp < now.
         let past = Utc::now() - Duration::hours(48);
         let token = issue(FAKE_KEY, "u-1", Role::User, past).unwrap();
         assert!(verify(FAKE_KEY, &token).is_err());

@@ -1,14 +1,11 @@
-//! GET /api/v1/me/usage — usage agrégé de l'utilisateur courant.
-//! GET/PUT /api/v1/me/sharing — consentement de partage identifié (ADR-0015).
-//!
-//! Pour C28.2 on retourne uniquement les totaux. Le breakdown
-//! journalier / mensuel + comparaison équipe arrivent avec C28.3 / C28.4.
+//! GET /api/v1/me/usage: usage totals of the current user.
+//! GET/PUT /api/v1/me/sharing: consent to identified sharing (ADR-0015).
 
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::server::auth::middleware::AuthenticatedUser;
-use crate::server::error::{ApiError, ApiResult};
+use crate::server::error::ApiResult;
 use crate::server::ServerState;
 use crate::storage::estimations::{self, UsageTotals};
 use crate::storage::users;
@@ -23,10 +20,7 @@ pub async fn handle(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<MyUsage>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let totals = estimations::totals_for_user(storage.connection(), &user.claims.sub)?;
     Ok(Json(MyUsage {
         user_id: user.claims.sub.clone(),
@@ -34,12 +28,12 @@ pub async fn handle(
     }))
 }
 
-/// Consentement de partage identifié (ADR-0015 §3). Le salarié est seul
-/// maître de ce flag : aucune route admin ne peut l'écrire.
+/// Identified-sharing consent (ADR-0015 §3). Only the employee controls
+/// this flag: no admin route can write it.
 ///
-/// `policy` (réponse uniquement, C44 — ADR-0016) : la politique de
-/// visibilité de l'organisation, pour que chaque salarié sache sous quel
-/// régime il travaille. Ignorée en écriture (PUT).
+/// `policy` (response only, ADR-0016): the organization's visibility
+/// policy, so every employee knows which regime they work under.
+/// Ignored on write (PUT).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SharingState {
     pub share_identified: bool,
@@ -47,15 +41,12 @@ pub struct SharingState {
     pub policy: Option<String>,
 }
 
-/// GET /api/v1/me/sharing — lit le consentement courant + la politique.
+/// GET /api/v1/me/sharing — reads the current consent + the policy.
 pub async fn sharing_get(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
 ) -> ApiResult<Json<SharingState>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let share_identified = users::share_identified(storage.connection(), &user.claims.sub)?;
     let pol = crate::policy::load(&storage);
     Ok(Json(SharingState {
@@ -64,16 +55,13 @@ pub async fn sharing_get(
     }))
 }
 
-/// PUT /api/v1/me/sharing — écrit le consentement (idempotent).
+/// PUT /api/v1/me/sharing — writes the consent (idempotent).
 pub async fn sharing_put(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
     Json(body): Json<SharingState>,
 ) -> ApiResult<Json<SharingState>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     users::set_share_identified(
         storage.connection(),
         &user.claims.sub,

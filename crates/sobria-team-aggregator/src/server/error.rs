@@ -1,8 +1,4 @@
-//! Erreurs API typées → réponse HTTP JSON.
-//!
-//! Pour C28.2 on garde une enum simple ; on raffinera (codes machine,
-//! détails par champ) en C28.3 quand le dashboard admin consommera les
-//! erreurs.
+//! Typed API errors, turned into JSON HTTP responses.
 
 use axum::{
     http::StatusCode,
@@ -14,7 +10,7 @@ use thiserror::Error;
 
 use crate::error::AggregatorError;
 
-/// Erreur publique d'une route API.
+/// Public error of an API route.
 #[derive(Debug, Error)]
 pub enum ApiError {
     #[error("identifiants invalides")]
@@ -48,10 +44,10 @@ pub enum ApiError {
 impl ApiError {
     fn status(&self) -> StatusCode {
         match self {
-            ApiError::InvalidCredentials | ApiError::InvalidEnrollmentCode => {
-                StatusCode::UNAUTHORIZED
-            },
-            ApiError::InvalidToken | ApiError::MissingAuth => StatusCode::UNAUTHORIZED,
+            ApiError::InvalidCredentials
+            | ApiError::InvalidEnrollmentCode
+            | ApiError::InvalidToken
+            | ApiError::MissingAuth => StatusCode::UNAUTHORIZED,
             ApiError::Forbidden => StatusCode::FORBIDDEN,
             ApiError::FingerprintAlreadyEnrolled => StatusCode::CONFLICT,
             ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
@@ -84,7 +80,7 @@ impl IntoResponse for ApiError {
         let status = self.status();
         let code = self.code();
         let msg = self.to_string();
-        if matches!(self, ApiError::Internal(_) | ApiError::InternalMsg(_)) {
+        if status.is_server_error() {
             tracing::error!(error = %msg, code, "API internal error");
         } else {
             tracing::debug!(error = %msg, code, "API client error");
@@ -94,5 +90,5 @@ impl IntoResponse for ApiError {
     }
 }
 
-/// Alias pour les handlers axum.
+/// Alias for axum handlers.
 pub type ApiResult<T> = Result<T, ApiError>;

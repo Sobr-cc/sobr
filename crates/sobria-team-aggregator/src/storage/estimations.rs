@@ -1,16 +1,17 @@
-//! Helpers SQL pour la table `estimations`.
+//! SQL helpers for the `estimations` table.
 //!
-//! Le payload reçu via POST /api/v1/estimations conserve son `raw_payload_json`
-//! d'origine (audit + reproductibilité), et les champs typés (méthode, modèle,
-//! gCO₂eq, etc.) sont extraits dans des colonnes dédiées pour les analytics.
+//! A payload received via POST /api/v1/estimations keeps its original
+//! `raw_payload_json` (audit + reproducibility), and the typed fields (method,
+//! model, gCO₂eq, etc.) are extracted into dedicated columns for analytics.
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AggregatorResult;
+use crate::storage::{get_count, parse_ts};
 
-/// Une estimation typée à insérer.
+/// A typed estimation to insert.
 #[derive(Debug, Clone)]
 pub struct NewEstimation<'a> {
     pub id: &'a str,
@@ -26,14 +27,14 @@ pub struct NewEstimation<'a> {
     pub water_ml: f64,
     pub energy_wh: f64,
     pub region: Option<&'a str>,
-    /// Étiquette projet (C44) — taguée par conversation côté extension.
+    /// Project label (C44), tagged per conversation by the extension.
     pub project: Option<&'a str>,
     pub raw_payload_json: &'a str,
     pub received_at: DateTime<Utc>,
 }
 
-/// Totaux d'usage d'un user (cards "Mon usage perso" + /me/usage).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Usage totals of a user ("Mon usage perso" cards + /me/usage).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct UsageTotals {
     pub count: u64,
     pub tokens_in: u64,
@@ -43,20 +44,21 @@ pub struct UsageTotals {
     pub energy_wh: f64,
 }
 
-impl Default for UsageTotals {
-    fn default() -> Self {
-        Self {
-            count: 0,
-            tokens_in: 0,
-            tokens_out: 0,
-            gco2eq_p50_g: 0.0,
-            water_ml: 0.0,
-            energy_wh: 0.0,
-        }
+impl UsageTotals {
+    /// Reads count, tokens in/out, gCO₂eq, water and energy from `first` onward.
+    pub(crate) fn from_row(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<Self> {
+        Ok(Self {
+            count: get_count(row, first)?,
+            tokens_in: get_count(row, first + 1)?,
+            tokens_out: get_count(row, first + 2)?,
+            gco2eq_p50_g: row.get(first + 3)?,
+            water_ml: row.get(first + 4)?,
+            energy_wh: row.get(first + 5)?,
+        })
     }
 }
 
-/// Insère une estimation dans la table.
+/// Inserts an estimation into the table.
 pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> {
     conn.execute(
         "INSERT INTO estimations
@@ -86,8 +88,8 @@ pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> 
     Ok(())
 }
 
-/// Row complet `estimations` (lecture pour exports — joint le user pour
-/// avoir fingerprint + display_name disponibles, anonymisables côté handler).
+/// Full `estimations` row (read for exports; joins the user so that
+/// fingerprint + display_name are available, anonymizable in the handler).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EstimationRow {
     pub id: String,
@@ -107,8 +109,8 @@ pub struct EstimationRow {
     pub region: Option<String>,
 }
 
-/// Liste les estimations dans la fenêtre `[from, to]` (incluses), avec le
-/// fingerprint + display_name du user joint. Utilisé par les exports.
+/// Lists the estimations in the `[from, to]` window (inclusive), with the
+/// joined user's fingerprint + display_name. Used by the exports.
 pub fn list_for_window(
     conn: &Connection,
     from: DateTime<Utc>,
@@ -125,15 +127,7 @@ pub fn list_for_window(
     )?;
     let rows = stmt.query_map(params![from.to_rfc3339(), to.to_rfc3339()], |row| {
         let ts_s: String = row.get(4)?;
-        let ts = DateTime::parse_from_rfc3339(&ts_s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    4,
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })?;
+        let ts = parse_ts(&ts_s, 4)?;
         Ok(EstimationRow {
             id: row.get(0)?,
             user_id: row.get(1)?,
@@ -142,8 +136,8 @@ pub fn list_for_window(
             ts,
             method: row.get(5)?,
             model_id: row.get(6)?,
-            tokens_in: row.get::<_, i64>(7)?.max(0) as u32,
-            tokens_out: row.get::<_, i64>(8)?.max(0) as u32,
+            tokens_in: get_count(row, 7)? as u32,
+            tokens_out: get_count(row, 8)? as u32,
             gco2eq_p50: row.get(9)?,
             gco2eq_p5: row.get(10)?,
             gco2eq_p95: row.get(11)?,
@@ -155,9 +149,8 @@ pub fn list_for_window(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Totaux pour un utilisateur (toute période confondue).
-/// Purge les estimations plus anciennes que `cutoff` (rétention ADR-0015).
-/// Retourne le nombre de lignes supprimées.
+/// Purges estimations older than `cutoff` (ADR-0015 retention).
+/// Returns the number of deleted rows.
 pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorResult<u64> {
     let n = conn.execute(
         "DELETE FROM estimations WHERE ts < ?1",
@@ -166,9 +159,9 @@ pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorR
     Ok(n as u64)
 }
 
+/// Totals for a user (all time).
 pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<UsageTotals> {
-    let mut totals = UsageTotals::default();
-    conn.query_row(
+    Ok(conn.query_row(
         "SELECT COUNT(*),
                 COALESCE(SUM(tokens_in), 0),
                 COALESCE(SUM(tokens_out), 0),
@@ -177,17 +170,8 @@ pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<Usa
                 COALESCE(SUM(energy_wh), 0.0)
          FROM estimations WHERE user_id = ?1",
         params![user_id],
-        |row| {
-            totals.count = row.get::<_, i64>(0)?.max(0) as u64;
-            totals.tokens_in = row.get::<_, i64>(1)?.max(0) as u64;
-            totals.tokens_out = row.get::<_, i64>(2)?.max(0) as u64;
-            totals.gco2eq_p50_g = row.get::<_, f64>(3)?;
-            totals.water_ml = row.get::<_, f64>(4)?;
-            totals.energy_wh = row.get::<_, f64>(5)?;
-            Ok(())
-        },
-    )?;
-    Ok(totals)
+        |row| UsageTotals::from_row(row, 0),
+    )?)
 }
 
 #[cfg(test)]

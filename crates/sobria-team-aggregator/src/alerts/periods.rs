@@ -1,12 +1,12 @@
-//! Calcul des bornes de période d'alerte (daily / weekly / monthly).
+//! Computes alert period bounds (daily / weekly / monthly).
 //!
-//! Toutes les bornes sont en UTC pour rester déterministes côté serveur
-//! (l'admin déploie potentiellement dans n'importe quel fuseau). La doc
-//! opérationnelle explicite cette convention.
+//! All bounds are in UTC to stay deterministic on the server
+//! (the admin may deploy in any time zone). The operations docs
+//! spell out this convention.
 //!
 //! - **daily**   : `[YYYY-MM-DD 00:00:00Z, YYYY-MM-DD 23:59:59.999Z]`
-//! - **weekly**  : ISO week — lundi 00:00:00Z → dimanche 23:59:59.999Z
-//! - **monthly** : 1er du mois 00:00:00Z → dernier jour 23:59:59.999Z
+//! - **weekly**  : ISO week — Monday 00:00:00Z → Sunday 23:59:59.999Z
+//! - **monthly** : 1st of the month 00:00:00Z → last day 23:59:59.999Z
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ impl FromStr for AlertPeriod {
     }
 }
 
-/// Retourne `(start, end)` UTC inclusifs de la période contenant `ts`.
+/// Returns the inclusive UTC `(start, end)` of the period containing `ts`.
 #[must_use]
 pub fn period_bounds(period: AlertPeriod, ts: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
     match period {
@@ -56,7 +56,7 @@ pub fn period_bounds(period: AlertPeriod, ts: DateTime<Utc>) -> (DateTime<Utc>, 
             (start, end)
         },
         AlertPeriod::Weekly => {
-            // ISO week : `ts` → lundi de la même semaine, fin = dimanche 23:59:59.
+            // ISO week: `ts` → Monday of the same week, end = Sunday 23:59:59.
             let date = ts.date_naive();
             let dow = date.weekday().num_days_from_monday() as i64;
             let monday = date - Duration::days(dow);
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn weekly_bounds_iso_monday_to_sunday() {
-        // 2026-05-16 = samedi. Lundi de cette semaine = 2026-05-11.
+        // 2026-05-16 = Saturday. Monday of that week = 2026-05-11.
         let ts = Utc.with_ymd_and_hms(2026, 5, 16, 14, 30, 0).unwrap();
         let (s, e) = period_bounds(AlertPeriod::Weekly, ts);
         assert_eq!(s.date_naive().to_string(), "2026-05-11");
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn weekly_bounds_when_ts_is_sunday() {
-        // 2026-05-17 = dimanche. Lundi = 2026-05-11.
+        // 2026-05-17 = Sunday. Monday = 2026-05-11.
         let ts = Utc.with_ymd_and_hms(2026, 5, 17, 9, 0, 0).unwrap();
         let (s, e) = period_bounds(AlertPeriod::Weekly, ts);
         assert_eq!(s.date_naive().to_string(), "2026-05-11");
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn monthly_bounds_february_leap() {
-        // 2024 = bissextile, février a 29 jours.
+        // 2024 = leap year, February has 29 days.
         let ts = Utc.with_ymd_and_hms(2024, 2, 15, 0, 0, 0).unwrap();
         let (_, e) = period_bounds(AlertPeriod::Monthly, ts);
         assert_eq!(e.date_naive().to_string(), "2024-02-29");
