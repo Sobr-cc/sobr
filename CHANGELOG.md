@@ -9,23 +9,25 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — ADR-0026, infrastructure as code and automatic deployment (2026-10-31, SOB-73)
 
-- **ADR-0026** (Proposed): the infrastructure lives in the `infra` repo of
-  Sobr-cc and changes only by pull request.
-  - OpenTofu (`bpg/proxmox`) for the Proxmox layer, `talosctl` for the Talos
-    nodes as ADR-0024 says, Flux for the cluster, SOPS with age for secrets.
-  - Every pull request shows the plan. After a merge, the deployment waits in a
-    GitHub environment whose only required reviewer is an account no session
-    can use, with administrator bypass off: Claude sessions act as Thibault's
-    everyday account, and GitHub lets a `repo` token of a required reviewer
-    approve.
-  - Drift is checked daily and Flux corrects the cluster. Rollback is a revert
-    through the same approval. Secrets are not in git in clear, nor in state.
-  - Throwaway runner VMs: CI runners hold no secret, the deploy runner serves
-    the `infra` repo only, and fork pull requests never reach a self-hosted
-    runner. macOS stays on GitHub.
-  - 10 build issues (34 points). Three points wait for Thibault (SOB-207): the
-    approver account, the visibility of `infra` and the GitHub plan, and the
-    approval of ordinary CI.
+- **ADR-0026** (Accepted): the infrastructure lives in the private `infra` repo
+  of Sobr-cc, on the Free plan, and changes only by pull request. A script
+  started by cron on the Proxmox server pulls it and applies what is approved:
+  OpenTofu (`bpg/proxmox`) for Proxmox, `talosctl` for the Talos nodes, Flux
+  pinned to the verified commit for the cluster, SOPS with age for secrets.
+  - Thibault answered the three points in his own words (SOB-207): Claude can
+    also approve a deployment, which replaces the rule of October 30; the repo is
+    private on Free and deployed by script and cron, with no GitHub environment,
+    no paid plan and no GitHub deploy runner; CI on the self-hosted runners runs in
+    batches that the orchestrator releases.
+  - Because the human gate is gone, the script enforces the controls that replace
+    it, and it is installed by Thibault and cannot be changed by a session: an
+    approver who is never the author (a second account for reviewer sessions),
+    green checks, only merged pull requests, a plan recorded before each apply, a
+    guard on destruction, a daily drift check, automatic rollback after a failed
+    health check, a rate limit, and a stop switch that depends on no session.
+  - The ADR names the risk that remains: a session holding both tokens could
+    approve its own change.
+  - 10 build issues (40 points), marking those that wait for a Deep cleanup.
 
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
 
