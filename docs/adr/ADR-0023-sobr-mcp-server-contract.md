@@ -1,15 +1,15 @@
 # ADR-0023 — The Sobr MCP server contract
 
 - **Status**: Proposed. Thibault answered the eight points on 2026-10-31
-  (SOB-152): every recommendation. It becomes Accepted once ADR-0019 (PR #2)
-  and ADR-0022 (PR #18) are merged
+  (SOB-152): every recommendation. It becomes Accepted once ADR-0022 (PR #18)
+  is merged (ADR-0019 is merged)
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (answers of 2026-10-31, recorded in SOB-152); CTO
   recommendation
 - **Technical context**: Claude Code and MCP project (SOB-144)
 - **Settles**: the condition of ADR-0019, decision 4 (where the MCP server
-  lives). ADR-0019 is in PR #2, not merged yet; if its decision 4 changes,
-  this ADR is amended
+  lives). ADR-0019 is merged (PR #2); if its decision 4 changes, this ADR is
+  amended
 - **Depends on**: ADR-0022, the data model (SOB-143, PR #18, not merged yet),
   for projects, tasks and sessions
 
@@ -107,7 +107,7 @@ recommended one, for points 1 to 7 and confirmed point 8.
 | 8. Prerequisite | Confirmed: SOB-114 and SOB-115 before the organization read tools and exports |
 
 The design does not change: the decisions below stand as written. What is
-left is the merge of ADR-0019 and ADR-0022, then the status.
+left is the merge of ADR-0022 (PR #18), then the status.
 ## Context and problem statement
 
 ### What the design asks for
