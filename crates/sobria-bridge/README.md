@@ -1,139 +1,82 @@
 # sobria-bridge
 
-Native Messaging bridge entre l'extension navigateur Sobr.ia et l'app
-Sobr.ia desktop (C27.5).
+Native Messaging host between the Sobr.ia browser extension and the Sobr.ia
+desktop app.
 
-## Rôle
+## What it does
 
-Binaire éphémère local invoqué par le navigateur via Native Messaging.
-Lit `stdin` (uint32 LE + JSON UTF-8), traite la requête, écrit la
-réponse au même format sur `stdout`. Aucun port réseau, aucun service
-permanent — sécurité OS de Native Messaging WebExtensions.
+The browser starts the `sobria-bridge` binary and talks to it on stdin and
+stdout: each message is a little-endian `u32` length followed by UTF-8 JSON.
+The bridge opens no network port and runs only while the browser keeps the
+port open.
 
-## Statut v0.6.0 (POC C27.5.a)
+Each request (`ping`, `pair`, `estimate`, `revoke`) is forwarded to the
+desktop app over a local channel, and the app's reply is passed back as is.
+When the forward fails, the bridge answers by itself:
 
-- ✅ Protocole length-prefixed JSON conforme WebExtensions Native Messaging
-- ✅ `Ping` → `{ pong: true }`
-- ✅ `Estimate{ secret, payload }` → spool fichier append-only
-  (`~/.sobria/spool/incoming.jsonl`, rotation 10 MB)
-- ⏳ `Pair{ code }` / `Revoke{ secret }` → erreur tant que l'app desktop
-  n'est pas joignable (cf. C27.5.b/c — module `sobria-app::pairing` à
-  livrer)
+- `ping` → `{ ok: true, pong: true }` (the bridge is installed);
+- `estimate` → appended to the spool (see below);
+- `pair` and `revoke` → refused, they need the app.
 
-## Installation manuelle (en attendant C27.5.b auto-install par l'app)
+Local channel: `$XDG_RUNTIME_DIR/sobria-bridge.sock`, or
+`/tmp/sobria-bridge.sock` without it (Unix), and `\\.\pipe\sobria-bridge`
+(Windows). Known gaps: the channel is not restricted to the current OS user
+yet (SOB-107), the Windows forward has no timeout (SOB-96), and the bridge
+falls back even after the app received the request (SOB-190).
 
-### Étape 1 — build du binaire
+## Installation
 
-```bash
-cargo build -p sobria-bridge --release
-# → target/release/sobria-bridge (Linux/macOS)
-# → target\release\sobria-bridge.exe (Windows)
-```
+The desktop app writes the native messaging manifests itself
+(`sobria-app`, `bridge_install.rs`).
 
-### Étape 2 — rendre le manifest natif accessible au navigateur
-
-Copier `manifest/com.sobria.bridge.json.tmpl` et substituer :
-
-- `{{BRIDGE_PATH}}` : chemin absolu vers le binaire `sobria-bridge`
-- `{{ALLOWED_ORIGINS}}` : `"chrome-extension://<ID>/"` (ID de l'extension
-  visible dans `chrome://extensions/`). Plusieurs origines séparées par
-  virgule pour autoriser plusieurs navigateurs.
-
-Exemple de manifest final pour Chrome :
-
-```json
-{
-  "name": "com.sobria.bridge",
-  "description": "Sobr.ia native messaging bridge",
-  "path": "/Users/<you>/sobria/target/release/sobria-bridge",
-  "type": "stdio",
-  "allowed_origins": [
-    "chrome-extension://abcdefghijklmnopqrstuvwxyz123456/"
-  ]
-}
-```
-
-### Étape 3 — déployer le manifest aux emplacements OS
-
-**macOS — Chrome / Chromium / Brave / Edge** :
+For development, the scripts build the bridge in release mode and fill
+`manifest.template.json` (`{{BRIDGE_PATH}}`, `{{EXTENSION_ID}}`) for Chrome
+and Firefox:
 
 ```bash
-mkdir -p ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
-cp com.sobria.bridge.json \
-   ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/com.sobria.bridge.json
+crates/sobria-bridge/scripts/install-dev.sh <EXTENSION_ID>      # macOS, Linux
 ```
-
-(Adapter `Google/Chrome` en `Chromium`, `BraveSoftware/Brave-Browser`, `Microsoft Edge` selon le navigateur.)
-
-**macOS — Firefox** :
-
-```bash
-mkdir -p ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/
-cp com.sobria.bridge.json \
-   ~/Library/Application\ Support/Mozilla/NativeMessagingHosts/com.sobria.bridge.json
-```
-
-**Linux — Chrome** :
-
-```bash
-mkdir -p ~/.config/google-chrome/NativeMessagingHosts/
-cp com.sobria.bridge.json \
-   ~/.config/google-chrome/NativeMessagingHosts/com.sobria.bridge.json
-```
-
-**Linux — Firefox** :
-
-```bash
-mkdir -p ~/.mozilla/native-messaging-hosts/
-cp com.sobria.bridge.json \
-   ~/.mozilla/native-messaging-hosts/com.sobria.bridge.json
-```
-
-**Windows — Chrome** (PowerShell, en tant qu'utilisateur) :
 
 ```powershell
-New-Item -Path "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.sobria.bridge" `
-  -Force | Out-Null
-Set-Item -Path "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.sobria.bridge" `
-  -Value "C:\absolute\path\to\com.sobria.bridge.json"
+crates\sobria-bridge\scripts\install-dev.ps1 -ExtensionId <ID>  # Windows
 ```
 
-**Windows — Firefox** :
+The extension ID is shown in `chrome://extensions` once the extension is
+loaded. The manifest written for Firefox is the Chrome one, so the Firefox dev
+install does not work yet (SOB-82).
 
-```powershell
-New-Item -Path "HKCU:\Software\Mozilla\NativeMessagingHosts\com.sobria.bridge" `
-  -Force | Out-Null
-Set-Item -Path "HKCU:\Software\Mozilla\NativeMessagingHosts\com.sobria.bridge" `
-  -Value "C:\absolute\path\to\com.sobria.bridge.json"
-```
+Manifest locations, for a manual install:
 
-### Étape 4 — vérifier
+| OS | Browser | Location |
+| -- | -- | -- |
+| macOS | Chrome | `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.sobria.bridge.json` |
+| macOS | Firefox | `~/Library/Application Support/Mozilla/NativeMessagingHosts/com.sobria.bridge.json` |
+| Linux | Chrome | `~/.config/google-chrome/NativeMessagingHosts/com.sobria.bridge.json` |
+| Linux | Firefox | `~/.mozilla/native-messaging-hosts/com.sobria.bridge.json` |
+| Windows | Chrome | registry key `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.sobria.bridge`, value: path of the JSON file |
+| Windows | Firefox | registry key `HKCU\Software\Mozilla\NativeMessagingHosts\com.sobria.bridge`, value: path of the JSON file |
 
-Ouvrir le devtools du service worker de l'extension (chrome://extensions/ →
-détails → inspecter le service worker), puis :
+To check, open the extension's service worker console and run:
 
 ```js
 const port = chrome.runtime.connectNative('com.sobria.bridge');
 port.onMessage.addListener((m) => console.log('bridge response:', m));
 port.postMessage({ type: 'ping', reqId: 'manual-1' });
-// → attend `{ reqId: 'manual-1', ok: true, pong: true }`
+// → { reqId: 'manual-1', ok: true, pong: true }
 ```
 
-Si le port est immédiatement déconnecté avec une erreur, vérifier :
-- chemin absolu correct dans le manifest
-- binaire exécutable (`chmod +x` sur Unix)
-- ID de l'extension correct dans `allowed_origins`
+If the port disconnects at once, check the absolute path in the manifest, that
+the binary is executable, and the extension ID in `allowed_origins`.
 
-## Spool fichier
+## Spool
 
-Si `Pair` n'a pas été établi côté app desktop, les `Estimate` sont quand
-même acceptés par le bridge mais marqués avec le `secret_hash` (short
-FNV) au lieu d'être validés. L'app desktop draine
-`~/.sobria/spool/incoming.jsonl` au démarrage (C27.5.d).
+Offline estimates go to `~/.sobria/spool/incoming.jsonl`, one JSON line each:
+`{ secret_hash, payload, received_at }`. The app drains it
+(`sobria-app`, `extension_store.rs`). Above 10 MB the file is moved to
+`incoming.jsonl.bak` and a new one starts.
 
-Rotation : si le fichier dépasse 10 MB, il est renommé en
-`incoming.jsonl.bak` et un nouveau spool repart à zéro. Évite
-l'accumulation sans bornes si l'app desktop reste éteinte longtemps.
+The secret is not checked on this path (SOB-119), and `secret_hash` is a weak,
+unkeyed hash (SOB-81).
 
 ## Tests
 
@@ -141,12 +84,5 @@ l'accumulation sans bornes si l'app desktop reste éteinte longtemps.
 cargo test -p sobria-bridge
 ```
 
-## Prochaines étapes (C27.5.b/c/d)
-
-- `crates/sobria-app::pairing` : module Rust avec table SQLite
-  `device_pairings`, génération code 6 chiffres TTL 5 min, vérification
-  Argon2id du secret.
-- `crates/sobria-app::bridge_install` : auto-install du manifest natif
-  par l'app desktop (`install_extension_bridge` IPC).
-- `crates/sobria-app::extension_ingest` : `drain_extension_spool` IPC +
-  timer Tokio 5 s, insertion dans table `extension_events`.
+`tests/bridge_process.rs` and `tests/forward_wire.rs` run on Unix only (they
+fake the app on a Unix socket and isolate `HOME`).

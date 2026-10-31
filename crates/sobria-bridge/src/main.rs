@@ -1,13 +1,10 @@
-//! Binaire `sobria-bridge` — boucle stdin/stdout Native Messaging.
+//! `sobria-bridge` binary: the Native Messaging host started by the browser.
 //!
-//! Lance la lecture jusqu'à EOF, et pour chaque requête :
-//!   1. Tente un forward au socket de l'app desktop (patch C27 v0.6.0)
-//!      via [`try_forward_to`]. Si l'app est joignable, `Pair`/`Revoke`
-//!      reçoivent une réponse synchrone en temps réel.
-//!   2. Si le socket est injoignable, retombe sur [`handle_request`] qui
-//!      écrit dans le spool fichier (fallback offline historique).
-//!
-//! Pour le protocole et la logique métier, voir [`sobria_bridge`] (lib).
+//! Reads framed requests on stdin until the end of the stream. Each one is
+//! forwarded to the desktop app with [`try_forward_to`]; on any forward error
+//! it is handled offline by [`handle_request`] (spool for estimates). A request
+//! that cannot be read ends the process (SOB-190).
+#![deny(unsafe_code)]
 
 use anyhow::Result;
 use sobria_bridge::{
