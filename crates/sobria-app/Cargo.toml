@@ -56,3 +56,12 @@ reqwest = { workspace = true }
 tempfile = { workspace = true }
 # SOB-188 — mock app for the tests (`tauri::test`); an empty feature, no new crate.
 tauri = { workspace = true, features = ["test"] }
+# SOB-200 — a TLS stub with a self-signed certificate, to test the "accept invalid
+# certificates" setting of the team client on a real TLS connection. Dev-only, and the
+# same crates with the same features as the team server (`sobria-team-aggregator`): they
+# are already in Cargo.lock, so no crate is added to the build, and `ring` only means no
+# aws-lc-sys (no NASM on Windows). `rcgen` makes the certificate at test time, so no
+# private key is committed. The alternatives were a key committed as a fixture (flagged
+# by secret scanners, and the certificate expires) or no test of this setting at all.
+rcgen = { version = "0.13", default-features = false, features = ["crypto", "ring", "pem"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
