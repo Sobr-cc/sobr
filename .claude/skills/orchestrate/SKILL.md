@@ -20,7 +20,7 @@ Keep: Triage; In Review; In Progress; ready Todo; Decision issues Thibault answe
 
 For each Triage issue, propose one action, with the reason in one sentence:
 
-- **Complete it** with `linear-issue-writing` until it meets "Ready" (the "Prêt" list in §11).
+- **Complete it** with `linear-issue-writing` until it meets the "Ready" list in §11.
 - **Split it** if it is over 8 points: by user-visible result, never by technical layer.
 - **Turn it into a Decision** if only Thibault can decide, or **into a Research** (3 points or less) if facts are missing.
 - **Duplicate** of an issue already read in step 1.
