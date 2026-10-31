@@ -542,7 +542,8 @@ async fn admin_user_detail_route_respects_visibility_policy() {
     assert_eq!(body["totals"]["count"], 1);
     assert_eq!(body["top_models"][0]["model_id"], "llama-3-1-70b");
 
-    // Without `from`/`to`, the last 30 days: a recent estimation counts, the May one does not.
+    // Without `from`/`to`, the window is the last 30 days: `top_models` counts the
+    // recent estimation only, while `totals` stay lifetime (both estimations).
     let recent = fx
         .client
         .post(format!("{}/api/v1/estimations", fx.base_url))
@@ -563,7 +564,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .await
         .unwrap();
     assert_eq!(recent.status(), 200);
-    let default_window: serde_json::Value = fx
+    let default_window = fx
         .client
         .get(format!(
             "{}/api/v1/admin/users/{}/analytics",
@@ -572,10 +573,9 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .bearer_auth(&fx.admin_access)
         .send()
         .await
-        .unwrap()
-        .json()
-        .await
         .unwrap();
+    assert_eq!(default_window.status(), 200);
+    let default_window: serde_json::Value = default_window.json().await.unwrap();
     assert_eq!(default_window["totals"]["count"], 2);
     assert_eq!(default_window["top_models"][0]["count"], 1);
 

@@ -9,7 +9,7 @@
 //! - GET /style.css.does-not-exist → 404 (path avec extension non trouvé).
 //!
 //! Skipped when the binary was built without `web-team/build` (Rust-only CI),
-//! unless `SOBRIA_REQUIRE_EMBEDDED_UI` is set: then the missing bundle fails.
+//! unless `SOBRIA_REQUIRE_EMBEDDED_UI=1`: then the missing bundle fails.
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -26,8 +26,8 @@ async fn embedded_dashboard_is_served() {
     // `debug-embed` bakes web-team/build in at compile time, so ask the binary, not the disk.
     if !embedded_web::bundle_embedded() {
         assert!(
-            std::env::var_os("SOBRIA_REQUIRE_EMBEDDED_UI").is_none(),
-            "SOBRIA_REQUIRE_EMBEDDED_UI is set, but this binary was built without web-team/build"
+            std::env::var("SOBRIA_REQUIRE_EMBEDDED_UI").as_deref() != Ok("1"),
+            "SOBRIA_REQUIRE_EMBEDDED_UI=1, but this binary was built without web-team/build"
         );
         eprintln!(
             "skipped: built without web-team/build; run `cd web-team && npm ci && npm run build`, then `cargo clean -p sobria-team-aggregator`"
