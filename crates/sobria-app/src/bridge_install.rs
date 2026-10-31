@@ -50,8 +50,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
-/// Native host name (see `chrome.runtime.connectNative("com.sobria.bridge")`).
-pub const NATIVE_HOST_NAME: &str = "com.sobria.bridge";
+pub use sobria_bridge::NATIVE_HOST_NAME;
 
 /// Description embedded in the JSON manifest.
 pub const NATIVE_HOST_DESCRIPTION: &str = "Sobr.ia native messaging bridge";
@@ -81,7 +80,7 @@ impl BrowserKind {
         Self::Chromium,
     ];
 
-    /// Stable kebab-case identifier (logs, serialization).
+    /// Stable snake_case identifier, the same as the serde name (logs).
     #[must_use]
     pub const fn id(self) -> &'static str {
         match self {
@@ -192,41 +191,29 @@ fn user_data_path(
     appdata: Option<&Path>,
     local: Option<&Path>,
 ) -> Option<PathBuf> {
-    match (os, browser) {
-        (HostOs::Macos, BrowserKind::Chrome) => {
-            Some(home.join("Library/Application Support/Google/Chrome"))
-        },
-        (HostOs::Macos, BrowserKind::Firefox) => {
-            Some(home.join("Library/Application Support/Firefox"))
-        },
-        (HostOs::Macos, BrowserKind::Edge) => {
-            Some(home.join("Library/Application Support/Microsoft Edge"))
-        },
-        (HostOs::Macos, BrowserKind::Brave) => {
-            Some(home.join("Library/Application Support/BraveSoftware/Brave-Browser"))
-        },
-        (HostOs::Macos, BrowserKind::Chromium) => {
-            Some(home.join("Library/Application Support/Chromium"))
-        },
+    let (base, dir) = match (os, browser) {
+        (HostOs::Macos, BrowserKind::Chrome) => (home, "Library/Application Support/Google/Chrome"),
+        (HostOs::Macos, BrowserKind::Firefox) => (home, "Library/Application Support/Firefox"),
+        (HostOs::Macos, BrowserKind::Edge) => (home, "Library/Application Support/Microsoft Edge"),
+        (HostOs::Macos, BrowserKind::Brave) => (
+            home,
+            "Library/Application Support/BraveSoftware/Brave-Browser",
+        ),
+        (HostOs::Macos, BrowserKind::Chromium) => (home, "Library/Application Support/Chromium"),
 
-        (HostOs::Linux, BrowserKind::Chrome) => Some(home.join(".config/google-chrome")),
-        (HostOs::Linux, BrowserKind::Firefox) => Some(home.join(".mozilla/firefox")),
-        (HostOs::Linux, BrowserKind::Edge) => Some(home.join(".config/microsoft-edge")),
-        (HostOs::Linux, BrowserKind::Brave) => {
-            Some(home.join(".config/BraveSoftware/Brave-Browser"))
-        },
-        (HostOs::Linux, BrowserKind::Chromium) => Some(home.join(".config/chromium")),
+        (HostOs::Linux, BrowserKind::Chrome) => (home, ".config/google-chrome"),
+        (HostOs::Linux, BrowserKind::Firefox) => (home, ".mozilla/firefox"),
+        (HostOs::Linux, BrowserKind::Edge) => (home, ".config/microsoft-edge"),
+        (HostOs::Linux, BrowserKind::Brave) => (home, ".config/BraveSoftware/Brave-Browser"),
+        (HostOs::Linux, BrowserKind::Chromium) => (home, ".config/chromium"),
 
-        (HostOs::Windows, BrowserKind::Chrome) => local.map(|p| p.join("Google/Chrome/User Data")),
-        (HostOs::Windows, BrowserKind::Firefox) => {
-            appdata.map(|p| p.join("Mozilla/Firefox/Profiles"))
-        },
-        (HostOs::Windows, BrowserKind::Edge) => local.map(|p| p.join("Microsoft/Edge/User Data")),
-        (HostOs::Windows, BrowserKind::Brave) => {
-            local.map(|p| p.join("BraveSoftware/Brave-Browser/User Data"))
-        },
-        (HostOs::Windows, BrowserKind::Chromium) => local.map(|p| p.join("Chromium/User Data")),
-    }
+        (HostOs::Windows, BrowserKind::Chrome) => (local?, "Google/Chrome/User Data"),
+        (HostOs::Windows, BrowserKind::Firefox) => (appdata?, "Mozilla/Firefox/Profiles"),
+        (HostOs::Windows, BrowserKind::Edge) => (local?, "Microsoft/Edge/User Data"),
+        (HostOs::Windows, BrowserKind::Brave) => (local?, "BraveSoftware/Brave-Browser/User Data"),
+        (HostOs::Windows, BrowserKind::Chromium) => (local?, "Chromium/User Data"),
+    };
+    Some(base.join(dir))
 }
 
 /// Install path of the manifest for this browser on the current OS.
@@ -244,50 +231,47 @@ pub fn manifest_install_path_for(
     home: &Path,
     appdata: Option<&Path>,
 ) -> Result<PathBuf> {
-    let path = match (os, browser) {
+    let (base, dir) = match (os, browser) {
         // ── macOS ────────────────────────────────────────────────────────────
-        (HostOs::Macos, BrowserKind::Chrome) => home.join(format!(
-            "Library/Application Support/Google/Chrome/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Macos, BrowserKind::Firefox) => home.join(format!(
-            "Library/Application Support/Mozilla/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Macos, BrowserKind::Edge) => home.join(format!(
-            "Library/Application Support/Microsoft Edge/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Macos, BrowserKind::Brave) => home.join(format!(
-            "Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Macos, BrowserKind::Chromium) => home.join(format!(
-            "Library/Application Support/Chromium/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
+        (HostOs::Macos, BrowserKind::Chrome) => (
+            home,
+            "Library/Application Support/Google/Chrome/NativeMessagingHosts",
+        ),
+        (HostOs::Macos, BrowserKind::Firefox) => (
+            home,
+            "Library/Application Support/Mozilla/NativeMessagingHosts",
+        ),
+        (HostOs::Macos, BrowserKind::Edge) => (
+            home,
+            "Library/Application Support/Microsoft Edge/NativeMessagingHosts",
+        ),
+        (HostOs::Macos, BrowserKind::Brave) => (
+            home,
+            "Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts",
+        ),
+        (HostOs::Macos, BrowserKind::Chromium) => (
+            home,
+            "Library/Application Support/Chromium/NativeMessagingHosts",
+        ),
 
         // ── Linux ────────────────────────────────────────────────────────────
         (HostOs::Linux, BrowserKind::Chrome) => {
-            home.join(format!(".config/google-chrome/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"))
+            (home, ".config/google-chrome/NativeMessagingHosts")
         },
-        (HostOs::Linux, BrowserKind::Firefox) => {
-            home.join(format!(".mozilla/native-messaging-hosts/{NATIVE_HOST_NAME}.json"))
-        },
-        (HostOs::Linux, BrowserKind::Edge) => home.join(format!(
-            ".config/microsoft-edge/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Linux, BrowserKind::Brave) => home.join(format!(
-            ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"
-        )),
-        (HostOs::Linux, BrowserKind::Chromium) => {
-            home.join(format!(".config/chromium/NativeMessagingHosts/{NATIVE_HOST_NAME}.json"))
-        },
+        (HostOs::Linux, BrowserKind::Firefox) => (home, ".mozilla/native-messaging-hosts"),
+        (HostOs::Linux, BrowserKind::Edge) => (home, ".config/microsoft-edge/NativeMessagingHosts"),
+        (HostOs::Linux, BrowserKind::Brave) => (
+            home,
+            ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts",
+        ),
+        (HostOs::Linux, BrowserKind::Chromium) => (home, ".config/chromium/NativeMessagingHosts"),
 
         // ── Windows ──────────────────────────────────────────────────────────
         // One manifest for all browsers; the per-browser HKCU registry key
         // points to it.
-        (HostOs::Windows, _) => {
-            let appdata = appdata.context("APPDATA introuvable")?;
-            appdata.join(format!("Sobria/bridge/{NATIVE_HOST_NAME}.json"))
-        },
+        (HostOs::Windows, _) => (appdata.context("APPDATA introuvable")?, "Sobria/bridge"),
     };
-    Ok(path)
+    Ok(base.join(format!("{dir}/{NATIVE_HOST_NAME}.json")))
 }
 
 /// On Windows: name of the HKCU\Software\... key to point to the manifest.
@@ -314,25 +298,19 @@ pub fn build_manifest_json(
     bridge_path: &Path,
     extension_id: &str,
 ) -> serde_json::Value {
-    let allowed = if browser.is_firefox() {
-        serde_json::json!({ "allowed_extensions": [FIREFOX_EXTENSION_ID] })
-    } else {
-        serde_json::json!({
-            "allowed_origins": [format!("chrome-extension://{extension_id}/")]
-        })
-    };
-    let mut base = serde_json::json!({
+    let mut manifest = serde_json::json!({
         "name": NATIVE_HOST_NAME,
         "description": NATIVE_HOST_DESCRIPTION,
         "path": bridge_path.to_string_lossy(),
         "type": "stdio",
     });
-    if let (Some(obj), Some(extra)) = (base.as_object_mut(), allowed.as_object()) {
-        for (k, v) in extra {
-            obj.insert(k.clone(), v.clone());
-        }
+    if browser.is_firefox() {
+        manifest["allowed_extensions"] = serde_json::json!([FIREFOX_EXTENSION_ID]);
+    } else {
+        manifest["allowed_origins"] =
+            serde_json::json!([format!("chrome-extension://{extension_id}/")]);
     }
-    base
+    manifest
 }
 
 /// Writes the native manifest to the standard OS location. On Windows, also
@@ -390,7 +368,7 @@ pub fn uninstall_native_manifest(browser: BrowserKind) -> Result<()> {
     uninstall_native_manifest_at(&path)?;
     #[cfg(target_os = "windows")]
     {
-        let _ = unregister_windows_native_host(browser);
+        unregister_windows_native_host(browser);
     }
     Ok(())
 }
@@ -409,10 +387,19 @@ pub fn uninstall_native_manifest_at(path: &Path) -> Result<()> {
 #[must_use]
 pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     let detected = detect_installed_browsers();
-    let installed = BrowserKind::ALL
-        .into_iter()
-        .filter(|b| manifest_install_path(*b).is_ok_and(|p| p.exists()))
-        .collect();
+    let installed = match dirs::home_dir() {
+        Some(home) => {
+            let appdata = dirs::config_dir();
+            BrowserKind::ALL
+                .into_iter()
+                .filter(|b| {
+                    manifest_install_path_for(HostOs::current(), *b, &home, appdata.as_deref())
+                        .is_ok_and(|p| p.exists())
+                })
+                .collect()
+        },
+        None => Vec::new(),
+    };
     BridgeStatus {
         bridge_path,
         installed,
@@ -444,13 +431,11 @@ fn register_windows_native_host(browser: BrowserKind, manifest_path: &Path) -> R
 }
 
 #[cfg(target_os = "windows")]
-fn unregister_windows_native_host(browser: BrowserKind) -> Result<()> {
+fn unregister_windows_native_host(browser: BrowserKind) {
     let key = windows_registry_key(browser);
     let _ = std::process::Command::new("reg")
         .args(["DELETE", &key, "/f"])
-        .output()
-        .context("invoke reg.exe DELETE")?;
-    Ok(())
+        .output();
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────

@@ -19,11 +19,16 @@
 //!
 //! ## Usage
 //!
-//! The "Régénérer" button of "Extension navigateur" stores a new
-//! [`PendingCode`] in `AppState`. When the bridge forwards the code typed in
-//! the extension, [`verify_code`] checks it, a [`PairingSecret`] is created
-//! and saved in `device_pairings`, and the plain secret goes back to the
-//! extension through the bridge.
+//! The flow of `bridge_server` and `logic::verify_pairing_code`:
+//! ```ignore
+//! // "Régénérer" in "Extension navigateur": a new code waits in AppState.
+//! *state.pending_code.lock()? = Some(PendingCode::new());
+//! // The bridge forwards the code typed in the extension:
+//! verify_code(pending, &code, Utc::now())?;
+//! let secret = PairingSecret::new();
+//! let pairing_id = store.record_pairing(fingerprint, &secret)?;
+//! // The code is consumed; `secret.secret_hex` goes back to the extension.
+//! ```
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -146,8 +151,8 @@ impl Default for PairingSecret {
 }
 
 /// `true` if `stored_hash` looks like an Argon2id PHC hash (prefix
-/// `$argon2id$`). Used by the v2 → v3 migration to find and revoke
-/// the old hex SHA-256 hashes.
+/// `$argon2id$`). The v2 → v3 migration matches the same prefix in SQL
+/// (`NOT LIKE '$argon2id$%'`), not with this function.
 #[must_use]
 pub fn is_argon2id_phc(stored_hash: &str) -> bool {
     stored_hash.starts_with("$argon2id$")
@@ -165,10 +170,7 @@ pub fn verify_code(
     if submitted.len() != 6 || !submitted.chars().all(|c| c.is_ascii_digit()) {
         return Err(PairingError::Malformed);
     }
-    if !pending.is_valid(now) {
-        return Err(PairingError::InvalidCode);
-    }
-    if constant_time_eq(submitted.as_bytes(), pending.code.as_bytes()) {
+    if pending.is_valid(now) && constant_time_eq(submitted.as_bytes(), pending.code.as_bytes()) {
         Ok(())
     } else {
         Err(PairingError::InvalidCode)

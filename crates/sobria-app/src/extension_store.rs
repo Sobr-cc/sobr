@@ -23,8 +23,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
+use rusqlite::{params, Connection, OptionalExtension};
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::pairing::PairingSecret;
@@ -65,8 +65,8 @@ CREATE INDEX IF NOT EXISTS idx_extension_events_ts ON extension_events(ts);
 CREATE INDEX IF NOT EXISTS idx_extension_events_pairing ON extension_events(pairing_id);
 ";
 
-/// DTO exposed over IPC to list the paired extensions.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A `device_pairings` row; IPC sends it as `dto::PairingDto`.
+#[derive(Debug, Clone)]
 pub struct PairingRow {
     pub id: String,
     pub fingerprint: String,
@@ -75,8 +75,8 @@ pub struct PairingRow {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-/// Normalized DTO of an extension event after ingestion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// An `extension_events` row; IPC sends it as `dto::ExtensionEventDto`.
+#[derive(Debug, Clone)]
 pub struct ExtensionEventRow {
     pub id: String,
     pub pairing_id: String,
@@ -99,20 +99,23 @@ pub struct ExtensionStore {
 impl ExtensionStore {
     /// Opens / creates the tables in `referentiel.sqlite`.
     pub fn open(path: &Path) -> Result<Self> {
-        let conn = Connection::open(path).with_context(|| format!("open {}", path.display()))?;
-        conn.execute_batch(SCHEMA)
-            .context("install extension_store schema")?;
-        migrate_device_pairings_v3(&conn)
-            .context("migration device_pairings v2 → v3 (Argon2id)")?;
-        Ok(Self { conn })
+        let conn = crate::db::open_referentiel(path)
+            .with_context(|| format!("open {}", path.display()))?;
+        Self::with_schema(conn)
     }
 
     /// Builds an in-memory store (useful for tests).
     #[cfg(test)]
     pub fn open_in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory()?;
-        conn.execute_batch(SCHEMA)?;
-        migrate_device_pairings_v3(&conn)?;
+        Self::with_schema(Connection::open_in_memory()?)
+    }
+
+    /// Installs the schema on `conn` and runs the v3 migration.
+    fn with_schema(conn: Connection) -> Result<Self> {
+        conn.execute_batch(SCHEMA)
+            .context("install extension_store schema")?;
+        migrate_device_pairings_v3(&conn)
+            .context("migration device_pairings v2 → v3 (Argon2id)")?;
         Ok(Self { conn })
     }
 
@@ -181,55 +184,54 @@ impl ExtensionStore {
     /// invalid / the pairing is revoked. The stored hash is an Argon2id PHC
     /// string; the v3 migration ensures no legacy SHA-256 hash stays active.
     pub fn verify_secret(&self, fingerprint: &str, candidate_hex: &str) -> Result<Option<String>> {
-        let row = self.conn.query_row(
+        let mut stmt = self.conn.prepare_cached(
             "SELECT id, secret_hash FROM device_pairings
              WHERE fingerprint = ?1 AND revoked_at IS NULL",
-            params![fingerprint],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-        );
-        match row {
-            Ok((id, hash)) => {
-                if PairingSecret::verify_against(&hash, candidate_hex) {
-                    // Updates `last_seen_at` (best-effort).
-                    let now = Utc::now().to_rfc3339();
-                    let _ = self.conn.execute(
-                        "UPDATE device_pairings SET last_seen_at = ?1 WHERE id = ?2",
-                        params![now, id],
-                    );
-                    Ok(Some(id))
-                } else {
-                    Ok(None)
-                }
-            },
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
+        )?;
+        let row = stmt
+            .query_row(params![fingerprint], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .optional()?;
+        let Some((id, hash)) = row else {
+            return Ok(None);
+        };
+        if !PairingSecret::verify_against(&hash, candidate_hex) {
+            return Ok(None);
         }
+        // Updates `last_seen_at` (best-effort).
+        let now = Utc::now().to_rfc3339();
+        let _ = self
+            .conn
+            .prepare_cached("UPDATE device_pairings SET last_seen_at = ?1 WHERE id = ?2")
+            .and_then(|mut update| update.execute(params![now, id]));
+        Ok(Some(id))
     }
 
     /// Inserts an event (already validated for an active pairing).
     pub fn record_event(&self, event: &ExtensionEventInput) -> Result<String> {
         let id = ulid();
         let ingested = Utc::now().to_rfc3339();
-        self.conn.execute(
+        let mut stmt = self.conn.prepare_cached(
             "INSERT INTO extension_events(
                 id, pairing_id, ts, method, model_id, tokens_in, tokens_out,
                 gco2eq_p50, water_ml, energy_wh, raw_payload_json, ingested_at
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            params![
-                id,
-                event.pairing_id,
-                event.ts.to_rfc3339(),
-                event.method,
-                event.model_id,
-                event.tokens_in,
-                event.tokens_out,
-                event.gco2eq_p50,
-                event.water_ml,
-                event.energy_wh,
-                event.raw_payload_json,
-                ingested,
-            ],
         )?;
+        stmt.execute(params![
+            id,
+            event.pairing_id,
+            event.ts.to_rfc3339(),
+            event.method,
+            event.model_id,
+            event.tokens_in,
+            event.tokens_out,
+            event.gco2eq_p50,
+            event.water_ml,
+            event.energy_wh,
+            event.raw_payload_json,
+            ingested,
+        ])?;
         Ok(id)
     }
 
@@ -267,6 +269,20 @@ impl ExtensionStore {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
+
+    /// Returns the `id` of the first active pairing (revoked ones excluded),
+    /// which `drain_spool` credits while the payload has no fingerprint
+    /// (SOB-119).
+    fn first_active_pairing(&self) -> Result<Option<String>> {
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT id FROM device_pairings WHERE revoked_at IS NULL
+             ORDER BY created_at DESC LIMIT 1",
+        )?;
+        let id = stmt
+            .query_row([], |row| row.get::<_, String>(0))
+            .optional()?;
+        Ok(id)
+    }
 }
 
 /// Entry to insert into `extension_events` once the secret is validated.
@@ -282,6 +298,44 @@ pub struct ExtensionEventInput {
     pub water_ml: f64,
     pub energy_wh: f64,
     pub raw_payload_json: String,
+}
+
+impl ExtensionEventInput {
+    /// Event of `payload`'s `estimate` object; token counts above `u32::MAX` become `overflow`.
+    pub(crate) fn from_estimate(
+        pairing_id: String,
+        ts: DateTime<Utc>,
+        payload: &Value,
+        estimate: &Value,
+        overflow: u32,
+    ) -> Self {
+        let text = |key: &str, default: &str| {
+            estimate
+                .get(key)
+                .and_then(Value::as_str)
+                .unwrap_or(default)
+                .to_string()
+        };
+        let tokens = |key: &str| {
+            estimate
+                .get(key)
+                .and_then(Value::as_u64)
+                .map_or(0, |v| u32::try_from(v).unwrap_or(overflow))
+        };
+        let number = |key: &str| estimate.get(key).and_then(Value::as_f64).unwrap_or(0.0);
+        Self {
+            pairing_id,
+            ts,
+            method: text("method", "afnor_sobria"),
+            model_id: text("modelId", "unknown"),
+            tokens_in: tokens("tokensIn"),
+            tokens_out: tokens("tokensOut"),
+            gco2eq_p50: number("gco2eq"),
+            water_ml: number("waterMl"),
+            energy_wh: number("energyWh"),
+            raw_payload_json: payload.to_string(),
+        }
+    }
 }
 
 /// Drains the spool file `incoming.jsonl` written by `sobria-bridge`.
@@ -356,77 +410,20 @@ impl SpoolEnvelope {
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         // The secret hash is read but not checked (SOB-119).
         let _ = self.secret_hash;
-        Ok(Some(ExtensionEventInput {
+        Ok(Some(ExtensionEventInput::from_estimate(
             pairing_id,
             ts,
-            method: estimate
-                .get("method")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("afnor_sobria")
-                .to_string(),
-            model_id: estimate
-                .get("modelId")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("unknown")
-                .to_string(),
-            tokens_in: u32::try_from(
-                estimate
-                    .get("tokensIn")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-            )
-            .unwrap_or(u32::MAX),
-            tokens_out: u32::try_from(
-                estimate
-                    .get("tokensOut")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-            )
-            .unwrap_or(u32::MAX),
-            gco2eq_p50: estimate
-                .get("gco2eq")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(0.0),
-            water_ml: estimate
-                .get("waterMl")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(0.0),
-            energy_wh: estimate
-                .get("energyWh")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(0.0),
-            raw_payload_json: payload.to_string(),
-        }))
-    }
-}
-
-impl ExtensionStore {
-    /// Returns the `id` of the first active pairing (revoked ones excluded),
-    /// which `drain_spool` credits while the payload has no fingerprint
-    /// (SOB-119).
-    fn first_active_pairing(&self) -> Result<Option<String>> {
-        let row = self.conn.query_row(
-            "SELECT id FROM device_pairings WHERE revoked_at IS NULL
-             ORDER BY created_at DESC LIMIT 1",
-            [],
-            |row| row.get::<_, String>(0),
-        );
-        match row {
-            Ok(id) => Ok(Some(id)),
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
-        }
+            payload,
+            estimate,
+            u32::MAX,
+        )))
     }
 }
 
 // ─── Private helpers ─────────────────────────────────────────────────────────
 
 fn parse_dt(s: &str) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
-        })
+    crate::db::parse_rfc3339_col(s, 0)
 }
 
 /// Crockford Base32 alphabet (ULID spec: no I, L, O, U).
@@ -448,32 +445,21 @@ fn ulid() -> String {
     let ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_millis());
-
-    // 10 chars: 48-bit timestamp, packed 5 bits per char.
-    // 48 bits = 10×5 - 2, so the 1st char has 2 padding bits at the top.
-    let mut out = [0u8; 26];
-    let mut t = ms;
-    for i in (0..10).rev() {
-        out[i] = CROCKFORD[(t & 0x1f) as usize];
-        t >>= 5;
-    }
-
-    // 16 chars: 80 random bits.
     let mut rand_bytes = [0u8; 10];
     rand::thread_rng().fill_bytes(&mut rand_bytes);
-    // Reads the 80 bits as a right-aligned 128-bit integer and
-    // shifts 5 bits at a time.
-    let mut r: u128 = 0;
-    for b in &rand_bytes {
-        r = (r << 8) | u128::from(*b);
-    }
-    for i in (10..26).rev() {
-        out[i] = CROCKFORD[(r & 0x1f) as usize];
-        r >>= 5;
-    }
 
-    // SAFETY: all bytes come from CROCKFORD (alphanumeric ASCII).
-    String::from_utf8(out.to_vec()).expect("ULID chars are ASCII by construction")
+    // 130 bits read 5 at a time from the end: 2 zero bits, the 48-bit
+    // timestamp, then the 80 random bits.
+    let random = rand_bytes
+        .iter()
+        .fold(0u128, |acc, b| (acc << 8) | u128::from(*b));
+    let mut bits = (ms << 80) | random;
+    let mut out = [0u8; 26];
+    for c in out.iter_mut().rev() {
+        *c = CROCKFORD[(bits & 0x1f) as usize];
+        bits >>= 5;
+    }
+    out.into_iter().map(char::from).collect()
 }
 
 /// v2 → v3 migration of the `device_pairings` schema.
