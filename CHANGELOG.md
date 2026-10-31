@@ -16,6 +16,31 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **ADR-0013 and ADR-0014**: the SOB-87 sentences read in one tense and say
   that the ADR README now carries the rule (SOB-127).
 
+### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
+
+- **`docs/adr/`**: both ADR files and their rows in the index say Accepted
+  (2026-10-30), the day Thibault approved their PRs. No other line changes.
+
+### Added — ADR-0023, the Sobr MCP server contract (2026-10-31, SOB-144)
+
+- **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
+  within the rights of the person who connected it. Thibault answered its
+  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
+  ADR-0019 and ADR-0022 are merged, so it is Accepted.
+  - Two front doors share one contract and one repo (`sobr`): a stdio server
+    for the personal space and a Streamable HTTP route in the Sobr server for
+    an organization. One connection serves one space.
+  - Access comes from a grant made in Sobr (`read`, `write`, `act`), first as
+    a scoped token, later through OAuth 2.1. Rights are looked up on every
+    call, and a grant only narrows them.
+  - 22 read tools (C2) and 25 write tools (C3) are listed with inputs,
+    outputs and permissions. Irreversible tools return a pending action that
+    the person approves in Sobr, so a client without a screen works. A few
+    actions never go through the MCP.
+  - Every write and approval goes to an append-only, chained audit log.
+  - 22 build issues (111 points), marking those that wait for a Deep cleanup.
+  - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
+
 ### Added — Audit ledger migration test (2026-10-31, SOB-160)
 
 - **`sobria-audit`**: `tests/ledger_migration.rs` opens a committed v1 ledger
