@@ -11,7 +11,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **`docs/adr/README.md`**: the "immutable once Accepted" rule is replaced by the
   rule Thibault chose in SOB-87: an accepted ADR is amended in place, by a PR he
-  approves; `Supersedes` stays for a new ADR he explicitly asks for. The file is
+  approves; `Supersedes` stays for a new ADR he explicitly asks for; an ADR with
+  its own revision section (ADR-0014) keeps its extra steps. The file is
   translated to English (translate when touched, SOB-100); the ADR titles in the
   index are left as they are.
 

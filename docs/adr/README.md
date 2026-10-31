@@ -1,7 +1,7 @@
 # Architecture Decision Records — Sobr.ia
 
 ADRs record the project's structural decisions. Each ADR:
-- Is **amended in place** once `Accepted`, by a pull request approved by Thibault. Git keeps the history. An amendment is a dated section that keeps the old text (see Amendment 1 in ADR-0018).
+- Is **amended in place** once `Accepted`, by a pull request approved by Thibault. Git keeps the history. An amendment is a dated section that keeps the old text (see Amendment 1 in ADR-0018). An ADR that has its own revision section (ADR-0014) keeps its extra steps.
 - Is replaced by a new ADR with a `Supersedes` field only when Thibault explicitly asks for a new ADR.
 - Follows the MADR format (Markdown Architecture Decision Records).
 - Is numbered `ADR-NNNN-short-title.md`.
