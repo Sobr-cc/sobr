@@ -2,6 +2,7 @@
 
 > **Status**: proposal for the "Claude Code and MCP" project (SOB-145). **Checked on 2026-10-31** against the official Claude Code documentation (`code.claude.com/docs`).
 > **Related**: ADR-0019 decision 4 (where the import is built), ADR-0022 (the session model and the upload contract), ADR-0015 and CLAUDE.md section 7 (privacy), SOB-146 (session identity and duplicates, not written yet), SOB-67 (the old `sobria-import` crate is removed).
+> **Amendment 1 (2026-10-31, SOB-203, decision [SOB-198](https://linear.app/sobrcc/issue/SOB-198), option A):** the device keeps the folder, repo and branch of a session for 24 months, on the device only, so that rules from corrections can run on past sessions. The server never receives them. The previous wording is kept here for the record: "No prompt text, response text, tool input or output, file path or command line is stored, on the device or on the server", and "Never stored: ... file paths, folder, repo and branch names, command lines, ... The project path may be read to choose a project, but it is not stored or uploaded." Both sentences are replaced by the text below ("What we store per session", the table of what Sobr stores, and "Kept on the device, never uploaded").
 > Every fact about Claude Code links to the official page it comes from. "No official source" means we looked and found none; it is never filled in by guessing. The documentation is read through a fetch tool that summarises pages, so a link is where to confirm a fact, not a proof by itself (see "How this was checked").
 
 ## Summary
@@ -16,11 +17,11 @@ Sobr can measure Claude Code three ways. None of them needs to keep prompt text,
 
 **Token totals per interactive session come only from the transcript (unofficial) or from OpenTelemetry (official, opt-in).** The status line gives a cost total but no token total. Thibault decided on October 31 (SOB-162, option 1) that Sobr reads the transcripts, with the guard rails of section 1, so a solo user gets token totals from them.
 
-What we store per session is below. **No prompt text, response text, tool input or output, file path or command line is stored, on the device or on the server.**
+What we store per session is below. **No prompt text, response text, tool input or output, command line, or path of a file that a session reads or writes is stored, on the device or on the server.** The folder, repo and branch of a session are kept on the device only (see "Kept on the device, never uploaded").
 
 ## What Sobr stores per session
 
-This restates the upload contract of ADR-0022 for Claude Code sources; it adds no field.
+This restates the upload contract of ADR-0022 for Claude Code sources; it adds no field to it. The last row stays on the device.
 
 | Stored | Where it comes from |
 |---|---|
@@ -30,14 +31,17 @@ This restates the upload contract of ADR-0022 for Claude Code sources; it adds n
 | Input, output and cache token totals | OpenTelemetry metrics, or the transcript read at the end of the session |
 | Cost estimate | status line, OpenTelemetry, or the transcript (an estimate at list price, not a bill) |
 | Energy, CO₂ and water with P5, P50, P95, method and version | computed by Sobr from the tokens and the model |
+| Folder, repo and branch of the session (device only, never uploaded) | the folder is the `cwd` value (hooks, status line, or the transcript's `cwd` key; never the transcript's project folder name, which loses characters); the branch is the transcript's `gitBranch` key; the repo is read on the device, best effort, from the `origin` remote of `cwd` (none if there is no `origin`), and only a normalized `host/owner/repo` is kept: credentials, query strings and local paths are dropped, and the value read at import time can differ from the one at the time of the session. If `cwd` or the branch changes during a session, all the values are kept: the context of a session is the union of its reports (ADR-0025 section 7) |
 
-**Never stored**: prompt or response text and anything derived from it (a title, a summary, a first message), tool inputs and outputs, file paths, folder, repo and branch names, command lines, conversation URLs, clock times on the server (ADR-0022). The project path may be read to choose a project, but it is not stored or uploaded.
+**Kept on the device, never uploaded**: the working folder, the repo and the branch of a session, for 24 months (SOB-198, stated in ADR-0025 section 7). Like clock times (ADR-0022 section 10), they stay on the device (the one exception is below), and rules from corrections use them, also on past sessions (ADR-0022 section 6). The server never receives them: the upload contract carries only the project or task ID, never these values, except the issue key found in a branch name, sent on its own in a tracker lookup (ADR-0022 section 10); so no sync of a personal space carries them either, and no log line holds them. A session seen only through OpenTelemetry has no folder, repo or branch, and a rule that needs them does not match it.
+
+**Never stored**: prompt or response text and anything derived from it (a title, a summary, a first message), tool inputs and outputs, any other path (the transcript path, the paths of the files a session reads or writes, the paths in the dictionaries with free keys), command lines, conversation URLs, and clock times on the server (ADR-0022). Of all the paths, only the session's working folder is kept, on the device.
 
 Each source also hands over fields that must be **dropped at the boundary**, before they reach any variable that outlives the call:
 
 - the hook fields `prompt`, `last_assistant_message`, `delta`, `tool_input`, `tool_response`;
 - the status line `session_name` (it can be a title generated from the first prompt), and the Agent SDK `firstPrompt` and `summary`;
-- every OpenTelemetry attribute outside the allow-list, such as `user.email`, `user.account_uuid`, `user.account_id`, `organization.id`, `user.id`, `prompt.id` and the file path attributes;
+- every OpenTelemetry attribute outside the allow-list, such as `user.email`, `user.account_uuid`, `user.account_id`, `organization.id`, `user.id`, `prompt.id` and the file path attributes (the folder is the `cwd` value, the branch the `gitBranch` key and the repo the `origin` remote, all read on the device; see "What Sobr stores per session");
 - everything in a transcript line other than the few keys in the allow-list.
 
 ## 1. Local logs
@@ -60,7 +64,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 
 1. *Parse the transcripts directly.* Only source of history; unofficial format; holds prompt text; breaks on any release; 30 days of history by default.
 2. *Official script interfaces only* (`claude -p --output-format json`, the Agent SDK result message, hooks and status line). Stable and documented, but they only see runs that we start or sessions that are running with the plugin. No history.
-3. *Allow-list reader (recommended for history).* Option 1 with guard rails: read only the few keys needed (model, token counts, a time, the session ID); never copy a message body into a structure that lives past the line; detect the Claude Code version; **fail closed** (an unknown shape yields "no data", never a guess); pin the shapes with golden files made from real samples; count a message once if it appears twice (the SDK warns that assistant messages sharing an ID must be deduplicated in its stream: [cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked; whether transcripts repeat messages: no official source).
+3. *Allow-list reader (recommended for history).* Option 1 with guard rails: read only the few keys needed (model, token counts, a time, the session ID, and the working folder, repo and branch that the device keeps); never copy a message body into a structure that lives past the line; detect the Claude Code version; **fail closed** (an unknown shape yields "no data", never a guess); pin the shapes with golden files made from real samples; count a message once if it appears twice (the SDK warns that assistant messages sharing an ID must be deduplicated in its stream: [cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked; whether transcripts repeat messages: no official source).
 
 **Recommendation**: option 3 for the history import and for the session totals read at the end of a session (the `SessionEnd` hook gives the transcript path, section 2), labelled as a best-effort unofficial source (`claude-code-log`), plus option 2 where a run is ours. Thibault accepted the risk that the format changes on October 31 (SOB-162, option 1), on these guard rails: an allow-list of keys, never keep message text, check the Claude Code version, fail closed on an unknown shape, golden files.
 
@@ -159,7 +163,7 @@ ADR-0019 decision 4 (option 4a) puts the **log import in a crate of `sobr`**: it
 
 Each one is a Linear issue.
 
-1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID) from real sample files, and pin them with golden tests.
+1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID, `cwd` and `gitBranch`) from real sample files, and pin them with golden tests. Done in the transcript keys note (SOB-161); the repo has no key and comes from the `origin` remote of `cwd`.
 2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
 3. **Research, SOB-166**: build a collector configuration for the metrics-only path and check, with a real Claude Code run, the paths, the headers, the temporality and what happens when the receiver is down.
 
