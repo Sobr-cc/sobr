@@ -7,6 +7,7 @@
 - **Liens** : CLAUDE.md §7 (privacy by design), §13 (anti-patterns), ADR-0013 (extension + pairing + mode équipe)
 - **Amendment 1** (2026-10-30, Accepted): the managed cloud has a 30-day trial, then is paid per seat (condition 5); a personal space on the Sobr server is allowed (condition 1). See the section below.
 - **Amendment 2** (2026-10-31, Accepted): the personal space on the Sobr server is free for individuals; the 30-day trial and the per-seat price apply to organizations only (conditions 1 and 5). See the section below.
+- **Amendment 3** (2026-10-31, Accepted): the phasing, the feature table and the diagram label follow the calendar of October 30. See the section below.
 
 ---
 
@@ -32,7 +33,7 @@
 
 The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged. SOB-87 has since chosen amendment by PR; SOB-127 updates the README.
 
-**Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here.
+**Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here. Amendment 3 (SOB-103) aligns, or keeps with a reason, the README, the diagram label, the pairing row and the phasing; Amendment 2 (SOB-154) settles the price and the conflict with ADR-0013.
 
 - The README says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes when the offer is announced (SOB-103).
 - The price of the personal space: it runs on the Sobr server, which change 1 makes trial-then-paid, but the arbitration does not say whether it is free or under the trial. Guest mode stays free either way. The screens Z1b, A1 and S3 depend on it (SOB-136). Settled by Amendment 2.
@@ -58,9 +59,32 @@ The Révision section asks for a separate "ADR-0014-amendement" document. This a
 
 **Révision rule.** The three steps of Amendment 1 are met. Thibault's written decision is his answer in SOB-136 plus his approval of the PR. The public justification is this section and the CHANGELOG entry (README unchanged, SOB-103). No 30 days' notice is needed: nobody uses the managed cloud, and the change adds a free option and removes no right.
 
-**Not covered here.** The "Principe" bullet and the "Modèle technique" diagram still call the managed offer "payant". With Amendments 1 and 2 the managed cloud has a free personal space and a paid offer for organizations. SOB-103 owns these passages.
+**Not covered here.** The "Principe" bullet and the "Modèle technique" diagram still call the managed offer "payant". With Amendments 1 and 2 the managed cloud has a free personal space and a paid offer for organizations. SOB-103 owns these passages. Settled by Amendment 3.
 
 **Issues.** SOB-154, SOB-136 (the answer), SOB-35 (Amendment 1), SOB-34 (ADR-0013 Amendment 1), SOB-87 (amendment by PR).
+
+## Amendment 3 — Phasing and feature table aligned with October 30 (2026-10-31)
+
+**Status.** Accepted (2026-10-31), SOB-103; merging the PR is Thibault's approval. Same form as the previous amendments. It follows Amendment 2 (SOB-154).
+
+**What changes.** Each passage that Amendment 1 listed under "Not covered here" is aligned, or kept with its reason.
+
+1. **Phasing.** The calendar of October 30 ([Routes, screen by screen](https://claude.ai/artifact/Cua7SK84VzMCwYFZRQfUHD), "Calendrier") replaces the version numbers of phases 2 to 6 (v1.0.0 to v2.0.0). Organization features and the cloud are built in January and February 2027, the beta and the launch are in March, and the public V1 is on March 31, 2027. The content of phases 0, 1 and 3 is unchanged.
+   - Phase 2 (application): dropped. The data.gouv.fr application is off (SOB-104).
+   - Phase 4: SSO and custom roles (the former "RBAC fin"), with SCIM added by the October 30 decisions, are built in the Organization and identity project, and the sync of the personal space between machines in the Cloud and self-hosting project. Both stay in the common open-source binary.
+   - Phases 5 and 6: the beta is in March 2027 and the launch is with the public V1. The "free tier" is replaced by the 30-day trial for organizations (Amendment 1) and the free personal space (SOB-154).
+2. **Announcement.** "Pas avant v1.3.0, jamais simultanément avec la candidature" becomes: the cloud is announced with the public V1 launch. The second half of the rule goes, since the application is off (SOB-104). The beta stays by invitation (phase 5), which is not a public announcement.
+3. **"Lien avec les chantiers".** C-candidature, "the cloud is not mentioned": dropped for the same reason. C-admin-avance and C-cloud-beta are the projects named in point 1; the rule that their code is the common binary stays.
+4. **Feature table.** The row "Pairing perso 6 chiffres" is already aligned by ADR-0013 Amendment 1 (SOB-34): kept. The rows "SSO" and "Multi-device" are no longer "v0.8+": they follow the projects of point 1.
+5. **License label and "payant".** The license is MIT (ADR-0006), not "MIT/Apache". "Payant" for the managed offer means paid for organizations (trial, then per seat); the personal space is free (SOB-136, Amendment 2).
+6. **Trial and card.** Kept as Amendment 1, change 1 states it: a payment card starts the organizations' trial (SOB-105). The payment provider account is a human-only task (SOB-131).
+7. **README.** Kept as it is: it says nothing about the managed offer, and "no Sobr cloud" stays true for the local and self-hosted modes. It changes at the announcement, with the V1 launch, because an earlier mention would describe an offer that does not exist yet.
+
+**What does not change.** The five conditions, and the rule that the managed cloud runs the same open-source binary. The amendment changes the plan, not a condition (conditions 1 and 5 are changed by Amendments 1 and 2, which meet the Révision rule themselves), so it needs no notice period.
+
+**Not covered here.** The dates of individual builds (they belong to the issues of the projects), the price amounts, and the chantier names C29 and C30, which are history. The mentions of the data.gouv.fr pitch in "Contexte" and "Conséquences" give the reasons of May 2026 and are kept; the application is off (SOB-104).
+
+**Issues.** SOB-103, SOB-104 and SOB-105 (the answers), SOB-87 (amendment by PR), SOB-35, SOB-34, SOB-131.
 
 ---
 
@@ -92,6 +116,8 @@ Adopter une **stratégie dual-track « local-first + cloud opt-in »**, inspiré
 - **Le cloud Sobr.ia est une offre managed parmi d'autres**. C'est juste l'hébergement par nous du même binaire `sobria-team-aggregator` que tout le monde peut self-hoster gratuitement.
 - **Le binaire est identique**. Pas d'« édition cloud premium » avec des features fermées. Pas de fork.
 - **L'utilisateur choisit son hébergeur** : lui-même (self-hosted gratuit), Sobr.ia managed (payant), ou un autre prestataire managed (tiers).
+
+> Amendment 3 (2026-10-31): "payant" means paid for organizations; the personal space is free. See point 5.
 
 ### 5 conditions impératives
 
@@ -138,6 +164,8 @@ Si une décision produit future viole une de ces 5 conditions, le ADR doit être
                             └───────────────────────────┘
 ```
 
+> Amendment 3 (2026-10-31): the license is MIT, not MIT/Apache. See point 5.
+
 Côté client (extension + app), aucune notion de « Sobr.ia cloud » n'est privilégiée. L'URL serveur est saisie librement par l'utilisateur. La seule différence pour l'offre managed Sobr.ia : `https://team.sobr.ia` est dans la liste des serveurs suggérés en autocomplete, comme on pourrait suggérer `https://sobria.ovh.fr/xxx`.
 
 ### Différenciation features
@@ -159,6 +187,8 @@ Le **backend** est identique partout. La différenciation managed se fait sur l'
 | SSO (SAML, OIDC) | code commun v0.8+ | **Pré-configuré avec providers populaires** |
 | Multi-device | code commun v0.8+ | **Pré-configuré** |
 | Sauvegarde géo-redondante | à la charge de l'admin | **3 zones UE inclus** |
+
+> Amendment 3 (2026-10-31): the rows "SSO" and "Multi-device" follow their projects. See point 4.
 
 L'offre managed apporte de l'**opex géré** et du **support**, pas du code propriétaire. Tout le code reste open-source et installable gratuitement.
 
@@ -213,7 +243,11 @@ Le compromis qui préserve les principes et étend le marché. Choisi.
 | 5 — Cloud beta managed | v1.3.0 | C-cloud-beta | Infrastructure managed (OVH/Scaleway), Stripe, landing page, privacy policy, DPIA, free tier. Beta sur invitation. |
 | 6 — Cloud GA | v2.0.0 | C-cloud-ga | Public, marketing, support, statuspage, bug bounty. |
 
+> Amendment 3 (2026-10-31): the version numbers of phases 2 to 6 and the "free tier" are replaced by the calendar, and phase 2 is dropped. See point 1.
+
 **Annonce publique cloud** : pas avant v1.3.0, jamais simultanément avec la candidature data.gouv.fr (dilution du pitch souverain).
+
+> Amendment 3 (2026-10-31): the cloud is announced with the public V1 launch; the part about the application no longer applies. See point 2.
 
 ---
 
@@ -236,6 +270,8 @@ Le compromis qui préserve les principes et étend le marché. Choisi.
 - **C-candidature (v1.0)** : pitch souverain pur, le cloud n'est pas mentionné.
 - **C-admin-avance (v1.2)** : SSO, RBAC, multi-device. **Open-source dans le binaire commun**, pas exclusif managed.
 - **C-cloud-beta (v1.3)** : infrastructure managed dédiée. Code = binaire commun.
+
+> Amendment 3 (2026-10-31): see point 3.
 
 ---
 
