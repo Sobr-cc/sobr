@@ -279,8 +279,8 @@ Today the mapping is: in the personal space the person holds every
 permission that applies there (`usage.read.self`, `sessions.*.self`,
 `estimates.record`, the project, task, budget and suggestion permissions,
 `audit.read.self`, `reference.read`). In an organization space, `user` holds
-`usage.read.self`, `sessions.*.self`, `reference.read` and `policy.read`,
-and `admin` holds the organization ones. The server has no project
+`usage.read.self`, `sessions.*.self`, `audit.read.self`, `reference.read`
+and `policy.read`, and `admin` holds the organization ones. The server has no project
 entities, tasks or budgets yet (only a free-text project label on
 estimations); who holds `projects.*`, `tasks.*` and `budget.*` there comes
 from the data model and roles work. Two consequences:
@@ -313,7 +313,7 @@ that holds more permissions than their own.
   | Class | Meaning | Confirmation | Audit |
   |-------|---------|--------------|-------|
   | 0 | Reads. Changes nothing | none | per-person reads only |
-  | 1 | Reversible write. The previous values are kept in full in the audit entry, so a normal edit puts them back (or the call only adds a record and removes nothing); nothing is sent to anyone, now or later; no linked data is lost | none | yes |
+  | 1 | Reversible or additive write. The previous values are kept in full in the audit entry, so a normal edit puts them back (or the call only adds a record and removes nothing); the call itself sends nothing to anyone; no linked data is lost | none | yes |
   | 2 | Irreversible, or reaches other people or outside systems | pending action approved in Sobr | yes, every step |
   | 3 | Never exposed: no tool | — | — |
 
@@ -351,7 +351,9 @@ that holds more permissions than their own.
   and the person: an organization member with `read` sees about 10 of the 45 tools today,
   more once projects, tasks and budgets exist on the server.
 - **Rate limit per grant** (the specification requires it of servers; none
-  was found in the Sobr server). Writes have a lower limit than reads.
+  was found in the Sobr server). Writes have a lower limit than reads. Both doors apply it (issues 6 and
+  13); suggested defaults are 60 reads and 20 writes per minute per grant, to
+  be set in the build issue.
 - **Contract version**: `contract_version` (semver) in `get_context`. New
   tools and optional fields are minor; renaming or removing a tool,
   narrowing an input or changing a class is major and needs an amendment of
@@ -394,7 +396,7 @@ means personal and organization spaces; "org" the organization only.
 | `list_invitations` | `status`, `cursor`, `limit` | id, created, expires, status, creator. Never the code | `members.invite` | org |
 | `get_visibility_policy` | — | policy, `k_anonymity_min`, research sharing (Z10), attestation date, last change | `policy.read` (any member, as screen M3) | org |
 | `list_alerts` | `include_triggers`, `cursor`, `limit` | thresholds (scope, metric, value, channel, enabled) and, on request, their history | `alerts.read` | org |
-| `get_audit_log` | `period`, `actor_id`, `tool`, `outcome`, `cursor`, `limit` | entries of decision 8 | `audit.read.org`; `audit.read.self` in the personal space | both |
+| `get_audit_log` | `period`, `actor_id`, `tool`, `outcome`, `cursor`, `limit` | entries of decision 8. `audit.read.self` returns the caller's own entries; `audit.read.org` adds the organization's administration entries (invitations, roles, budgets, policy, alerts, exports, pending actions), never another person's session or estimate edits | `audit.read.self`, `audit.read.org` | both |
 | `verify_audit_chain` | — | `ok`, entries checked, first bad entry | `audit.read.*` | both |
 | `get_pending_action` | `id` | state, summary, expiry, result | the person who holds the grant | both |
 | `list_pending_actions` | `state`, `cursor`, `limit` | the grant's own pending actions: id, tool, summary, state, expiry | the person who holds the grant | both |
@@ -430,16 +432,16 @@ returns a pending action (decision 8).
 | `delete_task` | 2 | `id` | pending action | `tasks.write` | both |
 | `set_budget` | 1 | `amount` (null clears), `unit` (`kWh`, `EUR`), `period`: the person's own budget | budget; the old value goes to the audit entry | `budget.set.self` | both |
 | `set_shared_budget` | 2 | `scope` (`project`, `organization`), `id`, `amount` (null clears), `unit`, `period` | pending action; crossing 80 % or 100 % later mails the managers and admins | `budget.set.project`, `budget.set.org` | both |
-| `dismiss_suggestion` | 1 | `id`, `forever` | — | `suggestions.manage` | both |
+| `dismiss_suggestion` | 1 | `id` | — | `suggestions.manage` | both |
 | `apply_suggestion` | 2 | `id` (changes a model, compacts or cuts a session: work in progress can be lost) | pending action | `suggestions.manage` | both |
 | `create_alert` | 2 | `scope` (`organization`, `project`), `metric`, `threshold`, `channel` (`in_app`, or `email` to the managers and admins; no webhook URL) | pending action (the alert mails people when it triggers). A per-person scope waits for SOB-115 | `alerts.manage` | org |
 | `disable_alert` | 2 | `id` | pending action (people stop receiving the alert) | `alerts.manage` | org |
 | `invite_members` | 2 | `emails` (1 to 50), `role_id` | pending action (mail leaves the system) | `members.invite` | org |
 | `revoke_invitation` | 2 | `id` | pending action (the old code is not restored) | `members.invite` | org |
 | `set_member_role` | 2 | `member_id`, `role_id` | pending action; guards of decision 4 | `roles.assign` | org |
-| `remove_member` | 2 | `member_id` | pending action; names and detail are deleted, usage is anonymized | `members.remove` | org |
+| `remove_member` | 2 | `member_id` | pending action; names and detail are deleted, usage is anonymized, grants are revoked and pending actions cancelled | `members.remove` | org |
 | `manage_role` | 2 | `op` (`create`, `update`, `delete`), role definition | pending action | `roles.manage` | org |
-| `restrict_visibility_policy` | 2 | `policy` (`anonymous` or `opt_in`: stricter only) | pending action | `policy.set` | org |
+| `restrict_visibility_policy` | 2 | `policy` (`anonymous` or `opt_in`); the use case rejects any target that is not stricter than the current policy | pending action | `policy.set` | org |
 | `create_export` | 2 | `format` (`csrd`, `prov-o`, `csv`), `period` | pending action, then a download link the person opens; the file never passes through the model. Always anonymized | `exports.create` | org |
 
 `manage_role` has an `op` argument but is one class (2) for all three
@@ -447,7 +449,9 @@ operations, so it respects the rule "class by tool". Several tools wait on
 features that do not exist yet: `remove_member` and `manage_role` on the
 Organization and identity project, `apply_suggestion` and `list_suggestions`
 on B1, `create_export` on SOB-114. The registry lists a tool only when its
-use case exists.
+use case exists. Usage that crosses a budget threshold mails people as it
+does in the interface: that mail is the product's behavior, not an effect of
+the tool that added the usage.
 
 **Which actions are irreversible.** Class 2 is every tool in the table above
 marked 2. The reasons: it deletes data that is not recorded (`delete_project`,
@@ -518,9 +522,9 @@ Claude ── get_pending_action ──▶ result
   an expiry (24 hours). The same call with the same arguments while one is
   pending returns the same pending action. If the state has changed at
   approval time, nothing runs: the action becomes `stale` and the model must
-  propose again. A rejected or expired proposal blocks the same proposal for
-  24 hours, and a grant holds at most 10 open pending actions; both answer
-  `rate_limited`.
+  propose again. A rejected proposal blocks the same proposal for 24 hours
+  (an expired one does not), and a grant holds at most 10 open pending
+  actions; both answer `rate_limited`.
 - **Approval is a first-party Sobr action** by the same person: a dialog in
   the app (personal space, where guest mode has no account and the person is
   at the machine), the app or the web page (organization space), under a
@@ -541,7 +545,8 @@ Claude ── get_pending_action ──▶ result
 
 **What this protects, and what it does not.** Approval stops a model that
 goes through the MCP, in both spaces. In an organization the server is the
-boundary, so even a client that skips the MCP cannot skip approval. In the
+boundary: a grant holder cannot skip approval, because its token works only
+on `/mcp`, where class 2 tools only propose. In the
 personal space the data sits in files of the same OS user as the client, and
 a model with a shell (Claude Code with its Bash tool) can change them
 without Sobr. Only the client's own permission system can stop that, and the
@@ -566,16 +571,18 @@ organization log adds a keyed signature from a key derived from the server
 secret, so an edit that skips the key shows up. The entry format is
 versioned; existing entries are not touched.
 
-An entry holds: `id`, `time`, `space`, `actor` (person id), `via` (`mcp`,
+An entry holds: `id`, `time`, `space`, `actor` (a `person_ref`), `via` (`mcp`,
 `app`, `web`, `cli`), `grant_id`, `client_name` (as the client declares it,
 untrusted), `tool`, `class`, `target` (type and id), `state_before` and
 `state_after` for class 1 (the changed fields in full, within the input
 limits; never prompt text), `args_digest`, `pending_id`, `outcome`
 (`proposed`, `approved`, `rejected`, `expired`, `cancelled`, `stale`,
-`executed`, `failed`), `approver` (person id) and
+`executed`, `failed`), `approver` (a `person_ref`) and
 `approved_via`, plus `prev_sig` and `sig`. It never holds prompt text, a
-secret, a person's name or a conversation. A name comes from the person id when the log
-is read, so a departing member's name is erased and the entries stay.
+secret, a person's name or a conversation. A `person_ref` is a random reference kept in its own table. When a member
+leaves, that row is deleted: the entries stay in the chain, which is never
+rewritten, but no longer point to anyone. Leaving also revokes the member's
+grants and cancels their pending actions.
 
 What is logged: every class 1 and class 2 write; every step of a pending
 action; and the reads that return per-person data (`get_organization_usage`
@@ -603,15 +610,15 @@ approval.
 | 4 | Server use-case layer: extract the use cases from `api/` into functions that take an `Actor`, with the permission table (`user` and `admin` today) | `role:rust` | 8 | **SOB-25** |
 | 5 | Grants on the server: table, hashed tokens, create, list, revoke | `role:rust` | 5 | **SOB-25**, 3, 4 |
 | 6 | `/mcp` route: Streamable HTTP, stateless, audience check, rate limit per grant | `role:rust` | 5 | **SOB-25**, 2, 5 |
-| 7 | Organization read tools (C2) | `role:rust` | 5 | **SOB-25**, SOB-114, SOB-115, 2, 4, data model (SOB-143) |
+| 7 | Organization read tools (C2) | `role:rust` | 5 | **SOB-25**, SOB-114, SOB-115, 2, 4, 9, data model (SOB-143) |
 | 8 | Generic audit events in `sobria-audit`: versioned entry, old entries untouched, one-transaction append | `role:rust` | 5 | **SOB-22** |
 | 9 | Organization audit log: table, keyed chain, read API for Z11 | `role:rust` | 5 | **SOB-25**, 8 |
-| 10 | Pending actions: store, state machine, expiry, approve and reject | `role:rust` | 5 | **SOB-25**, **SOB-26**, 8 |
+| 10 | Pending actions: store, state machine, expiry, approve and reject | `role:rust` | 5 | **SOB-25**, **SOB-26**, 8, 9 |
 | 11 | Extract the app's use cases from `logic.rs` into a layer callable without Tauri | `role:rust` | 8 | **SOB-26**, SOB-19 (estimator), SOB-20 (referentiel), SOB-22 (audit) |
 | 12 | Local grants: store and commands for A5 and C1 | `role:rust` | 3 | **SOB-26**, 3 |
-| 13 | stdio door `sobr-mcp` binary for the personal space | `role:rust` | 5 | 2, 11, 12 |
+| 13 | stdio door `sobr-mcp` binary for the personal space, with the per-grant rate limit | `role:rust` | 5 | 2, 11, 12 |
 | 14 | Local read tools (C2) | `role:rust` | 5 | 11, 13, data model (SOB-143) |
-| 15 | Write tools, class 1, both spaces | `role:rust` | 5 | **SOB-25**, **SOB-26**, 2, 4, 11 |
+| 15 | Write tools, class 1, both spaces | `role:rust` | 5 | **SOB-25**, **SOB-26**, 2, 4, 8, 9, 11 |
 | 16 | Write tools, class 2 with pending actions, both spaces | `role:rust` | 8 | 10, 15 |
 | 17 | Screens A5, C1 and C4 (grants and approval) in the single app, on desktop and web | `role:frontend` | 8 | **SOB-27**, **SOB-30**, SOB-42 (single app on the web), 5, 12, 10, 22 |
 | 18 | Administration tools: invitations, roles, remove member, visibility, alerts, exports | `role:rust` | 5 | Organization and identity project, SOB-114, SOB-115, 16 |
@@ -624,8 +631,8 @@ Total: 108 points, not counting the design update, the Claude Code plugin in
 the `claude-code` repo and the VS Code extension (their own projects). The
 bold numbers are the Deep cleanups that must pass first: SOB-25 (team
 server), SOB-26 (desktop app backend), SOB-22 (audit), SOB-27 and SOB-30
-(web). Issues 1 to 3 touch no existing area and can start once this ADR is
-approved. The suggestion tools wait for the B1 issues of the Browser
+(web). Issues 1 and 3 touch no existing area and can start once this ADR is
+approved; issue 2 follows the spike. The suggestion tools wait for the B1 issues of the Browser
 extension project; they join issues 14 and 15 when those exist.
 
 ## Consequences
