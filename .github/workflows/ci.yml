@@ -202,20 +202,31 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: build release
         run: cargo build --release --workspace
-      - name: check sizes (NF-03, NF-04)
+      - name: check sizes (NF-03)
         run: |
-          set -e
-          # NF-03 target: desktop binary < 20 MB
+          # NF-03 (docs/CAHIER-DES-CHARGES-v1.0.md, line 392): "Taille binaire desktop < 20 Mo".
+          # The limit is for the desktop app only; the other binaries are reported, not limited.
+          limit=20971520
+          status=0
           for bin in target/release/sobria-*; do
             if [ -f "$bin" ] && [ -x "$bin" ]; then
               size=$(stat --printf="%s" "$bin")
               echo "$bin : $size bytes"
-              if [ "$size" -gt 20971520 ]; then
-                echo "❌ $bin exceeds 20 MB (NF-03)" && exit 1
+              if [ "$bin" = target/release/sobria-app ] && [ "$size" -gt "$limit" ]; then
+                echo "❌ $bin exceeds 20 MB (NF-03)"
+                status=1
               fi
             fi
           done
-          echo "✅ All sizes are within budget."
+          # Same test as the loop above, so that an app the loop skipped cannot pass unseen.
+          if [ ! -f target/release/sobria-app ] || [ ! -x target/release/sobria-app ]; then
+            echo "❌ target/release/sobria-app not found or not executable: NF-03 was not checked"
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo "✅ The desktop app is within budget."
+          fi
+          exit "$status"
 
   app-paths:
     name: Desktop app — changed paths
