@@ -11,8 +11,9 @@ The bridge opens no network port and runs only while the browser keeps the
 port open.
 
 Each request (`ping`, `pair`, `estimate`, `revoke`) is forwarded to the
-desktop app over a local channel, and the app's reply is passed back as is.
-When the forward fails, the bridge answers by itself:
+desktop app over a local channel. The app's reply is decoded and passed back,
+so fields the bridge does not know are dropped. When the forward fails, the
+bridge answers by itself:
 
 - `ping` → `{ ok: true, pong: true }` (the bridge is installed);
 - `estimate` → appended to the spool (see below);

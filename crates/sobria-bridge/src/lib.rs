@@ -202,9 +202,9 @@ const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 /// Sends `req` to the app on `path` and reads its reply, both framed like the
 /// stdio protocol.
 ///
-/// Fails when the channel does not exist (app not running), on a timeout
-/// (Unix, 2 s) or on a malformed reply. The binary then handles the request
-/// offline, whatever the failure (SOB-190).
+/// Fails when the channel does not exist (app not running), when one read or
+/// write waits more than 2 s (Unix), or on a malformed reply. The binary then
+/// handles the request offline, whatever the failure (SOB-190).
 pub fn try_forward_to(path: &Path, req: &BridgeRequest) -> Result<BridgeResponse> {
     #[cfg(unix)]
     {

@@ -14,7 +14,9 @@ pub const PAIR_OFFLINE_REFUSAL: &str =
 pub const REVOKE_OFFLINE_REFUSAL: &str =
     "Revoke nécessite l'app Sobr.ia desktop joignable — effacement local côté extension uniquement.";
 
-/// Messages above this size (1 MiB) are refused, in both directions.
+/// Messages above this size (1 MiB) are refused, in both directions. Written
+/// out instead of reusing `sobria_bridge::MAX_MESSAGE_BYTES`, so a change of
+/// the limit fails these tests.
 pub const MAX_MESSAGE_BYTES: u32 = 1024 * 1024;
 
 /// Native Messaging frame: little-endian `u32` length, then `body`.
@@ -145,7 +147,9 @@ pub mod fake_app {
         let (_dir, path, listener) = bind();
         let server = serve(listener, vec![reply]);
         let result = try_forward_to(&path, req);
-        let mut received = server.join().expect("fake server");
+        let mut received = server
+            .join()
+            .unwrap_or_else(|_| panic!("the fake app got no request; forward: {result:?}"));
         (result, received.remove(0))
     }
 }
