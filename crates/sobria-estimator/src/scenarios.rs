@@ -294,7 +294,7 @@ mod tests {
     use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        crate::test_support::request("gpt-4o-mini", 100, 500)
+        crate::validation::request_for("gpt-4o-mini", 100, 500)
     }
 
     fn sim_request_with(scenarios: Vec<Scenario>) -> SimulationRequest {

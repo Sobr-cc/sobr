@@ -1682,7 +1682,7 @@ impl EstimationParams {
 mod tests {
     use super::*;
     use crate::engine::MonteCarloEngine;
-    use crate::test_support::request as request_for;
+    use crate::validation::request_for;
     use sobria_core::Indicator;
 
     #[test]

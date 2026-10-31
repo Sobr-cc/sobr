@@ -341,7 +341,7 @@ impl EmpreinteEngine for EcoLogitsEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::request as req;
+    use crate::validation::request_for as req;
     use sobria_core::Indicator;
 
     fn params_point(pue: f64, if_elec: f64, wue: f64) -> EstimationParams {

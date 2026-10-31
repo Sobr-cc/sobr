@@ -138,7 +138,7 @@ mod tests {
     use sobria_core::EstimationRequest;
 
     fn base_request(model_id: &str, t_in: u32, t_out: u32) -> EstimationRequest {
-        crate::test_support::request(model_id, t_in, t_out)
+        crate::validation::request_for(model_id, t_in, t_out)
     }
 
     #[test]

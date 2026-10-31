@@ -53,8 +53,9 @@ impl Distribution {
     ///
     /// # Panics
     ///
-    /// On a negative or NaN `std` or `sigma`, or on `low > high`, which
-    /// [`Self::validate`] refuses (SOB-210).
+    /// On a negative or NaN `std` or `sigma`, a NaN or infinite `low` or
+    /// `high`, or `low > high`, which [`Self::validate`] refuses (SOB-210);
+    /// and on finite bounds whose `high - low` overflows, which it accepts.
     pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
         match *self {
             Self::Point { value } => value,

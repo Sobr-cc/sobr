@@ -1,7 +1,8 @@
-//! Moteur Monte-Carlo de l'estimateur (ADR-0004).
+//! Monte-Carlo engine of the estimator (ADR-0004).
 //!
-//! N=10⁴ tirages par défaut, seed déterministe (`SOBRIA_SEED`, défaut 42).
-//! Voir CDC §9 et `docs/archive/chantiers/C05-estimator-monte-carlo.md`.
+//! N=10⁴ draws by default, with a fixed seed (`DEFAULT_SEED`, 42; nothing
+//! reads `SOBRIA_SEED` yet, SOB-84).
+//! See CDC §9 and `docs/archive/chantiers/C05-estimator-monte-carlo.md`.
 
 use chrono::Utc;
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256PlusPlus};
@@ -298,7 +299,7 @@ mod tests {
     use proptest::prelude::*;
 
     fn sample_request(tokens_in: u32, tokens_out: u32) -> EstimationRequest {
-        crate::test_support::request("test-model", tokens_in, tokens_out)
+        crate::validation::request_for("test-model", tokens_in, tokens_out)
     }
 
     #[test]

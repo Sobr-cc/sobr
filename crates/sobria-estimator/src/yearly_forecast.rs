@@ -203,7 +203,7 @@ mod tests {
     use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        crate::test_support::request("gpt-4o-mini", 100, 500)
+        crate::validation::request_for("gpt-4o-mini", 100, 500)
     }
 
     fn simple_request(scenarios: Vec<YearlyScenario>) -> YearlyForecastRequest {
