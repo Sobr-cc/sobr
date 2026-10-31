@@ -32,6 +32,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - Whether a personal space syncs between machines stays with SOB-136;
     session identity across sources stays with SOB-146.
 
+### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
+
+- **`sobria-import`**: removed the empty skeleton crate (one constant, no
+  code, no tests), its workspace entry and the unused dependency in
+  `sobria-app` (decision SOB-33, option 2). Any future log import will live
+  where the repo split ADR (SOB-65, proposed) places it. The README crate
+  list now matches the workspace, and the README and `Cargo.toml` no longer
+  hard-code a crate count.
+
 ### Changed — ADR-0013 amended for automatic pairing (2026-10-30, SOB-34)
 
 - **ADR-0013, Amendment 1** (Accepted 2026-10-30): after one explicit
@@ -125,6 +134,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   Z6, Z7, Z9, B2, A6), sets sign-in per context and the security headers of
   the served HTML, and amends rule 2 of ADR-0017. Waiting for Thibault's
   approval.
+
+### Changed — Writing rules in English (2026-10-30, SOB-97)
+
+- **CLAUDE.md** (§13, with pointers in §4.1, §4.3 and §11): everything agents
+  write is in English, all documentation included (rustdoc, ADRs, CHANGELOG,
+  READMEs); only the product's user-facing text (UI, i18n) stays in French and
+  English. Existing French documents are translated when next edited; code
+  comments follow the Deep cleanup of their zone. New comment
+  rule: the strict minimum, with three exceptions; rustdoc on public items is
+  one short line, with an example only when useful (§4.1). The old "FR + EN
+  required for docs" rule is removed.
+- **`.claude/agents/*.md`** and **`.claude/skills/orchestrate/SKILL.md`**
+  translated into English, rules unchanged.
 
 ### Added — Règles du code de pairing épinglées dans le dispatcher (2026-10-30, SOB-80)
 
