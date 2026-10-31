@@ -65,6 +65,12 @@ type Adapter = {
   mountLabel: (label: string) => void;
   /** What the real alias table and the shared resolver return for a label. */
   labelCases: ReadonlyArray<readonly [label: string, presetId: string | null]>;
+  /**
+   * Labels with extra text ("... (new)"): a label equal to a preset id or name is
+   * resolved before the alias table is read, so these are the cases that reach
+   * each entry of the table, in its order (the first key found in the text wins).
+   */
+  aliasCases: ReadonlyArray<readonly [label: string, presetId: string | null]>;
   /** Sample composer DOM that the real selectors must find. */
   composer: { textarea: HTMLElement; sendButton: HTMLElement };
   supported: { label: string; presetId: string; displayName: string };
@@ -111,11 +117,38 @@ const ADAPTERS: Adapter[] = [
       ['ChatGPT', null],
       ['Auto', null],
       ['GPT-6', null],
-      // A space instead of a dot is not an alias (quirk): not recognized
+      // A space instead of a dot is not an alias (quirk, SOB-176): not recognized
       ['GPT 5.5 Thinking', null],
       // The shared resolver also knows the models of the other vendors (quirk)
       ['Claude Sonnet 4.6', 'claude-sonnet-4-6'],
       ['Mistral Large 3', 'mistral-large-3']
+    ],
+    aliasCases: [
+      ['GPT-5.5 Thinking (new)', 'gpt-5-5-thinking'],
+      ['GPT-5.5 Pro (new)', 'gpt-5-5-pro'],
+      ['ChatGPT 5.5 Thinking (new)', 'gpt-5-5-thinking'],
+      ['ChatGPT 5.5 Pro (new)', 'gpt-5-5-pro'],
+      ['ChatGPT 5.5 (new)', 'gpt-5-5'],
+      ['ChatGPT 5 (new)', 'gpt-5-5'],
+      ['GPT-5 Thinking (new)', 'gpt-5-5-thinking'],
+      ['GPT-5 Pro (new)', 'gpt-5-5-pro'],
+      ['GPT-5.5 (new)', 'gpt-5-5'],
+      ['GPT-5 (new)', 'gpt-5-5'],
+      ['ChatGPT-5 (new)', 'gpt-5-5'],
+      ['o3-pro (new)', 'o3'],
+      ['o3-mini (new)', 'o3'],
+      ['o3 (new)', 'o3'],
+      ['ChatGPT 4o mini (new)', 'gpt-4o-mini'],
+      ['ChatGPT 4o (new)', 'gpt-4o'],
+      ['GPT-4o mini (new)', 'gpt-4o-mini'],
+      ['GPT-4o-mini (new)', 'gpt-4o-mini'],
+      ['GPT-4o (new)', 'gpt-4o'],
+      ['GPT-4 Turbo (new)', 'gpt-4o'],
+      ['GPT-4 (new)', 'gpt-4o'],
+      ['o1-preview (new)', 'gpt-4o'],
+      ['o1-mini (new)', 'gpt-4o-mini'],
+      // the specific entry comes first: "5.5 pro" is not read as the generic "5.5"
+      ['GPT-5.5 Pro Extended', 'gpt-5-5-pro']
     ],
     composer: {
       textarea: el('div', { contenteditable: 'true', id: 'prompt-textarea' }),
@@ -154,7 +187,7 @@ const ADAPTERS: Adapter[] = [
       ['Claude 3 Opus', 'claude-3-5-sonnet'],
       ['Claude 3 Sonnet', 'claude-3-5-sonnet'],
       ['Claude 3 Haiku', 'claude-3-5-sonnet'],
-      // A newer minor version falls back on the generic "opus 4" entry (quirk)
+      // A newer minor version falls back on the generic "opus 4" entry (quirk, SOB-176)
       ['Opus 4.5', 'claude-opus-4'],
       ['Opus 4.6', 'claude-opus-4'],
       ['Claude', null],
@@ -162,6 +195,22 @@ const ADAPTERS: Adapter[] = [
       ['Haiku 3', null],
       // The label must mention Claude, Opus, Sonnet or Haiku to be considered
       ['GPT-4o', null]
+    ],
+    aliasCases: [
+      ['Opus 4.8 (new)', 'claude-opus-4-8'],
+      ['Opus 4.7 (new)', 'claude-opus-4-7'],
+      ['Sonnet 4.6 (new)', 'claude-sonnet-4-6'],
+      ['Haiku 4.5 (new)', 'claude-haiku-4-5'],
+      ['Opus 4 (new)', 'claude-opus-4'],
+      ['Sonnet 4 (new)', 'claude-sonnet-4'],
+      ['3.7 Sonnet (new)', 'claude-3-7-sonnet'],
+      ['Claude 3.5 Sonnet (new)', 'claude-3-5-sonnet'],
+      ['Claude 3.5 Haiku (new)', 'claude-3-5-sonnet'],
+      ['Claude 3 Opus (new)', 'claude-3-5-sonnet'],
+      ['Claude 3 Sonnet (new)', 'claude-3-5-sonnet'],
+      ['Claude 3 Haiku (new)', 'claude-3-5-sonnet'],
+      // the specific entry comes first: "opus 4.8" is not read as the generic "opus 4"
+      ['Claude Opus 4.8 Extended', 'claude-opus-4-8']
     ],
     composer: {
       textarea: el('div', { contenteditable: 'true', role: 'textbox' }),
@@ -189,7 +238,7 @@ const ADAPTERS: Adapter[] = [
       ['Mistral Medium', 'mistral-medium-3-5'],
       ['Mistral Small 4', 'mistral-small-4'],
       ['Mistral Small', 'mistral-small-4'],
-      // An unknown version falls back on the generic entry (quirk)
+      // An unknown version falls back on the generic entry (quirk, SOB-176)
       ['Mistral Small 3', 'mistral-small-4'],
       ['mistral-large-3', 'mistral-large-3'],
       ['mistral-large-2', 'mistral-large-2'],
@@ -199,6 +248,18 @@ const ADAPTERS: Adapter[] = [
       ['Mistral 7B', null],
       // Any label with a hyphen is considered, even for another vendor (quirk)
       ['gpt-4o', 'gpt-4o']
+    ],
+    aliasCases: [
+      ['Mistral Medium 3.5 (new)', 'mistral-medium-3-5'],
+      ['Mistral Medium 3 (new)', 'mistral-medium-3'],
+      ['Mistral Large 3 (new)', 'mistral-large-3'],
+      ['Mistral Small 4 (new)', 'mistral-small-4'],
+      ['Mistral Medium (new)', 'mistral-medium-3-5'],
+      ['Mistral Large (new)', 'mistral-large-3'],
+      ['Mistral Small (new)', 'mistral-small-4'],
+      // The generic "mistral large" entry comes before "mistral large 2": a label with
+      // extra text never reaches the Large 2 entry (quirk, SOB-176)
+      ['Mistral Large 2 (new)', 'mistral-large-3']
     ],
     composer: {
       textarea: el('textarea', { name: 'message' }),
@@ -241,6 +302,11 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
 
   describe('model detection with the real alias table', () => {
     it.each(adapter.labelCases)('label "%s" resolves to %s', (label, presetId) => {
+      adapter.mountLabel(label);
+      expect(detector.extractModelId()).toBe(presetId);
+    });
+
+    it.each(adapter.aliasCases)('alias table: label "%s" resolves to %s', (label, presetId) => {
       adapter.mountLabel(label);
       expect(detector.extractModelId()).toBe(presetId);
     });
