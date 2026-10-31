@@ -15,7 +15,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   The extension parity test uses the three EcoLogits cases with each case's
   tolerance. `sobr` keeps a copy of `LICENSE-DATA` for the Etalab data of
   `sobria-geoloc`. The site links to three technical pages have a stated
-  outcome. The second docs step is one issue per folder: 76 points.
+  outcome. The second docs step is one issue per folder, plus the demo fixtures: 77 points.
 
 ### Added — Claude Code usage capture note (2026-10-31, SOB-145)
 
