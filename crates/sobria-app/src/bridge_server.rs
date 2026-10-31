@@ -27,7 +27,7 @@
 
 use anyhow::{Context, Result};
 use sobria_bridge::{BridgeRequest, BridgeResponse};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
@@ -47,14 +47,22 @@ const MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 /// dispatch — évite la nécessité de wrapper `AppState` dans un `Arc` côté
 /// Tauri manage.
 pub async fn run(app_handle: AppHandle) -> Result<()> {
-    let path = sobria_bridge::default_socket_path();
+    serve(app_handle, &sobria_bridge::default_socket_path()).await
+}
+
+/// Same as [`run`] on an explicit socket / pipe path. Test hook of SOB-188:
+/// it lets a test start this very code on a private endpoint, with the
+/// `AppHandle` of a mock app (hence the generic runtime), instead of copying
+/// the loop of the server.
+#[doc(hidden)]
+pub async fn serve<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path) -> Result<()> {
     #[cfg(unix)]
     {
-        run_unix(app_handle, &path).await
+        run_unix(app_handle, path).await
     }
     #[cfg(windows)]
     {
-        run_windows(app_handle, &path).await
+        run_windows(app_handle, path).await
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -64,7 +72,7 @@ pub async fn run(app_handle: AppHandle) -> Result<()> {
 }
 
 #[cfg(unix)]
-async fn run_unix(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
+async fn run_unix<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path) -> Result<()> {
     use tokio::net::UnixListener;
     // Nettoie un éventuel résidu d'un précédent crash. `bind` échouerait
     // sinon avec EADDRINUSE.
@@ -93,7 +101,7 @@ async fn run_unix(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
 }
 
 #[cfg(windows)]
-async fn run_windows(app_handle: AppHandle, path: &std::path::Path) -> Result<()> {
+async fn run_windows<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path) -> Result<()> {
     use tokio::net::windows::named_pipe::ServerOptions;
     let pipe_name = path.to_str().context("pipe path non-UTF-8")?.to_owned();
     tracing::info!(pipe = %pipe_name, "bridge_server: en écoute (Windows pipe)");
@@ -121,7 +129,7 @@ async fn run_windows(app_handle: AppHandle, path: &std::path::Path) -> Result<()
 }
 
 /// Lit une requête length-prefixed sur `stream`, dispatche, écrit la réponse.
-async fn handle_stream<S>(mut stream: S, app_handle: &AppHandle) -> Result<()>
+async fn handle_stream<S, R: Runtime>(mut stream: S, app_handle: &AppHandle<R>) -> Result<()>
 where
     S: AsyncReadExt + AsyncWriteExt + Unpin,
 {

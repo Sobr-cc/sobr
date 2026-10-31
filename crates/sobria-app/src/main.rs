@@ -666,3 +666,10 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("erreur lors du démarrage de Sobr.ia");
 }
+
+// Tests of the `team_*` commands above (private functions of this binary) and
+// of the real bridge socket server.
+#[cfg(test)]
+mod bridge_socket_tests;
+#[cfg(test)]
+mod team_command_tests;
