@@ -1,4 +1,4 @@
-# sobria-app — wrapper Tauri 2 (ADR-0001) + commandes IPC (C09)
+# sobria-app: Tauri 2 wrapper (ADR-0001) and IPC commands (C09)
 [package]
 name = "sobria-app"
 version.workspace = true
@@ -26,8 +26,8 @@ sobria-estimator = { path = "../sobria-estimator" }
 sobria-audit = { path = "../sobria-audit" }
 sobria-geoloc = { path = "../sobria-geoloc" }
 sobria-export = { path = "../sobria-export" }
-# C27 patch v0.6.0 — socket forward bridge ↔ app : on partage les types
-# `BridgeRequest`/`BridgeResponse` et `default_socket_path()` avec le bridge.
+# Shares `BridgeRequest`/`BridgeResponse` and `default_socket_path()` with the
+# bridge for the bridge-to-app socket.
 sobria-bridge = { path = "../sobria-bridge" }
 tauri = { workspace = true }
 tauri-plugin-dialog = { workspace = true }
@@ -42,14 +42,12 @@ chrono = { workspace = true }
 dirs = { workspace = true }
 rusqlite = { workspace = true }
 csv = { workspace = true }
-# C27.5 pairing : OS RNG + hash secret partagé
+# Pairing: OS RNG for the shared secret.
 rand = { workspace = true }
-sha2 = { workspace = true }
-# C27 patch v0.6.0 — Argon2id remplace SHA-256+sel pour le hash du secret
-# pairing (cf. brief Patch 3).
+# Argon2id hash of the pairing secret.
 argon2 = { workspace = true }
-# C28.6 — Mode Équipe : client REST HTTPS vers sobria-team-aggregator.
-# rustls + accept-invalid-cert (opt-in) pour les certs auto-signés.
+# Team mode: HTTPS REST client to sobria-team-aggregator (rustls; invalid certs
+# accepted only on opt-in, for self-signed servers).
 reqwest = { workspace = true }
 
 [dev-dependencies]
