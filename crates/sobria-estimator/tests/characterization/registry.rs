@@ -14,7 +14,7 @@ use sobria_estimator::{
 
 use crate::{
     fixtures::{params_for, reference_requests, request, to_json},
-    golden::assert_golden,
+    golden::{assert_golden, Goldens},
 };
 
 #[test]
@@ -187,8 +187,9 @@ fn thinking_tokens_and_overhead_per_preset() {
             to_json(&overhead_from_preset(preset, 1_000)),
         );
     }
-    assert_golden("auto_thinking_tokens", &thinking);
-    assert_golden("overhead_from_preset", &overhead);
+    let mut goldens = Goldens::new();
+    goldens.assert("auto_thinking_tokens", &thinking);
+    goldens.assert("overhead_from_preset", &overhead);
 }
 
 #[test]
