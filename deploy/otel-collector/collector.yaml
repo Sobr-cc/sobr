@@ -1,8 +1,10 @@
 # OpenTelemetry Collector (contrib) in front of the Sobr server, for Claude Code metrics (SOB-166).
 # Claude Code sends its raw signals here, so run it in your own infrastructure (docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md, section 3).
+# The allow-list below follows the upload contract of ADR-0022, section 10.
 receivers:
   otlp:
     protocols:
+      # Loopback only: change the endpoints before developers' machines connect from elsewhere.
       http:
         endpoint: 127.0.0.1:4318
       grpc:
@@ -19,6 +21,7 @@ processors:
     error_mode: propagate
     metric_statements:
       - keep_keys(resource.attributes, [])
+      - keep_keys(scope.attributes, [])
       - keep_keys(datapoint.attributes, ["model", "type", "session.id"])
       - set(datapoint.time, TruncateTime(datapoint.time, Duration("24h")))
       - set(datapoint.start_time, TruncateTime(datapoint.start_time, Duration("24h")))
