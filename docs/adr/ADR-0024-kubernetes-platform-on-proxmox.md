@@ -110,7 +110,7 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 - **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
 - **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (set by Thibault on October 31, SOB-213). The 64 to 80 GB of §8 do not fit.
 - **One failure domain** until §7's second one exists.
-- **Reachability from outside is limited at the host,** so tunnels are dialed out from the host side (A4).
+- **Tunnels are dialed out from the cluster side** (A4).
 - **Open facts** that Thibault still has to confirm are listed in SOB-181 (private), among them the third place for the small key machine of §6 and for a third copy of the backups.
 
 ### A2. The ten points against the facts
@@ -121,11 +121,11 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
 | 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
 | 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
-| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The original text about the other site keeping its address and its nginx is out of date: the other site's front end is replaced by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels are dialed out from the cluster, so no inbound port is needed. The original text of §4 and of the Consequences about the other site is superseded by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
 | 6 Layout of the services | Yes | None |
 | 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network or to the other project's machines. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
-| 8 The cloud opens after its protections | Yes | The assumption in the availability text that short interruptions are covered is not relied on. The risk is in A6 |
-| 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (VM rollback by the backup server) goes: a bad node upgrade is rolled back by rebuilding the node from code (§1), with the data back from layers 1 and 2. A copy in a third place is a further layer, open until the third place is known. The erasure log (§6) is replayed after any restore of layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
+| 8 The cloud opens after its protections | Yes | None |
+| 9 Four backup layers | Yes, with one change | Backups live off the host: layers 1 and 2, plus a copy in a third place, which stays open until that place is known. Layer 3 (VM rollback) is replaced by a rebuild from code with the data back from layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
 | 10 Disk keys from a key server | Yes | The third place is still open (A1) |
 
 ### A3. Sizing under the cap
@@ -158,13 +158,9 @@ Nothing of Sobr may depend on this particular host. The rule has five parts, eac
 
 P1, P2 and P5 are automatic checks; P4 is a review. P3's monthly restore needs capacity elsewhere than the host, which the cap does not provide: until that exists the check cannot run, and its first successful run becomes a condition for opening the cloud (§6).
 
-### A6. Risks accepted until the host improves
+### A6. Risks accepted
 
-Thibault accepted the host's risks on October 31 (SOB-211, private). The design draws these consequences:
-
-- **One failure domain** until §7's second one exists.
-- **After a restart of the host,** the nodes need the key server and the network to unlock their disks, and the key machine's own disk needs a typed passphrase (§6). A long outage while Thibault is away leaves the lab down. The offline copies of the keys (§6) and a runbook (ADR-0026 issue 10) are the break-glass path. §6 lists the conditions for opening the cloud: this risk joins them, for Thibault to accept again at launch.
-- **The other accepted risks** of the host are recorded in SOB-211 (private).
+Thibault accepted the risks of the host on October 31. They are recorded in SOB-211 and in the private host contract, and not listed here. The design draws one consequence: there is one failure domain until §7's second one exists. The break-glass path is the offline copies of the keys (§6) and a runbook (ADR-0026 issue 10).
 
 ### A7. Who approves
 
@@ -386,7 +382,7 @@ replica before confirming it, so replicas belong on one local network.
 
 ### 4. Network, entry point, certificates and exposure
 
-> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, the other site's front end is replaced by it, and the tunnel is dialed out from the host side (A2, point 5, and A4).
+> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, and the tunnel is dialed out from the cluster (A2, point 5, and A4).
 
 **Cilium** is the network of the cluster:
 
@@ -504,7 +500,7 @@ The repos are public, so pull requests from forks never run on them
 
 ### 6. Customer data: availability, backups, encryption and the GDPR
 
-> Amendment 1 (2026-10-31): the assumption that short interruptions are covered is not relied on, and layer 3 is replaced (A2, points 8 and 9, and A6).
+> Amendment 1 (2026-10-31): layer 3 is replaced (A2, point 9), and the accepted risks are in A6.
 
 **Availability.** One machine is one failure domain: power, the internet
 line, a disk or the motherboard.
@@ -723,7 +719,7 @@ smaller machine, the CI runners are the part to cut first.
 
 ## Consequences
 
-> Amendment 1 (2026-10-31): the other site will change with the shared front end (A2, point 5), and the host's risks are in A6.
+> Amendment 1 (2026-10-31): the shared relay supersedes the text about the other site (A2, point 5), and the accepted risks are in A6.
 
 **Positive:**
 
