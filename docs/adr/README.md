@@ -34,6 +34,7 @@ ADRs record the project's structural decisions. Each ADR:
 | [ADR-0022](./ADR-0022-organization-project-task-session-model.md) | Organization, project, task and session model | Accepted |
 | [ADR-0023](./ADR-0023-sobr-mcp-server-contract.md) | The Sobr MCP server contract (tools, grants, rights, confirmation, audit) | Accepted (2026-10-31) |
 | [ADR-0024](./ADR-0024-kubernetes-platform-on-proxmox.md) | Kubernetes platform on Proxmox | Proposed |
+| [ADR-0025](./ADR-0025-session-identity-and-duplicates.md) | Session identity and duplicates across sources | Accepted (2026-10-31) |
 | [ADR-0026](./ADR-0026-infrastructure-as-code-and-deployment.md) | Infrastructure as code and automatic deployment | Proposed |
 
 ## Format to follow
