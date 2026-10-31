@@ -80,15 +80,22 @@ fn report_quirk_the_afnor_header_and_the_methodology_block_are_fixed_text() {
 }
 
 #[test]
-fn report_quirk_the_arrows_are_missing_from_the_period_and_audit_id_lines() {
-    // The built-in PDF font cannot show "→": the character is dropped, and the
-    // two ends of the range are left with two spaces between them.
-    let art = generate_report(&report_request("fr"), &ecologits_only()).expect("report");
-    let text = pdf_text(&art.pdf_bytes);
+fn report_quirk_a_character_outside_winansi_is_printed_as_a_question_mark() {
+    // The built-in fonts only cover WinAnsi (SOB-241). The PROV-O document keeps
+    // the name as typed, so the report contradicts its own provenance.
+    let mut req = report_request("fr");
+    req.organization_name = "Łódź Analytics".into();
+    let art = generate_report(&req, &ecologits_only()).expect("report");
 
-    assert!(text.contains(&"Période : 2026-01-01  2026-04-01".to_string()));
-    assert!(text.contains(&"Entrées d'audit couvertes : id 1  2".to_string()));
-    assert!(!text.iter().any(|line| line.contains('→')));
+    let text = pdf_text(&art.pdf_bytes);
+    assert!(
+        text.contains(&"Organisation : ?ód? Analytics".to_string()),
+        "{text:?}"
+    );
+    assert_eq!(
+        art.provo_jsonld["@graph"][0]["sobria:organizationName"],
+        "Łódź Analytics"
+    );
 }
 
 #[test]

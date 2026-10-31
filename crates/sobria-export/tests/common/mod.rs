@@ -8,6 +8,7 @@
 pub mod golden;
 
 use chrono::{DateTime, TimeZone, Utc};
+use printpdf::{Op, PdfDocument, PdfParseOptions, TextItem};
 use serde_json::Value;
 use sobria_audit::AuditEntry;
 use sobria_core::{
@@ -132,49 +133,30 @@ pub fn node<'a>(document: &'a Value, prefix: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("no node with an @id starting with {prefix}"))
 }
 
-/// The lines of text a PDF shows, in drawing order.
-///
-/// `printpdf` writes each line as a hexadecimal string followed by `Tj`, in
-/// the Windows-1252 encoding, with the content stream uncompressed.
+/// The lines of text a PDF shows, in drawing order: one per `ShowText`
+/// operation, read back with the parser of `printpdf` (the streams are
+/// compressed, so the text cannot be read from the bytes).
 pub fn pdf_text(pdf: &[u8]) -> Vec<String> {
-    let mut lines = Vec::new();
-    let mut i = 0;
-    while i < pdf.len() {
-        if pdf[i] != b'<' || !pdf.get(i + 1).is_some_and(u8::is_ascii_hexdigit) {
-            i += 1;
-            continue;
-        }
-        let start = i + 1;
-        let end = start
-            + pdf[start..]
-                .iter()
-                .take_while(|b| b.is_ascii_hexdigit())
-                .count();
-        if pdf[end..].starts_with(b"> Tj") && (end - start) % 2 == 0 {
-            let hex = std::str::from_utf8(&pdf[start..end]).expect("ASCII hex digits");
-            let bytes = (0..hex.len())
-                .step_by(2)
-                .map(|k| u8::from_str_radix(&hex[k..k + 2], 16).expect("a hex byte"));
-            lines.push(bytes.map(windows_1252).collect());
-        }
-        i = end;
-    }
-    lines
-}
-
-fn windows_1252(byte: u8) -> char {
-    match byte {
-        0x80 => '€',
-        0x85 => '…',
-        0x91 => '‘',
-        0x92 => '’',
-        0x93 => '“',
-        0x94 => '”',
-        0x95 => '•',
-        0x96 => '–',
-        0x97 => '—',
-        _ => char::from(byte),
-    }
+    let mut warnings = Vec::new();
+    let document = PdfDocument::parse(pdf, &PdfParseOptions::default(), &mut warnings)
+        .expect("a PDF that printpdf can read back");
+    document
+        .pages
+        .iter()
+        .flat_map(|page| page.ops.iter())
+        .filter_map(|op| match op {
+            Op::ShowText { items } => Some(
+                items
+                    .iter()
+                    .filter_map(|item| match item {
+                        TextItem::Text(text) => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<String>(),
+            ),
+            _ => None,
+        })
+        .collect()
 }
 
 /// The PDF without its trailer `/ID`, the only part that differs between two
