@@ -1,11 +1,11 @@
-//! Implémentations de [`crate::engine_trait::EmpreinteEngine`].
+//! Implementations of [`crate::engine_trait::EmpreinteEngine`].
 //!
-//! Chaque sous-module correspond à une méthodologie embarquée :
-//! - [`ecologits`] : port direct EcoLogits 2026-01 (CC BY-SA 4.0).
+//! Each submodule is one embedded methodology:
+//! - [`ecologits`]: direct port of EcoLogits 2026-01 (CC BY-SA 4.0).
 //!
-//! La méthodologie AFNOR SPEC 2314 (Sobr.ia) est implémentée dans
-//! [`crate::engine::MonteCarloEngine`] (à la racine du crate pour des
-//! raisons historiques — sera déplacée ici en v1.1).
+//! The AFNOR SPEC 2314 methodology (Sobr.ia) is implemented in
+//! [`crate::engine::MonteCarloEngine`] (at the crate root, for historical
+//! reasons).
 
 pub mod ecologits;
 pub mod factory;
