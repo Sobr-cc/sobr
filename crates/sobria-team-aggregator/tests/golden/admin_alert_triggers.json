@@ -1,0 +1,243 @@
+[
+  {
+    "body": {
+      "triggers": []
+    },
+    "content_type": "application/json",
+    "request": "triggers: none yet",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT003",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 5.0,
+          "period_end": "2026-05-17T00:00:00Z",
+          "period_start": "2026-05-16T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-16T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT001",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 3.0,
+          "period_end": "2026-05-15T00:00:00Z",
+          "period_start": "2026-05-14T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-14T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: all three, newest first",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT003",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 5.0,
+          "period_end": "2026-05-17T00:00:00Z",
+          "period_start": "2026-05-16T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-16T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: limit 2",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT003",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 5.0,
+          "period_end": "2026-05-17T00:00:00Z",
+          "period_start": "2026-05-16T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-16T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: limit 0 is raised to 1",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT003",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 5.0,
+          "period_end": "2026-05-17T00:00:00Z",
+          "period_start": "2026-05-16T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-16T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT001",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 3.0,
+          "period_end": "2026-05-15T00:00:00Z",
+          "period_start": "2026-05-14T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-14T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: limit 1000 is accepted",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT003",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 5.0,
+          "period_end": "2026-05-17T00:00:00Z",
+          "period_start": "2026-05-16T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-16T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: from the second day",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        },
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT001",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 3.0,
+          "period_end": "2026-05-15T00:00:00Z",
+          "period_start": "2026-05-14T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-14T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: up to the second day",
+    "status": 200
+  },
+  {
+    "body": {
+      "triggers": [
+        {
+          "id": "01HZTTTTTTTTTTTTTTTTTTT002",
+          "notified_at": null,
+          "notify_error": null,
+          "observed_gco2eq": 4.0,
+          "period_end": "2026-05-16T00:00:00Z",
+          "period_start": "2026-05-15T00:00:00Z",
+          "threshold_id": "<ulid#1>",
+          "triggered_at": "2026-05-15T12:00:00Z"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "triggers: only the second day",
+    "status": 200
+  },
+  {
+    "body": "Failed to deserialize query string: input contains invalid characters",
+    "content_type": "text/plain",
+    "request": "triggers: from is not a date",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize query string: invalid digit found in string",
+    "content_type": "text/plain",
+    "request": "triggers: limit is not a number",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "triggers: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "triggers: user token",
+    "status": 403
+  }
+]
