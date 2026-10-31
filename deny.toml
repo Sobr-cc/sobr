@@ -12,8 +12,8 @@ targets = [
 
 [advisories]
 version = 2
-# Les ignores sans `reason` sont des advisories « unmaintained » (aucune
-# vulnérabilité active) — état au 2026-06-12, à réévaluer à chaque bump tauri.
+# Entries without a `reason` are "unmaintained" advisories (no active
+# vulnerability), as of 2026-06-12; re-check them at each tauri bump.
 ignore = [
     # gtk-rs GTK3 : tirés par tauri sur Linux. Pas de correctif tant que
     # tauri n'a pas migré hors GTK3 (suivi upstream tauri-apps/tauri#9662).
