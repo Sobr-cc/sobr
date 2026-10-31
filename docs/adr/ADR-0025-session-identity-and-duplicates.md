@@ -8,6 +8,8 @@
 - **Technical context**: Data model and sessions project (SOB-146)
 - **Amendment 1** (Proposed, 2026-10-31, SOB-243): a fork repeats its parent's
   lines, and one session owns each message ID. See the section below.
+- **Amendment 2** (Proposed, 2026-10-31, SOB-267): a gap inside a report
+  makes it partial (section 5). See the section below.
 - **Related**: ADR-0015 and ADR-0016 (privacy, visibility), ADR-0019
   (repos), ADR-0022 (the session model, which this ADR completes), the
   Claude Code capture note (`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`,
@@ -181,6 +183,144 @@ re-estimates issue 2 when it creates it.
 
 **Issues.** SOB-243, SOB-242, SOB-163, SOB-161, SOB-146.
 
+## Amendment 2 — A gap inside a report makes it partial (2026-10-31)
+
+**Status.** Proposed (SOB-267). A reviewer may merge it as it is; the rule is
+in force when Thibault confirms it. Written in place by PR (SOB-87): the
+original text is kept, and the 5-minute tolerance of the edge test in section
+5 is unchanged.
+
+**Why.** Section 5 defines a complete report by its two ends, then says that
+an app closed for an hour gives a partial report. That holds only when the
+hour is at the start or the end. The capture note (section 3, "Nothing
+listens", SOB-166) measured that Claude Code does not retry an export that
+nobody received, and that exports are deltas, so the increments of that hour
+are lost for good. An app closed in the middle of a session passes the edge
+test. OpenTelemetry (rank 1) then beats the full transcript, and the session
+is under-counted with no flag.
+
+### B1. The rule
+
+**Scope.** The rule applies to the OpenTelemetry report of a session that
+OpenTelemetry joins (case I of section 3, which SOB-163 confirmed: one session
+ID in every source). In case II the OpenTelemetry total is not a report with
+numbers, so there is nothing to mark. Other sources keep the edge test only,
+since they have no listening log.
+
+**The receiver's log.** The receiver keeps one record for each period in which
+it listened: the time it started, the time it was last alive (updated in place
+every 60 seconds) and the time it stopped, which stays empty after a crash. It
+keeps one more record for each period in which it answered an error. A
+**silence** is the time between two periods of listening, a period of errors,
+or the time before the first period. It begins at the stop time, or at the
+last-alive time after a crash, and ends when the receiver listens again. The
+check runs in the app, which is listening, so every silence it sees has ended.
+The log stays on the device with the other times (section 5) and is kept for
+24 months, the retention of ADR-0022 section 10. Times are UTC, to the
+millisecond.
+
+**A witness record** is a line of the session's transcript with token usage
+that the session owns (Amendment 1): an answer of Claude Code, after which an
+export was due. Hook events and the status line are not witnesses, because
+they reach the same app and are missing when it was closed.
+
+**A gap** is a witness record dated from 60 seconds before a silence begins up
+to, but not including, the time it ends. The 60 seconds are the default export
+interval of Claude Code: the requests of the last minute before a silence were
+not yet exported and are lost with it. There is no minimum length: a witness
+is what separates a silence that lost use from an idle one.
+
+**A report with a gap is partial,** like one that starts late or ends early:
+it does not beat a complete report. If no report is complete, the report with
+the most tokens wins and the session is flagged partial, as in section 5. The
+example of section 5 now holds wherever the hour falls: at the start or the
+end, the edge test makes the report partial; in the middle, the gap does.
+
+**The flag is stored.** When the device finds a gap, it sets a gap flag on the
+(session, source) record of the OpenTelemetry report. The flag is part of that
+record, like its totals in section 4: a new report for the same session
+replaces the numbers and keeps the flag, and only the person's reset of that
+source (section 4) clears it. The increments are lost for good, so the report
+stays an under-count even when the witness lines are cleaned later (after 30
+days, section 4) or an owner moves (Amendment 1). On a merge (section 9), the
+report that is kept carries the flag of either report. The model crate takes
+the flag, the silences and the witness times as plain inputs, so the cases
+below run in it. A transcript read days later can turn a complete
+OpenTelemetry report into a partial one: the winner changes, and section 10
+applies (the older winner is kept as superseded).
+
+**The cost of a wrong call.** A false gap makes a complete report partial:
+after a crash the log counts as silent up to a minute that was in fact
+exported, which with the 60 seconds before it makes a window of about two
+minutes, and a short period of errors may have been bridged by Claude Code's
+retries (about 5 seconds, capture note). The next complete report then wins,
+or the one with the most tokens: no tokens are dropped, but the official
+counters and the cost give way to the transcript's estimate. A missed gap
+leaves the under-count of today.
+
+**Limits.**
+
+- With no transcript on the device there is no witness, so a gap cannot be
+  seen and the report counts as complete.
+- A loss while the receiver listens is not seen: Claude Code killed before its
+  exit export, or an exporter that is off.
+- The data points carry their own start and end times, which might also show a
+  missing export. That was not measured; build issue 4 checks it with a real
+  run (option B).
+- A change of the clock can move a witness into or out of a silence, as it can
+  for the edge test.
+
+| Option | Cost | Effort | Risk |
+|--|--|--|--|
+| **A — The receiver logs its silences; a witness record in a silence is a gap (proposed)** | One record per listening period on the device, updated once a minute | Small | Low: it does not depend on how Claude Code batches its exports; an over-detection only makes a report partial |
+| B — Read the holes between the start and end times of the data points | No log | Small | Not measured: it depends on how the exporter sets start times, and an idle interval may send no point, so a hole could mean idle or lost |
+| C — Compare the totals with the transcript's and call the lower one partial | None | Small | Needs a threshold; it is circular, since the transcript is the one to beat; and the sources differ legitimately (section 5, models) |
+| D — Any silence inside the session makes the report partial, with no witness | The same log | Small | Every session that straddles an idle break loses its official counters to the transcript |
+| E — Count a silence only from 5 minutes, like the edge tolerance | The same log | Small | Fewer false gaps, but a heavy session loses up to 5 minutes of requests with no flag |
+| F — Keep the edge test only | None | None | Today's under-count, with no flag, on the most precise source |
+
+### B2. Tests added to section 11
+
+22. A session whose OpenTelemetry report starts and ends on time but whose
+    receiver was silent for an hour in the middle, with a witness record
+    inside, and a full transcript, in both orders of arrival: the
+    OpenTelemetry report is partial, the transcript wins, the session is not
+    flagged partial, and the day totals are the transcript's.
+23. The same session with no transcript on the device: there is no witness,
+    and the OpenTelemetry report stays complete (the first limit of B1).
+24. A silence with no witness inside, of any length: not a gap. A silence of 3
+    minutes with a witness inside: a gap.
+25. OpenTelemetry alone is complete; a full transcript is read later and shows
+    a witness record in a silence: the OpenTelemetry report becomes partial,
+    the transcript wins, and the OpenTelemetry report is kept as superseded
+    (section 10).
+26. A crash, with no stop time: the silence begins at the last-alive time. A
+    witness exactly 60 seconds before it is a gap, one 61 seconds before is
+    not, and one at the very time the receiver listens again is not.
+27. A period of errors with a witness inside, and no other silence: a gap.
+28. Several silences in one session, and a silence that covers the start of
+    the session (the edge test and the gap both apply): the report is partial,
+    once.
+29. A fork whose repeated parent lines fall in a silence and whose own lines
+    do not (Amendment 1): the fork's OpenTelemetry report is complete, and the
+    parent's is partial.
+30. The transcript is cleaned after the gap was found, or the owner of the
+    lines moves: the report stays partial.
+31. A new OpenTelemetry report for the same session replaces the flagged one:
+    the numbers are the new ones and the report stays partial.
+32. Two sessions merge (section 9), one with a flagged report and one with a
+    larger report that is not: the report that is kept is partial.
+
+### B3. Build issues
+
+Issue 1 (model crate) gains the gap in the completeness test, with the flag,
+the silences and the witness times as inputs. Issue 4 (OpenTelemetry receiver)
+gains the log of listening periods and the check of option B with a real run;
+the export settings it ships keep the default interval of 60 seconds. The
+cases B2 join the published cases of issue 1.
+
+**Issues.** SOB-267, SOB-166, SOB-146.
+
 ## Context and problem statement
 
 ADR-0022 left two things open: how reports from several sources form one
@@ -346,6 +486,9 @@ lower them. A flagged report that is wrong can be reset by the person, which
 deletes that source's report for the session; the next one is then accepted.
 
 ### 5. Precedence: which report gives the numbers
+
+> Amendment 2 (2026-10-31): a silence of the receiver inside a session is a
+> gap, and a report with a gap is partial (B1 of the amendment).
 
 **For each session, the numbers come whole from one source: the most precise
 source whose report is complete.** The days of the session are the days of that
@@ -579,6 +722,9 @@ cannot count a record on two days.
 
 > Amendment 1 (2026-10-31): five cases on forks (17 to 21) are added in A2 of
 > the amendment.
+>
+> Amendment 2 (2026-10-31): eleven cases on gaps (22 to 32) are added in B2 of
+> the amendment, and a report with a gap is partial in the sense of test 9.
 
 The model crate publishes these cases with its release, as ADR-0022 section 3
 does for the space rule, so the extension and every other client run them.
@@ -719,6 +865,9 @@ them. She works on Monday.
 
 > Amendment 1 (2026-10-31): issue 2 gains the table of owners and the fork
 > rule (A3 of the amendment).
+>
+> Amendment 2 (2026-10-31): issues 1 and 4 gain the gap rule and the log of
+> listening periods (B3 of the amendment).
 
 The orchestrator creates these issues once this ADR is accepted. "Waits for"
 names the Deep cleanup of every existing area an issue touches, under the
