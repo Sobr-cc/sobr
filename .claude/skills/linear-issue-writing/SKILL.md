@@ -128,7 +128,7 @@ Move up one level only after two blocked attempts: the agent writes why in a com
 - `cargo clippy -- -D warnings`, tests, `tsc --noEmit` and lint pass.
 - `/simplify` and `/code-review` run on the diff, findings handled.
 - One real check: `/verify`, a Playwright test, or a curl call on the changed endpoint.
-- CHANGELOG updated. PR description contains "Fixes SOB-123".
+- A changelog fragment added in `changelog.d/`. PR description contains "Fixes SOB-123".
 
 ## Splitting a large issue
 
