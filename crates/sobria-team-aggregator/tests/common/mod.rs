@@ -10,6 +10,7 @@
 
 #![allow(dead_code)]
 
+#[path = "../../../../test-support/golden.rs"]
 pub mod golden;
 
 use std::{collections::HashMap, net::TcpListener, sync::Mutex, time::Duration};
