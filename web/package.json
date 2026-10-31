@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:a11y": "playwright test tests/a11y",
+    "test:smoke": "playwright test tests/smoke",
     "e2e": "playwright test",
     "clean": "rimraf node_modules/.vite .svelte-kit build test-results playwright-report blob-report",
     "clean:full": "rimraf node_modules node_modules/.vite .svelte-kit build test-results playwright-report blob-report package-lock.json && npm install"

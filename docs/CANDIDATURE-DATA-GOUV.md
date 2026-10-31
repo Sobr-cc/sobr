@@ -2,6 +2,8 @@
 
 ## « L'impact environnemental de l'IA générative »
 
+> Devenu Sobr.cc : <https://github.com/Sobr-cc/sobr> (ADR-0020). Le dossier ci-dessous est conservé tel que déposé.
+
 ---
 
 **Projet** : Sobr.ia

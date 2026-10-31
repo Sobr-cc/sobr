@@ -17,7 +17,7 @@ Sobr can measure Claude Code three ways. None of them needs to keep prompt text,
 
 **Token totals per interactive session come only from the transcript (unofficial) or from OpenTelemetry (official, opt-in).** The status line gives a cost total but no token total. Thibault decided on October 31 (SOB-162, option 1) that Sobr reads the transcripts, with the guard rails of section 1, so a solo user gets token totals from them.
 
-What we store per session is below. **No prompt text, response text, tool input or output, or command line is stored, on the device or on the server.** The folder, repo and branch of a session are kept on the device only (see "Kept on the device, never uploaded").
+What we store per session is below. **No prompt text, response text, tool input or output, command line, or path of a file that a session reads or writes is stored, on the device or on the server.** The folder, repo and branch of a session are kept on the device only (see "Kept on the device, never uploaded").
 
 ## What Sobr stores per session
 
@@ -31,7 +31,7 @@ This restates the upload contract of ADR-0022 for Claude Code sources; it adds n
 | Input, output and cache token totals | OpenTelemetry metrics, or the transcript read at the end of the session |
 | Cost estimate | status line, OpenTelemetry, or the transcript (an estimate at list price, not a bill) |
 | Energy, CO₂ and water with P5, P50, P95, method and version | computed by Sobr from the tokens and the model |
-| Folder, repo and branch of the session (device only, never uploaded) | the working folder from the hooks, the status line (`cwd`) or the transcript's project folder; how the repo and the branch are found is for SOB-161 |
+| Folder, repo and branch of the session (device only, never uploaded) | the folder is the `cwd` value (hooks, status line, or the transcript's `cwd` key; never the transcript's project folder name, which loses characters); the branch is the transcript's `gitBranch` key; the repo is read on the device from the git remote of `cwd`. If `cwd` or the branch changes during a session, all the values are kept: the context of a session is the union of its reports (ADR-0025 section 7) |
 
 **Kept on the device, never uploaded**: the working folder, the repo and the branch of a session, for 24 months (SOB-198, stated in ADR-0025 section 7). Like clock times (ADR-0022 section 10), they never leave the device, and rules from corrections use them, also on past sessions (ADR-0022 section 6). The server never receives them: the upload contract carries only the project or task ID, never these values, so no sync of a personal space carries them either, and no log line holds them. A session seen only through OpenTelemetry has no folder, repo or branch, and a rule that needs them does not match it.
 
