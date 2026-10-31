@@ -251,6 +251,16 @@ fn status_fails_when_the_sources_table_is_missing_unlike_model_overview() {
         .expect_err("sources is required");
     assert!(matches!(error, ReferentielError::Sqlite(_)), "{error:?}");
     assert!(error.to_string().contains("sources"), "{error}");
+
+    // The contrast: a file without `model_overview` is fine and has 0 models.
+    let no_models = db(
+        tmp.path(),
+        "no-models.sqlite",
+        "CREATE TABLE sources (id TEXT); INSERT INTO sources VALUES ('a')",
+    );
+    let status = status_of(&no_models);
+    assert_eq!(status.source_count, 1);
+    assert_eq!(status.model_count, 0);
 }
 
 #[test]
