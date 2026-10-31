@@ -11,7 +11,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Row as SqlRow};
 use sobria_audit::{AuditEntry, AuditLedger, PURGED_SENTINEL};
 
 const T1: &str = "2026-05-12T14:32:08+00:00";
@@ -19,16 +19,17 @@ const T2: &str = "2026-05-12T14:35:41.500+00:00";
 const T3: &str = "2026-05-13T09:02:17.123456789+00:00";
 const T4: &str = "2026-05-14T18:47:55.000001+00:00";
 
+const SIG_GENESIS: &str = "a1971d7cc94a858279230af3b1d54e53375e008b3334530dc2939e65912b02e3";
+const SIG_1: &str = "b096768361820da95473ef970d37f83727d5f19e2cbe0e5c24597356436513fc";
+const SIG_2: &str = "05070934732e11788f13833b6b37b67b68b5f0440389c0a1745956bc1bb7437f";
+const SIG_3: &str = "4724cbc776381e43c5577a066b067590cce1352ece30695c921c020469f080b3";
+
 struct Row {
     timestamp: &'static str,
     payload: &'static str,
     prev_sig: &'static str,
     sig: &'static str,
 }
-
-const SIG_1: &str = "b096768361820da95473ef970d37f83727d5f19e2cbe0e5c24597356436513fc";
-const SIG_2: &str = "05070934732e11788f13833b6b37b67b68b5f0440389c0a1745956bc1bb7437f";
-const SIG_3: &str = "4724cbc776381e43c5577a066b067590cce1352ece30695c921c020469f080b3";
 
 const CHAIN: [Row; 3] = [
     Row {
@@ -68,10 +69,21 @@ fn entry(timestamp: &str, payload: &str, prev_sig: &str) -> AuditEntry {
     }
 }
 
+fn query<T>(
+    conn: &Connection,
+    sql: &str,
+    map: impl FnMut(&SqlRow<'_>) -> rusqlite::Result<T>,
+) -> Vec<T> {
+    let mut stmt = conn.prepare(sql).unwrap();
+    let rows = stmt.query_map([], map).unwrap();
+    rows.map(Result::unwrap).collect()
+}
+
 struct Fixture {
-    _dir: tempfile::TempDir,
-    path: PathBuf,
+    // Fields drop in order: the ledger closes SQLite before the directory is removed.
     ledger: AuditLedger,
+    path: PathBuf,
+    _dir: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -79,7 +91,12 @@ impl Fixture {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("audit.sqlite");
         let ledger = AuditLedger::open(&path).unwrap();
-        let conn = Connection::open(&path).unwrap();
+        let fixture = Self {
+            ledger,
+            path,
+            _dir: dir,
+        };
+        let conn = fixture.conn();
         for row in rows {
             conn.execute(
                 "INSERT INTO audit_entries (timestamp, estimation_result_json, prev_sig, sig) \
@@ -88,18 +105,17 @@ impl Fixture {
             )
             .unwrap();
         }
-        Self {
-            _dir: dir,
-            path,
-            ledger,
-        }
+        drop(conn);
+        fixture
     }
 
-    fn sql(&self, statement: &str) {
-        Connection::open(&self.path)
-            .unwrap()
-            .execute(statement, [])
-            .unwrap();
+    fn conn(&self) -> Connection {
+        Connection::open(&self.path).unwrap()
+    }
+
+    /// Runs one statement and returns the number of rows it changed.
+    fn sql(&self, statement: &str) -> usize {
+        self.conn().execute(statement, []).unwrap()
     }
 
     fn exported(&self) -> (usize, String) {
@@ -115,14 +131,11 @@ impl Fixture {
 fn signature_of_a_genesis_entry_is_pinned() {
     let e = entry(T1, r#"{"co2eq_p50":2.14}"#, "");
 
-    assert_eq!(
-        e.compute_sig(),
-        "a1971d7cc94a858279230af3b1d54e53375e008b3334530dc2939e65912b02e3"
-    );
+    assert_eq!(e.compute_sig(), SIG_GENESIS);
 }
 
 #[test]
-fn signatures_with_fractional_seconds_a_chain_link_and_a_purged_payload_are_pinned() {
+fn signatures_of_fractional_seconds_a_non_ascii_payload_and_a_purged_payload_are_pinned() {
     assert_eq!(
         entry(T2, r#"{"co2eq_p50":9.7}"#, "abc").compute_sig(),
         "06c4bc7779ae79bf780900c14e7215f3075a58d4457167b3ae5225cbf14c05a9"
@@ -153,10 +166,7 @@ fn the_signature_ignores_the_id_the_stored_signature_and_the_purge_date() {
     e.sig = "anything".into();
     e.purged_at = Some(utc(T4));
 
-    assert_eq!(
-        e.compute_sig(),
-        "a1971d7cc94a858279230af3b1d54e53375e008b3334530dc2939e65912b02e3"
-    );
+    assert_eq!(e.compute_sig(), SIG_GENESIS);
 }
 
 // SOB-237 (the separator case is noted there).
@@ -189,7 +199,7 @@ fn the_fixed_chain_verifies() {
 #[test]
 fn removing_the_first_entry_breaks_the_chain() {
     let f = Fixture::new(&CHAIN);
-    f.sql("DELETE FROM audit_entries WHERE id = 1");
+    assert_eq!(f.sql("DELETE FROM audit_entries WHERE id = 1"), 1);
 
     let report = f.ledger.verify_chain().unwrap();
 
@@ -206,13 +216,13 @@ fn removing_the_first_entry_breaks_the_chain() {
 #[test]
 fn quirk_cutting_the_last_entries_is_not_detected() {
     let f = Fixture::new(&CHAIN);
-    f.sql("DELETE FROM audit_entries WHERE id > 1");
+    assert_eq!(f.sql("DELETE FROM audit_entries WHERE id > 1"), 2);
 
     let report = f.ledger.verify_chain().unwrap();
     assert!(report.valid, "{}", report.message);
     assert_eq!(report.total_entries, 1);
 
-    f.sql("DELETE FROM audit_entries");
+    assert_eq!(f.sql("DELETE FROM audit_entries"), 1);
     let report = f.ledger.verify_chain().unwrap();
     assert!(report.valid, "{}", report.message);
     assert_eq!(report.total_entries, 0);
@@ -222,7 +232,10 @@ fn quirk_cutting_the_last_entries_is_not_detected() {
 #[test]
 fn quirk_editing_the_method_column_is_not_detected() {
     let f = Fixture::new(&CHAIN);
-    f.sql("UPDATE audit_entries SET method = 'ecologits' WHERE id = 2");
+    assert_eq!(
+        f.sql("UPDATE audit_entries SET method = 'ecologits' WHERE id = 2"),
+        1
+    );
 
     let report = f.ledger.verify_chain().unwrap();
 
@@ -234,9 +247,12 @@ fn quirk_editing_the_method_column_is_not_detected() {
 #[test]
 fn quirk_a_row_marked_purged_skips_its_own_signature_check() {
     let f = Fixture::new(&CHAIN);
-    f.sql(
-        "UPDATE audit_entries SET estimation_result_json = 'PURGED', sig = 'forged', \
-         purged_at = '2026-06-01T00:00:00+00:00' WHERE id = 3",
+    assert_eq!(
+        f.sql(
+            "UPDATE audit_entries SET estimation_result_json = 'PURGED', sig = 'forged', \
+             purged_at = '2026-06-01T00:00:00+00:00' WHERE id = 3"
+        ),
+        1
     );
 
     let report = f.ledger.verify_chain().unwrap();
@@ -248,7 +264,10 @@ fn quirk_a_row_marked_purged_skips_its_own_signature_check() {
 #[test]
 fn a_purged_payload_without_a_purge_date_is_still_checked() {
     let f = Fixture::new(&CHAIN);
-    f.sql("UPDATE audit_entries SET estimation_result_json = 'PURGED' WHERE id = 2");
+    assert_eq!(
+        f.sql("UPDATE audit_entries SET estimation_result_json = 'PURGED' WHERE id = 2"),
+        1
+    );
 
     let report = f.ledger.verify_chain().unwrap();
 
@@ -260,16 +279,7 @@ fn a_purged_payload_without_a_purge_date_is_still_checked() {
     );
 }
 
-// SOB-238
-#[test]
-fn quirk_a_prev_sig_with_non_ascii_text_makes_verify_chain_panic() {
-    let f = Fixture::new(&CHAIN);
-    // 16 bytes cut the third character of "aéééé…" in the middle of an "é".
-    f.sql(&format!(
-        "UPDATE audit_entries SET prev_sig = 'a{}' WHERE id = 2",
-        "é".repeat(10)
-    ));
-
+fn assert_verify_chain_panics_on_a_char_boundary(f: &Fixture) {
     let outcome = catch_unwind(AssertUnwindSafe(|| f.ledger.verify_chain()));
 
     let panic = outcome.expect_err("verify_chain should panic");
@@ -277,56 +287,77 @@ fn quirk_a_prev_sig_with_non_ascii_text_makes_verify_chain_panic() {
     assert!(message.contains("is not a char boundary"), "{message}");
 }
 
+// SOB-238
+#[test]
+fn quirk_a_prev_sig_with_non_ascii_text_makes_verify_chain_panic() {
+    let f = Fixture::new(&CHAIN);
+    // 16 bytes fall inside the 8th "é" (bytes 15..17) of "aéééééééééé".
+    assert_eq!(
+        f.sql(&format!(
+            "UPDATE audit_entries SET prev_sig = 'a{}' WHERE id = 2",
+            "é".repeat(10)
+        )),
+        1
+    );
+
+    assert_verify_chain_panics_on_a_char_boundary(&f);
+}
+
+// SOB-238
+#[test]
+fn quirk_a_purged_row_with_a_non_ascii_sig_makes_the_next_check_panic() {
+    let f = Fixture::new(&CHAIN);
+    // The purged first row is not checked, so its stored sig becomes the expected prev_sig of
+    // row 2, which no longer matches and is cut at 16 bytes in the message.
+    assert_eq!(
+        f.sql(&format!(
+            "UPDATE audit_entries SET estimation_result_json = 'PURGED', \
+             purged_at = '2026-06-01T00:00:00+00:00', sig = 'a{}' WHERE id = 1",
+            "é".repeat(10)
+        )),
+        1
+    );
+
+    assert_verify_chain_panics_on_a_char_boundary(&f);
+}
+
 // ─── Schema ───────────────────────────────────────────────────────────────
 
 #[test]
 fn open_creates_the_v2_table_the_two_indexes_and_the_wal_mode() {
     let f = Fixture::new(&[]);
-    let conn = Connection::open(&f.path).unwrap();
+    let conn = f.conn();
 
-    let mut stmt = conn.prepare("PRAGMA table_info(audit_entries)").unwrap();
-    let columns: Vec<(String, String, i64, Option<String>, i64)> = stmt
-        .query_map([], |r| {
-            Ok((r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
-        })
-        .unwrap()
-        .map(Result::unwrap)
-        .collect();
-    let columns: Vec<(&str, &str, i64, Option<&str>, i64)> = columns
-        .iter()
-        .map(|(n, t, nn, d, pk)| (n.as_str(), t.as_str(), *nn, d.as_deref(), *pk))
-        .collect();
-    // `method` and its index are written by `append` and never read.
+    // name type notnull default pk
+    let columns: Vec<String> = query(
+        &conn,
+        "SELECT name || ' ' || type || ' ' || \"notnull\" || ' ' || ifnull(dflt_value, '-') \
+         || ' ' || pk FROM pragma_table_info('audit_entries')",
+        |r| r.get(0),
+    );
     assert_eq!(
         columns,
         [
-            ("id", "INTEGER", 0, None, 1),
-            ("timestamp", "TEXT", 1, None, 0),
-            ("estimation_result_json", "TEXT", 1, None, 0),
-            ("prev_sig", "TEXT", 1, None, 0),
-            ("sig", "TEXT", 1, None, 0),
-            ("purged_at", "TEXT", 0, None, 0),
-            ("method", "TEXT", 1, Some("'afnor_sobria'"), 0),
+            "id INTEGER 0 - 1",
+            "timestamp TEXT 1 - 0",
+            "estimation_result_json TEXT 1 - 0",
+            "prev_sig TEXT 1 - 0",
+            "sig TEXT 1 - 0",
+            "purged_at TEXT 0 - 0",
+            "method TEXT 1 'afnor_sobria' 0",
         ]
     );
 
-    let mut stmt = conn
-        .prepare(
-            "SELECT m.name, i.name FROM sqlite_master m, pragma_index_info(m.name) i \
-             WHERE m.type = 'index' AND m.name NOT LIKE 'sqlite_%' ORDER BY m.name",
-        )
-        .unwrap();
-    let indexes: Vec<(String, String)> = stmt
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-        .unwrap()
-        .map(Result::unwrap)
-        .collect();
+    // Neither verify_chain nor the export reads `method` or its index.
+    let indexes: Vec<String> = query(
+        &conn,
+        "SELECT m.name || ' ' || i.name FROM sqlite_master m, pragma_index_info(m.name) i \
+         WHERE m.type = 'index' AND m.name NOT LIKE 'sqlite_%' ORDER BY m.name",
+        |r| r.get(0),
+    );
     assert_eq!(
         indexes,
-        [
-            ("idx_audit_method".to_string(), "method".to_string()),
-            ("idx_audit_timestamp".to_string(), "timestamp".to_string()),
-        ]
+        ["idx_audit_method method", "idx_audit_timestamp timestamp"]
     );
 
     let table_sql: String = conn
@@ -348,9 +379,12 @@ fn open_creates_the_v2_table_the_two_indexes_and_the_wal_mode() {
 #[test]
 fn export_ndjson_writes_the_exact_lines_of_fixed_entries() {
     let f = Fixture::new(&CHAIN);
-    f.sql(
-        "UPDATE audit_entries SET estimation_result_json = 'PURGED', \
-         purged_at = '2026-06-01T08:00:00+00:00' WHERE id = 2",
+    assert_eq!(
+        f.sql(
+            "UPDATE audit_entries SET estimation_result_json = 'PURGED', \
+             purged_at = '2026-06-01T08:00:00+00:00' WHERE id = 2"
+        ),
+        1
     );
 
     let (count, text) = f.exported();
@@ -382,20 +416,26 @@ fn export_ndjson_of_an_empty_ledger_writes_nothing() {
 
 // ─── purge_before ─────────────────────────────────────────────────────────
 
-fn stored(f: &Fixture) -> Vec<(i64, String, String, String, Option<String>)> {
-    let conn = Connection::open(&f.path).unwrap();
-    let mut stmt = conn
-        .prepare(
-            "SELECT id, estimation_result_json, prev_sig, sig, purged_at \
-             FROM audit_entries ORDER BY id",
-        )
-        .unwrap();
-    let rows = stmt
-        .query_map([], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-        })
-        .unwrap();
-    rows.map(Result::unwrap).collect()
+struct Stored {
+    payload: String,
+    prev_sig: String,
+    sig: String,
+    purged_at: Option<String>,
+}
+
+fn stored(f: &Fixture) -> Vec<Stored> {
+    query(
+        &f.conn(),
+        "SELECT estimation_result_json, prev_sig, sig, purged_at FROM audit_entries ORDER BY id",
+        |r| {
+            Ok(Stored {
+                payload: r.get(0)?,
+                prev_sig: r.get(1)?,
+                sig: r.get(2)?,
+                purged_at: r.get(3)?,
+            })
+        },
+    )
 }
 
 #[test]
@@ -406,11 +446,11 @@ fn purge_before_keeps_an_entry_exactly_at_the_cutoff() {
 
     assert_eq!(purged, 1);
     let rows = stored(&f);
-    assert_eq!(rows[0].1, PURGED_SENTINEL);
-    assert!(rows[0].4.is_some());
-    assert_eq!(rows[1].1, CHAIN[1].payload);
-    assert_eq!(rows[1].4, None);
-    assert_eq!(rows[2].1, CHAIN[2].payload);
+    assert_eq!(rows[0].payload, PURGED_SENTINEL);
+    assert!(rows[0].purged_at.is_some());
+    assert_eq!(rows[1].payload, CHAIN[1].payload);
+    assert_eq!(rows[1].purged_at, None);
+    assert_eq!(rows[2].payload, CHAIN[2].payload);
     assert!(f.ledger.verify_chain().unwrap().valid);
 }
 
@@ -418,9 +458,9 @@ fn purge_before_keeps_an_entry_exactly_at_the_cutoff() {
 fn purge_before_returns_the_count_and_a_second_run_purges_nothing() {
     let mut f = Fixture::new(&CHAIN);
 
+    assert_eq!(f.ledger.purge_before(utc(T1)).unwrap(), 0);
     assert_eq!(f.ledger.purge_before(utc(T4)).unwrap(), 3);
     assert_eq!(f.ledger.purge_before(utc(T4)).unwrap(), 0);
-    assert_eq!(f.ledger.purge_before(utc(T1)).unwrap(), 0);
 }
 
 #[test]
@@ -430,9 +470,14 @@ fn purged_rows_keep_their_signature_and_chain_link() {
     f.ledger.purge_before(utc(T4)).unwrap();
 
     let rows = stored(&f);
-    let links: Vec<(&str, &str)> = rows.iter().map(|r| (r.2.as_str(), r.3.as_str())).collect();
+    let links: Vec<(&str, &str)> = rows
+        .iter()
+        .map(|r| (r.prev_sig.as_str(), r.sig.as_str()))
+        .collect();
     assert_eq!(links, [("", SIG_1), (SIG_1, SIG_2), (SIG_2, SIG_3)]);
-    assert!(rows.iter().all(|r| r.1 == PURGED_SENTINEL && r.4.is_some()));
+    assert!(rows
+        .iter()
+        .all(|r| r.payload == PURGED_SENTINEL && r.purged_at.is_some()));
     let report = f.ledger.verify_chain().unwrap();
     assert!(report.valid, "{}", report.message);
 }
