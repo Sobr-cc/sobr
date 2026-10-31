@@ -21,6 +21,49 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   checked for its header and size only. No production code changed, no
   dependency added.
 
+### Changed — ADR-0013 amended for automatic pairing (2026-10-30, SOB-34)
+
+- **ADR-0013, Amendment 1** (Accepted 2026-10-30): after one explicit
+  "Connect my browsers" choice in the app, the browser extension pairs
+  automatically, with no 6-digit code to type (screen E2, October 30
+  arbitration).
+  - The app writes native messaging manifests that allow only the published
+    Sobr extension IDs.
+  - Unpairing is done in the settings on either side and sticks for that
+    installation. A reinstalled extension pairs again, with a notice.
+    Removing a browser in the app's settings stops it until it is added
+    back: the app refuses that browser, since on Windows Edge falls back to
+    Chrome's and Chromium's manifests.
+  - The amendment keeps the original text and records that it reverses
+    alternative 4.
+  - It lists the conditions automatic pairing must meet before it ships:
+    - store IDs created;
+    - the bridge shipped with the app;
+    - channels restricted to the current OS user;
+    - one pairing per browser profile;
+    - a notice to the person;
+    - stopping a browser holds in the app;
+    - the offline spool checks the secret;
+    - nothing measured while the connection is off is kept;
+    - "Export JSON" leaves the secret out.
+  - ADR-0014 gets a note on its "Pairing perso 6 chiffres" row.
+  - Nothing is built yet (SOB-107).
+
+### Changed — ADR-0018 amended to match the Linear organization (2026-10-30, SOB-36)
+
+- **ADR-0018, Amendment 1** (Accepted 2026-10-30): point 1 is replaced, and
+  the rest stands.
+  - Projects are thematic, not one per chantier: 13 today, including Model
+    catalog and Infrastructure.
+  - Briefs stay as specs only where they exist (C31, C35, C36).
+  - Cycles last two weeks and start on Monday.
+  - Labels come in five groups: Type, Area, Agent, Role, Model.
+  - Only Claude agents do the work; Linear AI features stay off.
+  - The branch format from SOB-12 is confirmed.
+  - The working rules stay in "How we work", which the ADR links.
+  - CLAUDE.md §2 and §11, CONTRIBUTING.md and the label lists of the issue
+    skill follow in SOB-138.
+
 ### Added — A refused pairing keeps the code pending (2026-10-30, SOB-91)
 
 - **`sobria-app`** (`bridge_server.rs`, test module): three tests pin what
@@ -49,6 +92,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - Les fichiers `forward_wire.rs` et `bridge_process.rs` sont réservés à Unix
   (socket Unix, `HOME` isolé) ; sous Windows ils sont compilés vides.
 
+### Changed — 30-day trial and personal space (2026-10-30, SOB-35)
+
+- **ADR-0014, Amendment 1** (Accepted): the managed cloud has a 30-day
+  trial that needs a payment card to start, and is then paid per seat,
+  replacing the real free tier of condition 5; local and self-hosted stay
+  free. A personal space on the Sobr server is allowed (condition 1
+  clarified, guest mode stays the default). MIT stays for all the code. The
+  price of the personal space and its conflict with ADR-0013 are left open
+  (SOB-136).
+
 ### Added — Single app on desktop and web (2026-10-30, SOB-14)
 
 - **ADR-0021** (Proposed): `web/` becomes the only interface. One build is
@@ -61,6 +114,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   Z6, Z7, Z9, B2, A6), sets sign-in per context and the security headers of
   the served HTML, and amends rule 2 of ADR-0017. Waiting for Thibault's
   approval.
+
+### Changed — Writing rules in English (2026-10-30, SOB-97)
+
+- **CLAUDE.md** (§13, with pointers in §4.1, §4.3 and §11): everything agents
+  write is in English, all documentation included (rustdoc, ADRs, CHANGELOG,
+  READMEs); only the product's user-facing text (UI, i18n) stays in French and
+  English. Existing French documents are translated when next edited; code
+  comments follow the Deep cleanup of their zone. New comment
+  rule: the strict minimum, with three exceptions; rustdoc on public items is
+  one short line, with an example only when useful (§4.1). The old "FR + EN
+  required for docs" rule is removed.
+- **`.claude/agents/*.md`** and **`.claude/skills/orchestrate/SKILL.md`**
+  translated into English, rules unchanged.
 
 ### Added — Règles du code de pairing épinglées dans le dispatcher (2026-10-30, SOB-80)
 
