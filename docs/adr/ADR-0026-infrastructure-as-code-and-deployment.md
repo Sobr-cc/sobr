@@ -1,9 +1,11 @@
 # ADR-0026 — Infrastructure as code and automatic deployment
 
-- **Status**: Accepted (2026-10-31). Thibault answered the three points in his
+- **Status**: Proposed (2026-10-31). Thibault answered the three points in his
   own words on 2026-10-31 (SOB-207), then the scope, portability and repo
-  questions of the shared host (SOB-211, SOB-212, SOB-213). It deploys the
-  platform of ADR-0024, which is Proposed until SOB-181 is settled.
+  questions of the shared host (SOB-211, SOB-212, SOB-213). It becomes Accepted
+  when he knowingly accepts the residual risk of section 5: a session that held
+  both the author and the reviewer tokens could approve its own change. It
+  deploys the platform of ADR-0024, which is Proposed until SOB-181 is settled.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Infrastructure project (SOB-73)

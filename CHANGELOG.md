@@ -9,7 +9,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — ADR-0026, infrastructure as code and automatic deployment (2026-10-31, SOB-73)
 
-- **ADR-0026** (Accepted): the infrastructure lives in the private `infra` repo
+- **ADR-0026** (Proposed): the infrastructure lives in the private `infra` repo
   of Sobr-cc, on the Free plan, and changes only by pull request. A script
   started by cron on the Proxmox server pulls it and applies what is approved:
   OpenTofu (`bpg/proxmox`) for Proxmox, `talosctl` for the Talos nodes, Flux
