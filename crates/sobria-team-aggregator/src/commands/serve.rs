@@ -77,7 +77,7 @@ pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Resu
 
 /// Purges at boot, then every 24 h, the estimations older than
 /// `config.retention_days` (default 730 d, floor 30 — see
-/// `commands::config::RUNTIME_KEYS`). Best-effort: a failure is logged,
+/// `config::RUNTIME_KEYS`). Best-effort: a failure is logged,
 /// never fatal to the server.
 fn spawn_retention_task(state: crate::server::ServerState) {
     tokio::spawn(async move {
@@ -101,7 +101,7 @@ fn spawn_retention_task(state: crate::server::ServerState) {
 
 /// Reads `retention_days` (default/floor from the CLI allow-list) and purges.
 fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i64, u64)> {
-    use crate::commands::config::RETENTION_DAYS;
+    use crate::config::RETENTION_DAYS;
 
     let storage = state
         .storage

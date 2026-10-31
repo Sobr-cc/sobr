@@ -55,7 +55,8 @@ The data dir holds:
 ## Security
 
 - No OpenSSL: rustls and ring only.
-- Argon2id hashes for admin passwords, enrollment codes and refresh tokens.
+- Argon2id hashes for admin and employee passwords, enrollment codes and
+  refresh tokens.
   Access tokens are JWTs valid 24 h.
 - Protect the data dir with OS permissions (see
   `docs/operations/team-aggregator.md`).

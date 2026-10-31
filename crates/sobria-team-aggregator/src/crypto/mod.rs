@@ -1,6 +1,6 @@
 //! Cryptographic primitives of the `sobria-team-aggregator`.
 //!
-//! - [`password`]: Argon2id PHC hashes (admin passwords, enrollment codes, refresh tokens).
+//! - [`password`]: Argon2id PHC hashes (passwords, enrollment codes, refresh tokens).
 //! - [`secret`]: OS RNG secrets (JWT signing key, enrollment codes).
 //! - [`tls`]: self-signed certificate through `rcgen` (ring backend).
 

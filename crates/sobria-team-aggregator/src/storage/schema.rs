@@ -1,7 +1,8 @@
 //! SQLite schema of the `sobria-team-aggregator`.
 //!
-//! Migrations are idempotent (`CREATE TABLE IF NOT EXISTS`) and driven by
-//! `PRAGMA user_version`: [`install`] runs each step above the current version.
+//! Migrations are driven by `PRAGMA user_version`: [`install`] runs each step
+//! above the current version once. The `ALTER TABLE` steps are not idempotent
+//! on their own.
 //! See `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2.
 
 use rusqlite::Connection;

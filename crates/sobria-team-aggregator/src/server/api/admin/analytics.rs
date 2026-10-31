@@ -23,7 +23,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use super::parse_window;
-use crate::commands::config::K_ANONYMITY_MIN;
+use crate::config::K_ANONYMITY_MIN;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
