@@ -426,19 +426,8 @@ mod tests {
     #[test]
     fn pair_with_wrong_code_returns_invalid_error() {
         let (_tmp, state) = fresh_state();
-        let _ = crate::logic::regenerate_pairing_code(&state).unwrap();
-        let resp = dispatch_request(
-            &state,
-            BridgeRequest::Pair {
-                req_id: "r1".into(),
-                code: "000000".into(),
-            },
-        );
-        assert!(!resp.ok);
-        let err = resp.error.unwrap();
-        // Soit malformé (chiffres non-valides) soit invalide (mauvais code) :
-        // selon les chances de collision, "000000" peut accidentellement matcher.
-        // On accepte les deux variantes.
+        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
+        let err = pair_error(&state, &wrong_code_for(&dto.code));
         assert!(
             err.contains("invalide") || err.contains("expiré") || err.contains("chiffres"),
             "got: {err}"
