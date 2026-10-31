@@ -30,7 +30,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     (SOB-198).
   - The billing credential of an organization can do more than read usage, so
     the ADR lists protections for it. Where it lives (server or admin's app) is
-    an open point, and build issue 8 waits for it.
+    an open point (SOB-206), and build issue 8 waits for it.
 - **ADR-0022, Amendment 1** (Accepted): closes the references that left these points to
   SOB-146, and adds one item to its upload contract (a session merge).
 - Corrects one sentence of the ADR-0023 entry (SOB-144).

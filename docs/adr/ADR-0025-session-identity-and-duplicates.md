@@ -2,7 +2,7 @@
 
 - **Status**: Accepted (2026-10-31). Thibault took the recommendation on the two
   open points (SOB-195) and on the local context question (SOB-198). One point
-  stays open (point 3 below); build issue 8 waits for it.
+  stays open (point 3 below, SOB-206); build issue 8 waits for it.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-146)
@@ -42,7 +42,8 @@ section, which compares the options with their cost, effort and risk.
    the organization's collector forwarding to the server with Claude Code's
    session ID in the upload; or the same with a keyed hash of that ID. This
    changes the recommendation of the capture note (section 3, option 2).
-3. **Open: where an organization's billing credential lives** (section 6).
+3. **Open: where an organization's billing credential lives** (section 6,
+   Decision issue SOB-206).
    Recommended: on the Sobr server, opt-in per organization, with the
    protections of section 6. Alternatives: on an admin's own app, which uploads
    only the aggregated billed figure (no credential on the server, but the figure
@@ -301,7 +302,7 @@ follows these protections:
 - an Enterprise organization uses the `read:analytics` key instead;
 - each use leaves an entry in the audit log (ADR-0023).
 
-Where it lives, on the server or on an admin's own app, is point 3.
+Where it lives, on the server or on an admin's own app, is point 3 (SOB-206).
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -593,7 +594,7 @@ The numbers refer to the issues of ADR-0022.
 | 5 | Make the extension send one report per conversation and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 6 | Store the winning report of each session on the server with the replaced ones as history, and accept a session merge | Server | 5 | #1; ADR-0022 issues 6 and 7; **SOB-25** |
 | 7 | Apply rules again when a session gains context, and merge two sessions with the person's attachment winning | Model crate, desktop backend | 3 | #1; ADR-0022 issue 5; **SOB-26** |
-| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap, with the credential protections of section 6 | Server, integrations | 8 | The answer to point 3; ADR-0022 issue 6; **SOB-25** |
+| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap, with the credential protections of section 6 | Server, integrations | 8 | The answer to point 3 (SOB-206); ADR-0022 issue 6; **SOB-25** |
 | 9 | Update the capture note with the result of SOB-163 and this ADR (OpenTelemetry through the app, section 3 option 2) | Docs | 1 | SOB-163 |
 
 ## Links
@@ -603,7 +604,7 @@ The numbers refer to the issues of ADR-0022.
 - ADR-0004, ADR-0015, ADR-0016, ADR-0019, ADR-0022 (Amendment 1 closes its
   references to this ADR)
 - `docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md` (SOB-145), SOB-161, SOB-163,
-  SOB-166, SOB-195 (the two points), SOB-198 (local context), SOB-118 (the
+  SOB-166, SOB-195 (the two points), SOB-198 (local context), SOB-206 (billing credential), SOB-118 (the
   `both` mode double count), SOB-87 (amendment by PR)
 - Official pages read on 2026-10-31: [Usage and Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api),
   [Usage and Cost Analytics API](https://platform.claude.com/docs/en/manage-claude/usage-cost-analytics-api),
