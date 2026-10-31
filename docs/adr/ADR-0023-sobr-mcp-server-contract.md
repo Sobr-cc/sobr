@@ -4,7 +4,9 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Claude Code and MCP project (SOB-144)
-- **Settles**: the condition of ADR-0019, decision 4 (where the MCP server lives)
+- **Settles**: the condition of ADR-0019, decision 4 (where the MCP server
+  lives). ADR-0019 is in PR #2, not merged yet; if its decision 4 changes,
+  this ADR is amended
 - **Depends on**: the data model ADR (SOB-143) for projects, tasks and sessions
 
 > **Summary.** Claude reads and acts on Sobr through MCP tools, within the
@@ -292,7 +294,8 @@ from the data model and roles work. Two consequences:
 The visibility policy (ADR-0015, ADR-0016) applies as in the interface. A tool
 returns exactly what the matching screen shows to that person: k-anonymity
 on aggregates (empty sections and `k_anonymity.blocked`, as in ADR-0015, not
-an error), per-person detail only when the policy allows it, and the
+an error; the tool applies k to every group it returns, which can be
+stricter than a screen), per-person detail only when the policy allows it, and the
 personal space never leaves the person. The server never trusts an argument
 for rights: an id the person may not see answers `not_found`, the same as an
 id that does not exist.
@@ -310,7 +313,7 @@ that holds more permissions than their own.
   | Class | Meaning | Confirmation | Audit |
   |-------|---------|--------------|-------|
   | 0 | Reads. Changes nothing | none | per-person reads only |
-  | 1 | Reversible write. The previous state is recorded and one call restores it (or the call only adds a record and removes nothing); the call itself sends nothing to anyone; no linked data is lost | none | yes |
+  | 1 | Reversible write. The previous values are kept in full in the audit entry, so a normal edit puts them back (or the call only adds a record and removes nothing); nothing is sent to anyone, now or later; no linked data is lost | none | yes |
   | 2 | Irreversible, or reaches other people or outside systems | pending action approved in Sobr | yes, every step |
   | 3 | Never exposed: no tool | — | — |
 
@@ -321,7 +324,8 @@ that holds more permissions than their own.
   descriptions, member names, synced task titles) comes back as plain data in
   its own field, cut to 200 characters. No such text can change rights or
   skip a confirmation: only tool calls change state, and they pass through
-  rights and decision 8.
+  rights and decision 8. Class 1 tools still run at once, so a model steered
+  by such text can use them within its grant (see Consequences).
 - **No secret in a result**: no code, token, password, pairing secret or
   certificate. An invitation is sent by email, and the code is shown in the
   Sobr interface only.
@@ -332,7 +336,7 @@ that holds more permissions than their own.
   gCO₂eq, money in euros, times in RFC 3339 UTC.
   Lists take `cursor` and `limit` (25 by default, 100 at most).
 - **Inputs are strict**: `additionalProperties: false`, lengths and ranges
-  bounded, ids opaque strings.
+  bounded (names 120 characters, descriptions 2,000), ids opaque strings.
 - **Errors** are tool errors with a stable `code`: `permission_denied`,
   `not_found`, `policy_blocked`, `scope_missing`, `grant_expired`,
   `rate_limited`, `invalid_input`. A pending action is a normal result, not
@@ -344,9 +348,10 @@ that holds more permissions than their own.
   the client; Sobr does not rely on them.
 - **Short descriptions** (200 characters at most), because every tool costs
   context in every request. The list a server returns is cut to the grant
-  and the person: an organization member with `read` sees 14 of the 43 tools.
+  and the person: an organization member with `read` sees about 10 of the 45 tools today,
+  more once projects, tasks and budgets exist on the server.
 - **Rate limit per grant** (the specification requires it of servers; none
-  was found in the Sobr server).
+  was found in the Sobr server). Writes have a lower limit than reads.
 - **Contract version**: `contract_version` (semver) in `get_context`. New
   tools and optional fields are minor; renaming or removing a tool,
   narrowing an input or changing a class is major and needs an amendment of
@@ -359,7 +364,7 @@ that holds more permissions than their own.
 
 | Choice | Option | Cost and effort | Risk |
 |--------|--------|-----------------|------|
-| Granularity | One tool per question or action (recommended) | 43 definitions in all, though a client lists only what its grant allows | None for rights: class, annotations and permission are set per tool |
+| Granularity | One tool per question or action (recommended) | 45 definitions in all, though a client lists only what its grant allows | None for rights: class, annotations and permission are set per tool |
 | Granularity | A few tools with an `action` argument | Fewer definitions, less context | A read tool can hide a write; the class, the hints and the permission cannot be set per case, and a client prompt cannot tell the cases apart |
 | Surface | Tools only (recommended) | Lowest; every client supports tools | The model must call a tool to read; nothing to browse |
 | Surface | Tools and resources | Resources suit browsing, such as a usage summary by URI | Client support varies; a second path to the same rights check |
@@ -376,7 +381,7 @@ means personal and organization spaces; "org" the organization only.
 |------|--------|---------|------------|-------|
 | `get_context` | — | space (kind, name), person, role, permissions, grant (id, scopes, expiry), visibility level, `contract_version` | any valid grant | both |
 | `get_usage` | `scope` (`self`, `project`, `task`), `id`, `period`, `group_by` (`day`, `model`, `project`, `task`, `source`) | totals and groups with P5–P95 and `method`; sessions count; budget status when set | `usage.read.self`; `usage.read.project` for a project or task of the organization | both |
-| `get_organization_usage` | `period`, `group_by` (`day`, `project`, `model`, `source`, `person`) | aggregates. Under k active people the sections are empty and `k_anonymity.blocked` is true (ADR-0015). `person` is honored only where the policy allows it, otherwise those people are folded into one anonymous row | `usage.read.org` | org |
+| `get_organization_usage` | `period`, `group_by` (`day`, `project`, `model`, `source`, `person`) | aggregates. k applies to every group returned: a group under k active people is merged into `other`, and if `other` is still under k it is dropped together with the grand total. Under k people overall the sections are empty and `k_anonymity.blocked` is true (ADR-0015). `person` is honored only where the policy allows it | `usage.read.org` | org |
 | `list_sessions` | `period`, `source`, `project_id`, `task_id`, `classified`, `cursor`, `limit` | the caller's own sessions: id, start, source, model, links, energy and emissions with intervals. No text | `sessions.read.self` | both |
 | `get_session` | `id` | figures per source merged (value, P5–P95, method), links, sources | `sessions.read.self` | both |
 | `list_projects` | `status`, `cursor`, `limit` | id, name, description, member count, budget status | `projects.read` | both |
@@ -392,6 +397,7 @@ means personal and organization spaces; "org" the organization only.
 | `get_audit_log` | `period`, `actor_id`, `tool`, `outcome`, `cursor`, `limit` | entries of decision 8 | `audit.read.org`; `audit.read.self` in the personal space | both |
 | `verify_audit_chain` | — | `ok`, entries checked, first bad entry | `audit.read.*` | both |
 | `get_pending_action` | `id` | state, summary, expiry, result | the person who holds the grant | both |
+| `list_pending_actions` | `state`, `cursor`, `limit` | the grant's own pending actions: id, tool, summary, state, expiry | the person who holds the grant | both |
 | `list_models` | `family`, `cursor`, `limit` | id, vendor, size class, methodology ids | `reference.read` | both |
 | `get_model` | `id` | parameters, sources, methodologies | `reference.read` | both |
 | `estimate` | `model_ids` (1 to 5), `input_tokens`, `output_tokens`, `method`, `region` | per model: energy, emissions, water with P5–P95, hypotheses, seed; ranked when there are several. Not written to the ledger | `reference.read` | both |
@@ -422,11 +428,12 @@ returns a pending action (decision 8).
 | `create_task` | 1 | `project_id`, `title`, `due` (manual tasks only; a synced task is read-only) | task | `tasks.write` | both |
 | `update_task` | 1 | `id`, `title`, `status` | task | `tasks.write` | both |
 | `delete_task` | 2 | `id` | pending action | `tasks.write` | both |
-| `set_budget` | 1 | `scope` (`self`, `project`, `organization`), `id`, `amount` (null clears), `unit` (`kWh`, `EUR`), `period` | budget; the old value goes to the audit entry | `budget.set.*` | both |
+| `set_budget` | 1 | `amount` (null clears), `unit` (`kWh`, `EUR`), `period`: the person's own budget | budget; the old value goes to the audit entry | `budget.set.self` | both |
+| `set_shared_budget` | 2 | `scope` (`project`, `organization`), `id`, `amount` (null clears), `unit`, `period` | pending action; crossing 80 % or 100 % later mails the managers and admins | `budget.set.project`, `budget.set.org` | both |
 | `dismiss_suggestion` | 1 | `id`, `forever` | — | `suggestions.manage` | both |
 | `apply_suggestion` | 2 | `id` (changes a model, compacts or cuts a session: work in progress can be lost) | pending action | `suggestions.manage` | both |
-| `create_alert` | 1 | `scope` (`organization`, `project`), `metric`, `threshold`, `channel` (`in_app`, or `email` to the managers and admins; no webhook URL) | alert. A per-person scope waits for SOB-115 | `alerts.manage` | org |
-| `disable_alert` | 1 | `id` | — ; the old settings go to the audit entry | `alerts.manage` | org |
+| `create_alert` | 2 | `scope` (`organization`, `project`), `metric`, `threshold`, `channel` (`in_app`, or `email` to the managers and admins; no webhook URL) | pending action (the alert mails people when it triggers). A per-person scope waits for SOB-115 | `alerts.manage` | org |
+| `disable_alert` | 2 | `id` | pending action (people stop receiving the alert) | `alerts.manage` | org |
 | `invite_members` | 2 | `emails` (1 to 50), `role_id` | pending action (mail leaves the system) | `members.invite` | org |
 | `revoke_invitation` | 2 | `id` | pending action (the old code is not restored) | `members.invite` | org |
 | `set_member_role` | 2 | `member_id`, `role_id` | pending action; guards of decision 4 | `roles.assign` | org |
@@ -445,7 +452,8 @@ use case exists.
 **Which actions are irreversible.** Class 2 is every tool in the table above
 marked 2. The reasons: it deletes data that is not recorded (`delete_project`,
 `delete_task`, `remove_member`); it reaches other people or outside systems
-(`invite_members`, `create_export`); it cannot be put back as it was
+(`invite_members`, `create_export`, `create_alert`, `disable_alert`,
+`set_shared_budget`); it cannot be put back as it was
 (`revoke_invitation`, `apply_suggestion`, `apply_rule_to_history`); or it
 changes who can see or do what (`set_member_role`, `manage_role`,
 `restrict_visibility_policy`), since data seen cannot be unseen.
@@ -505,13 +513,18 @@ Claude ── get_pending_action ──▶ result
 - The server builds the **summary** from the validated arguments and the
   current data (for example: "Delete project Payments API: 14 sessions
   become unclassified, 3 tasks are deleted"), not from the model's words.
-- The pending action stores the tool, the arguments, their digest, the
-  person, the space, the grant and an expiry (24 hours). The same call
-  with the same arguments while one is pending returns the same pending
-  action.
+- The pending action stores the tool, the arguments, their digest, a digest
+  of the state the summary describes, the person, the space, the grant and
+  an expiry (24 hours). The same call with the same arguments while one is
+  pending returns the same pending action. If the state has changed at
+  approval time, nothing runs: the action becomes `stale` and the model must
+  propose again. A rejected or expired proposal blocks the same proposal for
+  24 hours, and a grant holds at most 10 open pending actions; both answer
+  `rate_limited`.
 - **Approval is a first-party Sobr action** by the same person: a dialog in
-  the app (personal space), the app or the web page (organization space), under
-  a normal Sobr sign-in. No tool approves. The person must still hold the
+  the app (personal space, where guest mode has no account and the person is
+  at the machine), the app or the web page (organization space), under a
+  normal Sobr sign-in. No tool approves. The person must still hold the
   permission at approval time. The model cannot change the arguments after
   the summary was shown.
 - **A client without a screen** (a headless run, a scheduled agent) gets the
@@ -523,8 +536,16 @@ Claude ── get_pending_action ──▶ result
   before sending the proposal too. Sobr does not set
   `requiresUserInteraction`: a proposal executes nothing, so a forced prompt
   on every call only adds friction.
-- Class 1 tools run at once. The old state goes to the audit entry, and a
-  second call restores it.
+- Class 1 tools run at once. The old values go to the audit entry in full,
+  so a normal edit puts them back.
+
+**What this protects, and what it does not.** Approval stops a model that
+goes through the MCP, in both spaces. In an organization the server is the
+boundary, so even a client that skips the MCP cannot skip approval. In the
+personal space the data sits in files of the same OS user as the client, and
+a model with a shell (Claude Code with its Bash tool) can change them
+without Sobr. Only the client's own permission system can stop that, and the
+grant of the stdio door guards the MCP wrapper, not the files.
 
 Screen C4 therefore has two sides: a summary and a wait in Claude (as the
 sheet reads), and an approve-or-reject view in Sobr. The design issue for
@@ -548,10 +569,10 @@ versioned; existing entries are not touched.
 An entry holds: `id`, `time`, `space`, `actor` (person id), `via` (`mcp`,
 `app`, `web`, `cli`), `grant_id`, `client_name` (as the client declares it,
 untrusted), `tool`, `class`, `target` (type and id), `state_before` and
-`state_after` for class 1 (numbers, ids, enum values and short names or
-descriptions of 200 characters; never prompt text), `args_digest`,
-`pending_id`, `outcome` (`proposed`, `approved`, `rejected`, `expired`,
-`cancelled`, `executed`, `failed`), `approver` (person id) and
+`state_after` for class 1 (the changed fields in full, within the input
+limits; never prompt text), `args_digest`, `pending_id`, `outcome`
+(`proposed`, `approved`, `rejected`, `expired`, `cancelled`, `stale`,
+`executed`, `failed`), `approver` (person id) and
 `approved_via`, plus `prev_sig` and `sig`. It never holds prompt text, a
 secret, a person's name or a conversation. A name comes from the person id when the log
 is read, so a departing member's name is erased and the entries stay.
@@ -615,8 +636,8 @@ extension project; they join issues 14 and 15 when those exist.
   machine and on a server, and a test proves it.
 - **Rights are enforced where the data is**, by the same code as the
   screens, so the MCP cannot see more than the person does.
-- **A model cannot approve its own irreversible action**, whatever the
-  client does, and a client without a screen still works.
+- **A model cannot approve its own irreversible action** through the MCP,
+  whatever the client does, and a client without a screen still works.
 - **A revoke or a demotion applies on the next call.**
 - **The audit log answers Z11** and also covers the personal space.
 - **Frugal**: no local network port, no new service, a tool list cut to the grant.
@@ -630,6 +651,10 @@ extension project; they join issues 14 and 15 when those exist.
 - **About 108 points of work**, with the administration tools landing in
   February 2027 at the earliest.
 - **Screen C4 changes** and a design issue is needed.
+- **Residual risk.** A model steered by hostile text can still run class 1
+  tools within its grant, and on the personal space a model with a shell can
+  bypass Sobr. The `read` default, the full old values in the audit entry
+  and a lower write limit reduce it.
 
 **Neutral**
 
