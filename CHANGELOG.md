@@ -31,8 +31,9 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - Breakdowns by project and by task appear only when every group shown,
     the remainder included, has k contributors (SOB-148, option 1); SOB-153
     amends ADR-0016 to match.
-  - Whether a personal space syncs between machines stays with SOB-136;
-    session identity across sources stays with SOB-146.
+  - A personal space can sync between machines through the Sobr server
+    (ADR-0013 and ADR-0014, Amendment 2). Session identity across sources
+    stays with SOB-146.
 
 ### Changed — Free personal space (2026-10-31, SOB-154)
 

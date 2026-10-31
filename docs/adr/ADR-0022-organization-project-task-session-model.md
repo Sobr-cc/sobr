@@ -23,7 +23,8 @@
 > Every client uploads through one contract that carries random IDs, the
 > source, the model, the day and the metrics, never text and never a clock
 > time. The server refuses any other field. Session history starts fresh.
-> SOB-136 decides whether a personal space syncs between machines.
+> A personal space can sync between machines through the Sobr server
+> (ADR-0013 and ADR-0014, Amendment 2).
 
 ## Points decided
 
@@ -148,10 +149,10 @@ Four facts shape the design:
 - The list of roles and what each may do, beyond the two limits of §5: the
   Organization and identity project (ADR-0021, point 4), as is the identity
   source (SSO, SCIM).
-- Whether a personal space syncs between machines, and its price: SOB-136.
-  ADR-0013 still rules out accounts hosted by Sobr and sync between a
-  person's machines ("Ce qu'on ne fera PAS"); this ADR does not lift those
-  lines.
+- When the personal space's sync between machines ships, and the limits of
+  the free personal space. ADR-0013 and ADR-0014 (Amendment 2, SOB-136)
+  allow a free personal space on the Sobr server that syncs between a
+  person's machines, and leave both points open; SOB-103 owns the dates.
 
 ## Decision
 
@@ -468,13 +469,18 @@ backend decides their place.
   and links that the person may see. Totals of others are fetched when
   shown, not stored.
 
-**In a personal space,** the device owns everything. If SOB-136 chooses sync
-between machines (which needs ADR-0013 amended first), the personal space is
-hosted on the Sobr server and follows the organization rules above: the
-server owns projects, tasks and attachments, and creates tasks from
-trackers, so two machines never create the same one. Rules still stay on
-each device. Two machines that already hold a personal space each must merge
-them at the first sync; SOB-136 decides how. The model and the upload
+**In a personal space,** the device owns everything until the person turns
+sync on. ADR-0013 and ADR-0014 (Amendment 2) allow a personal space on the
+Sobr server that syncs between the person's machines. With sync on, the
+personal space is hosted there and follows the organization rules above:
+
+- the server owns projects, tasks and attachments;
+- the server creates tasks from trackers, so two machines never create the
+  same one;
+- rules still stay on each device.
+
+Two machines that already hold a personal space each must merge them at the
+first sync; the issue that builds sync decides how. The model and the upload
 contract do not change; the write path of the personal space does.
 
 | Option | Cost | Effort | Risk |
@@ -775,7 +781,7 @@ P1, P2, A7) wait for Design V7 and are not listed.
 | 11 | Read projects from the app in the browser extension, instead of free-text labels | Browser extension, bridge, desktop backend | 3 | #3, #9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 12 | Let a person withdraw a session from an organization to their personal space | Desktop backend, server | 2 | #8; **SOB-25**, **SOB-26** |
 | 13 | Keep organization session detail 24 months, then k-safe daily totals, and anonymize a departing member after export | Server | 3 | #7; **SOB-25** |
-| 14 | Host several spaces on one server: per-space settings and sign-in through the accounts database | Server | 5 | #6; **SOB-25**; the Cloud and self-hosting project; personal spaces there only after SOB-136 |
+| 14 | Host several spaces on one server: per-space settings and sign-in through the accounts database | Server | 5 | #6; **SOB-25**; the Cloud and self-hosting project, which also hosts the free personal spaces (ADR-0014 Amendment 2) |
 
 ## Links
 
@@ -784,9 +790,10 @@ P1, P2, A7) wait for Design V7 and are not listed.
   P1, P2, Z2, A7, M2
 - [App and screen architecture](https://claude.ai/artifact/5UaiKHXrKPVyRPEd6gfeyr):
   "Accès par rôle", "Écarts"
-- ADR-0003, ADR-0009, ADR-0013 (Amendment 1, "Ce qu'on ne fera PAS"),
-  ADR-0014 (Amendment 1), ADR-0015, ADR-0016, ADR-0019, ADR-0020, ADR-0021
-- SOB-136 (personal space sync and price), SOB-146 (session identity and
+- ADR-0003, ADR-0009, ADR-0013 (Amendments 1 and 2), ADR-0014 (Amendments
+  1 and 2), ADR-0015, ADR-0016, ADR-0019, ADR-0020, ADR-0021
+- SOB-136 (answered: a free personal space that syncs, ADR-0013 and ADR-0014
+  Amendment 2), SOB-146 (session identity and
   duplicates), SOB-114, SOB-115 and SOB-118 (today's export, alert and
   double-counting gaps), SOB-151 (the seven answers), SOB-148 (the
   project-level k rule, option 1) and SOB-153 (its ADR-0016 amendment), SOB-142
