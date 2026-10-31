@@ -1,0 +1,34 @@
+{
+  "columns": [
+    {
+      "dtype": "u32",
+      "name": "id"
+    },
+    {
+      "dtype": "str",
+      "name": "choice"
+    },
+    {
+      "dtype": "str",
+      "name": "_copper_sha256"
+    },
+    {
+      "dtype": "str",
+      "name": "_ingested_at"
+    }
+  ],
+  "rows": [
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "choice": "a",
+      "id": "1"
+    },
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "choice": "b",
+      "id": "2"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "@context": {
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "schema": "https://schema.org/",
+    "sobria": "https://sobr.ia/vocab#"
+  },
+  "@graph": [
+    {
+      "@id": "sobria:project-1",
+      "@type": ["schema:Dataset","prov:Entity"],
+      "schema:dateCreated": "2026-01-02T09:30:00+00:00",
+      "schema:description": "A test project.",
+      "schema:keywords": ["ai","audit"],
+      "schema:license": "https://opensource.org/licenses/MIT",
+      "schema:name": "Project X",
+      "schema:size": 3,
+      "schema:temporalCoverage": "2026-01-01/2026-04-01",
+      "schema:variableMeasured": ["co2eq","energy","water"],
+      "sobria:datasheet": {
+        "@id": "sobria:project-1/datasheet"
+      }
+    },
+    {
+      "@id": "sobria:project-1/datasheet",
+      "@type": "sobria:Datasheet",
+      "sobria:collectionProcess": "Estimations produites par sobria-estimator v1.2.3 (seed 7, N=500). Méthodologie(s) : AFNOR SPEC 2314 (Sobr.ia) — référentiel français, formule linéaire-par-token + Monte-Carlo N=10⁴ + EcoLogits 2026-01 — port direct des formules officielles (doi:10.21105/joss.07471, CC BY-SA 4.0). Chaque entrée provient d'un acte utilisateur unique journalisé dans le ledger d'audit ACID (SHA-256 chaîné).",
+      "sobria:composition": {
+        "@id": "sobria:project-1/datasheet#composition",
+        "@type": "sobria:Composition",
+        "sobria:firstEntryAt": "2026-01-10T08:00:00+00:00",
+        "sobria:lastEntryAt": "2026-02-20T17:45:00+00:00",
+        "sobria:totalCo2eqGramsP50": 6.0,
+        "sobria:totalEnergyWhP50": 3.0,
+        "sobria:totalRequests": 3,
+        "sobria:totalWaterLitersP50": 0.003,
+        "sobria:uniqueModels": ["gpt-4o-mini","mistral-large"]
+      },
+      "sobria:distribution": {
+        "@type": "dcat:Distribution",
+        "schema:encodingFormat": "application/ld+json",
+        "schema:license": "https://opensource.org/licenses/MIT",
+        "sobria:dataLicense": "Etalab 2.0 (sources publiques)"
+      },
+      "sobria:gebriRef": "Gebru et al. 2018 - Datasheets for Datasets (arXiv:1803.09010)",
+      "sobria:maintenance": {
+        "schema:dateModified": "<time>",
+        "schema:softwareVersion": "1.2.3",
+        "sobria:contact": "contact@example.org"
+      },
+      "sobria:methodologiesUsed": ["AFNOR SPEC 2314 (Sobr.ia) — référentiel français, formule linéaire-par-token + Monte-Carlo N=10⁴","EcoLogits 2026-01 — port direct des formules officielles (doi:10.21105/joss.07471, CC BY-SA 4.0)"],
+      "sobria:motivation": "A test project.",
+      "sobria:preprocessing": "Aucune transformation des résultats Monte-Carlo. Les valeurs P5/P50/P95 publiées sont les quantiles directs sur N tirages.",
+      "sobria:uses": "Testing."
+    }
+  ]
+}

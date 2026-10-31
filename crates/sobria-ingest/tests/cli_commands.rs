@@ -1,0 +1,255 @@
+//! Characterization tests of the `sobria-ingest` commands (SOB-222).
+//!
+//! They run the real binary on a temp data folder. The standard registry has
+//! the data.gouv.fr URLs built in, so the binary is cut off from the network
+//! instead: its environment points every proxy variable at a closed local
+//! port, and each download fails at once (the downloader still retries three
+//! times, which is why the tests that download take several seconds).
+//!
+//! Tests named `quirk` record behavior that differs from CLAUDE.md section 10
+//! or `dvc.yaml`. SOB-123 is the issue that fixes `gold` and `--incremental`.
+
+mod common;
+
+use std::{
+    fs::File,
+    io::{Read, Seek},
+    net::TcpListener,
+    path::Path,
+    process::{Command, Output, Stdio},
+    time::{Duration, Instant},
+};
+
+use common::{
+    context, count, gold_sqlite, only_snapshot, populate, populate_copper, silver_files,
+    silver_path,
+};
+
+/// Longest a run may take. Past it, the proxy variables did not cut the network.
+const WATCHDOG: Duration = Duration::from_secs(120);
+
+/// A local address nothing listens on.
+fn closed_local_address() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    drop(listener);
+    format!("http://127.0.0.1:{port}")
+}
+
+/// Runs `sobria-ingest <args>` with `data_root` as its data folder and no
+/// network. It blocks until the child exits, so the async tests below use a
+/// multi-threaded runtime: a server of the test that is still running keeps
+/// being served meanwhile.
+fn ingest(data_root: &Path, args: &[&str]) -> Output {
+    let dead = closed_local_address();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_sobria-ingest"));
+    command
+        .args(args)
+        .current_dir(data_root)
+        .env("SOBRIA_DATA_ROOT", data_root)
+        .env_remove("SOBRIA_SEED")
+        .env("RUST_LOG", "error")
+        .env_remove("NO_PROXY")
+        .env_remove("no_proxy");
+    for name in [
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ] {
+        command.env(name, &dead);
+    }
+
+    let mut out_file = tempfile::tempfile().expect("stdout file");
+    let mut err_file = tempfile::tempfile().expect("stderr file");
+    let mut child = command
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(out_file.try_clone().expect("clone")))
+        .stderr(Stdio::from(err_file.try_clone().expect("clone")))
+        .spawn()
+        .expect("run sobria-ingest");
+
+    // If the proxy variables ever stopped cutting the network, the binary would
+    // start downloads of several GB: stop it and fail instead of waiting.
+    let deadline = Instant::now() + WATCHDOG;
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("wait") {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("`sobria-ingest {args:?}` ran for {WATCHDOG:?}: the proxy variables did not cut the network");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+
+    let read = |file: &mut File| {
+        let mut bytes = Vec::new();
+        file.rewind().expect("rewind");
+        file.read_to_end(&mut bytes).expect("read");
+        bytes
+    };
+    Output {
+        status,
+        stdout: read(&mut out_file),
+        stderr: read(&mut err_file),
+    }
+}
+
+fn stdout(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+fn stderr(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+#[test]
+fn pipeline_run_with_an_unknown_source_is_refused_before_any_download() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let out = ingest(tmp.path(), &["pipeline", "run", "--source", "nope"]);
+
+    assert_eq!(out.status.code(), Some(1));
+    let err = stderr(&out);
+    assert!(err.contains("source inconnue: 'nope'"), "{err}");
+    assert!(err.contains("comparia, rte-iris"), "{err}");
+    assert!(
+        !context(tmp.path()).copper_root("comparia").exists(),
+        "nothing was downloaded"
+    );
+}
+
+#[test]
+fn validate_without_any_snapshot_says_so_and_succeeds() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let out = ingest(tmp.path(), &["validate"]);
+
+    assert_eq!(out.status.code(), Some(0));
+    let text = stdout(&out);
+    assert!(text.contains("Aucun snapshot Copper trouvé sous"), "{text}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn validate_accepts_untouched_snapshots() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate_copper(tmp.path()).await;
+
+    let out = ingest(tmp.path(), &["validate"]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn validate_reports_a_corrupted_copper_file() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate_copper(tmp.path()).await;
+    let csv = only_snapshot(tmp.path(), "rte-iris").join("consommation_iris.csv");
+    let mut bytes = std::fs::read(&csv).expect("csv");
+    bytes.extend_from_slice(b"tampered");
+    std::fs::write(&csv, bytes).expect("rewrite csv");
+
+    let out = ingest(tmp.path(), &["validate"]);
+    assert_eq!(out.status.code(), Some(1));
+    let text = stdout(&out);
+    assert!(text.contains("2 manifest(s) inspecté(s), 1 KO."), "{text}");
+    let ko_lines: Vec<&str> = text.lines().filter(|l| l.starts_with("KO")).collect();
+    assert_eq!(ko_lines.len(), 1, "{text}");
+    assert!(ko_lines[0].contains("rte-iris"), "{text}");
+    let err = stderr(&out);
+    assert!(err.contains("validate: 1 manifest(s) corrompu(s)"), "{err}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn validate_quirk_only_rehashes_copper_so_broken_silver_and_missing_gold_pass() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate(tmp.path()).await;
+    // `run_validate` checks nothing but the Copper manifests, although
+    // `dvc.yaml` promises lineage, schema and row-count checks.
+    for (source, entity, _) in silver_files() {
+        std::fs::write(
+            silver_path(tmp.path(), source, entity),
+            b"not a parquet file",
+        )
+        .expect("break silver");
+    }
+    std::fs::remove_dir_all(context(tmp.path()).gold_root()).expect("remove gold");
+
+    let out = ingest(tmp.path(), &["validate"]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn silver_promotes_the_copper_on_disk_without_the_network() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate_copper(tmp.path()).await;
+
+    let out = ingest(tmp.path(), &["silver", "--all"]);
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("[copper (réhydraté)] 2 OK, 0 KO"), "{text}");
+    assert!(text.contains("[silver] 2 OK, 0 KO"), "{text}");
+    for (source, entity, _) in silver_files() {
+        assert!(silver_path(tmp.path(), source, entity).exists(), "{entity}");
+    }
+}
+
+#[test]
+fn silver_without_any_copper_fails_and_points_to_the_copper_step() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let out = ingest(tmp.path(), &["silver", "--all"]);
+
+    assert_eq!(out.status.code(), Some(1));
+    let text = stdout(&out);
+    assert!(text.contains("[copper (réhydraté)] 0 OK, 2 KO"), "{text}");
+    let err = stderr(&out);
+    assert!(
+        err.contains("silver: au moins une source n'a pas de snapshot Copper exploitable"),
+        "{err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn gold_quirk_runs_the_whole_pipeline_and_replaces_gold_when_every_download_fails() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate(tmp.path()).await;
+    assert_eq!(count(&gold_sqlite(tmp.path()), "silver_entities"), 4);
+
+    // `run_gold` is the full pipeline, so it starts with Copper (`dvc.yaml` says
+    // the gold stage depends on `data/silver` only).
+    let out = ingest(tmp.path(), &["gold"]);
+    let text = stdout(&out);
+    assert!(text.contains("[copper] 0 OK, 2 KO"), "{text}");
+    assert!(text.contains("[silver] 0 OK, 2 KO"), "{text}");
+    // The command still succeeds ...
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    // ... and the Gold it wrote has no Silver entity, although the Silver files
+    // of the first run are still on disk.
+    let conn = gold_sqlite(tmp.path());
+    assert_eq!(count(&conn, "sources"), 2);
+    assert_eq!(count(&conn, "silver_entities"), 0);
+    assert!(silver_path(tmp.path(), "comparia", "comparia_conversations").exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn pipeline_run_quirk_incremental_downloads_again_although_copper_is_on_disk() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    populate_copper(tmp.path()).await;
+
+    // The flag is logged and never read by a source.
+    let out = ingest(
+        tmp.path(),
+        &["pipeline", "run", "--source", "rte-iris", "--incremental"],
+    );
+    let text = stdout(&out);
+    assert!(
+        text.contains("[copper] 0 OK, 1 KO"),
+        "a download was attempted: {text}"
+    );
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+}

@@ -1,0 +1,28 @@
+{
+  "columns": [
+    {
+      "dtype": "u32",
+      "name": "id"
+    },
+    {
+      "dtype": "str",
+      "name": "reaction"
+    },
+    {
+      "dtype": "str",
+      "name": "_copper_sha256"
+    },
+    {
+      "dtype": "str",
+      "name": "_ingested_at"
+    }
+  ],
+  "rows": [
+    {
+      "_copper_sha256": "<sha256>",
+      "_ingested_at": "<time>",
+      "id": "1",
+      "reaction": "like"
+    }
+  ]
+}
