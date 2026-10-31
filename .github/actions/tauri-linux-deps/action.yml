@@ -4,7 +4,8 @@ description: System libraries the Tauri crates need to compile on Ubuntu.
 runs:
   using: composite
   steps:
-    # Debian list of https://v2.tauri.app/start/prerequisites/#linux
+    # Debian list of https://v2.tauri.app/start/prerequisites/#linux, without
+    # libssl-dev: no crate links OpenSSL (CLAUDE.md §7), so a new one must fail CI.
     - name: Install the Tauri system libraries
       shell: bash
       run: |
@@ -16,6 +17,5 @@ runs:
           wget \
           file \
           libxdo-dev \
-          libssl-dev \
           libayatana-appindicator3-dev \
           librsvg2-dev

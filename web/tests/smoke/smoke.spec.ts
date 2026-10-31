@@ -17,7 +17,16 @@ test('first screen loads and hydrates without errors', async ({ page }) => {
   // The pages are server-rendered, so the checks above pass without JavaScript.
   // The root layout patches history.pushState in an $effect, which runs only
   // once the app has mounted. `networkidle` never settles on a cold Vite dev server.
-  await page.waitForFunction(() => Object.hasOwn(history, 'pushState'));
+  const mounted = await page
+    .waitForFunction(() => Object.hasOwn(history, 'pushState'), undefined, { timeout: 15_000 })
+    .then(
+      () => true,
+      () => false
+    );
+  expect(
+    mounted,
+    'The app did not mount. This test waits for the root layout to patch history.pushState in its effect: if a refactor removed that patch, give the test another mount signal.'
+  ).toBe(true);
   // Short settle for errors thrown by work started after mount.
   await page.waitForTimeout(1000);
   expect(errors).toEqual([]);
