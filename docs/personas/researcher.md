@@ -53,8 +53,8 @@ data.gouv.fr l'exige).
 
 ```bash
 # 1. Cloner le repo (la reproductibilité scientifique exige le code)
-git clone https://github.com/BkOff-fr/defis-lia-generatif.git
-cd defis-lia-generatif
+git clone https://github.com/Sobr-cc/sobr.git
+cd sobr
 
 # 2. Lancer la validation croisée (port Rust vs Python EcoLogits)
 cargo test -p sobria-estimator validation
