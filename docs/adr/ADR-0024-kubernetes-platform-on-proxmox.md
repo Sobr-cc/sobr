@@ -375,7 +375,7 @@ The registration and the DNS account are human-only (issue 11), and issue
 |--|--|
 | Managed cloud | One deployment of the Sobr server from the Cloud project's Helm chart, serving every organization space (one database each) and the accounts database, as ADR-0022 sets |
 | App on the web | Served by the Sobr server (ADR-0021); nothing separate |
-| Personal spaces, if SOB-136 opens them | The same deployment (ADR-0022, issue 14) |
+| Personal spaces, free for individuals (ADR-0013 and ADR-0014, Amendment 2) | The same deployment (ADR-0022, issue 14) |
 | Site and the web demo (ADR-0017) | A small static container behind the gateway, replacing the `rsync` to nginx |
 | Functions | Knative (§2) |
 | Scheduled work | §2 |
@@ -702,7 +702,8 @@ SOB-75 (self-hosted GitHub runners) follows §5 and builds on issue 8.
   ADR-0016, ADR-0017, ADR-0021, ADR-0022
 - SOB-73 (infrastructure as code and deployment), SOB-74 (infra repo),
   SOB-75 (runners), SOB-78 (roles by stage), SOB-105 (trial with a card),
-  SOB-131 (payment provider), SOB-136 (personal space)
+  SOB-131 (payment provider), SOB-136 and SOB-154 (the free personal space,
+  ADR-0013 and ADR-0014 Amendment 2)
 - [Talos discovery](https://docs.siderolabs.com/talos/v1.12/configure-your-talos-cluster/system-configuration/discovery)
 - `docs/operations/team-aggregator.md`, `docs/operations/site-deploy.md`,
   `deploy/team/`
