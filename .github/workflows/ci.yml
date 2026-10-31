@@ -148,7 +148,7 @@ jobs:
       - run: npm run test
       - run: npm run build
 
-  # Linux (mawk) and macOS (BWK awk, bash 3.2) catch shell differences before a release.
+  # Linux (GNU awk, bash 5) and macOS (BWK awk, bash 3.2) catch shell differences before a release.
   changelog-script:
     name: Changelog script — golden test
     strategy:
