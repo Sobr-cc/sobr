@@ -17,13 +17,15 @@ use sobria_ingest::sources::territoire_fr::{
     discover_datasets, fetch_industrial_sites, fetch_rte_mix,
 };
 
+const TUNNEL: &str = "CONNECT odre.opendatasoft.com:443 HTTP/1.1";
+
 #[tokio::test]
 async fn each_fetch_fails_with_its_own_message_when_the_tunnel_is_refused() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let proxy = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
     let asked = Arc::new(Mutex::new(Vec::<String>::new()));
     let asked_by_proxy = Arc::clone(&asked);
-    let proxy_thread = thread::spawn(move || {
+    thread::spawn(move || {
         for stream in listener.incoming().take(3) {
             let mut stream = stream.unwrap();
             let mut first_line = String::new();
@@ -49,25 +51,26 @@ async fn each_fetch_fails_with_its_own_message_when_the_tunnel_is_refused() {
     }
     let limit = Duration::from_secs(30);
 
+    // Each call is checked before the next one starts: if the proxy were ignored, the first
+    // assertion fails instead of letting the other fetches reach the real service.
     let catalog = tokio::time::timeout(limit, discover_datasets("industrie", 5))
         .await
         .unwrap()
         .unwrap_err();
+    assert_eq!(catalog.to_string(), "requête catalogue ODRÉ échouée");
+    assert_eq!(*asked.lock().unwrap(), [TUNNEL]);
+
     let sites = tokio::time::timeout(limit, fetch_industrial_sites(10))
         .await
         .unwrap()
         .unwrap_err();
+    assert_eq!(sites.to_string(), "requête ODRÉ IRIS échouée");
+    assert_eq!(*asked.lock().unwrap(), [TUNNEL; 2]);
+
     let mix = tokio::time::timeout(limit, fetch_rte_mix(2023))
         .await
         .unwrap()
         .unwrap_err();
-    proxy_thread.join().unwrap();
-
-    assert_eq!(catalog.to_string(), "requête catalogue ODRÉ échouée");
-    assert_eq!(sites.to_string(), "requête ODRÉ IRIS échouée");
     assert_eq!(mix.to_string(), "requête RTE eco2mix échouée");
-    assert_eq!(
-        *asked.lock().unwrap(),
-        ["CONNECT odre.opendatasoft.com:443 HTTP/1.1"; 3]
-    );
+    assert_eq!(*asked.lock().unwrap(), [TUNNEL; 3]);
 }

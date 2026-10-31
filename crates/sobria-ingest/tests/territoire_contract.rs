@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sobria_ingest::sources::territoire_fr::{
     write_artifact_json, RteMixArtifact as IngestRteMix, TerritoireFrArtifact as IngestTerritoire,
@@ -16,14 +17,13 @@ use sobria_ingest::sources::territoire_fr::{
 const TERRITOIRE: &str = "territoire_fr.sample.json";
 const RTE_MIX: &str = "rte_mix_fr.sample.json";
 
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../sobria-geoloc/tests/fixtures")
-        .join(name)
+fn geoloc_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../sobria-geoloc")
 }
 
 fn sample(name: &str) -> Value {
-    serde_json::from_str(&std::fs::read_to_string(fixture(name)).unwrap()).unwrap()
+    let text = std::fs::read_to_string(geoloc_dir().join("tests/fixtures").join(name)).unwrap();
+    serde_json::from_str(&text).unwrap()
 }
 
 /// Every key path of a JSON value, arrays folded into `[]` (`industrial_sites[].lat`).
@@ -54,35 +54,29 @@ fn key_paths(value: &Value) -> BTreeSet<String> {
     out
 }
 
+/// Reads the sample with `T`, writes it back, and expects the same fields and values.
+fn assert_writes_the_sample<T: Serialize + DeserializeOwned>(sample: &Value, side: &str) {
+    let written =
+        serde_json::to_value(serde_json::from_value::<T>(sample.clone()).unwrap()).unwrap();
+
+    assert_eq!(key_paths(&written), key_paths(sample), "{side} fields");
+    assert_eq!(&written, sample, "{side} values");
+}
+
 #[test]
 fn territoire_sample_has_every_field_of_the_ingest_and_geoloc_structs() {
     let sample = sample(TERRITOIRE);
-    let ingest: IngestTerritoire = serde_json::from_value(sample.clone()).unwrap();
-    let geoloc: sobria_geoloc::TerritoireFrArtifact =
-        serde_json::from_value(sample.clone()).unwrap();
 
-    let ingest_json = serde_json::to_value(&ingest).unwrap();
-    let geoloc_json = serde_json::to_value(&geoloc).unwrap();
-
-    assert_eq!(key_paths(&ingest_json), key_paths(&sample), "ingest fields");
-    assert_eq!(key_paths(&geoloc_json), key_paths(&sample), "geoloc fields");
-    assert_eq!(ingest_json, sample, "ingest values");
-    assert_eq!(geoloc_json, sample, "geoloc values");
+    assert_writes_the_sample::<IngestTerritoire>(&sample, "ingest");
+    assert_writes_the_sample::<sobria_geoloc::TerritoireFrArtifact>(&sample, "geoloc");
 }
 
 #[test]
 fn rte_mix_sample_has_every_field_of_the_ingest_and_geoloc_structs() {
     let sample = sample(RTE_MIX);
-    let ingest: IngestRteMix = serde_json::from_value(sample.clone()).unwrap();
-    let geoloc: sobria_geoloc::RteMixArtifact = serde_json::from_value(sample.clone()).unwrap();
 
-    let ingest_json = serde_json::to_value(&ingest).unwrap();
-    let geoloc_json = serde_json::to_value(&geoloc).unwrap();
-
-    assert_eq!(key_paths(&ingest_json), key_paths(&sample), "ingest fields");
-    assert_eq!(key_paths(&geoloc_json), key_paths(&sample), "geoloc fields");
-    assert_eq!(ingest_json, sample, "ingest values");
-    assert_eq!(geoloc_json, sample, "geoloc values");
+    assert_writes_the_sample::<IngestRteMix>(&sample, "ingest");
+    assert_writes_the_sample::<sobria_geoloc::RteMixArtifact>(&sample, "geoloc");
 }
 
 #[test]
@@ -107,4 +101,19 @@ fn rte_mix_file_written_by_ingest_is_loaded_by_geoloc() {
 
     let loaded = sobria_geoloc::load_rte_mix(&path).unwrap();
     assert_eq!(serde_json::to_value(&loaded).unwrap(), sample(RTE_MIX));
+}
+
+/// The shipped files were fetched earlier; `rte_mix_fr.json` also carries a hand-added
+/// `_meta.recalibrated_at`, so only reading is checked, not a byte-for-byte round trip.
+#[test]
+fn the_shipped_files_are_read_by_the_ingest_structs() {
+    let territoire = std::fs::read_to_string(geoloc_dir().join("data/territoire_fr.json")).unwrap();
+    let rte_mix = std::fs::read_to_string(geoloc_dir().join("data/rte_mix_fr.json")).unwrap();
+
+    let territoire: IngestTerritoire = serde_json::from_str(&territoire).unwrap();
+    let rte_mix: IngestRteMix = serde_json::from_str(&rte_mix).unwrap();
+
+    assert_eq!(territoire.regions.len(), 13);
+    assert_eq!(territoire.industrial_sites.len(), 200);
+    assert_eq!(rte_mix.mix.year, 2023);
 }

@@ -1,9 +1,9 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "fetched_at": "2026-05-13T13:55:07.230448800+00:00",
+    "fetched_at": "2026-01-01T00:00:00.000000001+00:00",
     "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-cons-def/exports/json?lang=fr&timezone=UTC",
-    "source_sha256": "a2250fe722dd39b0399bb2c66e638a178ebe324901d42fc9bb79ceb4bd0b0637",
+    "source_sha256": "deadbeef00000000000000000000000000000000000000000000000000000000",
     "license": "Etalab 2.0",
     "notes": [
       "Mix électrique national FR — agrégat annuel TWh par source.",

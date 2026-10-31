@@ -1,9 +1,9 @@
 {
   "_meta": {
     "version": "1.0.0",
-    "fetched_at": "2026-05-13T13:54:58.621908300+00:00",
+    "fetched_at": "2026-01-01T00:00:00.000000001+00:00",
     "source_url": "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/consommation-annuelle-par-iris/records?limit=100&offset=0",
-    "source_sha256": "66b2d2558e5b002fa4ce36357b6d2e5d4d237244fd1372a6b592c85eff915aeb",
+    "source_sha256": "deadbeef00000000000000000000000000000000000000000000000000000000",
     "license": "Etalab 2.0",
     "notes": [
       "Top sites industriels par consommation électrique annuelle ODRÉ.",

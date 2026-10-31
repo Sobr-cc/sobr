@@ -4,8 +4,13 @@
 //! `territoire_contract.rs` of `sobria-ingest` checks that the ingest structs write
 //! exactly these files, so both sides are tied to the same samples.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Debug,
+    path::{Path, PathBuf},
+};
 
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 use sobria_geoloc::{
     load_rte_mix, load_territoire_fr, ArtifactMeta, IndustrialSite, RegionMeta, RteMixArtifact,
     RteMixMeta, RteMixSourceTotals, TerritoireFrArtifact,
@@ -13,6 +18,8 @@ use sobria_geoloc::{
 
 const TERRITOIRE: &str = "territoire_fr.sample.json";
 const RTE_MIX: &str = "rte_mix_fr.sample.json";
+const SAMPLE_SHA256: &str = "deadbeef00000000000000000000000000000000000000000000000000000000";
+const SAMPLE_FETCHED_AT: &str = "2026-01-01T00:00:00.000000001+00:00";
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -28,9 +35,9 @@ fn expected_territoire() -> TerritoireFrArtifact {
     TerritoireFrArtifact {
         meta: ArtifactMeta {
             version: "1.0.0".into(),
-            fetched_at: "2026-05-13T13:54:58.621908300+00:00".into(),
+            fetched_at: SAMPLE_FETCHED_AT.into(),
             source_url: "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/consommation-annuelle-par-iris/records?limit=100&offset=0".into(),
-            source_sha256: "66b2d2558e5b002fa4ce36357b6d2e5d4d237244fd1372a6b592c85eff915aeb".into(),
+            source_sha256: SAMPLE_SHA256.into(),
             license: "Etalab 2.0".into(),
             notes: vec![
                 "Top sites industriels par consommation électrique annuelle ODRÉ.".into(),
@@ -102,9 +109,9 @@ fn expected_rte_mix() -> RteMixArtifact {
     RteMixArtifact {
         meta: RteMixMeta {
             version: "1.0.0".into(),
-            fetched_at: "2026-05-13T13:55:07.230448800+00:00".into(),
+            fetched_at: SAMPLE_FETCHED_AT.into(),
             source_url: "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-national-cons-def/exports/json?lang=fr&timezone=UTC".into(),
-            source_sha256: "a2250fe722dd39b0399bb2c66e638a178ebe324901d42fc9bb79ceb4bd0b0637".into(),
+            source_sha256: SAMPLE_SHA256.into(),
             license: "Etalab 2.0".into(),
             notes: vec![
                 "Mix électrique national FR — agrégat annuel TWh par source.".into(),
@@ -143,124 +150,80 @@ fn rte_mix_sample_is_read_field_by_field() {
     assert_eq!(artifact, expected_rte_mix());
 }
 
+/// Adds an unknown key to every object of the sample.
+fn with_unknown_fields(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.values_mut().for_each(with_unknown_fields);
+            map.insert("unknown_to_geoloc".into(), Value::Bool(true));
+        },
+        Value::Array(items) => items.iter_mut().for_each(with_unknown_fields),
+        _ => {},
+    }
+}
+
 #[test]
-fn fields_geoloc_does_not_know_are_ignored() {
-    let territoire = fixture_text(TERRITOIRE)
-        .replace(
-            "\"license\": \"Etalab 2.0\",",
-            "\"license\": \"Etalab 2.0\",\n    \"recalibrated_at\": \"2026-05-13T18:00:00+00:00\",",
-        )
-        .replace(
-            "\"regions\": [",
-            "\"generated_by\": \"sobria-ingest\",\n  \"regions\": [",
-        );
-    let rte_mix = fixture_text(RTE_MIX).replace(
-        "\"license\": \"Etalab 2.0\",",
-        "\"license\": \"Etalab 2.0\",\n    \"recalibrated_at\": \"2026-05-13T18:00:00+00:00\",",
-    );
+fn fields_geoloc_does_not_know_are_ignored_in_every_struct() {
+    let mut territoire: Value = serde_json::from_str(&fixture_text(TERRITOIRE)).unwrap();
+    let mut rte_mix: Value = serde_json::from_str(&fixture_text(RTE_MIX)).unwrap();
+    with_unknown_fields(&mut territoire);
+    with_unknown_fields(&mut rte_mix);
 
     assert_eq!(
-        serde_json::from_str::<TerritoireFrArtifact>(&territoire).unwrap(),
+        serde_json::from_value::<TerritoireFrArtifact>(territoire).unwrap(),
         expected_territoire()
     );
     assert_eq!(
-        serde_json::from_str::<RteMixArtifact>(&rte_mix).unwrap(),
+        serde_json::from_value::<RteMixArtifact>(rte_mix).unwrap(),
         expected_rte_mix()
     );
 }
 
-const TERRITOIRE_FIELDS: &[&str] = &[
-    "_meta",
-    "regions",
-    "industrial_sites",
-    "version",
-    "fetched_at",
-    "source_url",
-    "source_sha256",
-    "license",
-    "notes",
-    "region_iso",
-    "name",
-    "insee_code",
-    "centroid_lat",
-    "centroid_lon",
-    "nuclear_share_pct",
-    "code_iris",
-    "commune",
-    "commune_code",
-    "department_code",
-    "department_label",
-    "region_insee_code",
-    "lat",
-    "lon",
-    "consumption_mwh_elec",
-    "consumption_mwh_gas_grtgaz",
-    "consumption_mwh_gas_terega",
-    "consumption_total_mwh",
-    "pdl_count_elec",
-    "pdl_count_gas",
-    "pdl_total",
-    "year",
-];
-
-const RTE_MIX_FIELDS: &[&str] = &[
-    "_meta",
-    "mix",
-    "version",
-    "fetched_at",
-    "source_url",
-    "source_sha256",
-    "license",
-    "notes",
-    "nuclear_twh",
-    "hydro_twh",
-    "wind_twh",
-    "solar_twh",
-    "gas_twh",
-    "coal_twh",
-    "oil_twh",
-    "bioenergies_twh",
-    "pumped_twh",
-    "exchange_net_twh",
-    "total_production_twh",
-    "records_processed",
-    "year",
-];
-
-fn renamed(text: &str, field: &str) -> String {
-    let key = format!("\"{field}\":");
-    assert!(text.contains(&key), "{field} is not in the sample");
-    text.replace(&key, &format!("\"{field}_renamed\":"))
+/// One variant of `text` per key occurrence, with that key renamed: `(key, variant)`.
+fn renamings(text: &str) -> Vec<(String, String)> {
+    text.match_indices("\":")
+        .map(|(end, _)| {
+            let key = &text[text[..end].rfind('"').unwrap() + 1..end];
+            (
+                key.to_string(),
+                format!("{}_renamed{}", &text[..end], &text[end..]),
+            )
+        })
+        .collect()
 }
 
-#[test]
-fn a_territoire_field_renamed_on_the_ingest_side_is_refused() {
-    let text = fixture_text(TERRITOIRE);
+fn assert_every_renamed_key_is_refused<T: DeserializeOwned + Debug>(sample: &str) {
+    let variants = renamings(&fixture_text(sample));
+    assert!(variants.len() > 15, "{sample}: {} keys", variants.len());
 
-    for field in TERRITOIRE_FIELDS {
-        let error = serde_json::from_str::<TerritoireFrArtifact>(&renamed(&text, field))
-            .expect_err(field)
+    for (key, variant) in variants {
+        let error = serde_json::from_str::<T>(&variant)
+            .expect_err(&key)
             .to_string();
 
         assert!(
-            error.starts_with(&format!("missing field `{field}`")),
-            "{field}: {error}"
+            error.starts_with(&format!("missing field `{key}`")),
+            "{key}: {error}"
         );
     }
 }
 
 #[test]
-fn an_rte_mix_field_renamed_on_the_ingest_side_is_refused() {
-    let text = fixture_text(RTE_MIX);
+fn a_territoire_key_renamed_on_the_ingest_side_is_refused() {
+    assert_every_renamed_key_is_refused::<TerritoireFrArtifact>(TERRITOIRE);
+}
 
-    for field in RTE_MIX_FIELDS {
-        let error = serde_json::from_str::<RteMixArtifact>(&renamed(&text, field))
-            .expect_err(field)
-            .to_string();
+#[test]
+fn an_rte_mix_key_renamed_on_the_ingest_side_is_refused() {
+    assert_every_renamed_key_is_refused::<RteMixArtifact>(RTE_MIX);
+}
 
-        assert!(
-            error.starts_with(&format!("missing field `{field}`")),
-            "{field}: {error}"
-        );
-    }
+#[test]
+fn the_shipped_territoire_data_is_read_and_validated() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/territoire_fr.json");
+
+    let artifact = load_territoire_fr(&path).unwrap();
+
+    assert_eq!(artifact.regions.len(), 13);
+    assert_eq!(artifact.industrial_sites.len(), 200);
 }
