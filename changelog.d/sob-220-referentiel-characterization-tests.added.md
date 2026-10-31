@@ -12,5 +12,5 @@ Characterization tests of sobria-referentiel (2026-10-31, SOB-220)
 - The default-path tests run the test binary again as a child process with its
   own folder and environment, so no test changes the folder or the environment
   of the process. No production code changed.
-- Pinned quirks are named `quirk`; the audit findings are left to SOB-20, and
-  the default path of an installed app to SOB-126.
+- Pinned quirks are named `quirk`; the audit findings are left to SOB-20 (the
+  relative paths of the app's `reload_referentiel` are SOB-126).
