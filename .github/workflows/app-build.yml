@@ -10,6 +10,11 @@ on:
         required: false
         type: string
         default: ''
+      retention-days:
+        description: 'How long to keep the bundles as run artifacts.'
+        required: false
+        type: number
+        default: 14
 
 permissions:
   contents: read
@@ -67,33 +72,32 @@ jobs:
           shared-key: ${{ matrix.label }}
 
       - name: Install Linux WebKit deps
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/tauri-linux-deps
+
+      - name: Install patchelf (Linux bundles)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y patchelf
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2" --locked
 
-      - name: Build web frontend
+      # tauri.conf.json beforeBuildCommand builds the web frontend.
+      - name: Install web dependencies
         working-directory: web
-        run: |
-          npm ci
-          npm run build
+        run: npm ci
 
       - name: Tauri build
         working-directory: crates/sobria-app
         run: cargo tauri build ${{ matrix.tauri-args }}
+
+      - name: Check the Intel binary architecture
+        if: matrix.label == 'macos-x86_64'
+        shell: bash
+        run: |
+          archs=$(lipo -archs target/x86_64-apple-darwin/release/sobria-app)
+          echo "sobria-app: $archs"
+          [ "$archs" = "x86_64" ]
 
       - name: Collect bundles
         shell: bash
@@ -129,4 +133,4 @@ jobs:
           name: app-${{ matrix.label }}
           path: bundles/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ inputs.retention-days }}

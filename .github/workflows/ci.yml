@@ -215,5 +215,6 @@ jobs:
 
   app-build:
     name: Desktop app — unsigned build
+    needs: [rust-fmt-clippy, web-lint-build]
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     uses: ./.github/workflows/app-build.yml
