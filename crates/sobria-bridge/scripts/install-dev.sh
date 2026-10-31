@@ -9,9 +9,8 @@
 # L'EXTENSION_ID est visible dans chrome://extensions après chargement de
 # l'extension non empaquetée (chaîne hex 32 chars).
 #
-# Ce script est un fallback dev tant que l'app Sobr.ia desktop n'installe
-# pas le manifest automatiquement (C27.5.b — module bridge_install dans
-# crates/sobria-app/src/).
+# Development only: the desktop app installs the manifests itself
+# (crates/sobria-app/src/bridge_install.rs).
 
 set -euo pipefail
 
@@ -51,9 +50,9 @@ case "$(uname -s)" in
     ;;
 esac
 
+TEMPLATE="$REPO_ROOT/crates/sobria-bridge/manifest.template.json"
 for DIR in "$CHROME_DIR" "$FIREFOX_DIR"; do
   mkdir -p "$DIR"
-  TEMPLATE="$REPO_ROOT/crates/sobria-bridge/manifest.template.json"
   TARGET="$DIR/com.sobria.bridge.json"
   sed -e "s|{{BRIDGE_PATH}}|$BRIDGE_BIN|g" \
       -e "s|{{EXTENSION_ID}}|$EXT_ID|g" \

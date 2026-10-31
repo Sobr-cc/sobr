@@ -20,6 +20,21 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   (demo dashboard day labels one day early east of UTC, and a daily point
   count that changes at noon).
 
+### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
+
+- **`sobria-bridge`**, no behavior change (same replies, error texts and spool
+  lines; same tests): one `MAX_MESSAGE_BYTES` constant and one frame writer
+  for the stdio replies and the forward to the app, each frame and spool line
+  sent in a single write, `unsafe` code denied, `append_to_spool` private.
+  Doc comments that were wrong are fixed (the local channel is not restricted
+  to the user, SOB-107; no forward timeout on Windows, SOB-96; `short_hash`,
+  SOB-81). The README is rewritten, and the unused
+  `manifest/com.sobria.bridge.json.tmpl` is removed (the scripts use
+  `manifest.template.json`). Test helpers are shared through `tests/common`.
+- Audit findings that change behavior are filed: SOB-190 (fallback after the
+  app received the request, exit on a bad message) and SOB-193 (estimate
+  mapping in the app).
+
 ### Added — Characterization tests of the browser extension (2026-10-31, SOB-158)
 
 - **`extension`**: Vitest tests in `tests/unit/` record what the code does
