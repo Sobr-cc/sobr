@@ -12,17 +12,12 @@ use sobria_bridge::{
 };
 
 fn main() -> Result<()> {
-    let stdin = std::io::stdin();
-    let stdout = std::io::stdout();
-    let mut input = stdin.lock();
-    let mut output = stdout.lock();
+    let mut input = std::io::stdin().lock();
+    let mut output = std::io::stdout().lock();
 
     let socket = default_socket_path();
     while let Some(req) = read_message(&mut input)? {
-        let resp = match try_forward_to(&socket, &req) {
-            Ok(r) => r,
-            Err(_) => handle_request(req),
-        };
+        let resp = try_forward_to(&socket, &req).unwrap_or_else(|_| handle_request(req));
         write_message(&mut output, &resp)?;
     }
     Ok(())

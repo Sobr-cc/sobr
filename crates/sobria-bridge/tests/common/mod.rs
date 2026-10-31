@@ -54,11 +54,14 @@ pub fn err_text<T: std::fmt::Debug>(result: anyhow::Result<T>) -> String {
 pub mod fake_app {
     use std::io::{Read, Write};
     use std::os::unix::net::{UnixListener, UnixStream};
+    use std::path::PathBuf;
     use std::sync::mpsc::Receiver;
     use std::thread::JoinHandle;
     use std::time::{Duration, Instant};
 
     use serde_json::Value;
+    use sobria_bridge::{try_forward_to, BridgeRequest, BridgeResponse};
+    use tempfile::TempDir;
 
     /// What the fake server does once it has read the request.
     pub enum Reply {
@@ -127,5 +130,22 @@ pub mod fake_app {
             }
             requests
         })
+    }
+
+    /// A socket bound in a fresh temp dir.
+    pub fn bind() -> (TempDir, PathBuf, UnixListener) {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("b.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        (dir, path, listener)
+    }
+
+    /// Returns the forward result and the request as the app received it.
+    pub fn exchange(req: &BridgeRequest, reply: Reply) -> (anyhow::Result<BridgeResponse>, Value) {
+        let (_dir, path, listener) = bind();
+        let server = serve(listener, vec![reply]);
+        let result = try_forward_to(&path, req);
+        let mut received = server.join().expect("fake server");
+        (result, received.remove(0))
     }
 }

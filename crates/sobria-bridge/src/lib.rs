@@ -8,6 +8,7 @@
 #![deny(unsafe_code)]
 
 use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,9 @@ pub const NATIVE_HOST_NAME: &str = "com.sobria.bridge";
 
 /// Spool size above which it is rotated to `incoming.jsonl.bak` (10 MB).
 pub const SPOOL_MAX_BYTES: u64 = 10 * 1024 * 1024;
+
+/// Largest frame body accepted, from the extension and from the app (1 MB).
+pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
 
 /// Request sent by the extension, tagged by `type`. Serialized as is to the app.
 #[derive(Debug, Serialize, Deserialize)]
@@ -107,29 +111,34 @@ pub fn read_message<R: Read>(r: &mut R) -> Result<Option<BridgeRequest>> {
         return Err(e.into());
     }
     let len = u32::from_le_bytes(len_buf) as usize;
-    if len > 1024 * 1024 {
+    if len > MAX_MESSAGE_BYTES {
         anyhow::bail!("message length exceeds 1 MB: {len}");
     }
     let mut payload = vec![0u8; len];
     r.read_exact(&mut payload)
         .context("read native messaging payload")?;
-    let req: BridgeRequest =
-        serde_json::from_slice(&payload).with_context(|| format!("decode JSON ({len} bytes)"))?;
-    Ok(Some(req))
+    serde_json::from_slice(&payload)
+        .map(Some)
+        .with_context(|| format!("decode JSON ({len} bytes)"))
 }
 
 /// Writes one frame on `w`.
 pub fn write_message<W: Write>(w: &mut W, resp: &BridgeResponse) -> Result<()> {
-    let bytes = serde_json::to_vec(resp)?;
-    let len = u32::try_from(bytes.len()).context("response exceeds u32")?;
-    w.write_all(&len.to_le_bytes())?;
-    w.write_all(&bytes)?;
+    write_frame(w, &serde_json::to_vec(resp)?, "response exceeds u32")
+}
+
+fn write_frame<W: Write>(w: &mut W, body: &[u8], too_long: &'static str) -> Result<()> {
+    let len = u32::try_from(body.len()).context(too_long)?;
+    let mut frame = Vec::with_capacity(4 + body.len());
+    frame.extend_from_slice(&len.to_le_bytes());
+    frame.extend_from_slice(body);
+    w.write_all(&frame)?;
     w.flush()?;
     Ok(())
 }
 
 /// Spool file drained by the app: `~/.sobria/spool/incoming.jsonl`.
-pub fn spool_path() -> Result<std::path::PathBuf> {
+pub fn spool_path() -> Result<PathBuf> {
     let home = dirs::home_dir().context("home_dir introuvable")?;
     Ok(home.join(".sobria").join("spool").join("incoming.jsonl"))
 }
@@ -140,7 +149,7 @@ fn append_to_spool(payload: &Value) -> Result<()> {
 
 /// Appends `payload` as one JSON line to `path`, after moving the file to
 /// `.jsonl.bak` if it is larger than `max_bytes`.
-pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u64) -> Result<()> {
+pub fn append_to_spool_at(path: &Path, payload: &Value, max_bytes: u64) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -155,8 +164,9 @@ pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u6
         .create(true)
         .append(true)
         .open(path)?;
-    let line = serde_json::to_string(payload)?;
-    writeln!(file, "{line}")?;
+    let mut line = serde_json::to_vec(payload)?;
+    line.push(b'\n');
+    file.write_all(&line)?;
     Ok(())
 }
 
@@ -166,28 +176,28 @@ pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u6
 ///
 /// Neither is restricted to the current OS user yet (global pipe names, world
 /// writable `/tmp`): SOB-107.
-pub fn default_socket_path() -> std::path::PathBuf {
+pub fn default_socket_path() -> PathBuf {
     #[cfg(unix)]
     {
         if let Some(rt) = std::env::var_os("XDG_RUNTIME_DIR") {
-            return std::path::PathBuf::from(rt).join("sobria-bridge.sock");
+            return PathBuf::from(rt).join("sobria-bridge.sock");
         }
-        std::path::PathBuf::from("/tmp/sobria-bridge.sock")
+        PathBuf::from("/tmp/sobria-bridge.sock")
     }
     #[cfg(windows)]
     {
-        std::path::PathBuf::from(r"\\.\pipe\sobria-bridge")
+        PathBuf::from(r"\\.\pipe\sobria-bridge")
     }
     #[cfg(not(any(unix, windows)))]
     {
-        std::path::PathBuf::from("sobria-bridge.sock")
+        PathBuf::from("sobria-bridge.sock")
     }
 }
 
 /// Read and write timeout of the forward. Unix only: the Windows pipe has none
 /// (SOB-96).
 #[cfg(unix)]
-const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2_000);
+const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Sends `req` to the app on `path` and reads its reply, both framed like the
 /// stdio protocol.
@@ -195,7 +205,7 @@ const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2_
 /// Fails when the channel does not exist (app not running), on a timeout
 /// (Unix, 2 s) or on a malformed reply. The binary then handles the request
 /// offline, whatever the failure (SOB-190).
-pub fn try_forward_to(path: &std::path::Path, req: &BridgeRequest) -> Result<BridgeResponse> {
+pub fn try_forward_to(path: &Path, req: &BridgeRequest) -> Result<BridgeResponse> {
     #[cfg(unix)]
     {
         use std::os::unix::net::UnixStream;
@@ -224,24 +234,20 @@ pub fn try_forward_to(path: &std::path::Path, req: &BridgeRequest) -> Result<Bri
 
 fn forward_over<S: Read + Write>(stream: &mut S, req: &BridgeRequest) -> Result<BridgeResponse> {
     let bytes = serde_json::to_vec(req).context("encode BridgeRequest")?;
-    let len = u32::try_from(bytes.len()).context("request > u32")?;
-    stream.write_all(&len.to_le_bytes())?;
-    stream.write_all(&bytes)?;
-    stream.flush()?;
+    write_frame(stream, &bytes, "request > u32")?;
     let mut len_buf = [0u8; 4];
     stream
         .read_exact(&mut len_buf)
         .context("read response length")?;
     let resp_len = u32::from_le_bytes(len_buf) as usize;
-    if resp_len > 1024 * 1024 {
+    if resp_len > MAX_MESSAGE_BYTES {
         anyhow::bail!("response too large: {resp_len}");
     }
     let mut payload = vec![0u8; resp_len];
     stream
         .read_exact(&mut payload)
         .context("read response payload")?;
-    let resp: BridgeResponse = serde_json::from_slice(&payload).context("decode BridgeResponse")?;
-    Ok(resp)
+    serde_json::from_slice(&payload).context("decode BridgeResponse")
 }
 
 /// Keeps the secret out of the spool: 16 hex digits of an unkeyed `×31`
@@ -251,7 +257,7 @@ pub fn short_hash(s: &str) -> String {
     for &b in s.as_bytes() {
         acc = acc.wrapping_mul(31).wrapping_add(u64::from(b));
     }
-    format!("{:016x}", acc)
+    format!("{acc:016x}")
 }
 
 /// Offline handling, used when the app cannot be reached:
