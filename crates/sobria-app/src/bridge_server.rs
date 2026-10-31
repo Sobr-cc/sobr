@@ -46,7 +46,7 @@ const MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 /// Reçoit le `AppHandle` Tauri pour pouvoir résoudre `AppState` à chaque
 /// dispatch — évite la nécessité de wrapper `AppState` dans un `Arc` côté
 /// Tauri manage.
-pub async fn run<R: Runtime>(app_handle: AppHandle<R>) -> Result<()> {
+pub async fn run(app_handle: AppHandle) -> Result<()> {
     serve(app_handle, &sobria_bridge::default_socket_path()).await
 }
 
@@ -54,6 +54,7 @@ pub async fn run<R: Runtime>(app_handle: AppHandle<R>) -> Result<()> {
 /// it lets a test start this very code on a private endpoint, with the
 /// `AppHandle` of a mock app (hence the generic runtime), instead of copying
 /// the loop of the server.
+#[doc(hidden)]
 pub async fn serve<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path) -> Result<()> {
     #[cfg(unix)]
     {

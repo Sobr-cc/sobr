@@ -4,12 +4,14 @@
 //! `tauri::State`, so they are called from here with the state of a mock
 //! Tauri app (`tauri::test`). The server of the team is replaced by a small
 //! HTTP server on a random local port that records what it receives.
-
-#![allow(
-    clippy::too_many_lines,
-    clippy::similar_names,
-    clippy::items_after_statements
-)]
+//!
+//! Not covered: the effect of `team_set_accept_invalid_certs` on a TLS
+//! connection (the stub speaks plain HTTP; a self-signed certificate needs a
+//! TLS dev-dependency, which was not added). Only the stored flag is pinned.
+//!
+//! The error `code` of an `IpcError` is the contract with the UI; its message
+//! is human text. The tests check the code exactly and only a fragment of the
+//! message (the status and the body of the server).
 
 use std::sync::{Arc, Mutex, Once};
 
@@ -29,6 +31,16 @@ const ENROLLED: &str = r#"{"user_id":"01HZ-user","access_token":"jwt-1","refresh
 const ACK: &str = r#"{"id":"est-1","ack":true}"#;
 const NO_ACK: &str = r#"{"id":"est-1","ack":false}"#;
 const REFRESHED: &str = r#"{"access_token":"jwt-new","refresh_token":"rt-new"}"#;
+const NO_URL: &str = "URL serveur équipe non configurée";
+
+/// `(status, body of the server, code of the IPC error, fragment of its message)`:
+/// what every command that reads an answer of the server does with a failure.
+const FAILURES: [(u16, &str, &str, &str); 4] = [
+    (500, "boom", "http_error", "500: boom"),
+    (400, "bad input", "bad_request", "bad input"),
+    (401, "{}", "unauthorized", ""),
+    (200, "not json", "transport", ""),
+];
 
 // ─── A local HTTP server that records the requests ───────────────────────────
 
@@ -53,48 +65,48 @@ impl Seen {
     }
 }
 
-/// `(status, body)` for the n-th request received (counted from 0).
-type Handler = dyn Fn(&Seen, usize) -> (u16, String) + Send + Sync;
+/// `(status, body)` for a request. It decides on the request alone, like a server.
+type Handler = dyn Fn(&Seen) -> (u16, String) + Send + Sync;
 
+/// The server stops with the test: the runtime of `#[tokio::test]` drops its task.
 struct Stub {
     url: String,
     seen: Arc<Mutex<Vec<Seen>>>,
-    task: tokio::task::JoinHandle<()>,
 }
 
 impl Stub {
-    async fn start(
-        handler: impl Fn(&Seen, usize) -> (u16, String) + Send + Sync + 'static,
-    ) -> Self {
+    async fn start(handler: impl Fn(&Seen) -> (u16, String) + Send + Sync + 'static) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Vec::new()));
         let handler: Arc<Handler> = Arc::new(handler);
         let log = Arc::clone(&seen);
-        let task = tokio::spawn(async move {
-            loop {
-                let Ok((socket, _)) = listener.accept().await else {
-                    return;
-                };
+        tokio::spawn(async move {
+            while let Ok((socket, _)) = listener.accept().await {
                 tokio::spawn(answer(socket, Arc::clone(&handler), Arc::clone(&log)));
             }
         });
-        Self { url, seen, task }
+        Self { url, seen }
     }
 
-    /// A server that always answers the same thing.
     async fn always(status: u16, body: &'static str) -> Self {
-        Self::start(move |_, _| (status, body.to_string())).await
+        Self::start(move |_| (status, body.to_string())).await
+    }
+
+    /// A server that closes every connection at once: any request fails with a
+    /// transport error, without depending on a port that is free.
+    async fn hangup() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { while listener.accept().await.is_ok() {} });
+        Self {
+            url,
+            seen: Arc::default(),
+        }
     }
 
     fn requests(&self) -> Vec<Seen> {
         self.seen.lock().unwrap().clone()
-    }
-}
-
-impl Drop for Stub {
-    fn drop(&mut self) {
-        self.task.abort();
     }
 }
 
@@ -139,26 +151,14 @@ async fn answer(mut socket: TcpStream, handler: Arc<Handler>, log: Arc<Mutex<Vec
         headers,
         body,
     };
-    let (status, reply) = {
-        let mut log = log.lock().unwrap();
-        let answer = handler(&seen, log.len());
-        log.push(seen);
-        answer
-    };
+    let (status, reply) = handler(&seen);
+    log.lock().unwrap().push(seen);
     let response = format!(
         "HTTP/1.1 {status} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{reply}",
         reply.len()
     );
     let _ = socket.write_all(response.as_bytes()).await;
     let _ = socket.shutdown().await;
-}
-
-/// An address on which nothing listens.
-async fn closed_port_url() -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    drop(listener);
-    url
 }
 
 // ─── The app state behind the commands ───────────────────────────────────────
@@ -170,9 +170,17 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
-        // The stub is on localhost: do not send it through a proxy of the machine.
+        // The stub is on localhost: keep a proxy of the machine from catching it.
         static NO_PROXY: Once = Once::new();
-        NO_PROXY.call_once(|| std::env::set_var("NO_PROXY", "127.0.0.1,localhost"));
+        NO_PROXY.call_once(|| {
+            let has_proxy = ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"]
+                .iter()
+                .any(|name| std::env::var_os(name).is_some());
+            if has_proxy {
+                let current = std::env::var("NO_PROXY").unwrap_or_default();
+                std::env::set_var("NO_PROXY", format!("{current},127.0.0.1,localhost"));
+            }
+        });
         let dir = tempfile::tempdir().unwrap();
         let app = mock_app();
         app.manage(AppState::init_in(dir.path()).unwrap());
@@ -192,6 +200,15 @@ impl Fixture {
             .unwrap();
     }
 
+    fn delete(&self, key: &str) {
+        self.state()
+            .team_settings
+            .lock()
+            .unwrap()
+            .delete(key)
+            .unwrap();
+    }
+
     fn get(&self, key: &str) -> Option<String> {
         self.state().team_settings.lock().unwrap().get(key).unwrap()
     }
@@ -199,6 +216,11 @@ impl Fixture {
     /// What the UI gets from `team_status`.
     fn status(&self) -> serde_json::Value {
         serde_json::to_value(team_status(self.state()).unwrap()).unwrap()
+    }
+
+    /// A second connection to the database file of the app.
+    fn database(&self) -> rusqlite::Connection {
+        rusqlite::Connection::open(&self.state().referentiel_path).unwrap()
     }
 
     /// A user enrolled on `url`, in `mode`, with tokens `jwt-1` / `rt-1`.
@@ -209,20 +231,25 @@ impl Fixture {
         self.set(KEY_REFRESH_TOKEN, "rt-1");
         self.set(KEY_USER_ID, "01HZ-user");
     }
+
+    /// The tokens, the user and the mode set by `enrolled_on(_, "team")` are still there.
+    #[track_caller]
+    fn assert_still_enrolled(&self) {
+        assert_eq!(self.get(KEY_ACCESS_TOKEN).as_deref(), Some("jwt-1"));
+        assert_eq!(self.get(KEY_REFRESH_TOKEN).as_deref(), Some("rt-1"));
+        assert_eq!(self.get(KEY_USER_ID).as_deref(), Some("01HZ-user"));
+        assert_eq!(self.get(KEY_MODE).as_deref(), Some("team"));
+    }
 }
 
+/// The IPC error has this `code` (the contract with the UI) and a message that
+/// contains `fragment`.
 #[track_caller]
-fn assert_err<T: std::fmt::Debug>(result: IpcResult<T>, code: &str, message: &str) {
+fn assert_err<T: std::fmt::Debug>(result: IpcResult<T>, code: &str, fragment: &str) {
     let error = result.expect_err("the command should fail");
-    assert_eq!((error.code, error.message.as_str()), (code, message));
-}
-
-#[track_caller]
-fn assert_err_starts<T: std::fmt::Debug>(result: IpcResult<T>, code: &str, prefix: &str) {
-    let error = result.expect_err("the command should fail");
-    assert_eq!(error.code, code);
+    assert_eq!(error.code, code, "message: {}", error.message);
     assert!(
-        error.message.starts_with(prefix),
+        error.message.contains(fragment),
         "message: {}",
         error.message
     );
@@ -233,9 +260,6 @@ fn assert_rfc3339(value: Option<String>) {
     let value = value.expect("a timestamp");
     chrono::DateTime::parse_from_rfc3339(&value).expect("RFC 3339");
 }
-
-const NO_URL: &str = "URL serveur équipe non configurée";
-const UNAUTHORIZED: &str = "authentification requise (pas enrôlé ou token expiré)";
 
 // ─── team_status ─────────────────────────────────────────────────────────────
 
@@ -277,31 +301,102 @@ fn team_status_reflects_the_stored_settings() {
 }
 
 #[test]
-fn team_status_is_enrolled_as_soon_as_an_access_token_is_stored() {
+fn team_status_is_enrolled_only_when_an_access_token_is_stored() {
     let fx = Fixture::new();
     fx.set(KEY_REFRESH_TOKEN, "rt");
     fx.set(KEY_USER_ID, "u-1");
     assert_eq!(fx.status()["enrolled"], json!(false));
+    fx.set(KEY_ACCESS_TOKEN, "jwt");
+    assert_eq!(fx.status()["enrolled"], json!(true));
+}
+
+#[test]
+fn team_status_quirk_an_empty_access_token_counts_as_enrolled() {
+    let fx = Fixture::new();
     fx.set(KEY_ACCESS_TOKEN, "");
+    assert_eq!(fx.status()["enrolled"], json!(true));
+}
+
+#[test]
+fn team_settings_are_read_under_the_keys_of_existing_installs() {
+    // Rows written by an earlier version of the app, with literal key names:
+    // renaming a key would log every existing install out.
+    let fx = Fixture::new();
+    let db = fx.database();
+    for (key, value) in [
+        ("url", "https://team.example"),
+        ("mode", "both"),
+        ("user_id", "u-1"),
+        ("access_token", "jwt"),
+        ("refresh_token", "rt"),
+        ("fingerprint", "app-win-1"),
+        ("enrolled_at", "2026-05-16T08:00:00Z"),
+        ("accept_invalid_certs", "1"),
+        ("last_seen_at", "2026-05-16T09:00:00Z"),
+        ("estimations_sent", "7"),
+    ] {
+        db.execute(
+            "INSERT INTO team_settings (key, value) VALUES (?1, ?2)",
+            rusqlite::params![key, value],
+        )
+        .unwrap();
+    }
+
     assert_eq!(
-        fx.status()["enrolled"],
-        json!(true),
-        "even an empty token counts"
+        fx.status(),
+        json!({
+            "enrolled": true, "url": "https://team.example", "user_id": "u-1", "mode": "both",
+            "fingerprint": "app-win-1", "enrolled_at": "2026-05-16T08:00:00Z",
+            "accept_invalid_certs": true, "last_seen_at": "2026-05-16T09:00:00Z",
+            "estimations_sent": 7
+        })
     );
+}
+
+#[tokio::test]
+async fn a_broken_settings_store_gives_internal_or_storage_errors() {
+    let fx = Fixture::new();
+    fx.database()
+        .execute("DROP TABLE team_settings", [])
+        .unwrap();
+
+    assert_err(team_status(fx.state()), "internal", "team_status");
+    assert_err(
+        team_set_url("https://team.example".to_string(), fx.state()),
+        "internal",
+        "",
+    );
+    assert_err(
+        team_set_mode("team".to_string(), fx.state()),
+        "internal",
+        "",
+    );
+    assert_err(
+        team_set_accept_invalid_certs(true, fx.state()),
+        "internal",
+        "",
+    );
+    assert_err(team_logout(fx.state()), "internal", "team_logout");
+    assert_err(
+        team_push_estimation(payload(), fx.state()).await,
+        "internal",
+        "",
+    );
+    // The client reads the store through its own error type.
+    assert_err(team_ping(fx.state()).await, "storage", "");
+    assert_err(enroll(&fx, None).await, "storage", "");
 }
 
 // ─── team_set_url, team_set_mode, team_set_accept_invalid_certs ─────────────
 
 #[test]
-fn team_set_url_refuses_anything_that_does_not_start_with_https() {
+fn team_set_url_refuses_other_schemes_and_a_bare_host() {
     let fx = Fixture::new();
     for url in [
         "http://team.example",
         "ftp://team.example",
         "team.example",
         "",
-        " https://team.example",
-        "HTTPS://team.example",
     ] {
         assert_err(
             team_set_url(url.to_string(), fx.state()),
@@ -310,6 +405,14 @@ fn team_set_url_refuses_anything_that_does_not_start_with_https() {
         );
     }
     assert_eq!(fx.get(KEY_URL), None, "a refused URL is not stored");
+}
+
+#[test]
+fn team_set_url_quirk_refuses_a_padded_or_upper_case_https() {
+    let fx = Fixture::new();
+    for url in [" https://team.example", "HTTPS://team.example"] {
+        assert_err(team_set_url(url.to_string(), fx.state()), "bad_request", "");
+    }
 }
 
 #[test]
@@ -337,20 +440,25 @@ fn team_set_url_quirk_a_bare_scheme_is_accepted_and_stored_as_https_colon() {
 }
 
 #[test]
-fn team_set_mode_stores_the_known_modes_and_turns_anything_else_into_local() {
+fn team_set_mode_stores_the_three_modes() {
     let fx = Fixture::new();
-    for (given, stored) in [
-        ("team", "team"),
-        ("both", "both"),
-        ("local", "local"),
-        ("team", "team"),
-        ("TEAM", "local"),
-        ("everything", "local"),
-        ("both", "both"),
-        ("", "local"),
-    ] {
+    for mode in ["team", "both", "local", "team"] {
+        team_set_mode(mode.to_string(), fx.state()).unwrap();
+        assert_eq!(fx.get(KEY_MODE).as_deref(), Some(mode));
+    }
+}
+
+#[test]
+fn team_set_mode_quirk_any_other_value_is_stored_as_local() {
+    let fx = Fixture::new();
+    for given in ["TEAM", "everything", ""] {
+        team_set_mode("both".to_string(), fx.state()).unwrap();
         team_set_mode(given.to_string(), fx.state()).unwrap();
-        assert_eq!(fx.get(KEY_MODE).as_deref(), Some(stored), "given {given:?}");
+        assert_eq!(
+            fx.get(KEY_MODE).as_deref(),
+            Some("local"),
+            "given {given:?}"
+        );
     }
 }
 
@@ -410,32 +518,12 @@ async fn team_ping_returns_the_health_of_the_server_and_marks_it_seen() {
 
 #[tokio::test]
 async fn team_ping_maps_the_failures_of_the_server() {
-    for (status, body, code, message) in [
-        (
-            500,
-            "boom",
-            "http_error",
-            "erreur HTTP 500: boom".to_string(),
-        ),
-        (
-            404,
-            "nope",
-            "http_error",
-            "erreur HTTP 404: nope".to_string(),
-        ),
-        (401, "", "unauthorized", UNAUTHORIZED.to_string()),
-        (
-            400,
-            "bad input",
-            "bad_request",
-            "requête invalide: bad input".to_string(),
-        ),
-    ] {
+    for (status, body, code, fragment) in FAILURES {
         let fx = Fixture::new();
         let stub = Stub::always(status, body).await;
         fx.set(KEY_URL, &stub.url);
 
-        assert_err(team_ping(fx.state()).await, code, &message);
+        assert_err(team_ping(fx.state()).await, code, fragment);
         assert_eq!(
             fx.get(KEY_LAST_SEEN_AT),
             None,
@@ -445,26 +533,10 @@ async fn team_ping_maps_the_failures_of_the_server() {
 }
 
 #[tokio::test]
-async fn team_ping_fails_with_transport_when_the_answer_is_not_a_health_response() {
+async fn team_ping_fails_with_transport_when_the_server_hangs_up() {
     let fx = Fixture::new();
-    let stub = Stub::always(200, "not json").await;
-    fx.set(KEY_URL, &stub.url);
-    assert_err_starts(
-        team_ping(fx.state()).await,
-        "transport",
-        "erreur transport:",
-    );
-}
-
-#[tokio::test]
-async fn team_ping_fails_with_transport_when_the_server_is_unreachable() {
-    let fx = Fixture::new();
-    fx.set(KEY_URL, &closed_port_url().await);
-    assert_err_starts(
-        team_ping(fx.state()).await,
-        "transport",
-        "erreur transport:",
-    );
+    fx.set(KEY_URL, &Stub::hangup().await.url);
+    assert_err(team_ping(fx.state()).await, "transport", "");
     assert_eq!(fx.get(KEY_LAST_SEEN_AT), None);
 }
 
@@ -488,7 +560,7 @@ async fn enroll(
 async fn team_enroll_without_a_url_fails_with_no_url() {
     let fx = Fixture::new();
     assert_err(enroll(&fx, None).await, "no_url", NO_URL);
-    assert!(!fx.status()["enrolled"].as_bool().unwrap());
+    assert_eq!(fx.status()["enrolled"], json!(false));
 }
 
 #[tokio::test]
@@ -526,12 +598,9 @@ async fn team_enroll_posts_the_credentials_and_stores_the_session() {
         Some("both"),
         "local becomes both"
     );
-    assert_eq!(
-        fx.get(KEY_LAST_SEEN_AT),
-        None,
-        "an enrollment does not mark the server as seen"
-    );
-    assert!(fx.status()["enrolled"].as_bool().unwrap());
+    // An enrollment does not mark the server as seen (unlike a ping or a push).
+    assert_eq!(fx.get(KEY_LAST_SEEN_AT), None);
+    assert_eq!(fx.status()["enrolled"], json!(true));
 }
 
 #[tokio::test]
@@ -563,38 +632,38 @@ async fn team_enroll_keeps_the_mode_the_user_already_chose() {
 }
 
 #[tokio::test]
-async fn team_enroll_maps_the_refusals_and_stores_nothing() {
+async fn team_enroll_over_an_existing_session_replaces_both_tokens() {
+    let fx = Fixture::new();
+    let stub = Stub::always(200, ENROLLED).await;
+    fx.enrolled_on(&stub.url, "team");
+    fx.set(KEY_ACCESS_TOKEN, "jwt-old");
+    fx.set(KEY_REFRESH_TOKEN, "rt-old");
+
+    enroll(&fx, None).await.unwrap();
+
+    assert_eq!(fx.get(KEY_ACCESS_TOKEN).as_deref(), Some("jwt-1"));
+    assert_eq!(fx.get(KEY_REFRESH_TOKEN).as_deref(), Some("ulid.uuid-1"));
+}
+
+#[tokio::test]
+async fn team_enroll_maps_the_refusals_and_keeps_the_session_it_had() {
     let conflict = r#"{"error":"empreinte déjà enrôlée","code":"fingerprint_already_enrolled"}"#;
-    for (status, body, code, message) in [
-        (
-            409,
-            conflict,
-            "http_error",
-            format!("erreur HTTP 409: {conflict}"),
-        ),
-        (401, "{}", "unauthorized", UNAUTHORIZED.to_string()),
-        (
-            400,
-            "bad code",
-            "bad_request",
-            "requête invalide: bad code".to_string(),
-        ),
-        (
-            500,
-            "boom",
-            "http_error",
-            "erreur HTTP 500: boom".to_string(),
-        ),
-    ] {
+    let refusals = [(409, conflict, "http_error", "409")]
+        .into_iter()
+        .chain(FAILURES);
+    for (status, body, code, fragment) in refusals {
         let fx = Fixture::new();
         let stub = Stub::always(status, body).await;
-        fx.set(KEY_URL, &stub.url);
+        fx.enrolled_on(&stub.url, "team");
 
-        assert_err(enroll(&fx, None).await, code, &message);
+        assert_err(enroll(&fx, None).await, code, fragment);
 
-        assert_eq!(fx.get(KEY_ACCESS_TOKEN), None);
-        assert_eq!(fx.get(KEY_USER_ID), None);
-        assert_eq!(fx.get(KEY_MODE), None, "the mode is not touched");
+        fx.assert_still_enrolled();
+        assert_eq!(
+            fx.get(KEY_FINGERPRINT),
+            None,
+            "nothing of the failed enrollment is stored"
+        );
     }
 }
 
@@ -603,7 +672,7 @@ async fn team_enroll_fails_with_transport_on_an_incomplete_answer() {
     let fx = Fixture::new();
     let stub = Stub::always(200, r#"{"user_id":"u"}"#).await;
     fx.set(KEY_URL, &stub.url);
-    assert_err_starts(enroll(&fx, None).await, "transport", "erreur transport:");
+    assert_err(enroll(&fx, None).await, "transport", "");
     assert_eq!(fx.get(KEY_ACCESS_TOKEN), None);
 }
 
@@ -649,16 +718,22 @@ fn payload() -> serde_json::Value {
     })
 }
 
-fn estimations_ok(seen: &Seen, _: usize) -> (u16, String) {
-    match seen.path.as_str() {
-        "/api/v1/estimations" => (200, ACK.to_string()),
-        _ => (404, "no route".to_string()),
+/// The server in the refresh scenario: `jwt-1` has expired, the refresh gives
+/// `jwt-new`, and `after_refresh` is what the estimations route answers to it.
+fn refreshing_server(after_refresh: (u16, &'static str)) -> impl Fn(&Seen) -> (u16, String) {
+    move |seen| match (seen.path.as_str(), seen.header("authorization")) {
+        ("/api/v1/estimations", Some("Bearer jwt-1")) => (401, "{}".to_string()),
+        ("/api/v1/refresh", _) => (200, REFRESHED.to_string()),
+        ("/api/v1/estimations", Some("Bearer jwt-new")) => {
+            (after_refresh.0, after_refresh.1.to_string())
+        },
+        _ => (500, "unexpected".to_string()),
     }
 }
 
 #[tokio::test]
 async fn team_push_estimation_is_not_sent_in_local_mode_or_when_not_enrolled() {
-    let stub = Stub::start(estimations_ok).await;
+    let stub = Stub::always(200, ACK).await;
 
     // Enrolled, but in local mode.
     let fx = Fixture::new();
@@ -695,7 +770,7 @@ async fn team_push_estimation_without_a_url_fails_when_it_should_be_sent() {
 async fn team_push_estimation_posts_with_the_bearer_token_and_counts_the_ack() {
     for mode in ["team", "both"] {
         let fx = Fixture::new();
-        let stub = Stub::start(estimations_ok).await;
+        let stub = Stub::always(200, ACK).await;
         fx.enrolled_on(&stub.url, mode);
 
         assert!(team_push_estimation(payload(), fx.state()).await.unwrap());
@@ -740,19 +815,13 @@ async fn team_push_estimation_answers_false_and_counts_nothing_when_the_server_d
 #[tokio::test]
 async fn team_push_estimation_refreshes_the_tokens_on_a_401_and_retries_once() {
     let fx = Fixture::new();
-    let stub = Stub::start(|seen, n| match (n, seen.path.as_str()) {
-        (0, "/api/v1/estimations") => (401, "{}".to_string()),
-        (1, "/api/v1/refresh") => (200, REFRESHED.to_string()),
-        (2, "/api/v1/estimations") => (200, ACK.to_string()),
-        _ => (500, "unexpected".to_string()),
-    })
-    .await;
+    let stub = Stub::start(refreshing_server((200, ACK))).await;
     fx.enrolled_on(&stub.url, "team");
 
     assert!(team_push_estimation(payload(), fx.state()).await.unwrap());
 
     let seen = stub.requests();
-    assert_eq!(seen.len(), 3);
+    assert_eq!(seen.len(), 3, "the push, the refresh, the retry");
     assert_eq!(seen[0].header("authorization"), Some("Bearer jwt-1"));
     assert_eq!(seen[1].path, "/api/v1/refresh");
     assert_eq!(seen[1].json(), json!({"refresh_token": "rt-1"}));
@@ -769,24 +838,19 @@ async fn team_push_estimation_fails_with_unauthorized_without_a_refresh_token() 
     let fx = Fixture::new();
     let stub = Stub::always(401, "{}").await;
     fx.enrolled_on(&stub.url, "team");
-    fx.state()
-        .team_settings
-        .lock()
-        .unwrap()
-        .delete(KEY_REFRESH_TOKEN)
-        .unwrap();
+    fx.delete(KEY_REFRESH_TOKEN);
 
     assert_err(
         team_push_estimation(payload(), fx.state()).await,
         "unauthorized",
-        UNAUTHORIZED,
+        "",
     );
 
     assert_eq!(stub.requests().len(), 1, "no refresh attempt");
 }
 
 #[tokio::test]
-async fn team_push_estimation_does_not_log_out_when_the_refresh_is_refused() {
+async fn team_push_estimation_quirk_keeps_a_session_it_cannot_use_when_the_refresh_is_refused() {
     let fx = Fixture::new();
     let stub = Stub::always(401, "{}").await;
     fx.enrolled_on(&stub.url, "team");
@@ -794,80 +858,58 @@ async fn team_push_estimation_does_not_log_out_when_the_refresh_is_refused() {
     assert_err(
         team_push_estimation(payload(), fx.state()).await,
         "unauthorized",
-        UNAUTHORIZED,
+        "",
     );
 
     assert_eq!(stub.requests().len(), 2, "the push, then one refresh");
-    // Unlike the browser extension, the app keeps the session it cannot use.
-    assert_eq!(fx.get(KEY_ACCESS_TOKEN).as_deref(), Some("jwt-1"));
-    assert_eq!(fx.get(KEY_REFRESH_TOKEN).as_deref(), Some("rt-1"));
-    assert!(fx.status()["enrolled"].as_bool().unwrap());
+    // Unlike the browser extension, the app does not log the user out.
+    fx.assert_still_enrolled();
+    assert_eq!(fx.status()["enrolled"], json!(true));
 }
 
 #[tokio::test]
 async fn team_push_estimation_quirk_loses_the_new_tokens_when_the_retry_after_a_refresh_fails() {
     let fx = Fixture::new();
-    let stub = Stub::start(|seen, n| match (n, seen.path.as_str()) {
-        (0, "/api/v1/estimations") => (401, "{}".to_string()),
-        (1, "/api/v1/refresh") => (200, REFRESHED.to_string()),
-        _ => (500, "boom".to_string()),
-    })
-    .await;
+    let stub = Stub::start(refreshing_server((500, "boom"))).await;
     fx.enrolled_on(&stub.url, "team");
 
     assert_err(
         team_push_estimation(payload(), fx.state()).await,
         "http_error",
-        "erreur HTTP 500: boom",
+        "500: boom",
     );
 
     // The server rotated the refresh token, but the pair it sent is dropped.
-    assert_eq!(fx.get(KEY_ACCESS_TOKEN).as_deref(), Some("jwt-1"));
-    assert_eq!(fx.get(KEY_REFRESH_TOKEN).as_deref(), Some("rt-1"));
+    fx.assert_still_enrolled();
     assert_eq!(fx.get(KEY_ESTIMATIONS_SENT), None);
 }
 
 #[tokio::test]
 async fn team_push_estimation_maps_the_failures_of_the_server() {
-    for (status, body, code, message) in [
-        (
-            500,
-            "boom",
-            "http_error",
-            "erreur HTTP 500: boom".to_string(),
-        ),
-        (
-            400,
-            "bad payload",
-            "bad_request",
-            "requête invalide: bad payload".to_string(),
-        ),
-        (200, "not json", "transport", String::new()),
-    ] {
+    for (status, body, code, fragment) in FAILURES {
         let fx = Fixture::new();
         let stub = Stub::always(status, body).await;
         fx.enrolled_on(&stub.url, "team");
 
-        let result = team_push_estimation(payload(), fx.state()).await;
+        assert_err(
+            team_push_estimation(payload(), fx.state()).await,
+            code,
+            fragment,
+        );
 
-        if message.is_empty() {
-            assert_err_starts(result, code, "erreur transport:");
-        } else {
-            assert_err(result, code, &message);
-        }
         assert_eq!(fx.get(KEY_ESTIMATIONS_SENT), None);
         assert_eq!(fx.get(KEY_LAST_SEEN_AT), None);
     }
 }
 
 #[tokio::test]
-async fn team_push_estimation_fails_with_transport_when_the_server_is_unreachable() {
+async fn team_push_estimation_fails_with_transport_when_the_server_hangs_up() {
     let fx = Fixture::new();
-    fx.enrolled_on(&closed_port_url().await, "team");
-    assert_err_starts(
+    fx.enrolled_on(&Stub::hangup().await.url, "team");
+    assert_err(
         team_push_estimation(payload(), fx.state()).await,
         "transport",
-        "erreur transport:",
+        "",
     );
     assert_eq!(fx.get(KEY_ESTIMATIONS_SENT), None);
 }
