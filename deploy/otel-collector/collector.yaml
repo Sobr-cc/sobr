@@ -8,6 +8,7 @@ receivers:
       grpc:
         endpoint: 127.0.0.1:4317
 
+# error_mode propagate: a statement that fails rejects the batch instead of letting unfiltered data through.
 processors:
   filter/allow-list:
     error_mode: propagate
