@@ -20,9 +20,9 @@
 > turned off. That setting, not a habit, is what stops a deployment. Secrets
 > never sit in git in clear. Drift is checked every day and Flux corrects the
 > cluster by itself; a rollback is a revert that goes through the same
-> approval. Builds run on throwaway runner VMs that hold no secret, never for
-> pull requests from forks. The deploy job runs on a separate runner, in the
-> `infra` repo only.
+> approval. Builds run on throwaway runner VMs that hold no secret; a pull request
+> from a fork waits for Thibault's approval. Plan and deploy jobs run on their
+> own throwaway runners, registered to the `infra` repo only.
 
 ## Points to decide
 
@@ -47,7 +47,7 @@ The other choices are the CTO's recommendation, justified where they are made.
 On October 30, Thibault decided to host everything on a dedicated Proxmox
 server, with infrastructure "described in code", a plan shown on every pull
 request, and a deployment after each merge to `main`, "approved from his
-GitHub account". Builds should also run on his own server. ADR-0024 chose the
+GitHub account". Builds should also run on his own server. ADR-0024 (SOB-72) chose the
 platform: Talos Linux in Proxmox VMs configured from code with no SSH,
 Knative, Cilium, cert-manager, an EU front server, and throwaway CI VMs on a
 firewalled network. It leaves the tools and the flow to this ADR. ADR-0019
@@ -122,7 +122,8 @@ SOB-74). It holds only code, no secret in clear and no state file:
 
 | Path | Holds |
 |--|--|
-| `proxmox/` | OpenTofu for the Proxmox layer: pools, networks, VM templates, the cluster VMs, the CI and deploy runner VMs |
+| `proxmox/` | OpenTofu for the Proxmox layer: pools, networks, VM templates, the cluster VMs and the CI runner pool |
+| `bootstrap/` | The runner template and the runner controller, which no pipeline job applies (section 8) |
 | `talos/` | The machine configuration templates of ADR-0024 section 1 |
 | `clusters/prod/` | The Flux manifests: platform components (ADR-0024 sections 2 to 4) and the Sobr services (section 5) |
 | `.github/` | The plan, deploy and drift workflows |
@@ -167,18 +168,22 @@ would break "code applied after review is the only way".
 
 1. **A pull request** changes `infra`. The `plan` workflow runs on the plan
    runner (section 7) with read-only credentials from the `plan` environment:
-   `tofu plan` for `proxmox/`, `talosctl apply-config --dry-run` for `talos/`,
-   and a diff of the rendered manifests for `clusters/`. The result is posted
+   `tofu plan` for `proxmox/`, a diff of the rendered Talos configurations
+   for `talos/` (no node is contacted), and a diff of the rendered manifests
+   for `clusters/`. The result is posted
    on the pull request, and values marked sensitive are masked. A green `plan`
    is a required check.
 2. **The merge** to `main` needs the review of the code owner (section 4).
 3. **On the push to `main`,** the `deploy` workflow plans again on the merge
    commit and saves the plan. Its `apply` job uses `environment: production`
    and **waits**. The reviewer sees the plan, then approves. The job applies the
-   saved plan, so what was shown is what runs. Then it applies the Talos
-   configurations in `try` mode, one node at a time, and applies each for real
-   once the node is healthy. Last it moves the `deployed` branch to the merge commit, and Flux converges the
-   cluster to it.
+   saved plan, so for the Proxmox layer what was shown is what runs. Then it
+   checks each Talos configuration with `--dry-run`, applies it in `try` mode,
+   one node at a time, and applies it for real once the node is healthy. Last
+   it moves the `deployed` branch to the merge commit, and Flux converges the
+   cluster to it. The Talos and Flux steps come from the merge commit that the
+   code owner reviewed; a change to a workflow is seen in that review, not in a
+   plan.
 4. **One deployment at a time** (`concurrency` on `production`, no
    cancellation).
 
@@ -198,15 +203,23 @@ The approval is enforced by these GitHub settings on `infra`:
 - **Environment `production`:** required reviewer = the approver account only;
   **Allow administrators to bypass: off**; deployment branches limited to
   `main`. Its secrets (section 6) reach a job only after the approval.
-- **Environment `plan`:** no reviewer; read-only secrets only.
+- **Environments `plan` and `drift`:** no reviewer; read-only secrets only.
+  `plan` serves pull requests. `drift` serves the scheduled check, on `main`
+  only, and holds the read-only `talosconfig`.
 - **Branch protection on `main`:** a pull request, one approving review from
   the code owner (`CODEOWNERS`: `* @<approver>`), the `plan` check, no force
-  push, **no bypass for administrators**.
+  push, **no bypass for administrators** (the rule SOB-17 sets for the main
+  repo).
 - **Branch protection on `deployed`:** only the deploy job's token may push
-  (a GitHub App or deploy key kept as an environment secret); nobody else.
+  (a GitHub App or deploy key kept as an environment secret); nobody else,
+  **no bypass for administrators**.
 - **Prevent self-review: off.** The merge and the approval are Thibault's two
   acts, and they may be the same person. What matters is that a session cannot
   be that person.
+- **Roles.** The approver account owns the organization and is the only
+  administrator of `infra`. The sessions' account has the Write role on `infra`,
+  never Admin: administrators can change reviewers, secrets and branch rules,
+  which would undo every setting above.
 
 **The approver account.** Sessions act as Thibault's everyday account (see
 Context). The reviewer must be an identity that no session can use.
@@ -224,7 +237,7 @@ Context). The reviewer must be an identity that no session can use.
 - **In the cluster,** Flux reconciles every few minutes and corrects what
   differs from the `deployed` branch. It raises an alert when it cannot.
 - **In the Proxmox and Talos layers,** a scheduled workflow runs every day on a
-  deploy-side runner with read-only credentials: `tofu plan -detailed-exitcode`
+  deploy runner, in the `drift` environment with read-only credentials: `tofu plan -detailed-exitcode`
   and `talosctl apply-config --dry-run`. A difference opens an issue in `infra`.
   A Claude routine cannot reach the network of the server, so it does not run
   the check; it may read the issue and file the Linear task, which needs
@@ -249,8 +262,9 @@ referenced by it.
 | Secret | Where it lives | Who can read it |
 |--|--|--|
 | Proxmox API token that applies changes, the `talosconfig`, the Talos secrets bundle, the key of the App that moves `deployed`, the state passphrase | Secrets of the `production` environment | Nobody in GitHub (it never shows a secret again). The approved deploy job reads them. Thibault can replace them |
-| Read-only Proxmox token, read-only `talosconfig`, state passphrase for plans | Secrets of the `plan` environment | The plan and drift jobs |
-| OpenTofu state | A versioned bucket of the EU object store of ADR-0024 (its own bucket and credential), encrypted by OpenTofu with `enforced` set | Nobody without the passphrase |
+| Read-only Proxmox token, read-only credential and passphrase for the state | Secrets of the `plan` environment | The plan jobs |
+| The same, and a read-only `talosconfig` | Secrets of the `drift` environment | The scheduled drift job, on `main` |
+| OpenTofu state | A versioned bucket of the EU object store of ADR-0024 (its own bucket), encrypted by OpenTofu with `enforced` set. Plan and drift jobs hold a read-only credential for it; only `production` can write | The plan and drift jobs, which hold the passphrase: the state holds topology only, by the rule above |
 | Secrets of the services (database, signing keys) | In git, encrypted by SOPS with age; the age private key sits in the cluster as a Kubernetes secret | Flux, in the cluster. Repo readers see ciphertext only |
 | Offline copies: the age key, the state passphrase, the Talos secrets bundle | Thibault's password manager and an offline medium | Thibault |
 
@@ -271,7 +285,7 @@ referenced by it.
 
 ### 7. Runners
 
-There are two kinds, both throwaway VMs rebuilt from a clean image for each job
+There are three kinds, all throwaway VMs rebuilt from a clean image for each job
 (ADR-0024 section 5), registered just in time and removed after one job. A
 small controller on the management network clones the VM when a job is queued;
 choosing or writing it is a spike (CLAUDE.md section 13 asks for an ADR before
@@ -279,29 +293,39 @@ a new dependency).
 
 | Kind | Runs | Holds | Network |
 |--|--|--|--|
-| **CI** (Linux, and Windows as in ADR-0024) | Build and test of the app and the repos | No secret beyond the job's own | Its own firewalled network: no Talos or Kubernetes API, no Backup Server, no Proxmox interface, no cluster network (ADR-0024) |
-| **Deploy and plan** | The `plan`, `deploy` and drift workflows of `infra` | The secrets of one approved job, or read-only tokens | The management network, with access to the Proxmox, Talos and Kubernetes APIs |
+| **CI** (Linux, and Windows as in ADR-0024) | Build and test of the app and the repos | No secret beyond the job's own | Its own firewalled network, cut off from the platform and the Proxmox management (ADR-0024 section 5) |
+| **Plan** | The `plan` workflow of `infra`, on pull requests | The read-only secrets of `plan` | The management network, read access to the Proxmox API and the state |
+| **Deploy** | The `deploy` workflow and the drift check, on `main` | The secrets of one approved job, or those of `drift` | The management network, with access to the Proxmox, Talos and Kubernetes APIs |
 
 - **The deploy runner is registered to the `infra` repo only,** not to the
   organization, so no other repo can send it a job. The CI runners are
   organization runners in a runner group limited to named repos.
-- **Pull requests from forks never run on a self-hosted runner.** Three rules
-  hold together: the repo setting "Require approval for all outside
-  collaborators" (the `sobr` repo asks only first-time contributors today); the
-  reusable CI workflow in `.github` (ADR-0019 section 3) picks the runner with
-  `github.event.pull_request.head.repo.fork`, GitHub's own runner for a fork
-  and ours otherwise; and the runner groups name the repos allowed. A fork
-  pull request then runs on GitHub's runners, after Thibault approves.
+- **A pull request from a fork needs Thibault's approval to run at all, and
+  our workflows send it to GitHub's runners.** The reusable CI workflow in
+  `.github` (ADR-0019 section 3) picks the runner with
+  `github.event.pull_request.head.repo.fork`: GitHub's runner for a fork, ours
+  otherwise. A fork's pull request carries its own copy of the workflow file,
+  though, and could ask for a self-hosted label itself; runner groups only name
+  the repos allowed. So the guard that holds is the repo setting "Require
+  approval for all outside collaborators" (the `sobr` repo asks only first-time
+  contributors today): no fork run starts until Thibault has read the change,
+  workflow files included. Behind it, the CI VM is throwaway, has no secret and
+  no route to the platform.
+- **A pull request can ask for any label,** so a hostile plan job may land on a
+  deploy VM. That VM holds no secret before an approved job starts and is
+  destroyed after the job; the `production` and `drift` secrets reach only jobs
+  on `main`. The most it gains is a network position, toward APIs that need
+  credentials it does not have.
 - **Approval before runs.** A deployment always needs Thibault's approval
   (section 4). A fork pull request needs it on GitHub. A pull request from a
   branch of our own repos does not, because the runner is a throwaway VM with no
   secret.
-- **macOS builds stay on GitHub's runners:** the Apple licence allows macOS only
-  on Apple hardware ([Apple](https://www.apple.com/legal/sla/)).
+- **macOS builds stay on GitHub's runners** (ADR-0024 section 5): the Apple
+  licence allows macOS only on Apple hardware ([Apple](https://www.apple.com/legal/sla/)).
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — No approval for our own branches; approval for forks and deployments (recommended)** | None for CI | Small | Low: no secret on a CI runner; a hostile branch needs write access first |
+| **A — No approval for our own branches; approval for forks and deployments (recommended)** | None for CI | Small | Low: no secret on a CI runner and no route to the platform; a hostile branch comes from someone with write access, which sessions have |
 | B — Approval before every run on a self-hosted runner | A click per pull request; agents open many | Small | None added, at a high cost in waiting |
 
 ### 8. Bootstrap and break-glass
@@ -315,22 +339,13 @@ a new dependency).
   commands by hand with the offline credentials. The change is then committed
   afterwards, and the daily drift check flags any difference until it is.
   Direct `talosctl` is kept for this (ADR-0024 section 1), and its use is
-  logged.
+  logged (ADR-0024 section 6, Access).
+- **A job never replaces the VM it runs on.** The runner template and the
+  controller are in `bootstrap/`, which no workflow applies; Thibault applies it
+  by hand, like the first apply. The state is outside Proxmox and the cluster,
+  in the object store, so losing the host does not lose the state.
 
 ## Examples
-
-**A change, from pull request to cluster.** An agent opens a pull request that
-adds a worker VM to `proxmox/`.
-
-1. The `plan` workflow comments: one VM to add, nothing to change or destroy.
-2. The code owner (the approver account) reviews and approves. The merge
-   button works only now.
-3. After the merge, the `deploy` workflow plans again and `apply` waits. Thibault
-   opens the plan in GitHub, sees the same one VM, and approves. The job applies
-   the saved plan.
-4. A Talos configuration for the new node goes in with `try` mode and is then
-   applied for real. The job moves `deployed`, and Flux has nothing more to do.
-5. A day later the drift check finds no difference.
 
 **A session tries to approve.** A session, acting as the everyday account, runs
 the REST call to approve the pending `production` deployment. GitHub refuses it:
@@ -339,8 +354,9 @@ have gone through.
 
 **A fork pull request.** A stranger forks `sobr` and opens a pull request that
 runs a crypto miner in CI. The first run waits for Thibault's approval on
-GitHub's runners. Even after he approves, the reusable workflow selects GitHub's
-runner for a fork, so the job never reaches a self-hosted VM.
+GitHub's runners. The reusable workflow selects GitHub's runner for a fork. Had the fork's own
+copy of the workflow asked for a self-hosted label, it would run only after that
+same approval, on a throwaway VM with no secret and no route to the platform.
 
 ## Consequences
 
@@ -351,7 +367,7 @@ runner for a fork, so the job never reaches a self-hosted VM.
 - No cluster-admin credential sits in GitHub, and the cluster corrects its own
   drift.
 - Agents can propose every infrastructure change and approve none.
-- Build runners hold no secret and never run fork code.
+- Build runners hold no secret, and a fork pull request waits for Thibault's approval.
 - Every tool is open source and replaceable.
 
 **Negative:**
@@ -363,7 +379,9 @@ runner for a fork, so the job never reaches a self-hosted VM.
   It is rebuilt for each job, but GitHub notes that one job per runner cannot be
   guaranteed.
 - Plans run on pull request code with read-only credentials, so a hostile branch
-  by someone with write access can read topology.
+  by someone with write access, as sessions have, can read topology.
+- A fork's own workflow file can ask for a self-hosted label; only the approval
+  setting stops it, and the throwaway VM limits the harm.
 - The first apply and any break-glass step are manual and need runbooks.
 - A controller for throwaway runner VMs has to be chosen or written.
 
@@ -377,9 +395,11 @@ runner for a fork, so the job never reaches a self-hosted VM.
 - **Runner groups on a Free organization.** The pages read do not say whether
   they are available. If not, runners are registered per repo, which is the
   deploy runner's design already.
-- **Whether `talosctl apply-config --dry-run` prints a diff.** The CLI page says
-  it checks how the change "will be applied"; it does not say a diff. If not, the
-  plan job diffs the rendered configurations itself.
+- **Whether `talosctl apply-config --dry-run` prints a diff, and whether a
+  read-only Talos role can run it.** The CLI page says it checks how the change
+  "will be applied"; it does not say a diff or a role. If the role cannot, the
+  daily check of the Talos layer diffs the rendered configurations against the
+  repo.
 - **How a deploy job reaches Proxmox, Talos and Kubernetes** (the place and the
   line, ADR-0024 section 9, SOB-181).
 - **Whether the plan of `bpg/proxmox` needs SSH** for the resources used. The
@@ -390,26 +410,26 @@ runner for a fork, so the job never reaches a self-hosted VM.
 The orchestrator creates these issues once this ADR is accepted. "Waits for"
 names the Deep cleanup of every existing area an issue touches, under the
 Foundations rule. The `infra` repo is new, so it waits for none; the one that
-changes existing CI waits for SOB-8.
+changes existing CI waits for SOB-8 (CI green and complete).
 
 | # | Issue | Area | Estimate | Waits for |
 |--|--|--|--|--|
 | 1 | Create the `infra` repo with the protections of section 4 (SOB-74, to update to match this ADR) | Repo, human-only | 1 | The answers to points 1 and 2 |
-| 2 | Create the approver account with a passkey, add it to Sobr-cc, set the environments `plan` and `production`, `CODEOWNERS`, and "Require approval for all outside collaborators" on every repo | GitHub, human-only | 2 | The answer to point 1; #1 |
-| 3 | Write `proxmox/` in OpenTofu (provider, pools, networks, template, cluster VMs), with encrypted state in the object store and the bootstrap runbook | `infra` | 5 | #1; SOB-181; ADR-0024 issue 11 |
+| 2 | Create the approver account with a passkey, add it to Sobr-cc as owner, give the sessions' account the Write role on `infra`, set the environments `plan`, `drift` and `production`, `CODEOWNERS`, and "Require approval for all outside collaborators" on every repo | GitHub, human-only | 2 | The answer to point 1; #1 |
+| 3 | Write `proxmox/` in OpenTofu (provider, pools, networks, templates), with encrypted state in the object store and the bootstrap runbook; ADR-0024 issue 1 then defines the cluster VMs in it | `infra` | 5 | #1; SOB-181; ADR-0024 issue 11 |
 | 4 | Write the `plan` workflow with the PR comment and the required check | `infra` | 3 | #3; #6 |
 | 5 | Write the `deploy` workflow: plan on main, wait for approval, apply the saved plan, `talosctl` in `try` mode, move `deployed` | `infra` | 5 | #4; ADR-0024 issue 1 |
-| 6 | Spike the controller for throwaway runner VMs (adopt or write, two options), then build the CI and deploy runner pools (SOB-75 gains this scope) | `infra`, Proxmox | 8 | #3; ADR-0024 issue 8 |
+| 6 | Spike the controller for throwaway runner VMs (adopt or write, two options), then add the plan and deploy pools and the controller to ADR-0024 issue 8 (the CI runner VMs), with the template and controller in `bootstrap/` (SOB-75 gains this scope) | `infra`, Proxmox | 8 | #3; ADR-0024 issue 8 |
 | 7 | Bootstrap Flux with SOPS and age, and the rule on the `deployed` branch | `infra` | 3 | ADR-0024 issues 1 and 2; #2 |
-| 8 | Write the daily drift workflow, and the Claude routine that files the Linear task | `infra` | 2 | #3 |
-| 9 | Select the runner in the reusable CI workflows of `.github` by fork or not, and set the runner groups | `.github`, all repos | 3 | #6; **SOB-8** |
+| 8 | Write the daily drift workflow, and the Claude routine that files the Linear task | `infra` | 2 | #3; #6 |
+| 9 | Select the runner in the reusable CI workflows of `.github` by fork or not, and set the runner groups | `.github`, all repos | 3 | #6; **SOB-8** (CI green and complete) |
 | 10 | Write the runbooks: break-glass, secret rotation, state restore | `infra` docs | 2 | #5 |
 
 ## Links
 
 - ADR-0019 (reserves `infra`), ADR-0024 (the platform), ADR-0022
 - SOB-73 (this ADR), SOB-207 (the three points), SOB-72, SOB-74, SOB-75,
-  SOB-17, SOB-8, SOB-181
+  SOB-17, SOB-8, SOB-45, SOB-181
 - Official pages read on 2026-10-31: [environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments),
   [secure use](https://docs.github.com/en/actions/reference/security/secure-use),
   [review pending deployments](https://docs.github.com/en/rest/actions/workflow-runs),
