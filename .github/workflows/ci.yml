@@ -212,3 +212,8 @@ jobs:
             fi
           done
           echo "✅ All sizes are within budget."
+
+  app-build:
+    name: Desktop app — unsigned build
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    uses: ./.github/workflows/app-build.yml
