@@ -22,7 +22,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     the person approves in Sobr, so a client without a screen works. A few
     actions never go through the MCP.
   - Every write and approval goes to an append-only, chained audit log.
-  - 22 build issues (108 points), marking those that wait for a Deep cleanup.
+  - 22 build issues (111 points), marking those that wait for a Deep cleanup.
   - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
 
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)

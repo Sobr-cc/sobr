@@ -7,7 +7,8 @@
 - **Settles**: the condition of ADR-0019, decision 4 (where the MCP server
   lives). ADR-0019 is in PR #2, not merged yet; if its decision 4 changes,
   this ADR is amended
-- **Depends on**: the data model ADR (SOB-143) for projects, tasks and sessions
+- **Depends on**: ADR-0022, the data model (SOB-143, PR #18, not merged yet),
+  for projects, tasks and sessions
 
 > **Summary.** Claude reads and acts on Sobr through MCP tools, within the
 > rights of the person who connected it. Two front doors share one contract:
@@ -43,7 +44,8 @@
 ## Points to decide
 
 Seven decisions and one prerequisite for Thibault; each recommendation is
-backed in the decision named.
+backed in the decision named. The same eight points, with their options, are
+in the Decision issue SOB-152, so that Thibault can answer in one place.
 
 1. **Two front doors, one contract, code in `sobr`** (decision 1).
    Recommended: yes. This also settles ADR-0019, decision 4: the MCP code
@@ -59,15 +61,21 @@ backed in the decision named.
    Three scopes, `read` by default. Alternatives: OAuth only (Claude Code
    cannot run it in a headless run), or tokens only.
 4. **Actions that never go through the MCP** (decision 7). Recommended: keep
-   out what creates or widens access, returns a secret, lowers transport
-   security, loosens the visibility policy, sends data to a destination the
-   model picks, or takes a file path. This is narrower than route 9, which
-   says Claude "can do everything". Alternative: expose everything and
+   out what creates or widens access to the MCP itself (grants, tokens),
+   returns a secret, lowers transport security, loosens the visibility
+   policy, sends data to a destination the model picks, or takes a file path.
+   Role and member changes (invite, promote, create or edit a role) stay
+   available as class 2: a person approves each in Sobr, and the use case
+   refuses to give more than the caller has. This is narrower than route 9,
+   which says Claude "can do everything". Alternative: expose everything and
    confirm what cannot be undone.
 5. **Confirmation of irreversible actions** (decision 8). Recommended: a
-   pending action approved by the person in Sobr, never by the client alone;
-   screen C4 gains a Sobr side. Alternative: confirmation in Claude only, as
-   the screen sheet reads today. It is cheaper and weaker.
+   pending action approved by the person in Sobr, never by the client alone,
+   and in an organization approved with a recent sign-in, so that a token
+   stored by the app cannot approve. Screen C4 gains a Sobr side.
+   Alternatives: approval with any Sobr session (a model with a shell can
+   read the stored token and approve), or confirmation in Claude only, as the
+   screen sheet reads today. Both are cheaper and weaker.
 6. **Audit log** (decision 8). Recommended: one append-only, chained log for
    both spaces, keyed on the server for an organization, which records every
    write, every approval and every read of per-person data. Alternative: a
@@ -185,7 +193,7 @@ waits for the Deep cleanup of those areas (section 9).
 | Option | Cost and effort | Risk |
 |--------|-----------------|------|
 | L1. Through the running app (a new local control channel) | Medium; the logic stays where it is | The MCP works only while the app runs; a new channel on the machine; the pipe has no explicit access control today |
-| L2. Directly, through the shared use cases (recommended) | Medium; needs the extraction above | Two processes may write the stores. SQLite serializes writes, but the ledger append reads the last signature and inserts: it must run in one transaction, or two writers can fork the chain. To verify in the `sobria-audit` cleanup (SOB-22) |
+| L2. Directly, through the shared use cases (recommended) | Medium; needs the extraction above | Two processes may write the stores. SQLite serializes writes, but `append` reads the last signature before it opens its transaction, so a deferred transaction does not stop two processes from reading the same one: the append must run under `BEGIN IMMEDIATE` with a `busy_timeout`, or two writers can fork the chain. To verify in the `sobria-audit` cleanup (SOB-22) |
 
 **Decision: L2.** It works with the app closed (a terminal session of Claude
 Code, for example) and follows from the layer rule. Writes that need the
@@ -305,7 +313,9 @@ id that does not exist.
 A tool never grants more than the person has. Role changes also have guards
 in the use case, not in the MCP: nobody changes their own role, the last
 admin cannot be removed, and nobody can assign, invite with or create a role
-that holds more permissions than their own.
+that holds more permissions than their own. A role cannot be deleted if its
+members would fall back to a default role that holds permissions the deleted
+role did not.
 
 ### 5. Rules for every tool
 
@@ -348,7 +358,9 @@ that holds more permissions than their own.
   on class 2 and on the class 1 tools that overwrite (`update_project`,
   `update_task`, `classify_session`, `set_budget`, `dismiss_suggestion`),
   `false` on the additive ones; `idempotentHint` where true;
-  `openWorldHint: true` only for a tool that sends mail. They are hints for
+  `openWorldHint: false` on every tool except `invite_members`,
+  `create_alert` and `set_shared_budget`, which make mail leave the system
+  (`true`; the specification's default is `true`). They are hints for
   the client; Sobr does not rely on them.
 - **Short descriptions** (200 characters at most), because every tool costs
   context in every request. The list a server returns is cut to the grant
@@ -406,7 +418,7 @@ means personal and organization spaces; "org" the organization only.
 | `list_pending_actions` | `state`, `cursor`, `limit` | the grant's own pending actions: id, tool, summary, state, expiry | the person who holds the grant | both |
 | `list_models` | `family`, `cursor`, `limit` | id, vendor, size class, methodology ids | `reference.read` | personal |
 | `get_model` | `id` | parameters, sources, methodologies | `reference.read` | personal |
-| `estimate` | `model_ids` (1 to 5), `input_tokens`, `output_tokens`, `method`, `region` | per model: energy, emissions, water with P5–P95, hypotheses, seed; ranked when there are several. Not written to the ledger | `reference.read` | personal |
+| `estimate` | `model_ids` (1 to 5), `input_tokens`, `output_tokens`, `method`, `datacenter_id`, `modalities`, `overhead` (the last four optional, as in `EstimationRequestDto`) | per model: energy, emissions, water with P5–P95, hypotheses, seed; ranked when there are several. Not written to the ledger | `reference.read` | personal |
 
 The reference tools (`list_models`, `get_model`, `estimate`) serve the
 personal space only: on a server they need the estimator and the territory
@@ -433,7 +445,7 @@ returns a pending action (decision 8).
 | `classify_session` | 1 | `session_id`, `project_id`, `task_id` (null = personal) | the session | `sessions.classify.self` | both |
 | `create_classification_rule` | 1 | `match` (source, model, repository), `project_id`, `task_id` | rule id | `sessions.classify.self` | both |
 | `apply_rule_to_history` | 2 | `rule_id` | pending action (then the count of sessions changed) | `sessions.classify.self` | both |
-| `record_estimate` | 1 | the `estimate` inputs, `project_id`, `task_id` | the figures of `estimate` and the ledger entry id. Append-only, loses nothing | `estimates.record` | personal |
+| `record_estimate` | 1 | the `estimate` inputs with one `model_id`, `project_id`, `task_id` | the figures of `estimate` and the ledger entry id. Append-only, loses nothing | `estimates.record` | personal |
 | `create_project` | 1 | `name`, `description`, `tags` | project | `projects.write` | both |
 | `update_project` | 1 | `id`, `name`, `description`, `tags` | project; the old values go to the audit entry | `projects.write` | both |
 | `delete_project` | 2 | `id` | pending action. Today a hard delete; its sessions become unclassified | `projects.write` | both |
@@ -495,8 +507,10 @@ tightens but cannot be undone through the MCP).
 | X3. Read-only MCP at first, writes later | Lowest | Misses C3, the point of route 9 |
 
 **Decision: X2.** Everything a person does to their own work and to their
-organization's usage data goes through the MCP. What widens access or leaves
-a secret does not. Thibault's call, since it is narrower than route 9.
+organization's usage data goes through the MCP. What widens access to the MCP
+itself, or leaves a secret, does not. Role and member changes stay class 2:
+each needs approval in Sobr. Thibault's call, since it is narrower than
+route 9.
 
 ### 8. Confirmation (C4) and audit log
 
@@ -506,7 +520,7 @@ a secret does not. Thibault's call, since it is narrower than route 9.
 |--------|-----------------|------|
 | K1. The client asks (a tool prompt in Claude Code, `destructiveHint`, `requiresUserInteraction`) | None, matches the screen sheet | The spec makes it a SHOULD and annotations untrusted. A client in `bypassPermissions`, in auto mode or run with `-p` can skip it. Sobr cannot tell |
 | K2. Elicitation through the client | About 3 points | Optional for clients; a headless run has no one to answer; the answer still comes through a client the server cannot check |
-| K3. Pending action approved in Sobr (recommended) | About 15 points over the stores and the screens | Friction on rare actions; the person leaves the chat to approve |
+| K3. Pending action approved in Sobr (recommended) | About 18 points over the stores, the screens and the recent-sign-in check | Friction on rare actions; the person leaves the chat to approve |
 
 A `confirm: true` argument is not an option: the model fills it.
 
@@ -540,7 +554,7 @@ Claude ── get_pending_action ──▶ result
 - **Approval is a first-party Sobr action** by the same person: a dialog in
   the app (personal space, where guest mode has no account and the person is
   at the machine), the app or the web page (organization space), under a
-  normal Sobr sign-in. No tool approves. The person must still hold the
+  recent Sobr sign-in (see below). No tool approves. The person must still hold the
   permission at approval time. The model cannot change the arguments after
   the summary was shown.
 - **A client without a screen** (a headless run, a scheduled agent) gets the
@@ -555,14 +569,31 @@ Claude ── get_pending_action ──▶ result
 - Class 1 tools run at once. The old values go to the audit entry in full,
   so a normal edit puts them back.
 
+**Who can approve in an organization.** The approval must come from the
+person, not from a program on their machine. The desktop app keeps the
+organization access and refresh tokens in its local store today
+(`sobria-app/src/team_client.rs`; ADR-0021, section 5), so a model with a
+shell can read them.
+
+| Option | Cost and effort | Risk |
+|--------|-----------------|------|
+| S1. Any Sobr session of the person | None | A model with a shell reads the stored refresh token, gets an access token and approves its own proposal |
+| S2. A recent sign-in (recommended) | About 3 points in issue 10, plus a password or SSO prompt at approval | The approval route accepts only a token minted by a sign-in in the last 10 minutes, which a refresh token cannot mint. A person who approves often sees the prompt often |
+
+**Decision: S2** for an organization. The personal space has no account to
+sign in to (guest mode), so approval there is the dialog in the app.
+
 **What this protects, and what it does not.** Approval stops a model that
-goes through the MCP, in both spaces. In an organization the server is the
-boundary: a grant holder cannot skip approval, because its token works only
-on `/mcp`, where class 2 tools only propose. In the
-personal space the data sits in files of the same OS user as the client, and
-a model with a shell (Claude Code with its Bash tool) can change them
-without Sobr. Only the client's own permission system can stop that, and the
-grant of the stdio door guards the MCP wrapper, not the files.
+goes through the MCP. In an organization, with S2, a grant holder cannot
+approve: its token works only on `/mcp`, where class 2 tools only propose,
+and the approval route needs a sign-in that a stored token cannot give. Two
+things stay out of reach. On the personal space the data sits in files of
+the same OS user as the client. On a machine enrolled in an organization,
+the app keeps the organization tokens in its local store, so a model with a
+shell (Claude Code with its Bash tool) can call the admin API with them
+directly. Only the client's own permission system can stop either, and
+keeping tokens in the OS keychain (ADR-0021, section 5) closes the second.
+The grant of the stdio door guards the MCP wrapper, not the files.
 
 Screen C4 therefore has two sides: a summary and a wait in Claude (as the
 sheet reads), and an approve-or-reject view in Sobr. The design issue for
@@ -625,13 +656,13 @@ approval.
 | 5 | Grants on the server: table, hashed tokens, create, list, revoke | `role:rust` | 5 | **SOB-25**, 3, 4 |
 | 6 | `/mcp` route: Streamable HTTP, stateless, audience check, rate limit per grant | `role:rust` | 5 | **SOB-25**, 2, 5 |
 | 7 | Organization read tools (C2) | `role:rust` | 5 | **SOB-25**, SOB-114, SOB-115, 2, 4, 9, data model (SOB-143) |
-| 8 | Generic audit events in `sobria-audit`: versioned entry, old entries untouched, one-transaction append | `role:rust` | 5 | **SOB-22** |
+| 8 | Generic audit events in `sobria-audit`: versioned entry, old entries untouched, append under `BEGIN IMMEDIATE` with a `busy_timeout` | `role:rust` | 5 | **SOB-22** |
 | 9 | Organization audit log: table, keyed chain, read API for Z11 | `role:rust` | 5 | **SOB-25**, 8 |
-| 10 | Pending actions: store, state machine, expiry, approve and reject, with `get_pending_action` and `list_pending_actions` | `role:rust` | 5 | **SOB-25**, **SOB-26**, 8, 9 |
+| 10 | Pending actions: store, state machine, expiry, approve and reject (recent sign-in in an organization), with `get_pending_action` and `list_pending_actions` | `role:rust` | 8 | **SOB-25**, **SOB-26**, 8, 9 |
 | 11 | Extract the app's use cases from `logic.rs` into a layer callable without Tauri | `role:rust` | 8 | **SOB-26**, SOB-19 (estimator), SOB-20 (referentiel), SOB-22 (audit) |
 | 12 | Local grants: store and commands for A5 and C1 | `role:rust` | 3 | **SOB-26**, 3 |
 | 13 | stdio door `sobr-mcp` binary for the personal space, with the per-grant rate limit | `role:rust` | 5 | 2, 11, 12 |
-| 14 | Local read tools (C2) | `role:rust` | 5 | 11, 13, data model (SOB-143) |
+| 14 | Local read tools (C2) | `role:rust` | 5 | 11, 13, 8, data model (SOB-143) |
 | 15 | Write tools, class 1, both spaces | `role:rust` | 5 | **SOB-25**, **SOB-26**, 2, 4, 8, 9, 11 |
 | 16 | Write tools, class 2 with pending actions, both spaces | `role:rust` | 8 | 10, 15 |
 | 17 | Screens A5, C1 and C4 (grants and approval) in the single app, on desktop and web | `role:frontend` | 8 | **SOB-27**, **SOB-30**, SOB-42 (single app on the web), 5, 12, 10, 22 |
@@ -641,7 +672,7 @@ approval.
 | 21 | User documentation: connect Claude Code, scopes, allow rules, headless runs | `role:docs` | 2 | 13, 6 |
 | 22 | Update the design of C1 to C4 and A5 for the Sobr side of approval (SOB-58 holds the screens) | `role:designer` | not counted | this ADR |
 
-Total: 108 points, not counting the design update, the Claude Code plugin in
+Total: 111 points, not counting the design update, the Claude Code plugin in
 the `claude-code` repo and the VS Code extension (their own projects). The
 bold numbers are the Deep cleanups that must pass first: SOB-25 (team
 server), SOB-26 (desktop app backend), SOB-22 (audit), SOB-27 and SOB-30
@@ -669,12 +700,14 @@ extension project; they join issues 14 and 15 when those exist.
   cases that waits for the Deep cleanups.
 - **Irreversible actions take a second step** outside the chat.
 - **Narrower than route 9** (class 3), which Thibault must accept.
-- **About 108 points of work**, with the administration tools landing in
+- **About 111 points of work**, with the administration tools landing in
   February 2027 at the earliest.
 - **Screen C4 changes** and a design issue is needed.
 - **Residual risk.** A model steered by hostile text can still run class 1
-  tools within its grant, and on the personal space a model with a shell can
-  bypass Sobr. The `read` default, the full old values in the audit entry
+  tools within its grant, and a model with a shell can bypass Sobr: through the
+  local files on the personal space, and through the organization tokens that
+  the app stores (a recent sign-in keeps it from approving, not from calling
+  the admin API). The `read` default, the full old values in the audit entry
   and a lower write limit reduce it. Aggregates asked over overlapping periods
   can still be differenced; the 7-day minimum limits it.
 
@@ -694,7 +727,8 @@ extension project; they join issues 14 and 15 when those exist.
 - ADR-0012 (audit ledger), ADR-0013 (bridge, pairing), ADR-0014 (personal
   space, single binary), ADR-0015 and ADR-0016 (privacy, visibility),
   ADR-0019 (repo split, PR #2, decision 4), ADR-0020 (rename; signed data is never rewritten),
-  ADR-0021 (single app, roles `user` and `admin`)
+  ADR-0021 (single app, roles `user` and `admin`), ADR-0022 (data model,
+  PR #18)
 - MCP specification, revision 2026-07-28:
   [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports),
   [Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http),
@@ -704,6 +738,6 @@ extension project; they join issues 14 and 15 when those exist.
 - Claude Code documentation:
   [MCP](https://code.claude.com/docs/en/mcp),
   [permissions](https://code.claude.com/docs/en/permissions)
-- Issues: SOB-144 (this ADR), SOB-143 (data model ADR), SOB-58 (C1 to C4
+- Issues: SOB-144 (this ADR), SOB-152 (its eight points), SOB-143 (data model ADR), SOB-58 (C1 to C4
   design), SOB-114 and SOB-115 (policy gaps), SOB-22, SOB-25, SOB-26,
   SOB-27, SOB-30 (Deep cleanups), SOB-65 (repo split)
