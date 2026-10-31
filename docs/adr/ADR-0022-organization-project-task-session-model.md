@@ -26,9 +26,10 @@
 
 ## Points to decide
 
-Seven questions for Thibault. Each recommendation rests on the matching part
-of the Decision section, which compares the options with their cost, effort
-and risk.
+Seven questions for Thibault, also listed in the Decision issue SOB-151,
+where he answers them. Each recommendation rests on the matching part of the
+Decision section, which compares the options with their cost, effort and
+risk. The ADR stays Proposed until the answers are recorded here.
 
 1. **A session's space is set by the account used, then can only move down**
    (§3). A person with one space has nothing to choose. A person can
@@ -53,10 +54,12 @@ and risk.
    shared database with a space column on every row.
 6. **One upload contract for every client** (§10). The app, the extension
    and later VS Code upload the day of a session, never its clock times, and
-   only the allowed fields; the server refuses any other field. Every
-   client applies the space rule of §3, and the extension sends each
-   estimate to one place only. Recommended. Alternatives: exact times on the
-   server; whole records stripped on the server.
+   only the allowed fields; the server refuses any other field. The day is a
+   calendar day in the space's time zone. Uploads and tracker lookups leave
+   in one batch a day, so their timing reveals no hour either. Every client
+   applies the space rule of §3, and the extension sends each estimate to
+   one place only. Recommended. Alternatives: exact times on the server;
+   uploads as soon as a session ends; whole records stripped on the server.
 7. **Everything starts fresh** (§11). The new model starts empty on the
    device and on the server. The old stores stay as they are, readable and
    exportable, and app preferences and pairings stay where they are.
@@ -234,7 +237,9 @@ cases that each client must pass.
 
 **A space can only change downwards.** A person can withdraw their own
 session from an organization to their personal space, for example when an
-account was mapped to the wrong space. The server deletes it. The
+account was mapped to the wrong space. The server deletes it. In the
+personal space its attachment resets to "to classify", because the
+organization's projects and tasks do not exist there. The
 organization sees only the number of sessions withdrawn each month, under
 the same k rule as its other totals, with no name and no detail. A session
 never moves from the personal space to an organization.
@@ -319,7 +324,11 @@ project ID is uploaded.
 - nobody but the person sees their single sessions or anything finer than
   the day (ADR-0015 rule 4, ADR-0016); others see daily totals under the
   rules of §10;
-- nobody but the person changes their session attachments.
+- nobody but the person changes their session attachments. Two project-level
+  acts touch them without choosing for the person: deleting a task or a
+  project sends its sessions back to "to classify", and merging two tasks of
+  the same project for the same issue (§8) keeps their sessions on the
+  merged task, because they were attached to the same work.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -369,7 +378,9 @@ come later.
 
 - **Linking an issue later.** A hand-made task can be linked to an issue
   later (V4). A space holds at most one task per issue. Linking a task to an
-  issue that already has a task merges the two, sessions included.
+  issue that already has a task in the same project merges the two tasks
+  (§5). A link that would merge tasks of two different projects is refused:
+  the editor moves or deletes one of them first.
 - **Removing a link** keeps the task and its sessions.
 - **Writing to a tracker,** such as creating an issue from V4, happens only
   on an explicit action.
@@ -379,7 +390,9 @@ created in Sobr when a project editor creates it, or when a session is
 attached to that issue: through a task ID found in a branch name, or
 because the person picks the issue in T2 or V4. The device asks the server
 only for IDs that match the key format of a connected tracker, such as a
-Linear team key. Sobr never mirrors all the issues of a linked project.
+Linear team key, and only in its daily batch (§10). Until then the session
+shows under that issue on the device only. Sobr never mirrors all the
+issues of a linked project.
 
 **A task created on use stays hidden from others** until it has k
 contributors, in the anonymous and opt-in policies. Its existence would
@@ -423,9 +436,10 @@ backend decides their place.
   them;
 - the server owns projects, tasks, memberships, connections and project
   links;
-- the person's attachment changes are requests. The device queues them while
-  offline. The server applies them, or refuses them when the target project
-  or task is gone, and the device then takes the server's state;
+- the person's attachment changes are requests. The device sends them in its
+  daily batch (§10), and keeps them while offline. The server applies them,
+  or refuses them when the target project or task is gone, and the device
+  then takes the server's state;
 - the device keeps only the person's own sessions, plus the projects, tasks
   and links that the person may see. Totals of others are fetched when
   shown, not stored.
@@ -459,8 +473,10 @@ contract do not change; the write path of the personal space does.
 
 **What leaves a device.** Prompts never leave the device (CLAUDE.md §7,
 ADR-0013, ADR-0015). Every client that uploads (the app, the extension and
-later VS Code) uses one upload contract, generated from the model crate and
-published with the server API (ADR-0019). It holds only:
+later VS Code) uses one upload contract, defined once in the model crate.
+The app and the server use the crate directly. Other clients keep
+hand-written types (ADR-0019, ADR-0021 §2), and a test checks their payloads
+against example payloads that the crate exports. The contract holds only:
 
 - for a session: its ID, the member ID, the space ID, the project and task
   IDs, the source kind, the provider host (such as `claude.ai`), the model
@@ -478,6 +494,20 @@ published with the server API (ADR-0019). It holds only:
 - command lines;
 - rules (§6);
 - sessions with a pending space.
+
+**Which day.** A day is a calendar day in the space's time zone. An admin
+sets that zone when the organization is created, and a change applies only
+to the days that follow. A personal space uses the device's zone. The device
+computes the day, so daily totals, k counts and retention all use the same
+days for every member.
+
+**When it is sent.** Each device sends one batch a day per space, after
+that day has ended in the space's time zone, at a random minute. The batch
+holds the day's session uploads, tracker lookups (§8), attachment changes
+and withdrawals (§3). The timing of a request then tells the server and its
+logs nothing finer than the day. The person's own views on the device are
+up to date at once; the organization's totals and new tasks appear the next
+day.
 
 **How it is enforced:**
 
@@ -506,9 +536,9 @@ others see: dashboards, exports, alerts and the API.
   or when that member has turned sharing on (SOB-115).
 - In the anonymous and opt-in policies, a project's breakdown by task
   appears only when every task shown, the remainder ("other tasks") and "no
-  task" each have at least k contributors. Otherwise the project shows its
-  total only. Merging only the small tasks would let anyone subtract them
-  from the total.
+  task" each have at least k contributors. Empty groups are left out of
+  this check. Otherwise the project shows its total only. Merging only the
+  small tasks would let anyone subtract them from the total.
 - At project level, ADR-0016's rule stands as written: projects with fewer
   than k contributors merge into "other projects". The same subtraction
   risk exists there; tightening it is a change to ADR-0016 and has its own
@@ -520,17 +550,27 @@ others see: dashboards, exports, alerts and the API.
 
 - the server keeps session and measurement detail for 24 months
   (`retention_days`, 730 by default, ADR-0015);
-- after that it keeps only daily totals by space, project and task, with no
-  member, and only for groups of at least k contributors, whatever the
-  policy. Smaller groups merge into the project total, because a task with
-  one contributor points to one person;
+- after that it keeps only daily totals with no member, each with its number
+  of contributors, built with the same all-groups rule as the task
+  breakdown above, whatever the policy:
+  - the space keeps its breakdown by project only when every project kept,
+    "other projects" and "no project" each have at least k contributors;
+    otherwise it keeps its total only;
+  - a project kept in that breakdown keeps its breakdown by task only under
+    the same condition at task level; otherwise it keeps its total only;
+  - empty groups are left out of the check.
+
+  Nothing kept can then be subtracted down to one person. At this point the
+  rule is stricter than ADR-0016 for projects; the same change for live
+  views is SOB-148;
 - when a member leaves, their name and their session detail are deleted
-  after they can export them, and their work use stays in those totals;
+  after they can export them. Their work use goes into totals built the
+  same way;
 - the device keeps the person's own copy.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — Session rows at day grain; clock times stay on the device (chosen)** | The person's other devices and their export show days, not times | Small | Low: no time finer than the day reaches the server |
+| **A — Session rows at day grain; clock times stay on the device (chosen)** | The person's other devices and their export show days, not times | Small | Low, with the daily batch below: no time finer than the day reaches the server, in the fields or in the timing |
 | B — Session rows with exact times | None | Small | Times reach the server and its operator, and any view that forgets the day rule shows them |
 | C — Only daily totals per member, project, task and model | No session rows on the server | Small | Breaks the October 30 rule on keeping session detail 24 months, and the export at departure |
 
@@ -543,6 +583,17 @@ others see: dashboards, exports, alerts and the API.
 |--|--|--|--|
 | **A — A task breakdown appears only when every group shown has k contributors (chosen)** | Many projects show no breakdown under the default policy | Small | Low |
 | B — Merge only the small tasks into "other tasks" | More breakdowns shown | Small | Subtracting the shown tasks from the project total reveals the small ones |
+
+| Option | Cost | Effort | Risk |
+|--|--|--|--|
+| **A — The day in the space's time zone, computed on the device (chosen)** | Each space stores a time zone; members far from it see some late sessions on the next day | Small | Low: every member's day is the same day |
+| B — The UTC day | None | Small | A European working day splits across two days, so totals and k counts split too |
+| C — Each device's own local day | None | Small | Members in different zones count the same hour on different days, and k counts go wrong |
+
+| Option | Cost | Effort | Risk |
+|--|--|--|--|
+| **A — One batch a day per space, at a random minute after the day ends (chosen)** | Organization totals and new tasks from trackers appear the next day | Small | Low: the timing reveals no hour |
+| B — Upload each session when it ends, and look up tasks when classifying | None | Small | The server and its logs see when each session ended, almost to the second |
 
 ### 11. Migration
 
@@ -591,12 +642,12 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
    personal space.
 2. A Claude Code session in his clone of `acme/checkout`, on branch
    `bob/acm-142-retry`, matches the project's linked repo. "ACM" is the key
-   of Acme's Linear team, so the device asks the server for ACM-142. The
-   issue becomes a Sobr task in "Checkout", and the session is attached to
-   it.
-3. The device uploads the session's IDs, model, day and metrics under Bob's
-   Acme member ID. The repo, the branch name and the times stay on his
-   machine.
+   of Acme's Linear team, so the session shows under ACM-142 on Bob's
+   machine at once.
+3. The next day, in its daily batch, the device asks the server for ACM-142,
+   which becomes a Sobr task in "Checkout", and uploads the session's IDs,
+   model, day and metrics under Bob's Acme member ID. The repo, the branch
+   name and the times stay on his machine.
 4. Carol's project page shows the project's daily totals. ACM-142 appears
    there only once five people have worked on it, and the breakdown by task
    only when every task shown, "other tasks" and "no task" each have at
@@ -641,6 +692,8 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
 - SOB-146 may need finer times on the server to match billing with sessions;
   it must weigh that against §10.
 - Rules stay on one device.
+- Organization totals, and tasks created from trackers, appear the day
+  after the use.
 
 **Neutral:**
 
