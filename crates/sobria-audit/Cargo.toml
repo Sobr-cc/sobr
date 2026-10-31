@@ -4,6 +4,7 @@ name = "sobria-audit"
 version.workspace = true
 publish = false
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Ledger ACID SQLite WAL chaîné SHA-256 pour la traçabilité CSRD"

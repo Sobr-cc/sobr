@@ -4,6 +4,7 @@ name = "sobria-referentiel"
 version.workspace = true
 publish = false
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Crate Sobr.ia — accès lecture au référentiel Gold (data/gold/referentiel.sqlite)"

@@ -10,6 +10,7 @@ name = "sobria-team-aggregator"
 version.workspace = true
 publish = false
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Sobr.ia — agrégateur d'équipe self-hosted (HTTPS + JWT + Argon2id, ADR-0013 Phase 2)"

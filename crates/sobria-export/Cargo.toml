@@ -4,6 +4,7 @@ name = "sobria-export"
 version.workspace = true
 publish = false
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 description = "Génération de rapports PDF + PROV-O JSON-LD pour Sobr.ia (CSRD/AGEC/AFNOR SPEC 2314)"
