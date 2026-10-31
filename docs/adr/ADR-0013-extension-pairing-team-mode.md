@@ -318,7 +318,7 @@ Flux :
 
 ### Ce qu'on ne fera PAS
 
-> Amendment 2 (2026-10-31): the lines "Pas de comptes utilisateurs hébergés par nous" and `Pas de mode "synchro multi-postes du même utilisateur" en v1` do not apply to the personal space. Organizations keep them, read as the rule for the organization server run by the organization (managed cloud: see "Managed cloud" above). The line "Pas de cloud Sobr.ia centralisé (SaaS)" is read with ADR-0014: a closed, central SaaS stays rejected, and the same open-source binary hosted by Sobr is allowed.
+> Amendment 2 (2026-10-31): the lines "Pas de comptes utilisateurs hébergés par nous" and `Pas de mode "synchro multi-postes du même utilisateur" en v1` do not apply to the personal space. Organizations keep them. The hosted-accounts line is read as the rule for the organization server run by the organization (managed cloud: see "Managed cloud" above). The line "Pas de cloud Sobr.ia centralisé (SaaS)" is read with ADR-0014: a closed, central SaaS stays rejected, and the same open-source binary hosted by Sobr is allowed.
 
 - Pas de cloud Sobr.ia centralisé (SaaS).
 - Pas de comptes utilisateurs hébergés par nous.
