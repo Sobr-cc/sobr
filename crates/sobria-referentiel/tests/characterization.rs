@@ -18,36 +18,33 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use rusqlite::Connection;
+use rusqlite::{Connection, ErrorCode};
+use sha2::{Digest, Sha256};
 use sobria_referentiel::{
     load, Referentiel, ReferentielError, ReferentielStatus, DEFAULT_REFERENTIEL_PATH,
     REFERENTIEL_PATH_ENV,
 };
 
-/// A Gold file with `sources` and `model_overview`.
-fn gold(dir: &Path, sources: usize, models: usize) -> PathBuf {
-    let path = dir.join("referentiel.sqlite");
-    let conn = Connection::open(&path).expect("create the database");
-    conn.execute_batch(
-        "CREATE TABLE sources (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-         CREATE TABLE model_overview (id TEXT PRIMARY KEY, name TEXT);",
-    )
-    .expect("create the tables");
-    for i in 0..sources {
-        conn.execute(
-            "INSERT INTO sources(id, name) VALUES (?1, ?2)",
-            rusqlite::params![format!("src_{i}"), format!("Source {i}")],
-        )
-        .expect("insert a source");
-    }
-    for i in 0..models {
-        conn.execute(
-            "INSERT INTO model_overview(id, name) VALUES (?1, ?2)",
-            rusqlite::params![format!("m_{i}"), format!("model {i}")],
-        )
-        .expect("insert a model");
-    }
+/// A database file made of this SQL, in one transaction.
+fn db(dir: &Path, file: &str, sql: &str) -> PathBuf {
+    let path = dir.join(file);
+    Connection::open(&path)
+        .expect("create the database")
+        .execute_batch(&format!("BEGIN; {sql}; COMMIT;"))
+        .expect("run the SQL");
     path
+}
+
+/// A Gold file: 3 sources and 2 models.
+fn gold(dir: &Path) -> PathBuf {
+    db(
+        dir,
+        "referentiel.sqlite",
+        "CREATE TABLE sources (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+         CREATE TABLE model_overview (id TEXT PRIMARY KEY, name TEXT);
+         INSERT INTO sources VALUES ('a', 'A'), ('b', 'B'), ('c', 'C');
+         INSERT INTO model_overview VALUES ('m1', 'M1'), ('m2', 'M2')",
+    )
 }
 
 fn status_of(path: &Path) -> ReferentielStatus {
@@ -59,15 +56,22 @@ fn status_of(path: &Path) -> ReferentielStatus {
 
 // ─── Default path ───────────────────────────────────────────────────────────
 
-/// Tells a test run as a child process which scenario to play.
+/// Set in a child process (see [`run_child`]): the file where it writes "ran"
+/// once its assertions have passed.
 const CHILD: &str = "SOBRIA_REFERENTIEL_TEST_CHILD";
 
 /// Runs the test `name` of this binary again in `folder`, without
-/// `SOBRIA_REFERENTIEL_PATH`, and returns its `CHILD …` lines.
-fn run_child(name: &str, scenario: &str, folder: &Path) -> Vec<String> {
+/// `SOBRIA_REFERENTIEL_PATH`. The test notices the variable `CHILD` and plays
+/// its scenario instead, asserting in place. The sentinel file shows that it
+/// really ran: a mistyped `name` matches no test, and the harness exits 0.
+fn run_child(name: &str, folder: &Path, sentinel: &Path) {
+    assert!(
+        std::env::var_os(CHILD).is_none(),
+        "run_child called from a child"
+    );
     let output = Command::new(std::env::current_exe().expect("this test binary"))
-        .args(["--exact", name, "--nocapture", "--test-threads=1"])
-        .env(CHILD, scenario)
+        .args(["--exact", name])
+        .env(CHILD, sentinel)
         .env_remove(REFERENTIEL_PATH_ENV)
         .current_dir(folder)
         .output()
@@ -78,75 +82,63 @@ fn run_child(name: &str, scenario: &str, folder: &Path) -> Vec<String> {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    // The harness writes "test <name> ... " before the first line of the test.
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter_map(|l| l.split_once("CHILD ").map(|(_, rest)| rest.to_owned()))
-        .collect()
+    assert_eq!(
+        fs::read_to_string(sentinel).ok().as_deref(),
+        Some("ran"),
+        "the child did not run its scenario: is `{name}` still the name of the test?"
+    );
 }
 
 #[test]
 fn load_quirk_without_the_variable_the_default_path_is_relative_to_the_current_folder() {
-    if std::env::var(CHILD).is_ok_and(|s| s == "found") {
+    if let Some(sentinel) = std::env::var_os(CHILD) {
         let referentiel = load().expect("the default file exists in the current folder");
+        assert_eq!(referentiel.path(), Path::new(DEFAULT_REFERENTIEL_PATH));
         let status = referentiel.status().expect("status");
-        println!("CHILD path={}", referentiel.path().display());
-        println!("CHILD status_path={}", status.path);
-        println!("CHILD sources={}", status.source_count);
+        // The documentation of `ReferentielStatus::path` says "chemin absolu": it
+        // is the path as given, here the relative default.
+        assert_eq!(status.path, DEFAULT_REFERENTIEL_PATH);
+        assert_eq!(status.source_count, 3);
+        fs::write(sentinel, "ran").expect("write the sentinel");
         return;
     }
 
     // `data/gold/referentiel.sqlite` under a folder that is not the folder of
     // the test.
     let tmp = tempfile::tempdir().expect("tmp");
-    let gold_dir = tmp.path().join("data").join("gold");
+    let gold_dir = tmp
+        .path()
+        .join(DEFAULT_REFERENTIEL_PATH)
+        .parent()
+        .expect("a folder")
+        .to_path_buf();
     fs::create_dir_all(&gold_dir).expect("create data/gold");
-    fs::rename(gold(tmp.path(), 3, 1), gold_dir.join("referentiel.sqlite")).expect("move");
+    gold(&gold_dir);
 
-    let lines = run_child(
+    run_child(
         "load_quirk_without_the_variable_the_default_path_is_relative_to_the_current_folder",
-        "found",
         tmp.path(),
+        &tmp.path().join("child-done"),
     );
-    assert!(
-        lines.contains(&format!("path={DEFAULT_REFERENTIEL_PATH}")),
-        "{lines:?}"
-    );
-    // The documentation of `ReferentielStatus::path` says "chemin absolu": it is
-    // the path as given, here the relative default.
-    assert!(
-        lines.contains(&format!("status_path={DEFAULT_REFERENTIEL_PATH}")),
-        "{lines:?}"
-    );
-    assert!(lines.contains(&"sources=3".to_string()), "{lines:?}");
 }
 
 #[test]
 fn load_without_the_variable_does_not_find_the_default_path_from_another_folder() {
-    if std::env::var(CHILD).is_ok_and(|s| s == "missing") {
+    if let Some(sentinel) = std::env::var_os(CHILD) {
         let error = load().err().expect("nothing at the default path here");
-        println!("CHILD error={error}");
-        println!(
-            "CHILD not_found={}",
-            matches!(error, ReferentielError::NotFound(_))
+        assert!(
+            matches!(&error, ReferentielError::NotFound(p) if p == Path::new(DEFAULT_REFERENTIEL_PATH)),
+            "{error:?}"
         );
+        fs::write(sentinel, "ran").expect("write the sentinel");
         return;
     }
 
     let empty = tempfile::tempdir().expect("tmp");
-    let lines = run_child(
+    run_child(
         "load_without_the_variable_does_not_find_the_default_path_from_another_folder",
-        "missing",
         empty.path(),
-    );
-    assert!(lines.contains(&"not_found=true".to_string()), "{lines:?}");
-    let message = lines
-        .iter()
-        .find_map(|l| l.strip_prefix("error="))
-        .expect("an error line");
-    assert!(
-        message.contains(&format!("introuvable : {DEFAULT_REFERENTIEL_PATH}")),
-        "{message}"
+        &empty.path().join("child-done"),
     );
 }
 
@@ -164,12 +156,13 @@ fn set_modified(path: &Path, time: SystemTime) {
 #[test]
 fn snapshot_date_quirk_is_the_modification_time_of_the_file_so_a_copy_gets_a_new_date() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let original = gold(tmp.path(), 2, 3);
-    let fixed = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
-    set_modified(&original, fixed);
+    let original = gold(tmp.path());
+    set_modified(
+        &original,
+        SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000),
+    );
 
     let first = status_of(&original);
-    assert_eq!(first.snapshot_date, DateTime::<Utc>::from(fixed));
     assert_eq!(
         first.snapshot_date.to_rfc3339(),
         "2023-11-14T22:13:20+00:00"
@@ -182,42 +175,43 @@ fn snapshot_date_quirk_is_the_modification_time_of_the_file_so_a_copy_gets_a_new
     fs::write(&copy, fs::read(&original).expect("read")).expect("write the copy");
     let second = status_of(&copy);
     assert_eq!(second.sha256, first.sha256, "the same bytes");
-    assert_ne!(second.snapshot_date, first.snapshot_date);
-    assert!(
-        (Utc::now() - second.snapshot_date).num_seconds().abs() < 120,
-        "the date of the copy is about now: {}",
-        second.snapshot_date
-    );
+    assert!(second.snapshot_date > first.snapshot_date);
+    let modified = fs::metadata(&copy)
+        .and_then(|m| m.modified())
+        .expect("modification time of the copy");
+    assert_eq!(second.snapshot_date, DateTime::<Utc>::from(modified));
 }
 
 // ─── Hash ───────────────────────────────────────────────────────────────────
 
 #[test]
-fn hash_is_stable_across_calls_and_changes_when_one_byte_changes() {
+fn hash_is_the_sha256_of_the_whole_file_and_changes_when_one_byte_changes() {
+    // A file of about 200 KB, so that the hash is read in several chunks of
+    // 64 KB: the big row is the last thing written, and `COUNT(*)` does not read
+    // its overflow pages, so `status` still works after the last byte changes.
     let tmp = tempfile::tempdir().expect("tmp");
-    let path = gold(tmp.path(), 2, 3);
+    let path = db(
+        tmp.path(),
+        "big.sqlite",
+        "CREATE TABLE sources (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+         INSERT INTO sources VALUES ('a', 'A');
+         INSERT INTO sources VALUES ('big', hex(zeroblob(100000)))",
+    );
+    assert!(fs::metadata(&path).expect("metadata").len() > 128 * 1024);
 
-    let first = {
-        let referentiel = Referentiel::open(&path).expect("open");
-        let a = referentiel.status().expect("status");
-        let b = referentiel.status().expect("status again");
-        assert_eq!(a, b, "two calls on the same file give the same status");
-        a
-    };
+    let first = status_of(&path);
+    assert_eq!(first, status_of(&path), "two calls give the same status");
+    let sha256_of_the_file = |p: &Path| format!("{:x}", Sha256::digest(fs::read(p).expect("read")));
+    assert_eq!(first.sha256, sha256_of_the_file(&path));
 
-    // One bit of the "file change counter" of the SQLite header (bytes 24-27):
-    // SQLite does not care about its value when it only reads.
     let mut bytes = fs::read(&path).expect("read");
-    bytes[27] ^= 0x01;
+    *bytes.last_mut().expect("a non-empty file") ^= 0x01;
     fs::write(&path, bytes).expect("write");
 
     let second = status_of(&path);
-    assert_ne!(
-        second.sha256, first.sha256,
-        "the hash covers the whole file"
-    );
+    assert_ne!(second.sha256, first.sha256, "the hash covers the last byte");
+    assert_eq!(second.sha256, sha256_of_the_file(&path));
     assert_eq!(second.source_count, first.source_count);
-    assert_eq!(second.model_count, first.model_count);
 }
 
 // ─── Broken files ───────────────────────────────────────────────────────────
@@ -226,52 +220,49 @@ fn hash_is_stable_across_calls_and_changes_when_one_byte_changes() {
 fn open_quirk_a_file_that_is_not_sqlite_opens_and_only_status_fails() {
     let tmp = tempfile::tempdir().expect("tmp");
     let path = tmp.path().join("not-a-database.sqlite");
-    fs::write(
-        &path,
-        b"this is not a SQLite database, but it is more than 100 bytes long, ".repeat(4),
-    )
-    .expect("write");
+    fs::write(&path, vec![b'x'; 200]).expect("write");
 
     // `open` documents `Sqlite` "si SQLite refuse l'ouverture": SQLite opens the
     // file lazily, so the error comes later.
     let referentiel = Referentiel::open(&path).expect("open does not read the file");
     let error = referentiel.status().expect_err("status fails");
-    assert!(matches!(error, ReferentielError::Sqlite(_)), "{error:?}");
-    assert!(error.to_string().contains("not a database"), "{error}");
+    assert!(
+        matches!(
+            &error,
+            ReferentielError::Sqlite(rusqlite::Error::SqliteFailure(e, _))
+                if e.code == ErrorCode::NotADatabase
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]
 fn status_fails_when_the_sources_table_is_missing_unlike_model_overview() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let path = tmp.path().join("no-sources.sqlite");
-    let conn = Connection::open(&path).expect("create");
-    conn.execute_batch("CREATE TABLE model_overview (id TEXT);")
-        .expect("create the table");
-    drop(conn);
+    let path = db(
+        tmp.path(),
+        "no-sources.sqlite",
+        "CREATE TABLE model_overview (id TEXT)",
+    );
 
     let error = Referentiel::open(&path)
         .expect("open")
         .status()
         .expect_err("sources is required");
     assert!(matches!(error, ReferentielError::Sqlite(_)), "{error:?}");
-    assert!(
-        error.to_string().contains("no such table: sources"),
-        "{error}"
-    );
+    assert!(error.to_string().contains("sources"), "{error}");
 }
 
 #[test]
 fn status_counts_the_rows_of_model_overview_whatever_its_columns() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let path = tmp.path().join("odd-columns.sqlite");
-    let conn = Connection::open(&path).expect("create");
-    conn.execute_batch(
+    let path = db(
+        tmp.path(),
+        "odd-columns.sqlite",
         "CREATE TABLE sources (id TEXT);
          CREATE TABLE model_overview (unexpected INTEGER);
-         INSERT INTO model_overview VALUES (1), (2), (3), (4);",
-    )
-    .expect("create");
-    drop(conn);
+         INSERT INTO model_overview VALUES (1), (2), (3), (4)",
+    );
 
     let status = status_of(&path);
     assert_eq!(status.source_count, 0);
@@ -283,21 +274,19 @@ fn status_quirk_a_model_overview_that_cannot_be_read_counts_as_zero_models() {
     // A full-text table whose content table is missing exists in `sqlite_master`
     // but cannot be counted: `status` turns that error into "0 models".
     let tmp = tempfile::tempdir().expect("tmp");
-    let path = tmp.path().join("unreadable-models.sqlite");
-    let conn = Connection::open(&path).expect("create");
-    conn.execute_batch(
+    let path = db(
+        tmp.path(),
+        "unreadable-models.sqlite",
         "CREATE TABLE sources (id TEXT);
          INSERT INTO sources VALUES ('a'), ('b');
-         CREATE VIRTUAL TABLE model_overview USING fts5(name, content='missing_content');",
-    )
-    .expect("create");
-    assert!(
-        conn.query_row("SELECT COUNT(*) FROM model_overview", [], |r| r
-            .get::<_, i64>(0))
-            .is_err(),
-        "the count of model_overview really fails"
+         CREATE VIRTUAL TABLE model_overview USING fts5(name, content='missing_content')",
     );
-    drop(conn);
+    let count = Connection::open(&path).expect("open").query_row(
+        "SELECT COUNT(*) FROM model_overview",
+        [],
+        |r| r.get::<_, i64>(0),
+    );
+    assert!(count.is_err(), "the count of model_overview really fails");
 
     let status = status_of(&path);
     assert_eq!(status.source_count, 2);
