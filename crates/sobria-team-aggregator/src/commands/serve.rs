@@ -99,7 +99,7 @@ fn spawn_retention_task(state: crate::server::ServerState) {
     });
 }
 
-/// Reads `retention_days` (default/floor from the CLI allow-list) and purges.
+/// Reads `retention_days` (default and floor from `config::RETENTION_DAYS`) and purges.
 fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i64, u64)> {
     use crate::config::RETENTION_DAYS;
 

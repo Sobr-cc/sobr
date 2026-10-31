@@ -175,7 +175,7 @@ fn run_config(paths: &DataPaths, action: ConfigAction) -> Result<()> {
                 "{:<18} {:>10} {:>8} {:>9}  description",
                 "clé", "effectif", "défaut", "plancher"
             );
-            for spec in commands::config::RUNTIME_KEYS {
+            for spec in crate::config::RUNTIME_KEYS {
                 let value = commands::config::get(paths, spec.key)?;
                 println!(
                     "{:<18} {:>10} {:>8} {:>9}  {}",

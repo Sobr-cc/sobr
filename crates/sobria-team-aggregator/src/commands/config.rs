@@ -11,7 +11,7 @@ use crate::config::DataPaths;
 use crate::policy::{self, Attestation, VisibilityPolicy};
 use crate::storage::Storage;
 
-pub use crate::config::{RuntimeKey, K_ANONYMITY_MIN, RETENTION_DAYS, RUNTIME_KEYS};
+use crate::config::{RuntimeKey, RUNTIME_KEYS};
 
 /// Reads the effective policy and its attestation, if any.
 pub fn get_policy(paths: &DataPaths) -> Result<(&'static str, Option<Attestation>)> {

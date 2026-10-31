@@ -31,8 +31,8 @@ pub struct GeneratedCert {
     pub key_pem: String,
 }
 
-/// Generates a self-signed cert for `subject_alt_names` (the first one is
-/// also used as CN). Valid 10 years, ECDSA-P256.
+/// Generates a self-signed cert for `subject_alt_names`, plus `hostname` when
+/// given; the CN is `hostname`, else `localhost`. Valid 10 years, ECDSA-P256.
 pub fn generate_self_signed(
     subject_alt_names: &[String],
     hostname: Option<&str>,
