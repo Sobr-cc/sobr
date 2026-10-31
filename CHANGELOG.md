@@ -26,7 +26,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     client uploads through one contract with no text and no clock time,
     only the day, and the server refuses any other field.
   - Everything starts fresh: nothing is converted, and the old stores stay
-    readable and exportable. The ADR lists fourteen issues to create and
+    readable and exportable. The ADR lists fifteen issues to create and
     the Deep cleanups they wait for.
   - Breakdowns by project and by task appear only when every group shown,
     the remainder included, has k contributors (SOB-148, option 1); SOB-153

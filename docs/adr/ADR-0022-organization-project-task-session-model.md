@@ -232,7 +232,9 @@ work Claude account to the organization and their own account to the
 personal space. A person with only one space has nothing to map: every
 session goes to it. A session whose source gives no account is *space
 pending*. It stays in the device's pending store, and nothing is sent until
-the person picks a space in T2 ("au perso" picks the personal space).
+the person picks a space: in T2 in the app ("au perso" picks the personal
+space), or in the extension's popup for a member who uses the extension
+alone (M2).
 
 **Every client applies this rule,** the extension included, because a
 member can use the extension alone (M2). The model crate publishes test
@@ -389,7 +391,9 @@ come later.
   later (V4). A space holds at most one task per issue. Linking a task to an
   issue that already has a task in the same project merges the two tasks
   (§5). A link that would merge tasks of two different projects is refused:
-  the editor moves or deletes one of them first.
+  the editor moves or deletes one of them first. A hand-made task can only
+  be linked to an issue whose tracker project is linked to the task's own
+  project, so later sessions keyed to that issue follow the same project.
 - **Removing a link** keeps the task and its sessions.
 - **Writing to a tracker,** such as creating an issue from V4, happens only
   on an explicit action.
@@ -398,11 +402,20 @@ come later.
 created in Sobr when a project editor creates it, or when a session is
 attached to that issue: through a task ID found in a branch name, or
 because the person picks the issue in T2 or V4. The device asks the server
-only for IDs that match the key format of a connected tracker, such as a
-Linear team key, and only in its daily batch (§10). It sends the key alone,
-such as `ACM-142`, never the branch name it came from. Until then the
-session shows under that issue on the device only. Sobr never mirrors all
-the issues of a linked project.
+only in its daily batch (§10), and never sends the branch name the key came
+from:
+
+- **Trackers with keys, such as Linear.** A key found in a branch name
+  counts only if it matches the key format of a connected tracker. The
+  device sends the key alone, such as `ACM-142`.
+- **GitHub.** An issue number has no key format and belongs to its repo, so
+  in V1 a number in a branch name creates nothing. A GitHub issue becomes a
+  task when the person picks it in T2 or V4. The device then sends the ID
+  of the project's repo link, which the server already holds, with the
+  issue number.
+
+Until then the session shows under that issue on the device only. Sobr
+never mirrors all the issues of a linked project.
 
 **The project of a task created on use** is the project linked to the
 issue's tracker project; the task never goes elsewhere. When a session is
@@ -480,7 +493,7 @@ personal space is hosted there and follows the organization rules above:
 - rules still stay on each device.
 
 Two machines that already hold a personal space each must merge them at the
-first sync; the issue that builds sync decides how. The model and the upload
+first sync; issue 15 decides how. The model and the upload
 contract do not change; the write path of the personal space does.
 
 | Option | Cost | Effort | Risk |
@@ -506,7 +519,10 @@ ADR-0013, ADR-0015). Every client that uploads (the app, the extension and
 later VS Code) uses one upload contract, defined once in the model crate.
 The app and the server use the crate directly. Other clients keep
 hand-written types (ADR-0019, ADR-0021 §2), and a test checks their payloads
-against example payloads that the crate exports. The contract holds only:
+against example payloads that the crate exports. The example payloads and
+the test cases of §3 are published with each release, as ADR-0019 §4 does
+for its shared cases, so a client in another repo, such as the extension,
+can run them. The contract holds only:
 
 - for a session: its ID, the member ID, the space ID, the project and task
   IDs, the source kind, the provider host (such as `claude.ai`), the model
@@ -514,8 +530,9 @@ against example payloads that the crate exports. The contract holds only:
 - for a measurement: its ID, its session ID, its source, its day, the model
   ID, the input and output tokens, energy, CO₂ and water with their P5, P50
   and P95 values, the cost, and the method with its version;
-- for a tracker lookup (§8): the space ID and the issue key alone, such as
-  `ACM-142`;
+- for a tracker lookup (§8): the space ID, and either the issue key alone,
+  such as `ACM-142`, or, for GitHub, the ID of the project's repo link with
+  the issue number;
 - for an attachment change: the session ID and the target, which is a
   project ID, a task ID or "no project";
 - for a withdrawal (§3): the session ID.
@@ -533,14 +550,16 @@ against example payloads that the crate exports. The contract holds only:
 
 **Which day.** A day is a calendar day in the space's time zone. An admin
 sets that zone when the organization is created, and a change applies only
-to the days that follow. A personal space uses the device's zone. The device
-computes the day, so daily totals, k counts and retention all use the same
-days for every member.
+to the days that follow. A personal space stores one zone too, set from the
+first device and changed by the person, so its synced machines count the
+same days. The device computes the day, so daily totals, k counts and
+retention all use the same days for every member.
 
 **When it is sent.** Each device sends one batch a day per space, after
 that day has ended in the space's time zone, at a random minute. The batch
 holds the day's session uploads, tracker lookups (§8), attachment changes
-and withdrawals (§3). The timing of the batch then tells the server and its
+and withdrawals (§3). The lookups go first; the uploads then carry the task
+IDs that the lookups returned. The timing of the batch then tells the server and its
 logs nothing finer than the day about the use. Other requests, such as
 reading totals or refreshing a sign-in, still show when a member opens the
 app; they carry no use data. The person's own views on the device are
@@ -571,8 +590,9 @@ others see: dashboards, exports, alerts and the API.
 - Others see daily totals by project and by task, never single sessions.
   Exports become daily totals under the policy and k (SOB-114).
 - **The k check runs day by day.** For each day and each group, k is the
-  number of distinct members with at least one session in that group that
-  day, as ADR-0015 rule 2 counts the users active in a window; here the
+  number of distinct members with at least one measurement in that group
+  that day, since daily totals add up measurements. This follows ADR-0015
+  rule 2, which counts the users active in a window; here the
   window is always one day. A view over a longer period, such as a month,
   adds up only the day values that passed the check. So a longer view never
   shows more than its days do, and "month minus the days shown" gives
@@ -691,10 +711,11 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
    `bob/acm-142-retry`, matches the project's linked repo. "ACM" is the key
    of Acme's Linear team, so the session shows under ACM-142 on Bob's
    machine at once.
-3. The next day, in its daily batch, the device asks the server for ACM-142,
-   which becomes a Sobr task in "Checkout", and uploads the session's IDs,
-   model, day and metrics under Bob's Acme member ID. The repo, the branch
-   name and the times stay on his machine.
+3. The next day, in its daily batch, the device first asks the server for
+   ACM-142, which becomes a Sobr task in "Checkout". It then uploads the
+   session's IDs, with that task ID, and its model, day and metrics under
+   Bob's Acme member ID. The repo, the branch name and the times stay on his
+   machine.
 4. Carol's project page shows the project's daily totals, on the days when
    Acme's breakdown by project passes the k check (§10). ACM-142 appears
    there only for the days when five people worked on it, and the breakdown
@@ -776,12 +797,13 @@ P1, P2, A7) wait for Design V7 and are not listed.
 | 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables, under the day rule and the all-groups k rule at project and task level (§10, SOB-148), and leave today's `team.sqlite` read-only with an export (§11) | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115; ADR-0016 amended by SOB-153 |
 | 7 | Serve projects, tasks, project links and daily totals with the visibility and k rules, and accept session uploads under the contract | Server | 5 | #6; **SOB-25** |
 | 8 | Upload organization sessions from the desktop app and queue attachment changes offline | Desktop backend | 5 | #2, #7; **SOB-26**; related to SOB-110 and SOB-132 |
-| 9 | Make the extension apply the space rule and send each estimate to one place under the contract, retire `both` mode, and keep its old labels and totals read-only (§11) | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
+| 9 | Make the extension apply the space rule, let its popup pick the space of a pending session, send each estimate to one place under the contract, retire `both` mode, and keep its old labels and totals read-only (§11) | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
 | 10 | Link projects and tasks to Linear and GitHub, and classify sessions on the device from project links | Integrations, server, desktop backend | 5 | #7; the Z2 connections of the Linear and GitHub integrations project; **SOB-25**, **SOB-26** |
 | 11 | Read projects from the app in the browser extension, instead of free-text labels | Browser extension, bridge, desktop backend | 3 | #3, #9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 12 | Let a person withdraw a session from an organization to their personal space | Desktop backend, server | 2 | #8; **SOB-25**, **SOB-26** |
 | 13 | Keep organization session detail 24 months, then k-safe daily totals, and anonymize a departing member after export | Server | 3 | #7; **SOB-25** |
 | 14 | Host several spaces on one server: per-space settings and sign-in through the accounts database | Server | 5 | #6; **SOB-25**; the Cloud and self-hosting project, which also hosts the free personal spaces (ADR-0014 Amendment 2) |
+| 15 | Sync a personal space between a person's machines through the Sobr server, merging two existing personal spaces at the first sync | Desktop backend, server | 5 | #8, #14; **SOB-25**, **SOB-26**; the dates of SOB-103 |
 
 ## Links
 
