@@ -5,7 +5,8 @@
 
 use chrono::{DateTime, Utc};
 use printpdf::{
-    BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
+    BuiltinFont, Mm, OffsetDateTime, Op, PdfDocument, PdfFontHandle, PdfPage,
+    PdfParseErrorSeverity, PdfSaveOptions, Point, Pt, TextItem,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,7 +15,7 @@ use sobria_core::EmpreinteMethod;
 use tracing::{debug, info};
 
 use crate::{
-    error::ExportResult,
+    error::{ExportError, ExportResult},
     provo::{build_provo_jsonld, ProvOOptions},
     summary::{aggregate, ReportSummary},
 };
@@ -79,7 +80,7 @@ pub fn generate_report(
         "agrégat de période calculé"
     );
 
-    let pdf_bytes = build_pdf(req, &summary);
+    let pdf_bytes = build_pdf(req, &summary)?;
     let pdf_sha256 = sha256_hex(&pdf_bytes);
 
     let report_id = format!(
@@ -153,7 +154,7 @@ impl TextPage {
 }
 
 #[allow(clippy::too_many_lines)] // PDF rendering : flow linéaire mieux lu en bloc
-fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> Vec<u8> {
+fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u8>> {
     let font_regular = PdfFontHandle::Builtin(BuiltinFont::HelveticaBold);
     let font_body = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
 
@@ -365,14 +366,29 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> Vec<u8> {
         .into_iter()
         .map(|ops| PdfPage::new(Mm(210.0), Mm(297.0), ops))
         .collect();
+    let mut doc = PdfDocument::new(&format!("Sobr.ia - {}", req.organization_name));
+    // printpdf 0.12 dates a document 1970-01-01 unless told otherwise.
+    let now = OffsetDateTime::now();
+    doc.metadata.info.creation_date = now;
+    doc.metadata.info.modification_date = now;
+    doc.metadata.info.metadata_date = now;
     let mut warnings = Vec::new();
-    let bytes = PdfDocument::new(&format!("Sobr.ia - {}", req.organization_name))
+    let bytes = doc
         .with_pages(pages)
         .save(&PdfSaveOptions::default(), &mut warnings);
+    // A save that drops content must not yield a compliance report.
+    let errors: Vec<&str> = warnings
+        .iter()
+        .filter(|w| w.severity == PdfParseErrorSeverity::Error)
+        .map(|w| w.msg.as_str())
+        .collect();
+    if !errors.is_empty() {
+        return Err(ExportError::Pdf(errors.join("; ")));
+    }
     if !warnings.is_empty() {
         debug!(?warnings, "printpdf save warnings");
     }
-    bytes
+    Ok(bytes)
 }
 
 /// SHA-256 en hexadécimal minuscule (partagé avec `datasheet`).
@@ -383,7 +399,6 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::ExportError;
     use chrono::TimeZone;
     use sobria_core::{
         EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
@@ -475,6 +490,33 @@ mod tests {
         assert_eq!(art.pdf_sha256.len(), 64);
         assert_eq!(art.summary.total_requests, 2);
         assert_eq!(art.audit_entries_count, 2);
+    }
+
+    #[test]
+    fn pdf_is_dated_now_not_the_unix_epoch() {
+        let req = sample_request();
+        let art = generate_report(&req, &[make_entry(1, req.period_start, 1.0)]).unwrap();
+        let text = String::from_utf8_lossy(&art.pdf_bytes);
+        let at = text.find("/CreationDate").expect("creation date present");
+        let date: String = text[at..].chars().take(40).collect();
+        assert!(
+            date.contains("D:20"),
+            "creation date is this century: {date}"
+        );
+        assert!(!date.contains("19700101"), "PDF dated with the Unix epoch");
+    }
+
+    #[test]
+    fn text_page_puts_each_line_in_its_own_text_section() {
+        let mut page = TextPage::default();
+        let font = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
+        page.use_text("a", 10.0, Mm(1.0), Mm(2.0), &font);
+        page.use_text("b", 10.0, Mm(1.0), Mm(3.0), &font);
+        assert_eq!(page.ops.len(), 10);
+        assert!(matches!(page.ops[0], Op::StartTextSection));
+        assert!(matches!(page.ops[4], Op::EndTextSection));
+        assert!(matches!(page.ops[5], Op::StartTextSection));
+        assert!(matches!(page.ops[9], Op::EndTextSection));
     }
 
     #[test]
