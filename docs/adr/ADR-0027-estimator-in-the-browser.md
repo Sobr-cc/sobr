@@ -1,6 +1,7 @@
 # ADR-0027 — The estimator in the browser (WebAssembly)
 
-- **Status**: Proposed
+- **Status**: Accepted (2026-10-31). Thibault answered yes to the five
+  points below (SOB-269).
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Foundations (SOB-262), after the research SOB-95 and
@@ -29,9 +30,12 @@
 >     module instead of being refused.
 > * **A parity test** holds the module to the native numbers.
 >
-> Five points for Thibault come first.
+> Thibault answered yes to the five points below (SOB-269).
 
-## Points to decide
+## Decisions of Thibault
+
+On October 31, Thibault answered yes to all five recommendations
+(SOB-269). The options he did not choose are kept for the record.
 
 1. **The two amendments to ADR-0021.** Recommended: yes, they follow from
    SOB-246.

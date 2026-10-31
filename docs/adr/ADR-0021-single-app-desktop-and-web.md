@@ -5,7 +5,7 @@
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Foundations, Structure milestone (SOB-14)
 - **Amends**: ADR-0017, rule 2 (demo activation), once accepted
-- **Amendment 1** (2026-10-31, Proposed with ADR-0027): in the web context,
+- **Amendment 1** (2026-10-31, Accepted with ADR-0027, SOB-269): in the web context,
   the Understand commands are answered by the estimator compiled to
   WebAssembly, and the CSP allows WebAssembly. See the section below.
 
@@ -22,7 +22,7 @@
 > on screens M2, Z6, Z7, Z9, B2 and A6. The Organisation section is
 > admin-only until roles arrive. Six points for Thibault come first.
 >
-> *Amendment 1 (proposed with ADR-0027): the Understand pages move to the
+> *Amendment 1 (ADR-0027): the Understand pages move to the
 > web, computed in the browser. See the section of that name.*
 
 ## Points to decide
@@ -52,7 +52,7 @@ Six questions for Thibault; the recommendations rest on the Decision section.
    Alternative: move everything now. The merge would then wait for these
    four pieces of work.
 
-   *Amendment 1 (proposed with ADR-0027) answers the four reasons. See the
+   *Amendment 1 (ADR-0027) answers the four reasons. See the
    section of that name.*
 4. **The Organisation section is admin-only, based on the token's role,
    until roles arrive.** Recommended: yes. The server only knows `user` and
@@ -134,7 +134,7 @@ Four facts weigh on the decision:
 | Web | tag `<meta name="sobr-runtime" content="server">` in the HTML the server sends | none: refused with code `not_available_here` | same-origin `fetch`, `/api/v1/...` | organization space (§4) |
 | Demo | neither (static hosting) | fixtures (ADR-0017) | none | those of ADR-0017 |
 
-*Amendment 1 (proposed with ADR-0027) changes the "Web" row: the Understand
+*Amendment 1 (ADR-0027) changes the "Web" row: the Understand
 commands are answered by the WebAssembly module, and the Understand pages
 are offered to signed-in people.*
 
@@ -191,8 +191,8 @@ are offered to signed-in people.*
     - `default-src 'self'`;
     - `script-src 'self'` plus the hash of SvelteKit's inline start-up
       script. The server computes it from the embedded `index.html`
-      (`build.rs` or at start-up), never by hand. *Amendment 1 (proposed
-      with ADR-0027) adds `'wasm-unsafe-eval'`;*
+      (`build.rs` or at start-up), never by hand. *Amendment 1 (ADR-0027)
+      adds `'wasm-unsafe-eval'`;*
     - `style-src 'self' 'unsafe-inline'` and `font-src 'self' data:`, like
       the desktop CSP (`web/` uses inline styles);
     - `connect-src 'self'`, `img-src 'self' data:`;
@@ -315,8 +315,8 @@ password sign-in and these two limits.
 
 ## Amendment 1 — The Understand pages on the web (2026-10-31)
 
-**Status.** Proposed with ADR-0027, and it applies once ADR-0027 is
-Accepted. On October 31, Thibault chose that on the web the Understand pages
+**Status.** Accepted (2026-10-31) with ADR-0027: Thibault answered yes
+to its five points (SOB-269). On October 31, Thibault chose that on the web the Understand pages
 compute their numbers in the browser, with the estimator compiled to
 WebAssembly (SOB-246). This is the separate decision that point 3 announced.
 The text above stays as written; the changes below apply on top of it.
