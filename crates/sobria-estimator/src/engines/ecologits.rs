@@ -238,7 +238,6 @@ impl EcoLogitsEngine {
         let (_effective_in, effective_out) =
             effective_tokens::effective_tokens(request, Some(preset));
 
-        // Usage
         let energy_kwh = request_energy_kwh(p_billions, effective_out, pue);
         let energy_watt_hours = energy_kwh * 1000.0;
         let usage_co2_g = energy_kwh * if_elec;
@@ -252,7 +251,6 @@ impl EcoLogitsEngine {
             _ => request_embodied_co2eq_g(p_billions, effective_out),
         };
 
-        // Total CO2
         let total_co2_g = usage_co2_g + embodied_co2_g;
 
         // Water (same formula as Sobr.ia: E_kWh × WUE)

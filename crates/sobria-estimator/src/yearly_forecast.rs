@@ -1,4 +1,4 @@
-//! 12-month forecaster — module M16 (chantier C15).
+//! Forecaster over 1 to `MAX_FORECAST_HORIZON_MONTHS` months — module M16 (chantier C15).
 //!
 //! Projects the cumulative footprint of an AI usage with a **P5/P50/P95
 //! uncertainty band** propagated month by month, and overlays several

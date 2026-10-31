@@ -2,7 +2,7 @@
 //!
 //! Compares a baseline with N scenarios that pin some parameters to
 //! fixed values (model, PUE, electricity mix, etc.), and projects
-//! these changes over 12 months with a geometric adoption-growth
+//! these changes over 1 to `MAX_FORECAST_MONTHS` months with a geometric adoption-growth
 //! assumption.
 //!
 //! See `docs/archive/chantiers/C11-simulateur-et-si.md` for the spec.
@@ -69,10 +69,10 @@ pub struct Scenario {
     pub overrides: ParamOverrides,
 }
 
-/// Configuration of a 12-month projection (or another horizon).
+/// Configuration of a projection.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ForecastConfig {
-    /// Horizon in months. Capped at `MAX_FORECAST_MONTHS`.
+    /// Horizon in months, from 1 to `MAX_FORECAST_MONTHS`; more is rejected.
     pub months: u32,
     /// Monthly growth as a percentage (e.g. `5.0` = +5%/month).
     /// Negative values allowed (declining usage).
@@ -86,7 +86,7 @@ pub struct ForecastConfig {
 pub struct SimulationRequest {
     /// Reference estimate, used as the point of comparison.
     pub baseline: EstimationRequest,
-    /// Scenarios to evaluate (1..= `MAX_SCENARIOS`).
+    /// Scenarios to evaluate, at most `MAX_SCENARIOS`.
     pub scenarios: Vec<Scenario>,
     /// Optional projection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -106,10 +106,10 @@ pub struct ScenarioOutcome {
     pub delta_pct: f64,
 }
 
-/// Result of a 12-month projection.
+/// Result of a projection.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ForecastResult {
-    /// Effective horizon (can be ≤ the requested months when capped).
+    /// Horizon in months, as requested.
     pub months: u32,
     /// Baseline volume per day used to compute the masses.
     pub base_volume_per_day: f64,
@@ -352,7 +352,6 @@ mod tests {
             pue_low < pue_high,
             "PUE 1.05 ({pue_low}) doit être < PUE 1.6 ({pue_high})"
         );
-        // Delta computed correctly.
         let baseline_p50 = res.baseline.indicators[0].interval.p50;
         assert!((res.scenarios[0].delta_co2eq_g - (pue_low - baseline_p50)).abs() < 1e-9);
     }

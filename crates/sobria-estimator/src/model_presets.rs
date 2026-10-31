@@ -1994,7 +1994,6 @@ mod tests {
                 "preset {} : format date invalide",
                 preset.id
             );
-            // Parse year
             let year: u32 = parts[0].parse().unwrap_or_else(|_| {
                 panic!("preset {} : year non numérique", preset.id);
             });
