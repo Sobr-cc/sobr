@@ -29,9 +29,10 @@ ADRs record the project's structural decisions. Each ADR:
 | [ADR-0017](./ADR-0017-contrat-demo-web.md) | Contrat démo web (fixtures du moteur réel hors Tauri) | Accepted |
 | [ADR-0018](./ADR-0018-pilotage-linear.md) | Piloter l'avancement dans Linear | Accepted |
 | [ADR-0019](./ADR-0019-split-code-into-repos.md) | Split the code into several repos of the Sobr-cc organization | Accepted (2026-10-31) |
-| [ADR-0020](./ADR-0020-renommage-sobr-cc.md) | Renommer Sobr.ia en Sobr.cc | Proposed |
-| [ADR-0021](./ADR-0021-single-app-desktop-and-web.md) | One Svelte app, shipped on desktop and on the web (amends rule 2 of ADR-0017) | Proposed |
+| [ADR-0020](./ADR-0020-renommage-sobr-cc.md) | Renommer Sobr.ia en Sobr.cc | Accepted (2026-10-30) |
+| [ADR-0021](./ADR-0021-single-app-desktop-and-web.md) | One Svelte app, shipped on desktop and on the web (amends rule 2 of ADR-0017) | Accepted (2026-10-30) |
 | [ADR-0022](./ADR-0022-organization-project-task-session-model.md) | Organization, project, task and session model | Accepted |
+| [ADR-0023](./ADR-0023-sobr-mcp-server-contract.md) | The Sobr MCP server contract (tools, grants, rights, confirmation, audit) | Accepted (2026-10-31) |
 | [ADR-0024](./ADR-0024-kubernetes-platform-on-proxmox.md) | Kubernetes platform on Proxmox | Proposed |
 
 ## Format to follow

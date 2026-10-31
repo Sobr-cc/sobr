@@ -1,6 +1,6 @@
 # ADR-0021 — One Svelte app, shipped on desktop and on the web
 
-- **Status**: Proposed (becomes Accepted when Thibault approves the PR)
+- **Status**: Accepted (2026-10-30)
 - **Date**: 2026-10-30
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Foundations, Structure milestone (SOB-14)
