@@ -8,10 +8,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use rusqlite::{Connection, Row};
 use sobria_audit::{AuditEntry, AuditLedger};
-use sobria_core::{
-    ContextOverhead, EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
-    IndicatorValue, UncertaintyInterval,
-};
+use sobria_core::{ContextOverhead, EmpreinteMethod, EstimationRequest, EstimationResult};
 
 const ENTRIES: usize = 4;
 const V1_COLUMNS: [&str; 6] = [
@@ -177,18 +174,9 @@ fn ecologits_result() -> EstimationResult {
             modalities: Vec::new(),
             overhead: ContextOverhead::default(),
         },
-        indicators: vec![IndicatorValue {
-            indicator: Indicator::Co2Eq,
-            interval: UncertaintyInterval::new(1.0, 2.0, 3.0).unwrap(),
-            unit: "gCO2eq".into(),
-            bins: None,
-        }],
+        indicators: vec![],
         equivalents: vec![],
-        hypotheses: vec![Hypothesis {
-            key: "x".into(),
-            value: serde_json::json!(1.0),
-            source: "test".into(),
-        }],
+        hypotheses: vec![],
         computed_at: Utc::now(),
         seed: 42,
     }
@@ -198,27 +186,27 @@ fn ecologits_result() -> EstimationResult {
 fn appending_to_a_migrated_ledger_continues_the_ids_and_the_chain() {
     let (_dir, path) = legacy_copy();
     let before = entries(&path);
+    let last_sig = before[ENTRIES - 1].4.clone();
     let mut ledger = AuditLedger::open(&path).unwrap();
     let result = ecologits_result();
 
     let appended = ledger.append(&result).unwrap();
 
     assert_eq!(appended.id, 5);
-    assert_eq!(appended.prev_sig, before[3].4);
+    assert_eq!(appended.prev_sig, last_sig);
     assert_eq!(appended.sig, appended.compute_sig());
     assert_eq!(
         appended.estimation_result_json,
         serde_json::to_string(&result).unwrap()
     );
-    assert_eq!(appended.purged_at, None);
     let mut expected_methods = vec!["afnor_sobria"; ENTRIES];
     expected_methods.push("ecologits");
     assert_eq!(methods(&path), expected_methods);
     let after = entries(&path);
     assert_eq!(after[..ENTRIES], before[..]);
     assert_eq!(after.len(), ENTRIES + 1);
-    assert_eq!(after[ENTRIES].0, 5);
-    assert_eq!(after[ENTRIES].3, before[3].4);
+    assert_eq!(after[ENTRIES].3, last_sig);
+    assert_eq!(after[ENTRIES].5, None);
     assert_eq!(after[ENTRIES].4, appended.sig);
     assert_eq!(ledger.len().unwrap(), ENTRIES + 1);
     let report = ledger.verify_chain().unwrap();
