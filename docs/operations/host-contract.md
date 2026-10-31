@@ -12,7 +12,8 @@ and, later, the managed cloud). Thibault decided on October 31 that they keep tw
 repos and share the host through this contract (SOB-213). Without it, a Sobr
 change could stop the game.
 
-Read it with ADR-0024 (the platform), ADR-0026 (how Sobr deploys), and the
+Read it with ADR-0024 (the platform), ADR-0026 (how Sobr deploys; it is merged
+before this contract, which cites its sections), and the
 decisions SOB-211 (what Sobr may run here), SOB-212 (the scope of Claude's
 approvals) and SOB-213 (repos and front end). The survey of the host is in
 SOB-181.
@@ -26,8 +27,8 @@ SOB-181.
 | **The host** | The hypervisor, its network, its bridges (the Sobr bridge or VLAN is created once by Thibault), its storage and quotas, its updates and reboots, its backup server | Thibault, by hand, with a test copy first |
 
 Sobr's automation holds a Proxmox token that acts only on the Sobr pool. It has no
-host-level privilege, no console access to any machine, no restore of backups, and
-no access to storage outside the Sobr storage. A plan that touches anything else is
+host-level privilege, no console access to any machine, no restore from the host's
+backup server, and no access to storage outside the Sobr storage. A plan that touches anything else is
 refused by the script too (ADR-0026 section 5).
 
 ## 2. Variables of the host file
@@ -61,14 +62,25 @@ what is free is in SOB-181. So Sobr has one **budget** for the sum of its machin
 - **Disk and network:** every Sobr VM has a disk limit (`sobr_disk_iops_limit`,
   `sobr_disk_mbps_limit`) and a network rate limit (`sobr_net_mbps_limit`), so that
   a build or a restore cannot saturate the shared disk or the shared line.
-- **CI runner VMs** run at the lowest CPU priority, and their number at once is
-  capped (`sobr_ci_max_vms`).
+- **CI runner VMs** live in a sub-pool of the Sobr pool, `sobr_ci_pool`. Each
+  clone has the fixed size of its template (`sobr_ci_vm_ram`, `sobr_ci_vm_vcpu`), runs
+  at the lowest CPU priority, and their number at once is capped
+  (`sobr_ci_max_vms`). So the cap times the size is counted in the budget, and the
+  clones are budget use, not drift.
 
-**Who checks.** Proxmox has no native quota on a pool, so the checks are Sobr's:
-the daily drift check of ADR-0026 section 6 lists the machines of the Sobr pool
-against the code and reports any machine outside `sobr_vmid_range`, any limit
-missing or over budget; the runner controller enforces `sobr_ci_max_vms`; and a
-plan that exceeds the budget is refused by the script's policy file.
+**Who checks.** Proxmox has no native quota on a pool, so there are two lines:
+
+- **Sobr's own:** the daily drift check of ADR-0026 section 6 lists the machines of
+  the Sobr pool and `sobr_ci_pool` against the code and the budget, and reports any
+  machine outside `sobr_vmid_range`, any limit missing or over budget, as an issue in
+  `infra` that also reaches Thibault; the runner controller enforces
+  `sobr_ci_max_vms`; and the script's policy file refuses a plan that exceeds the
+  budget. The policy file takes its numbers from the host file and is regenerated when
+  the host file changes, so there is one source of numbers.
+- **The host's, independent of Sobr:** the server session runs the same comparison on
+  the host and alerts Thibault, so a machine made by hand or a limit removed on the
+  Proxmox side is caught by someone other than Sobr's own tools. The server session
+  agrees to this when it confirms the contract.
 
 ## 4. Whose go a change needs
 
@@ -77,7 +89,8 @@ plan that exceeds the budget is refused by the script's policy file.
 | A Sobr machine inside the Sobr pool and ranges; Kubernetes inside them | Claude approves and applies | ADR-0026 section 5: an approver who is not the author, green checks, a recorded plan, rollback, Thibault's stop switch. This supersedes the sentence of ADR-0024 that says Thibault approves from GitHub (SOB-212) |
 | Raising a Sobr limit or widening a range; a new bridge, VLAN or firewall rule; storage; Proxmox updates; a reboot of the host | **Thibault, explicitly** | A test copy first. These are production changes, because they touch both projects |
 | Anything that touches BrilliantStudio's machines, network, storage or backups | **Thibault, explicitly**, through `brilliantstudio-infra` | Not from `infra` |
-| Any restart of the game VM, including the one a host reboot or update causes | **Thibault, explicitly** | Never while players are connected, and not during `game_blackout_hours` (in the host's local time) |
+| Restoring a VM from the host's backup server | **Thibault, explicitly** | A host operation. Sobr's own data (the databases in the object store) is restored by Sobr's components, with the restore test of section 5 |
+| Any restart of the game VM, including the one a host reboot or update causes | **Thibault, explicitly** | Never while players are connected, and not during `game_blackout_hours` |
 
 A change to a value of the host file follows the same table: the server session
 makes it, and with Thibault's go when it raises a Sobr limit or widens a range.
@@ -89,8 +102,10 @@ ADR-0026 section 5).
 - Sobr's backups live in the **object store** (ADR-0024 section 6), not only on the
   host's one disk. The backup server on the same disk is a convenience, not a
   protection against losing the disk.
-- Sobr's backup and restore jobs run in `sobr_backup_window`, outside the game's
-  busy hours, and under the rate limits of section 3.
+- Sobr's backup and restore jobs for its data run in `sobr_backup_window`, and
+  under the rate limits of section 3. The window and `game_blackout_hours` are both
+  in the host's local time, with the time zone set in the host file, and the host
+  file check refuses a window that overlaps the blackout hours.
 - The keys that decrypt the backups are kept offline by Thibault alone (ADR-0024
   section 6). Sessions cannot read them. The monthly restore test of ADR-0024
   section 6 uses its own credential.
