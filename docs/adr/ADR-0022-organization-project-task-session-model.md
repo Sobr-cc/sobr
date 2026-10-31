@@ -182,8 +182,8 @@ erDiagram
 | Membership | A person inside one space: an ID that exists only in that space, and a role | The space | Space, member ID, role | Projects the member works on; their sharing choice (ADR-0015) | That space's database |
 | Project | A unit of work in one space | Its space | Space, name | External links (tracker project, repo), dates, budget, who may edit it | Its space's database |
 | Task | A piece of work in one project | Its project | Project, title | One external link (an issue); at most one task per issue in a space | Its space's database |
-| Session | One continuous use of an AI tool by one person, such as a Claude Code session or a browser conversation | Its person; inside a space, through their member ID | Person, source, start time, state (§4) | Space (required before it leaves the device); project, which must be in the session's space; task, whose project must be the session's project; end time | A pending store on the device while its space is pending; then its space's database, and its space's server when that space is an organization |
-| Measurement | One report from a source, such as a turn or an estimate, with its metrics | Its session | Session, source, time, metrics, method | — | With its session |
+| Session | One continuous use of an AI tool by one person, such as a Claude Code session or a browser conversation | Its person; inside a space, through their member ID | Person, source, start time (on the device; the server keeps only the day, §10), state (§4) | Space (required before it leaves the device); project, which must be in the session's space; task, whose project must be the session's project; end time | A pending store on the device while its space is pending; then its space's database, and its space's server when that space is an organization |
+| Measurement | One report from a source, such as a turn or an estimate, with its metrics | Its session | Session, source, time (on the device; the server keeps only the day, §10), metrics, method | — | With its session |
 | Connection | A tool account connected to a space (Z2): Claude, Linear, GitHub | Its space | Space, provider | — | Its space's database |
 | External link | The tie between a project or task and its counterpart in a tool | Its project or task | Connection, external ID | URL | Its space's database |
 | Rule | An attachment rule from a correction (T3), such as "sessions in this repo go to this project" | The person who made it | Condition, target | — | That person's device |
@@ -357,7 +357,8 @@ organization; other shared rules are left to a later decision.
 Solo mode is a setting of a space. A space created in solo mode gets one
 project, named like the space and hidden from the interface. Every session
 classified after that goes to that project, and tasks are created in it.
-Solo mode can be turned on only when the space has at most one project.
+Solo mode can be turned on only when the space has at most one project; in
+a space with no project, turning it on creates the hidden project.
 Switching it on or off changes no existing session: on, it applies to the
 sessions classified from then on; off, it shows the project as a normal
 one. An organization with a single project can use solo mode too.
@@ -391,14 +392,28 @@ created in Sobr when a project editor creates it, or when a session is
 attached to that issue: through a task ID found in a branch name, or
 because the person picks the issue in T2 or V4. The device asks the server
 only for IDs that match the key format of a connected tracker, such as a
-Linear team key, and only in its daily batch (§10). Until then the session
-shows under that issue on the device only. Sobr never mirrors all the
-issues of a linked project.
+Linear team key, and only in its daily batch (§10). It sends the key alone,
+such as `ACM-142`, never the branch name it came from. Until then the
+session shows under that issue on the device only. Sobr never mirrors all
+the issues of a linked project.
 
-**A task created on use stays hidden from others** until it has k
-contributors, in the anonymous and opt-in policies. Its existence would
-otherwise tell others that someone worked on that issue, and the issue's
-assignee would name that person. The person always sees their own tasks.
+**The project of a task created on use** is the project linked to the
+issue's tracker project; the task never goes elsewhere. When a session is
+attached to one project by a repo link (§5) and its issue key belongs to
+another project:
+
+- if the person chose the session's project themself, their choice wins:
+  the session keeps its project and gets no task;
+- if both attachments are automatic, the issue key wins: the session moves
+  to the task's project, with the task;
+- if no project links the issue's tracker project, no task is created and
+  the session keeps its project.
+
+**A task created on use stays hidden from others,** in the anonymous and
+opt-in policies, for every period in which it has fewer than k contributors
+(§10 says how they are counted). Its existence would otherwise tell others
+that someone worked on that issue, and the issue's assignee would name that
+person. The person always sees their own tasks.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -407,14 +422,16 @@ assignee would name that person. The person always sees their own tasks.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — A task mirrors an issue only when an editor creates it or a session uses it, and a task created on use stays hidden from others until it has k contributors (chosen)** | A lookup in the tracker when a session is classified, cached; per-task totals appear late on small projects | Small | Low |
+| **A — A task mirrors an issue only when an editor creates it or a session uses it, and a task created on use stays hidden from others in any period with fewer than k contributors (chosen)** | A lookup in the tracker when a session is classified, cached; per-task totals appear late on small projects | Small | Low |
 | B — Mirror every issue of a linked project | A sync job and stale copies of issues that never get a session | Large | Copies of tracker data that Sobr does not need |
 
 ### 9. The same model on the device and on the server
 
 **One crate.** A new Rust crate holds the entities, their invariants, the
 upload contract (§10), the test cases of §3, and the SQLite schema of a
-space with numbered migrations (`PRAGMA user_version`). Both the desktop app
+space with numbered migrations (`PRAGMA user_version`). Clock-time columns
+exist only in the device's tables; the server's tables hold the day in
+their place (§10). Both the desktop app
 and the organization server use it. It has no Tauri or HTTP dependency, and
 it lives in the `sobr` repo with the app and the server (ADR-0019,
 ADR-0021). The server adds what only it needs: the accounts database,
@@ -484,14 +501,20 @@ against example payloads that the crate exports. The contract holds only:
   ID, the day it started, the state, and what made the attachment;
 - for a measurement: its ID, its session ID, its source, its day, the model
   ID, the input and output tokens, energy, CO₂ and water with their P5, P50
-  and P95 values, the cost, and the method with its version.
+  and P95 values, the cost, and the method with its version;
+- for a tracker lookup (§8): the space ID and the issue key alone, such as
+  `ACM-142`;
+- for an attachment change: the session ID and the target, which is a
+  project ID, a task ID or "no project";
+- for a withdrawal (§3): the session ID.
 
 **What never leaves a device:**
 
 - prompt or response text, and anything derived from it, such as a title,
   a summary or a first message;
 - clock times (the device keeps them for the person's own views);
-- file paths, folder, repo and branch names, and conversation URLs;
+- file paths, folder, repo and branch names, and conversation URLs. An issue
+  key found in a branch name leaves only on its own, in a lookup;
 - command lines;
 - rules (§6);
 - sessions with a pending space.
@@ -505,8 +528,10 @@ days for every member.
 **When it is sent.** Each device sends one batch a day per space, after
 that day has ended in the space's time zone, at a random minute. The batch
 holds the day's session uploads, tracker lookups (§8), attachment changes
-and withdrawals (§3). The timing of a request then tells the server and its
-logs nothing finer than the day. The person's own views on the device are
+and withdrawals (§3). The timing of the batch then tells the server and its
+logs nothing finer than the day about the use. Other requests, such as
+reading totals or refreshing a sign-in, still show when a member opens the
+app; they carry no use data. The person's own views on the device are
 up to date at once; the organization's totals and new tasks appear the next
 day.
 
@@ -533,6 +558,12 @@ others see: dashboards, exports, alerts and the API.
 
 - Others see daily totals by project and by task, never single sessions.
   Exports become daily totals under the policy and k (SOB-114).
+- **Contributors are counted over the period a view shows,** as ADR-0015
+  rule 2 counts the users active in the queried window. k is the number of
+  distinct members with at least one session in a group during that period.
+  A daily series checks each day on its own, so a group shows only on the
+  days it has at least k contributors. The same count applies to tasks
+  created on use (§8) and to the monthly count of withdrawals (§3).
 - An alert on one member's budget is allowed only in the identified policy,
   or when that member has turned sharing on (SOB-115).
 - In the anonymous and opt-in policies, a project's breakdown by task
@@ -553,8 +584,8 @@ others see: dashboards, exports, alerts and the API.
 - the server keeps session and measurement detail for 24 months
   (`retention_days`, 730 by default, ADR-0015);
 - after that it keeps only daily totals with no member, each with its number
-  of contributors, built with the same all-groups rule as the task
-  breakdown above, whatever the policy:
+  of contributors that day, built with the same all-groups rule as the task
+  breakdown above, checked day by day, whatever the policy:
   - the space keeps its breakdown by project only when every project kept,
     "other projects" and "no project" each have at least k contributors;
     otherwise it keeps its total only;
@@ -650,9 +681,10 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
    model, day and metrics under Bob's Acme member ID. The repo, the branch
    name and the times stay on his machine.
 4. Carol's project page shows the project's daily totals. ACM-142 appears
-   there only once five people have worked on it, and the breakdown by task
-   only when every task shown, "other tasks" and "no task" each have at
-   least five contributors. Carol never sees Bob's single sessions.
+   there only for the days when five people worked on it, and the breakdown
+   by task only when every task shown, "other tasks" and "no task" each have
+   at least five contributors that day. Carol never sees Bob's single
+   sessions.
 5. Bob sees he attached a session to the wrong task, and moves it from
    ACM-142 to ACM-150 himself.
 6. In the evening, Bob uses his own account. That session goes to his
@@ -694,6 +726,12 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
 - SOB-146 may need finer times on the server to match billing with sessions;
   it must weigh that against §10.
 - Rules stay on one device.
+- A withdrawal lowers a day's total after the fact. Someone who saw that
+  day's total before and after can work out that one session's metrics,
+  when the day's breakdown passed the k check.
+- An editor who links an issue whose task is still hidden from them learns,
+  from the merge or the refusal, that someone worked on that issue; not who,
+  nor how much.
 - Organization totals, and tasks created from trackers, appear the day
   after the use.
 
