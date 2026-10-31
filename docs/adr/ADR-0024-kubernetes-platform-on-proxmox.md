@@ -138,7 +138,7 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | B — Three very small nodes (about 3 GB each) and the router | A three-member etcd | Medium | 3 GB cannot hold a control plane, Cilium and Knative together; the overhead of three nodes eats the cap for no gain on one machine |
 | C — Keep §8 and raise the cap first | Memory to buy or a second machine | Small | The launch waits |
 
-The managed cloud does not open on this cap: §6 already makes its opening depend on its protections and on a second failure domain (§7), and the cap must rise before then. The figures are starting figures, as §8 says. The cap, the limits and the pinning belong to the host contract, and the daily check of ADR-0026 compares the real machines with them.
+The managed cloud does not open on this cap: §6 makes its opening depend on its protections, and the public launch on a second failure domain (§7); the cap must rise before then. The figures are starting figures, as §8 says. The cap, the limits and the pinning belong to the host contract, and the daily check of ADR-0026 compares the real machines with them.
 
 ### A4. The mesh port and the front-end link
 
