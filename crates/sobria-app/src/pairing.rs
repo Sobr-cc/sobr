@@ -1,38 +1,33 @@
-//! Sobr.ia — pairing extension navigateur ↔ app desktop (C27.5.c).
+//! Sobr.ia — browser extension ↔ desktop app pairing.
 //!
-//! Logique pure du pairing par **code à 6 chiffres** TTL 5 min, single-use,
-//! comparaison constant-time. Indépendant de SQLite et de Tauri — la
-//! persistance des `device_pairings` viendra en C27.5.d quand on intégrera
-//! le module à `AppState`.
+//! Pure pairing logic with a **6-digit code**, TTL 5 min, single-use,
+//! constant-time comparison. Independent of SQLite and Tauri: `AppState`
+//! holds the pending code and `ExtensionStore` persists `device_pairings`.
 //!
-//! ## Sécurité
+//! ## Security
 //!
-//! - **Code 6 chiffres** : 20 bits d'entropie, OS RNG (`rand::thread_rng`).
-//!   Suffisant pour usage local éphémère (TTL 5 min, single-use).
-//! - **Secret partagé** : 32 octets random, hashé en **Argon2id** (params
-//!   par défaut de la crate `argon2 = 0.5`, déterminés par l'OWASP cheat
-//!   sheet) pour stockage. Le hash retourné est une **PHC string** qui
-//!   contient les paramètres + le sel + le hash en base64, et qui se
-//!   suffit à elle-même côté `verify_password`. Patch C27 v0.6.0 —
-//!   remplace l'implémentation SHA-256 + sel manuel précédente.
-//! - **Comparaison code** : constant-time pour éviter le timing attack
-//!   (même si le risque est faible sur du local).
+//! - **6-digit code**: 20 bits of entropy, OS RNG (`rand::thread_rng`).
+//!   Enough for short-lived local use (TTL 5 min, single-use).
+//! - **Shared secret**: 32 random bytes, hashed with **Argon2id** (default
+//!   params of the `argon2 = 0.5` crate, set from the OWASP cheat
+//!   sheet) for storage. The returned hash is a **PHC string** that
+//!   holds the params + the salt + the base64 hash, and is
+//!   self-contained for `verify_password`. Replaces the previous
+//!   SHA-256 + manual salt implementation.
+//! - **Code comparison**: constant-time to prevent timing attacks
+//!   (even if the risk is low locally).
 //!
-//! ## Usage prévu (intégration C27.5.d)
+//! ## Usage
 //!
+//! The flow of `bridge_server` and `logic::verify_pairing_code`:
 //! ```ignore
-//! // Côté UI (/parametres → Extension navigateur), bouton "Régénérer" :
-//! let pairing_code = generate_pairing_code(&mut state.codes);
-//! // affiche pairing_code.code (6 chiffres) à l'utilisateur pendant 5 min
-//!
-//! // Quand le bridge transmet le code saisi côté extension :
-//! let (id, secret) = verify_pairing_code(&mut state.codes, &code, &fingerprint)?;
-//! // → on insère dans device_pairings (id, fingerprint, hash(secret), now)
-//! // → on retourne `secret` à l'extension via le bridge
-//!
-//! // À chaque estimation reçue :
-//! let pairing = verify_secret(&db, &secret, &fingerprint)?;
-//! // → on insère dans extension_events
+//! // "Régénérer" in "Extension navigateur": a new code waits in AppState.
+//! *state.pending_code.lock()? = Some(PendingCode::new());
+//! // The bridge forwards the code typed in the extension:
+//! verify_code(pending, &code, Utc::now())?;
+//! let secret = PairingSecret::new();
+//! let pairing_id = store.record_pairing(fingerprint, &secret)?;
+//! // The code is consumed; `secret.secret_hex` goes back to the extension.
 //! ```
 
 use argon2::{
@@ -42,13 +37,14 @@ use argon2::{
 use chrono::{DateTime, Duration, Utc};
 use rand::{thread_rng, Rng};
 
-/// TTL d'un code de pairing affiché côté app. Au-delà, il est régénéré.
+/// TTL of a pairing code shown in the app. After it, the code is refused until
+/// the user generates a new one.
 pub const CODE_TTL: Duration = Duration::minutes(5);
 
-/// Longueur du secret partagé en octets (256 bits, encodé hex → 64 chars).
+/// Length of the shared secret in bytes (256 bits, hex-encoded → 64 chars).
 pub const SECRET_BYTES: usize = 32;
 
-/// Erreurs de la couche pairing.
+/// Errors of the pairing layer.
 #[derive(Debug, thiserror::Error)]
 pub enum PairingError {
     #[error("code invalide ou expiré")]
@@ -57,27 +53,27 @@ pub enum PairingError {
     Malformed,
 }
 
-/// Code de pairing en attente d'utilisation (in-memory, jamais persisté).
+/// Pairing code waiting to be used (in-memory, never persisted).
 #[derive(Debug, Clone)]
 pub struct PendingCode {
-    /// Les 6 chiffres affichés à l'utilisateur.
+    /// The 6 digits shown to the user.
     pub code: String,
-    /// Instant après lequel le code n'est plus accepté.
+    /// Instant after which the code is no longer accepted.
     pub expires_at: DateTime<Utc>,
 }
 
 impl PendingCode {
-    /// Construit un code aléatoire 6 chiffres TTL 5 min.
+    /// Builds a random 6-digit code with a 5 min TTL.
     #[must_use]
     pub fn new() -> Self {
         Self::with_expiry(Utc::now() + CODE_TTL)
     }
 
-    /// Construit un code avec une expiration donnée (utile pour les tests).
+    /// Builds a code with a given expiry (useful for tests).
     #[must_use]
     pub fn with_expiry(expires_at: DateTime<Utc>) -> Self {
         let mut rng = thread_rng();
-        // 6 chiffres en chaîne, padding 0 si nécessaire (ex: "042039").
+        // 6 digits as a string, zero-padded if needed (e.g. "042039").
         let n: u32 = rng.gen_range(0..1_000_000);
         Self {
             code: format!("{n:06}"),
@@ -85,7 +81,7 @@ impl PendingCode {
         }
     }
 
-    /// `true` si le code est encore valide (non expiré).
+    /// `true` if the code is still valid (not expired).
     #[must_use]
     pub fn is_valid(&self, now: DateTime<Utc>) -> bool {
         now <= self.expires_at
@@ -98,27 +94,27 @@ impl Default for PendingCode {
     }
 }
 
-/// Secret partagé entre l'extension et l'app desktop, généré à la validation
-/// du code. Stocké en clair côté extension (`chrome.storage.local` sandbox),
-/// hashé côté app en **Argon2id** (PHC string) depuis le patch C27 v0.6.0.
+/// Secret shared by the extension and the desktop app, generated when the
+/// code is validated. Stored in clear by the extension (`chrome.storage.local`
+/// sandbox), hashed by the app with **Argon2id** (PHC string).
 ///
-/// La PHC string (`$argon2id$v=19$m=...,t=...,p=...$<salt-b64>$<hash-b64>`)
-/// embarque déjà ses paramètres et son sel, donc on n'a **plus besoin** de
-/// stocker `salt_hex` séparément en base.
+/// The PHC string (`$argon2id$v=19$m=...,t=...,p=...$<salt-b64>$<hash-b64>`)
+/// already embeds its params and its salt, so `salt_hex` **no longer needs**
+/// to be stored separately in the database.
 #[derive(Debug, Clone)]
 pub struct PairingSecret {
-    /// Secret 32 octets encodé en hex (64 caractères ASCII).
+    /// 32-byte secret, hex-encoded (64 ASCII characters).
     pub secret_hex: String,
-    /// Hash Argon2id du secret au format PHC, à stocker côté app dans
-    /// `device_pairings.secret_hash`.
+    /// Argon2id hash of the secret in PHC format, to store on the app side
+    /// in `device_pairings.secret_hash`.
     pub secret_hash: String,
 }
 
 impl PairingSecret {
-    /// Génère un secret aléatoire + son hash Argon2id.
+    /// Generates a random secret + its Argon2id hash.
     ///
-    /// Panique uniquement si l'OS RNG sous-jacent à `SaltString::generate`
-    /// échoue (ce qui implique un OS dans un état non récupérable).
+    /// Panics only if the OS RNG behind `SaltString::generate` fails
+    /// (which means the OS is in an unrecoverable state).
     #[must_use]
     pub fn new() -> Self {
         let mut rng = thread_rng();
@@ -132,11 +128,11 @@ impl PairingSecret {
         }
     }
 
-    /// Vérifie qu'un secret en clair (hex) correspond à un hash Argon2id PHC
-    /// stocké. La comparaison est constant-time côté `argon2`.
+    /// Checks that a clear (hex) secret matches a stored Argon2id PHC hash.
+    /// The comparison is constant-time inside `argon2`.
     ///
-    /// Retourne `false` si le hash est malformé (PHC invalide) ou si le
-    /// secret candidat ne matche pas.
+    /// Returns `false` if the hash is malformed (invalid PHC) or if the
+    /// candidate secret does not match.
     #[must_use]
     pub fn verify_against(stored_phc: &str, candidate_hex: &str) -> bool {
         let Ok(parsed) = PasswordHash::new(stored_phc) else {
@@ -154,18 +150,18 @@ impl Default for PairingSecret {
     }
 }
 
-/// `true` si `stored_hash` ressemble à un hash Argon2id PHC (préfixe
-/// `$argon2id$`). Utilisé par la migration v2 → v3 pour repérer et
-/// révoquer les anciens hashs SHA-256 hex.
+/// `true` if `stored_hash` looks like an Argon2id PHC hash (prefix
+/// `$argon2id$`). The v2 → v3 migration matches the same prefix in SQL
+/// (`NOT LIKE '$argon2id$%'`), not with this function.
 #[must_use]
 pub fn is_argon2id_phc(stored_hash: &str) -> bool {
     stored_hash.starts_with("$argon2id$")
 }
 
-/// Vérifie un code soumis contre un code attendu, en constant-time.
+/// Checks a submitted code against the expected code, in constant time.
 ///
-/// Retourne `Err(Malformed)` si la forme n'est pas 6 chiffres ASCII,
-/// `Err(InvalidCode)` si la comparaison échoue ou si le code a expiré.
+/// Returns `Err(Malformed)` if the input is not 6 ASCII digits,
+/// `Err(InvalidCode)` if the comparison fails or the code has expired.
 pub fn verify_code(
     pending: &PendingCode,
     submitted: &str,
@@ -174,22 +170,19 @@ pub fn verify_code(
     if submitted.len() != 6 || !submitted.chars().all(|c| c.is_ascii_digit()) {
         return Err(PairingError::Malformed);
     }
-    if !pending.is_valid(now) {
-        return Err(PairingError::InvalidCode);
-    }
-    if constant_time_eq(submitted.as_bytes(), pending.code.as_bytes()) {
+    if pending.is_valid(now) && constant_time_eq(submitted.as_bytes(), pending.code.as_bytes()) {
         Ok(())
     } else {
         Err(PairingError::InvalidCode)
     }
 }
 
-// ─── Helpers privés ──────────────────────────────────────────────────────────
+// ─── Private helpers ─────────────────────────────────────────────────────────
 
-/// Hash Argon2id (PHC string) d'un secret en clair. Sel généré par OS RNG.
+/// Argon2id hash (PHC string) of a clear secret. Salt generated by the OS RNG.
 ///
-/// Les paramètres laissés par défaut côté `argon2 = 0.5` (m=19456, t=2, p=1)
-/// correspondent à la recommandation OWASP — voir
+/// The default params of `argon2 = 0.5` (m=19456, t=2, p=1) match the
+/// OWASP recommendation, see
 /// <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id>.
 fn hash_secret(secret_hex: &str) -> String {
     let salt = SaltString::generate(&mut OsRng);
@@ -199,7 +192,7 @@ fn hash_secret(secret_hex: &str) -> String {
         .to_string()
 }
 
-/// Encodage hexadécimal lowercase.
+/// Lowercase hex encoding.
 fn encode_hex(bytes: &[u8]) -> String {
     use std::fmt::Write;
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -209,10 +202,10 @@ fn encode_hex(bytes: &[u8]) -> String {
     out
 }
 
-/// Comparaison constant-time de deux slices d'octets.
+/// Constant-time comparison of two byte slices.
 ///
-/// Évite le timing attack même sur du local. Implémentation maison —
-/// `subtle::ConstantTimeEq` ferait pareil mais ajoute une dépendance.
+/// Prevents timing attacks, even locally. In-house implementation:
+/// `subtle::ConstantTimeEq` would do the same but adds a dependency.
 #[must_use]
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
@@ -320,7 +313,7 @@ mod tests {
     #[test]
     fn verify_against_rejects_wrong_secret() {
         let s = PairingSecret::new();
-        // Modifie 1 caractère du secret → la vérif Argon2 doit échouer.
+        // Changes 1 character of the secret → the Argon2 check must fail.
         let mut tampered = s.secret_hex.clone();
         tampered.replace_range(0..1, "f");
         if tampered == s.secret_hex {
@@ -331,7 +324,7 @@ mod tests {
 
     #[test]
     fn verify_against_rejects_malformed_phc() {
-        // Un hash legacy SHA-256+sel n'est pas une PHC string Argon2 → false.
+        // A legacy SHA-256+salt hash is not an Argon2 PHC string → false.
         let s = PairingSecret::new();
         assert!(!PairingSecret::verify_against(
             "not-a-phc-string",
@@ -345,8 +338,8 @@ mod tests {
 
     #[test]
     fn is_argon2id_phc_detects_legacy_sha256() {
-        // Migration v2 → v3 : les anciens hashs SHA-256 hex (64 chars) ne
-        // doivent jamais être confondus avec une PHC Argon2id.
+        // v2 → v3 migration: the old hex SHA-256 hashes (64 chars) must
+        // never be mistaken for an Argon2id PHC.
         assert!(!is_argon2id_phc(&"a".repeat(64)));
         assert!(is_argon2id_phc(
             "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0c2FsdA$Zm9v"
@@ -363,8 +356,8 @@ mod tests {
 
     #[test]
     fn two_pending_codes_are_different() {
-        // Avec 10^6 possibilités, la collision est rare. On en tire 5 et on
-        // vérifie qu'au moins 4 sont distincts (test probabiliste).
+        // With 10^6 possible values, collisions are rare. Draws 5 and
+        // checks that at least 4 are distinct (probabilistic test).
         let codes: Vec<String> = (0..5).map(|_| PendingCode::new().code).collect();
         let unique: std::collections::HashSet<_> = codes.iter().collect();
         assert!(
