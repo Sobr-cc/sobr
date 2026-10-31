@@ -293,7 +293,7 @@ Les rôles de Claude Code sont décrits dans `.claude/agents/` (un fichier par r
 
 ### Terminé (tâches de code)
 
-En plus de la définition du §5 (clippy, tests, lint, CHANGELOG) :
+En plus de la définition du §5 (clippy, tests, lint, changelog fragment) :
 
 - `tsc --noEmit` passe.
 - `/simplify` et `/code-review` lancés sur le diff, remarques traitées.
@@ -352,7 +352,7 @@ Les points mesurent la taille de la tâche, relecture comprise : 1 (moins d'une 
 - ✅ Ajouter `#[cfg(test)]` mod tests à chaque module Rust non trivial.
 - ✅ Préfixer les TODOs : `// TODO(SOB-123):` avec un ticket Linear existant (ADR-0018).
 - ✅ Mesurer la taille des binaires à chaque build de release.
-- ✅ Mettre à jour CHANGELOG.md à chaque feature/fix.
+- ✅ Add a fragment in `changelog.d/` for every feature or fix (see `changelog.d/README.md`); CHANGELOG.md is assembled at release.
 - ✅ Demander si une ambiguïté apparaît dans le CDC ou le brief.
 
 ---
