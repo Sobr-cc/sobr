@@ -495,8 +495,7 @@ fn short_hash_matches_reference_vectors() {
 
 #[test]
 fn short_hash_is_sixteen_lowercase_hex_digits_and_depends_on_the_input() {
-    // Known gap: the `short_hash` doc (lib.rs) says 8 "FNV-like" characters;
-    // the code returns 16 digits of a ×31 polynomial hash (SOB-81).
+    // A weak, unkeyed hash of the secret (SOB-81).
     let hash = short_hash(&"0123abcdef".repeat(6));
     assert_eq!(hash.len(), 16);
     assert!(hash.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')));

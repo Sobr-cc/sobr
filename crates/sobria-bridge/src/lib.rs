@@ -1,26 +1,29 @@
-//! `sobria-bridge` — pont Native Messaging extension ↔ app Sobr.ia desktop (C27.5).
+//! `sobria-bridge`: Native Messaging bridge between the browser extension and
+//! the Sobr.ia desktop app.
 //!
-//! Voir `main.rs` pour la boucle stdin/stdout du binaire. Cette `lib`
-//! expose le protocole + le spool pour permettre tests et intégration
-//! côté `sobria-app` (C27.5.b/c/d).
+//! The binary (`main.rs`) reads framed requests on stdin, forwards each one to
+//! the app's local socket, and handles it offline when the app is unreachable.
+//! This library holds the protocol, the forward and the spool, shared with
+//! `sobria-app` and the tests.
+#![deny(unsafe_code)]
 
 use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Nom du binaire dans le manifest natif WebExtensions.
+/// Native messaging host name, as used by `connectNative` and the manifests.
 pub const NATIVE_HOST_NAME: &str = "com.sobria.bridge";
 
-/// Taille max du spool fichier avant rotation (10 MB).
+/// Spool size above which it is rotated to `incoming.jsonl.bak` (10 MB).
 pub const SPOOL_MAX_BYTES: u64 = 10 * 1024 * 1024;
 
-/// Requête envoyée par l'extension (discriminée par `type`).
-///
-/// `Serialize` est ajoutée pour le patch v0.6.0 — le bridge sérialise la
-/// requête vers le socket app desktop ; les tests round-trip exercent les
-/// deux sens.
+/// Largest frame body accepted, from the extension and from the app (1 MB).
+pub const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
+
+/// Request sent by the extension, tagged by `type`. Serialized as is to the app.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BridgeRequest {
@@ -57,11 +60,7 @@ impl BridgeRequest {
     }
 }
 
-/// Réponse renvoyée à l'extension.
-///
-/// `Deserialize` est ajoutée pour le patch v0.6.0 — le bridge décode la
-/// réponse renvoyée par le socket app desktop avant de la repasser à
-/// l'extension par stdout.
+/// Reply sent to the extension, either built here or decoded from the app.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BridgeResponse {
     #[serde(rename = "reqId")]
@@ -94,19 +93,15 @@ impl BridgeResponse {
 
     pub fn err(req_id: impl Into<String>, msg: impl Into<String>) -> Self {
         Self {
-            req_id: req_id.into(),
             ok: false,
             error: Some(msg.into()),
-            pong: None,
-            secret: None,
-            pairing_id: None,
-            fingerprint: None,
+            ..Self::ok(req_id)
         }
     }
 }
 
-/// Lit un message length-prefixed (uint32 LE + JSON bytes) depuis `r`.
-/// Retourne `Ok(None)` quand le pipe est fermé (EOF).
+/// Reads one frame (little-endian `u32` length, then JSON) from `r`.
+/// Returns `Ok(None)` at the end of the stream, including inside the length.
 pub fn read_message<R: Read>(r: &mut R) -> Result<Option<BridgeRequest>> {
     let mut len_buf = [0u8; 4];
     if let Err(e) = r.read_exact(&mut len_buf) {
@@ -116,41 +111,45 @@ pub fn read_message<R: Read>(r: &mut R) -> Result<Option<BridgeRequest>> {
         return Err(e.into());
     }
     let len = u32::from_le_bytes(len_buf) as usize;
-    if len > 1024 * 1024 {
+    if len > MAX_MESSAGE_BYTES {
         anyhow::bail!("message length exceeds 1 MB: {len}");
     }
     let mut payload = vec![0u8; len];
     r.read_exact(&mut payload)
         .context("read native messaging payload")?;
-    let req: BridgeRequest =
-        serde_json::from_slice(&payload).with_context(|| format!("decode JSON ({len} bytes)"))?;
-    Ok(Some(req))
+    serde_json::from_slice(&payload)
+        .map(Some)
+        .with_context(|| format!("decode JSON ({len} bytes)"))
 }
 
-/// Écrit un message length-prefixed sur `w`.
+/// Writes one frame on `w`.
 pub fn write_message<W: Write>(w: &mut W, resp: &BridgeResponse) -> Result<()> {
-    let bytes = serde_json::to_vec(resp)?;
-    let len = u32::try_from(bytes.len()).context("response exceeds u32")?;
-    w.write_all(&len.to_le_bytes())?;
-    w.write_all(&bytes)?;
+    write_frame(w, &serde_json::to_vec(resp)?, "response exceeds u32")
+}
+
+fn write_frame<W: Write>(w: &mut W, body: &[u8], too_long: &'static str) -> Result<()> {
+    let len = u32::try_from(body.len()).context(too_long)?;
+    let mut frame = Vec::with_capacity(4 + body.len());
+    frame.extend_from_slice(&len.to_le_bytes());
+    frame.extend_from_slice(body);
+    w.write_all(&frame)?;
     w.flush()?;
     Ok(())
 }
 
-/// Chemin du spool fichier (`~/.sobria/spool/incoming.jsonl`).
-pub fn spool_path() -> Result<std::path::PathBuf> {
+/// Spool file drained by the app: `~/.sobria/spool/incoming.jsonl`.
+pub fn spool_path() -> Result<PathBuf> {
     let home = dirs::home_dir().context("home_dir introuvable")?;
     Ok(home.join(".sobria").join("spool").join("incoming.jsonl"))
 }
 
-/// Append une ligne JSON dans le spool, avec rotation auto à 10 MB.
-pub fn append_to_spool(payload: &Value) -> Result<()> {
+fn append_to_spool(payload: &Value) -> Result<()> {
     append_to_spool_at(&spool_path()?, payload, SPOOL_MAX_BYTES)
 }
 
-/// Variante testable : écrit dans un chemin explicite avec seuil de rotation
-/// paramétrable. Utilisé par les tests pour ne pas écrire dans `$HOME`.
-pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u64) -> Result<()> {
+/// Appends `payload` as one JSON line to `path`, after moving the file to
+/// `.jsonl.bak` if it is larger than `max_bytes`.
+pub fn append_to_spool_at(path: &Path, payload: &Value, max_bytes: u64) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -165,56 +164,48 @@ pub fn append_to_spool_at(path: &std::path::Path, payload: &Value, max_bytes: u6
         .create(true)
         .append(true)
         .open(path)?;
-    let line = serde_json::to_string(payload)?;
-    writeln!(file, "{line}")?;
+    let mut line = serde_json::to_vec(payload)?;
+    line.push(b'\n');
+    file.write_all(&line)?;
     Ok(())
 }
 
-/// Chemin par défaut du socket / named pipe partagé bridge ↔ app (patch
-/// C27 v0.6.0).
+/// Local channel between the bridge and the app, never a network port:
+/// `$XDG_RUNTIME_DIR/sobria-bridge.sock`, else `/tmp/sobria-bridge.sock` on
+/// Unix, and `\\.\pipe\sobria-bridge` on Windows.
 ///
-///   - **Unix** : `$XDG_RUNTIME_DIR/sobria-bridge.sock` si défini, sinon
-///     `/tmp/sobria-bridge.sock`.
-///   - **Windows** : `\\.\pipe\sobria-bridge`.
-///
-/// Les permissions du fs (Unix) ou la portée HKCU (named pipe) suffisent
-/// à scoper à l'utilisateur courant — pas de port réseau, pas d'auth réseau.
-pub fn default_socket_path() -> std::path::PathBuf {
+/// Neither is restricted to the current OS user yet (global pipe names, world
+/// writable `/tmp`): SOB-107.
+pub fn default_socket_path() -> PathBuf {
     #[cfg(unix)]
     {
         if let Some(rt) = std::env::var_os("XDG_RUNTIME_DIR") {
-            return std::path::PathBuf::from(rt).join("sobria-bridge.sock");
+            return PathBuf::from(rt).join("sobria-bridge.sock");
         }
-        std::path::PathBuf::from("/tmp/sobria-bridge.sock")
+        PathBuf::from("/tmp/sobria-bridge.sock")
     }
     #[cfg(windows)]
     {
-        std::path::PathBuf::from(r"\\.\pipe\sobria-bridge")
+        PathBuf::from(r"\\.\pipe\sobria-bridge")
     }
     #[cfg(not(any(unix, windows)))]
     {
-        std::path::PathBuf::from("sobria-bridge.sock")
+        PathBuf::from("sobria-bridge.sock")
     }
 }
 
-/// Timeout court (2 s) pour les forwards synchrones : si l'app desktop ne
-/// répond pas en 2 s, on retombe sur le spool fichier. Sur Windows on
-/// s'appuie sur le timeout natif du `OpenOptions` sur le pipe.
+/// Read and write timeout of the forward. Unix only: the Windows pipe has none
+/// (SOB-96).
 #[cfg(unix)]
-const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2_000);
+const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
-/// Tente de forwarder une requête au serveur de socket de l'app desktop.
+/// Sends `req` to the app on `path` and reads its reply, both framed like the
+/// stdio protocol.
 ///
-/// Protocole identique au stdio bridge : `u32 little-endian` de longueur +
-/// payload JSON UTF-8. La réponse est lue dans le même format.
-///
-/// Retourne `Err` si :
-///   - le socket / pipe n'existe pas (app non lancée) ;
-///   - la connexion timeout (2 s) ;
-///   - la réponse est malformée.
-///
-/// Le bridge utilise ce retour pour décider de retomber sur `append_to_spool`.
-pub fn try_forward_to(path: &std::path::Path, req: &BridgeRequest) -> Result<BridgeResponse> {
+/// Fails when the channel does not exist (app not running), when one read or
+/// write waits more than 2 s (Unix), or on a malformed reply. The binary then
+/// handles the request offline, whatever the failure (SOB-190).
+pub fn try_forward_to(path: &Path, req: &BridgeRequest) -> Result<BridgeResponse> {
     #[cfg(unix)]
     {
         use std::os::unix::net::UnixStream;
@@ -243,50 +234,41 @@ pub fn try_forward_to(path: &std::path::Path, req: &BridgeRequest) -> Result<Bri
 
 fn forward_over<S: Read + Write>(stream: &mut S, req: &BridgeRequest) -> Result<BridgeResponse> {
     let bytes = serde_json::to_vec(req).context("encode BridgeRequest")?;
-    let len = u32::try_from(bytes.len()).context("request > u32")?;
-    stream.write_all(&len.to_le_bytes())?;
-    stream.write_all(&bytes)?;
-    stream.flush()?;
+    write_frame(stream, &bytes, "request > u32")?;
     let mut len_buf = [0u8; 4];
     stream
         .read_exact(&mut len_buf)
         .context("read response length")?;
     let resp_len = u32::from_le_bytes(len_buf) as usize;
-    if resp_len > 1024 * 1024 {
+    if resp_len > MAX_MESSAGE_BYTES {
         anyhow::bail!("response too large: {resp_len}");
     }
     let mut payload = vec![0u8; resp_len];
     stream
         .read_exact(&mut payload)
         .context("read response payload")?;
-    let resp: BridgeResponse = serde_json::from_slice(&payload).context("decode BridgeResponse")?;
-    Ok(resp)
+    serde_json::from_slice(&payload).context("decode BridgeResponse")
 }
 
-/// Hash court (8 hex chars d'un FNV-like) — éviter de logger le secret en clair.
+/// Keeps the secret out of the spool: 16 hex digits of an unkeyed `×31`
+/// polynomial hash, a weak fingerprint the app does not read (SOB-81).
 pub fn short_hash(s: &str) -> String {
     let mut acc: u64 = 0;
     for &b in s.as_bytes() {
         acc = acc.wrapping_mul(31).wrapping_add(u64::from(b));
     }
-    format!("{:016x}", acc)
+    format!("{acc:016x}")
 }
 
-/// Traite une requête. v0.6.0 :
-///   - Estimate → spool fichier (drainé par l'app C27.5.d).
-///   - Pair / Revoke → erreur tant que l'app desktop n'est pas joignable
-///     (C27.5.b/c côté Tauri).
-///   - Ping → toujours OK pour signaler que le bridge est installé.
+/// Offline handling, used when the app cannot be reached:
+///   - `Ping` → `pong: true` (the bridge is installed);
+///   - `Estimate` → appended to the spool, without checking the secret (SOB-119);
+///   - `Pair` and `Revoke` → refused, they need the app.
 pub fn handle_request(req: BridgeRequest) -> BridgeResponse {
     match req {
         BridgeRequest::Ping { req_id } => BridgeResponse {
-            req_id,
-            ok: true,
             pong: Some(true),
-            error: None,
-            secret: None,
-            pairing_id: None,
-            fingerprint: None,
+            ..BridgeResponse::ok(req_id)
         },
         BridgeRequest::Pair { req_id, .. } => BridgeResponse::err(
             req_id,
