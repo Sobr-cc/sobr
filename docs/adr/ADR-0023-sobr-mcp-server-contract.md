@@ -1,8 +1,11 @@
 # ADR-0023 — The Sobr MCP server contract
 
-- **Status**: Proposed (becomes Accepted when Thibault approves the PR)
+- **Status**: Proposed. Thibault answered the eight points on 2026-10-31
+  (SOB-152): every recommendation. It becomes Accepted once ADR-0019 (PR #2)
+  and ADR-0022 (PR #18) are merged
 - **Date**: 2026-10-31
-- **Deciders**: Thibault (decision); CTO recommendation
+- **Deciders**: Thibault (answers of 2026-10-31, recorded in SOB-152); CTO
+  recommendation
 - **Technical context**: Claude Code and MCP project (SOB-144)
 - **Settles**: the condition of ADR-0019, decision 4 (where the MCP server
   lives). ADR-0019 is in PR #2, not merged yet; if its decision 4 changes,
@@ -20,7 +23,7 @@
 > on the call that asks for it: the person approves it in Sobr, which also
 > works for a client without a screen. Every write and approval goes to an
 > append-only audit log, and a few actions never go through the MCP. Eight
-> points for Thibault come first.
+> points for Thibault come first, with his answers.
 
 **Terms.**
 
@@ -44,8 +47,9 @@
 ## Points to decide
 
 Seven decisions and one prerequisite for Thibault; each recommendation is
-backed in the decision named. The same eight points, with their options, are
-in the Decision issue SOB-152, so that Thibault can answer in one place.
+backed in the decision named. The same eight points, with their options, were
+in the Decision issue SOB-152. Thibault answered on October 31 with every
+recommendation; the answers are in the table after point 8.
 
 1. **Two front doors, one contract, code in `sobr`** (decision 1).
    Recommended: yes. This also settles ADR-0019, decision 4: the MCP code
@@ -88,6 +92,22 @@ in the Decision issue SOB-152, so that Thibault can answer in one place.
    must not ship before SOB-114 and SOB-115: exports, alerts and the user
    list ignore the visibility policy today.
 
+**Answers of Thibault, October 31, 2026 (SOB-152).** He chose option A, the
+recommended one, for points 1 to 7 and confirmed point 8.
+
+| Point | Answer |
+|-------|--------|
+| 1. Placement | A: two front doors, one contract, code in `sobr` |
+| 2. Spaces | A: one connection per space |
+| 3. Grants | A: scoped tokens first, OAuth 2.1 later |
+| 4. Kept out of the MCP | A: class 3 as listed; role and member changes stay class 2 |
+| 5. Confirmation | A: pending action approved in Sobr, with a recent sign-in in an organization |
+| 6. Audit log | A: the `sobria-audit` chain extended to generic events, keyed for an organization |
+| 7. MCP library | A: a two-point spike before any choice |
+| 8. Prerequisite | Confirmed: SOB-114 and SOB-115 before the organization read tools and exports |
+
+The design does not change: the decisions below stand as written. What is
+left is the merge of ADR-0019 and ADR-0022, then the status.
 ## Context and problem statement
 
 ### What the design asks for
@@ -644,8 +664,8 @@ so the personal space and the first organization reads come first, and the
 administration tools come with the roles project.
 
 Points are indicative; the official estimate is made at creation. Each
-issue is 8 points at most. They are listed here, to be created after
-approval.
+issue is 8 points at most. They are listed here, to be created once this
+ADR is Accepted.
 
 | # | Issue | Role | Points | Waits for |
 |---|-------|------|--------|-----------|

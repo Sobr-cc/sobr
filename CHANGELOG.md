@@ -10,7 +10,9 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 ### Added — ADR-0023, the Sobr MCP server contract (2026-10-31, SOB-144)
 
 - **ADR-0023** (Proposed): Claude reads and acts on Sobr through MCP tools,
-  within the rights of the person who connected it.
+  within the rights of the person who connected it. Thibault answered its
+  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
+  Accepted once ADR-0019 and ADR-0022 are merged.
   - Two front doors share one contract and one repo (`sobr`): a stdio server
     for the personal space and a Streamable HTTP route in the Sobr server for
     an organization. One connection serves one space.
