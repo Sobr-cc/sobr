@@ -5682,6 +5682,7 @@ dependencies = [
  "csv",
  "dirs 5.0.1",
  "rand 0.8.6",
+ "rcgen",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",
@@ -5699,6 +5700,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-rustls",
  "tracing",
  "tracing-subscriber",
 ]

@@ -54,3 +54,9 @@ reqwest = { workspace = true }
 tempfile = { workspace = true }
 # SOB-188 — mock app for the tests (`tauri::test`); an empty feature, no new crate.
 tauri = { workspace = true, features = ["test"] }
+# SOB-200 — a TLS stub with a self-signed certificate, to test "accept invalid certificates"
+# on a real TLS connection. The same crates as the team server (already in Cargo.lock);
+# `ring` avoids aws-lc-sys (no NASM on Windows). `rcgen` makes the certificate at test time:
+# a committed key would be flagged by secret scanners, and its certificate would expire.
+rcgen = { version = "0.13", default-features = false, features = ["ring"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }

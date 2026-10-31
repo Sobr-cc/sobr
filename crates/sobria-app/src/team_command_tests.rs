@@ -5,9 +5,9 @@
 //! Tauri app (`tauri::test`). The server of the team is replaced by a small
 //! HTTP server on a random local port that records what it receives.
 //!
-//! Not covered: the effect of `team_set_accept_invalid_certs` on a TLS
-//! connection (the stub speaks plain HTTP; a self-signed certificate needs a
-//! TLS dev-dependency, which was not added). Only the stored flag is pinned.
+//! The effect of `team_set_accept_invalid_certs` on a TLS connection needs a
+//! TLS stub with a self-signed certificate: it is tested in the `tls` module at
+//! the end of this file (SOB-200). Up here, only the stored flag is pinned.
 //!
 //! The error `code` of an `IpcError` is the contract with the UI; its message
 //! is human text. The tests check the code exactly and only a fragment of the
@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex, Once};
 
 use serde_json::json;
 use tauri::test::{mock_app, MockRuntime};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::TcpListener;
 
 use super::*;
 use team_settings::{
@@ -110,7 +110,11 @@ impl Stub {
     }
 }
 
-async fn answer(mut socket: TcpStream, handler: Arc<Handler>, log: Arc<Mutex<Vec<Seen>>>) {
+async fn answer(
+    mut socket: impl AsyncRead + AsyncWrite + Unpin,
+    handler: Arc<Handler>,
+    log: Arc<Mutex<Vec<Seen>>>,
+) {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 4096];
     let head_end = loop {
@@ -173,9 +177,16 @@ impl Fixture {
         // The stub is on localhost: keep a proxy of the machine from catching it.
         static NO_PROXY: Once = Once::new();
         NO_PROXY.call_once(|| {
-            let has_proxy = ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"]
-                .iter()
-                .any(|name| std::env::var_os(name).is_some());
+            let has_proxy = [
+                "HTTP_PROXY",
+                "http_proxy",
+                "HTTPS_PROXY",
+                "https_proxy",
+                "ALL_PROXY",
+                "all_proxy",
+            ]
+            .iter()
+            .any(|name| std::env::var_os(name).is_some());
             if has_proxy {
                 let current = std::env::var("NO_PROXY").unwrap_or_default();
                 std::env::set_var("NO_PROXY", format!("{current},127.0.0.1,localhost"));
@@ -912,4 +923,148 @@ async fn team_push_estimation_fails_with_transport_when_the_server_hangs_up() {
         "",
     );
     assert_eq!(fx.get(KEY_ESTIMATIONS_SENT), None);
+}
+
+// ─── team_ping over TLS (SOB-200) ────────────────────────────────────────────
+
+/// The "accept invalid certificates" setting on a real TLS connection.
+mod tls {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+
+    use tokio_rustls::rustls::{
+        crypto::ring::default_provider, pki_types::PrivatePkcs8KeyDer, ServerConfig,
+    };
+    use tokio_rustls::TlsAcceptor;
+
+    use super::*;
+
+    /// A server with a self-signed certificate that answers `HEALTH`, and counts
+    /// the handshakes that fail: a client that does not trust the certificate
+    /// breaks the handshake off.
+    struct TlsStub {
+        stub: Stub,
+        refused: Arc<AtomicUsize>,
+    }
+
+    impl TlsStub {
+        async fn start() -> Self {
+            let certified = rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_string()])
+                .expect("a self-signed certificate");
+            let config = ServerConfig::builder_with_provider(Arc::new(default_provider()))
+                .with_safe_default_protocol_versions()
+                .expect("TLS versions")
+                .with_no_client_auth()
+                .with_single_cert(
+                    vec![certified.cert.der().clone()],
+                    PrivatePkcs8KeyDer::from(certified.key_pair.serialize_der()).into(),
+                )
+                .expect("the certificate and its key");
+            let acceptor = TlsAcceptor::from(Arc::new(config));
+
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("https://{}", listener.local_addr().unwrap());
+            let seen = Arc::new(Mutex::new(Vec::new()));
+            let refused = Arc::new(AtomicUsize::new(0));
+            let handler: Arc<Handler> = Arc::new(|_| (200, HEALTH.to_string()));
+            let (log, count) = (Arc::clone(&seen), Arc::clone(&refused));
+            tokio::spawn(async move {
+                while let Ok((socket, _)) = listener.accept().await {
+                    let (acceptor, handler) = (acceptor.clone(), Arc::clone(&handler));
+                    let (log, count) = (Arc::clone(&log), Arc::clone(&count));
+                    tokio::spawn(async move {
+                        match acceptor.accept(socket).await {
+                            Ok(stream) => answer(stream, handler, log).await,
+                            Err(_) => {
+                                count.fetch_add(1, Ordering::SeqCst);
+                            },
+                        }
+                    });
+                }
+            });
+            Self {
+                stub: Stub { url, seen },
+                refused,
+            }
+        }
+
+        fn refused(&self) -> usize {
+            self.refused.load(Ordering::SeqCst)
+        }
+
+        /// The server learns of a failed handshake a moment after the client.
+        async fn wait_for_refused(&self) {
+            for _ in 0..250 {
+                if self.refused() > 0 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            assert!(
+                self.refused() > 0,
+                "no handshake failed on the stub: did the request reach it (proxy, port)?"
+            );
+        }
+    }
+
+    /// The team URL is set with the real command, as the UI does.
+    fn fixture_on(server: &TlsStub) -> Fixture {
+        let fx = Fixture::new();
+        team_set_url(server.stub.url.clone(), fx.state()).unwrap();
+        fx
+    }
+
+    #[tokio::test]
+    async fn team_ping_over_tls_fails_with_transport_when_the_certificate_is_self_signed() {
+        let server = TlsStub::start().await;
+        let fx = fixture_on(&server);
+
+        // The flag was never set: it is off.
+        assert_err(team_ping(fx.state()).await, "transport", "");
+
+        // The client reached the stub and broke the handshake off, so no request
+        // was read. The tests below show that the same stub answers when the flag
+        // is on.
+        server.wait_for_refused().await;
+        assert!(server.stub.requests().is_empty());
+        assert_eq!(fx.get(KEY_LAST_SEEN_AT), None);
+    }
+
+    #[tokio::test]
+    async fn team_ping_over_tls_returns_the_health_when_invalid_certificates_are_accepted() {
+        let server = TlsStub::start().await;
+        let fx = fixture_on(&server);
+        team_set_accept_invalid_certs(true, fx.state()).unwrap();
+
+        let health = team_ping(fx.state()).await.unwrap();
+
+        assert!(health.ok);
+        assert_eq!(health.version, "0.9.0");
+        let requests = server.stub.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].path, "/health");
+        assert_eq!(server.refused(), 0);
+        assert_rfc3339(fx.get(KEY_LAST_SEEN_AT));
+    }
+
+    #[tokio::test]
+    async fn team_ping_over_tls_follows_the_flag_each_time_it_is_turned_on_and_off() {
+        let server = TlsStub::start().await;
+        let fx = fixture_on(&server);
+
+        team_set_accept_invalid_certs(true, fx.state()).unwrap();
+        assert!(team_ping(fx.state()).await.unwrap().ok);
+
+        team_set_accept_invalid_certs(false, fx.state()).unwrap();
+        assert_err(team_ping(fx.state()).await, "transport", "");
+        server.wait_for_refused().await;
+
+        team_set_accept_invalid_certs(true, fx.state()).unwrap();
+        assert!(team_ping(fx.state()).await.unwrap().ok);
+        assert_eq!(
+            server.stub.requests().len(),
+            2,
+            "one request for each accepted ping"
+        );
+    }
 }
