@@ -68,13 +68,12 @@ jobs:
       - uses: ./.github/actions/tauri-linux-deps
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # Pinned, so that a release that changes its flags cannot break the job unseen.
       - name: install tarpaulin
-        run: cargo install cargo-tarpaulin --locked
-      # The default ptrace engine adds -Clink-dead-code, which compiles the
-      # never-called trait methods of polars-arrow and fires their
-      # `const { assert!(false) }`. The LLVM engine does not (SOB-208).
+        run: cargo install cargo-tarpaulin --version 0.37.5 --locked
+      # The engine and the excluded files are in tarpaulin.toml, shared with the local command.
       - name: cargo tarpaulin
-        run: cargo tarpaulin --workspace --engine llvm --out Xml --output-dir coverage
+        run: cargo tarpaulin --workspace --out Xml --output-dir coverage
       - name: upload the report
         if: always()
         uses: actions/upload-artifact@v4
