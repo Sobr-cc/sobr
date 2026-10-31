@@ -17,6 +17,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `sobria-geoloc`. The site links to three technical pages have a stated
   outcome. The second docs step is one issue per folder, plus the demo fixtures: 77 points.
 
+### Changed — ADR README says an accepted ADR is amended in place (2026-10-31, SOB-127)
+
+- **`docs/adr/README.md`**: the "immutable once Accepted" rule is replaced by the
+  rule Thibault chose in SOB-87: an accepted ADR is amended in place, by a PR he
+  approves; `Supersedes` stays for a new ADR he explicitly asks for; an ADR with
+  its own revision section (ADR-0014) keeps its extra steps. The file is
+  translated to English (translate when touched, SOB-100); the ADR titles in the
+  index are left as they are.
+
 ### Added — Claude Code usage capture note (2026-10-31, SOB-145)
 
 - **`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`**: proposal for measuring

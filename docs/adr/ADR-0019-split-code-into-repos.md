@@ -172,7 +172,7 @@ Titles in English, to be created in Linear by the orchestrator (SOB-66, SOB-69 a
 | Second docs step | After the docs copy and the site move: copy the pages cited by code or by `web/` to Sobr-cc/.github and point the site fetch to them; the last folder to stop citing a page removes it from sobr | DevOps | 1 |
 | Second docs step | Estimator, after SOB-19: rewrite the references to moved pages in code strings, doc comments and tests, and regenerate its five golden files | Lead Rust | 2 |
 | Second docs step | Team server, after SOB-25: rewrite the references in its README, `cli.rs` and `tls.rs` | Lead Rust | 1 |
-| Second docs step | Desktop app, after SOB-26: rewrite the reference in `logic.rs`; only if `docs/operations/dvc.md` is on the list, otherwise no issue (75 points) | Lead Rust | 1 |
+| Second docs step | Desktop app, after SOB-26: rewrite the reference in `logic.rs`; only if `docs/operations/dvc.md` is on the list, otherwise no issue (76 points) | Lead Rust | 1 |
 | Second docs step | Geoloc, after SOB-76: rewrite the catalog reference in `datacenters.rs` and in the embedded `datacenters_demo.json` | Lead Rust | 1 |
 | Second docs step | `web/`, after SOB-27, SOB-28 and SOB-29: repoint the links to the glossary and to the team server guide (`/methodo`, `/parametres`) to `.github`, and rewrite the paths named in its comments and visible text, `docs/operations/dvc.md` included if it is on the list | Svelte front end | 1 |
 | Second docs step | Demo fixtures, after the estimator, geoloc and SOB-27 steps: regenerate `web/src/lib/demo/fixtures` with `tools/fixturegen` (the estimator source text, 612 times, and a catalog path) | Lead Rust | 1 |
