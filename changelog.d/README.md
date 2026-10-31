@@ -11,7 +11,11 @@ fragments into `CHANGELOG.md`.
 
 - `<issue>`: the Linear issue, such as `sob-123`;
 - `<slug>`: a few words joined by hyphens;
-- `<category>`: one of `added`, `changed`, `fixed`, `removed`, `security`.
+- `<category>`: one of `added`, `changed`, `deprecated`, `fixed`,
+  `removed`, `security`.
+
+Any other file in this folder, except this README, makes the release script
+stop, so a typo in a name is caught.
 
 Example: `sob-123-retry-the-upload.fixed.md`. A pull request that fits two
 categories adds one fragment per category.
@@ -41,9 +45,16 @@ The script adds the heading `### Fixed — ` in front of the title.
 scripts/changelog-assemble.sh
 
 # Write it into CHANGELOG.md as release 1.0.0 and delete the fragments.
-scripts/changelog-assemble.sh --version 1.0.0 --write
+scripts/changelog-assemble.sh --version 1.0.0 --title "Public V1" --write
 ```
 
-`--write` turns the `## [Non publié]` (or `## [Unreleased]`) heading into the
-release heading, puts the fragments' entries first, and keeps the entries
-already under it. `--date` sets the release date (today by default).
+The heading follows the file's style: `## [1.0.0] — 2026-03-31 — Public V1`.
+`--date` sets the date (today by default) and `--title` is optional.
+
+`--write` looks only at the first release heading of `CHANGELOG.md`:
+
+- if it is `## [Non publié]` (or `## [Unreleased]`), it becomes the release
+  heading. The fragments' entries come first, grouped by category, followed
+  by the entries written there before fragments existed. That second group
+  is not regrouped; it happens only at the first release after the switch;
+- otherwise, the section goes before it.

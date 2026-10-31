@@ -5,28 +5,33 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/changelog-assemble.sh [--version X.Y.Z] [--date YYYY-MM-DD]
-                                     [--write] [--dir DIR] [--changelog FILE]
+Usage: scripts/changelog-assemble.sh [--version X.Y.Z] [--title TEXT]
+                                     [--date YYYY-MM-DD] [--write]
+                                     [--dir DIR] [--changelog FILE]
 
-Prints the release section built from the fragments in DIR (default:
-changelog.d), grouped by category.
+Prints the release section built from the fragments in DIR (default: the
+repo's changelog.d), grouped by category.
 
-  --write      writes the section into FILE (default: CHANGELOG.md) and
-               deletes the fragments; needs --version
+  --write      writes the section into FILE (default: the repo's
+               CHANGELOG.md) and deletes the fragments; needs --version
   --version    release number used in the heading
+  --title      release title added to the heading
   --date       release date (default: today)
 EOF
 }
 
-dir=changelog.d
-changelog=CHANGELOG.md
+root=$(cd "$(dirname "$0")/.." && pwd)
+dir="$root/changelog.d"
+changelog="$root/CHANGELOG.md"
 version=""
+title=""
 release_date=$(date +%Y-%m-%d)
 write=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) version=${2:?--version needs a value}; shift 2 ;;
+    --title) title=${2:?--title needs a value}; shift 2 ;;
     --date) release_date=${2:?--date needs a value}; shift 2 ;;
     --dir) dir=${2:?--dir needs a value}; shift 2 ;;
     --changelog) changelog=${2:?--changelog needs a value}; shift 2 ;;
@@ -41,12 +46,14 @@ if [ "$write" -eq 1 ] && [ -z "$version" ]; then
   exit 2
 fi
 
-categories="added changed fixed removed security"
-name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|fixed|removed|security)\.md$'
+categories="added changed deprecated fixed removed security"
+name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|deprecated|fixed|removed|security)\.md$'
 
+# Every file except the README must be a well-named fragment, so a typo
+# fails here instead of being skipped.
 fragments=()
-for f in "$dir"/*.md; do
-  [ -e "$f" ] || continue
+for f in "$dir"/*; do
+  [ -f "$f" ] || continue
   base=$(basename "$f")
   [ "$base" = "README.md" ] && continue
   if ! [[ $base =~ $name_pattern ]]; then
@@ -66,26 +73,32 @@ title_case() {
 }
 
 # Prints the entries of every fragment, grouped by category, in name order.
+# Each body loses its leading and trailing blank lines, and each entry ends
+# with exactly one blank line.
 entries() {
-  local category label f title
+  local category label f entry_title
   for category in $categories; do
     label=$(title_case "$category")
     for f in "${fragments[@]}"; do
       case "$f" in *".$category.md") ;; *) continue ;; esac
-      title=$(head -n 1 "$f" | tr -d '\r')
-      if [ -z "$title" ]; then
+      entry_title=$(head -n 1 "$f" | tr -d '\r')
+      if [ -z "$entry_title" ]; then
         echo "Empty title in $f." >&2
         exit 1
       fi
-      printf '### %s — %s\n\n' "$label" "$title"
-      tail -n +2 "$f" | tr -d '\r' | sed '/./,$!d'
+      printf '### %s — %s\n\n' "$label" "$entry_title"
+      tail -n +2 "$f" | tr -d '\r' | awk '
+        NF { if (seen) for (i = 0; i < blank; i++) print ""; blank = 0; seen = 1; print; next }
+        { blank++ }
+      '
       printf '\n'
     done
   done
 }
 
 if [ -n "$version" ]; then
-  heading="## [$version] - $release_date"
+  heading="## [$version] — $release_date"
+  [ -n "$title" ] && heading="$heading — $title"
 else
   heading="## [Unreleased]"
 fi
@@ -100,8 +113,9 @@ if [ "$write" -eq 0 ]; then
   exit 0
 fi
 
-# The unreleased heading becomes the release heading, and the fragments'
-# entries go first. Without one, the section goes before the first release.
+# Only the first release heading is looked at. If it is the unreleased one,
+# it becomes the release heading and the fragments' entries go first;
+# otherwise the section goes before it.
 awk -v heading="$heading" -v section="$section" '
   function print_section(   line) {
     print heading
@@ -109,6 +123,7 @@ awk -v heading="$heading" -v section="$section" '
     while ((getline line < section) > 0) print line
     close(section)
   }
+  { sub(/\r$/, "") }
   !done && /^## \[(Non publié|Unreleased)\]/ { print_section(); done = 1; skip_blank = 1; next }
   !done && /^## / { print_section(); done = 1 }
   skip_blank && /^$/ { skip_blank = 0; next }
@@ -118,4 +133,4 @@ awk -v heading="$heading" -v section="$section" '
 mv "$section.out" "$changelog"
 
 rm -f "${fragments[@]}"
-echo "Wrote $heading into $changelog and deleted ${#fragments[@]} fragment(s)." >&2
+echo "Wrote \"$heading\" into $changelog and deleted ${#fragments[@]} fragment(s)." >&2
