@@ -7,6 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Fixed — deterministic wrong-code pairing test (2026-10-31, SOB-92)
+
+- **`sobria-app`** (`bridge_server.rs`, test module):
+  `pair_with_wrong_code_returns_invalid_error` sent the fixed code `000000`,
+  which matched the random pending code once in a million runs. It now sends
+  `wrong_code_for(pending code)`, which always differs. The assertion keeps
+  its three accepted messages (tightening it is SOB-157). No production code
+  changed.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
