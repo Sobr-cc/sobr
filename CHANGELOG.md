@@ -17,6 +17,26 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   A second test pins that opening the migrated file again changes nothing.
   `*.sqlite` is now marked binary in `.gitattributes`.
 
+### Added — Claude Code usage capture note (2026-10-31, SOB-145)
+
+- **`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`**: proposal for measuring
+  Claude Code without storing prompts. It covers the local transcripts (an
+  undocumented, unstable format), the plugin (status line and hooks),
+  OpenTelemetry for organizations, double counting and where the import is
+  built (ADR-0019 decision 4), with an official source for each fact and a
+  list of what is stored per session. Thibault's answers to SOB-162 (read the
+  transcripts, with guard rails) and SOB-164 (one consent step enables the
+  status line) are recorded; the open follow-ups are SOB-161, 163 and 166.
+  No code changed.
+
+### Changed — ADR-0014 phasing and feature table aligned with October 30 (2026-10-31, SOB-103)
+
+- **ADR-0014, Amendment 3** (Accepted): the phasing follows the calendar of
+  October 30, the data.gouv.fr application is off (SOB-104), the cloud is
+  announced with the V1 launch, and the README changes then. The card for the
+  organizations' trial is kept (SOB-105). Numbered after Amendment 2
+  (SOB-154).
+
 ### Changed — Free personal space (2026-10-31, SOB-154)
 
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
