@@ -6,6 +6,8 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-146)
+- **Amendment 1** (Proposed, 2026-10-31, SOB-243): a fork repeats its parent's
+  lines, and one session owns each message ID. See the section below.
 - **Related**: ADR-0015 and ADR-0016 (privacy, visibility), ADR-0019
   (repos), ADR-0022 (the session model, which this ADR completes), the
   Claude Code capture note (`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`,
@@ -53,6 +55,131 @@ cost, effort and risk.
 The other choices are the CTO's recommendation, justified where they are made.
 The identity rule of section 3 and the tests of section 11 do not depend on
 these answers.
+
+## Amendment 1 — A fork repeats its parent's lines: who owns a message ID (2026-10-31)
+
+**Status.** Proposed (SOB-243). A reviewer may merge it as it is; the rule is
+in force when Thibault confirms it. Written in place by PR (SOB-87): the
+original text is kept.
+
+**Why.** SOB-163 tested Claude Code 2.1.314 and found that `claude --resume
+<id> --fork-session` writes a new transcript that holds **all the lines of its
+parent**, with the same `uuid`, `message.id` and `usage` and a new `sessionId`
+on every line; a plain `--resume` keeps the same ID and file (the transcript
+keys note, SOB-242). The test used one short session, so what a fork of a long
+or compacted session copies is not known. Section 3 leaves the repeated lines
+to the importer, and the tests of section 11 cover a subagent only. A fork is
+a session of its own (its Claude Code session ID differs), so its transcript
+report and its parent's both hold the same usage: the person's totals count it
+twice, and the fork shows use that it did not make.
+
+### A1. The rule
+
+**Each `message.id` has one owning session on the device.** A session's
+transcript report counts the usage of the IDs it owns and of no others. The
+lines it does not own are kept as context and add nothing to any total. The
+subagent files of a session are read with it (section 2) and count for its
+main file.
+
+**The owner is the session whose main transcript file is the oldest.** Age is
+the creation time that the file system reports; the modification time is never
+used. Files with a creation time come before files without one, and equal or
+missing times are ordered by session reference (string order). This is a total
+order, so among the files present the owner does not depend on the order of
+reading. An ID found in one file belongs to the session of that file.
+
+**The device keeps a table from message ID to owner,** with the creation time
+of the file that decided it, for every ID it has counted, because a parent can
+be deleted before its fork is first seen. The table is local context like the
+source references and stays on the device (ADR-0022 section 10). An entry is
+kept as long as its owner's session (24 months, section 7) and, in any case,
+while a transcript that holds the ID exists. Once a file is gone, the table
+keeps the owner: a parent read before it was deleted keeps its lines, and a
+fork read when the parent was already gone owns them. An entry moves only when
+a file with a creation time older than the entry's appears, for example a
+restored backup, and then only the sessions whose owned IDs changed are
+recomputed.
+
+**Totals.** The new owner counts the moved IDs and the previous owner no
+longer does, so they are counted once. The report of the session that gave up
+IDs replaces its predecessor in the run where the owner moved, without the
+"totals do not shrink" check of section 4; later runs are checked as usual. A
+fork with no line of its own has no report with numbers yet.
+
+**Where it runs.** In the transcript reader on the device, before it builds
+the cumulative report of a session (section 2). The reader looks each new line
+up in the table and checks file times only when a new file appears.
+
+**What the fork shows.** Its own new lines, with a device-only note "continues
+from" the session that owns the lines it repeats. Shared message IDs link no
+report and merge no sessions (section 3, step 5): a fork stays a session of
+its own. The owner rule only decides which session counts a line, and so which
+space, project and task get its usage.
+
+**The other sources.** OpenTelemetry emits counters for the requests the fork
+makes, not for the lines it repeats, so it agrees with the transcript report.
+The completeness test of section 5 uses the span of the lines that a report
+counts.
+
+**Limits.**
+
+- No marker of a fork is known, and only `--resume` and `--resume
+  --fork-session` are covered.
+- Section 9 keeps the larger report when two sessions merge. No known source
+  ties a fork to its parent, so it does not apply; if one is found, an
+  amendment must say how two transcript reports with different lines merge.
+- The rule sees transcript files only. If the parent was measured by another
+  source and its transcript was deleted before Sobr read it, the fork counts
+  lines that source already counted.
+- A copied transcript folder or a new machine can reset creation times, and a
+  file system without them falls back to the reference order. A fork may then
+  own its parent's lines. The person's own total does not change, but the
+  usage moves to the fork's space, project and task, which can be another
+  space. Build issue 2 measures how often times are missing or reset on real
+  machines; if it is often, an amendment adds a signal from the contents (the
+  file whose IDs all appear in the other is the parent).
+
+| Option | Cost | Effort | Risk |
+|--|--|--|--|
+| **A — The oldest file owns, with a table of owners (proposed)** | The device reads file creation times and keeps one table | Medium | Low: a wrong owner moves usage between two sessions, so between their spaces, projects and tasks, without changing the person's own total; ties are broken by a total order |
+| B — The first import owns | A table only | Small | The result depends on the order of reading: a fork read before its parent takes the shared lines |
+| C — The latest file (the fork) owns the shared lines | A table | Small | The cost of the parent's work is charged to the fork's project or task, against the person's own attachment |
+| D — Split the shared usage between the two sessions | Shares to compute | Medium | Invented precision, which ADR-0022 refused for splitting a session across tasks |
+| E — A bucket "shared prefix" owned by no session | A new entity in every view | Large | Projects and tasks are not charged for use they made |
+| F — Record on the fork only that its first N lines come from the parent | One number per fork, no table of IDs | Small | Assumes that the copy is always a prefix, which one short test cannot show; a compacted or long session may copy otherwise |
+| G — Drop the lines older than the fork file's creation time | None, and no parent file is needed | Small | A copied folder resets the times and every line would be dropped: a silent undercount |
+
+### A2. Tests added to section 11
+
+17. A fork and its parent, read in both orders: the person's day totals count
+    the shared message IDs once; the parent owns them; the fork's report
+    counts only its new lines; both orders give the same owners and the same
+    totals. If the two sessions are in different spaces, the shared lines
+    count in the parent's space.
+18. The parent file is deleted after the import and the fork is read again:
+    the table keeps the parent as owner, and the fork's report does not
+    change. If the parent was never read and is gone, the fork owns the lines
+    once.
+19. A file with an older creation time appears later: the owner moves, both
+    reports are recomputed, the lower one is accepted without a flag, and the
+    person's totals do not change. A transcript that is cut on a later run is
+    flagged as usual.
+20. Two forks of one parent, and a fork of a fork: each message ID has one
+    owner, the oldest file that holds it, and each session counts only the
+    lines it owns.
+21. Creation times that are equal, missing or mixed (`proptest`): the same
+    owner whatever the order in which the files are compared.
+
+### A3. Build issues
+
+Issue 2 (the transcript import) gains the table of owners, the rule A1, the
+"continues from" note, the check of how often creation times are missing or
+reset on Windows, macOS and Linux, and a measure of the size of the table. The
+cases A2 need file times, so the import crate runs them (issue 2); the reports
+they give are tested in the model crate as before (issue 1). The orchestrator
+re-estimates issue 2 when it creates it.
+
+**Issues.** SOB-243, SOB-242, SOB-163, SOB-161, SOB-146.
 
 ## Context and problem statement
 
@@ -159,6 +286,9 @@ identified by (session, source). An adapter that receives increments, such as
 the OpenTelemetry counters, adds them up before it reports.
 
 ### 3. The linking rule
+
+> Amendment 1 (2026-10-31): a fork repeats its parent's lines under a new
+> session ID; the importer's rule for it is A1 of the amendment.
 
 This rule holds whether Claude Code uses one session ID in all its sources or
 not. **That fact is to be confirmed by SOB-163**; the rule does not wait for it.
@@ -447,6 +577,9 @@ cannot count a record on two days.
 
 ### 11. Tests that prove no double counting
 
+> Amendment 1 (2026-10-31): five cases on forks (17 to 21) are added in A2 of
+> the amendment.
+
 The model crate publishes these cases with its release, as ADR-0022 section 3
 does for the space rule, so the extension and every other client run them.
 Property tests (`proptest`) cover the order of arrival.
@@ -583,6 +716,9 @@ them. She works on Monday.
   ADR-0016.
 
 ## Issues to create
+
+> Amendment 1 (2026-10-31): issue 2 gains the table of owners and the fork
+> rule (A3 of the amendment).
 
 The orchestrator creates these issues once this ADR is accepted. "Waits for"
 names the Deep cleanup of every existing area an issue touches, under the

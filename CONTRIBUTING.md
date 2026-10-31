@@ -7,7 +7,7 @@ Thank you for your interest in the project. Sobr.ia is open source (MIT, Etalab 
 ## Before you start
 
 1. Read [`README.md`](README.md), [`CLAUDE.md`](CLAUDE.md) and the [specification](docs/CAHIER-DES-CHARGES-v1.0.md).
-2. Find the active sprint in [`docs/ROADMAP.md`](docs/ROADMAP.md) and its brief.
+2. Start from the Linear issue you work on (team `SOB`). Read a brief in `briefs/chantiers/` only when the issue links one.
 3. Follow the [ADRs](docs/adr/): the architecture decisions are settled.
 
 ---
@@ -21,7 +21,7 @@ Thank you for your interest in the project. Sobr.ia is open source (MIT, Etalab 
 4. **Changelog:** add one fragment file in [`changelog.d/`](changelog.d/README.md), named `<issue>-<slug>.<category>.md`. Without a Linear issue, `<issue>` is `gh-` and the number of your pull request, for example `gh-58-retry-the-upload.fixed.md`. Do not edit `CHANGELOG.md`: the fragments are moved there at release.
 5. **Commits** in the Conventional Commits format (see CLAUDE.md §4.3).
 6. **Pull request:** reference the issue and the ADRs it touches.
-7. **Review:** at least one maintainer, green CI, and every discussion resolved.
+7. **Review:** at least one maintainer, green CI (or only failures that also occur on main for the same cause, CLAUDE.md §11), and every discussion resolved.
 
 ---
 
