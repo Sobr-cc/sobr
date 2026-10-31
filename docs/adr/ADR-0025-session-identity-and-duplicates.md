@@ -106,9 +106,6 @@ conversation to a Claude Code session, so today they never share a session.
 - Billing per person. It needs the identities of the Organization and
   identity project, and ADR-0016 decides who may see a person's daily figure.
 - Whether an estimate made in the Understand pages counts as use (ADR-0022).
-- What local context the device keeps for rules (folder, repo, branch):
-  ADR-0022 section 6 uses it and the capture note says it is not stored
-  (SOB-198).
 
 ## Decision
 
@@ -290,16 +287,20 @@ hours per request.
 ### 7. Merging context
 
 Context is what a report knows beyond its numbers: source account, model,
-Claude Code version, terminal, provider host, the conversation, and, while the
-device holds them, folder, repo and branch. **The context of a session is the
-union of the context of all its reports.**
+Claude Code version, terminal, provider host, the conversation, folder, repo and
+branch. **The context of a session is the union of the context of all its
+reports.**
 
 - When two reports give the same field, the more precise source wins.
 - A missing value never erases a known one.
 - Context stays on the device except what the upload contract already holds:
   the model, the provider host and the day (ADR-0022 section 10).
-- How long the device keeps folder, repo and branch is open (SOB-198). This
-  ADR merges what is kept and adds nothing to it.
+- **The device keeps the folder, repo and branch of a session for 24 months,
+  on the device only, like clock times (ADR-0022 section 10).** Nothing of it
+  is uploaded, so rules from corrections can run on past sessions
+  (ADR-0022 section 6). Thibault chose this on October 31 (SOB-198, option A).
+  The capture note, which says such names are not stored, is amended by a
+  separate issue.
 
 The merge is repeated when a report arrives, so a session gains context from
 every source that sees it, and T3 shows the merged numbers and context.
