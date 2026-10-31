@@ -4,6 +4,7 @@
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use sobria_ingest::hash::hex_encode;
 use sobria_ingest::sources::territoire_fr::{
     discover_datasets_at, fetch_industrial_sites_at, fetch_rte_mix_at,
 };
@@ -22,23 +23,22 @@ fn base(server: &MockServer) -> String {
     format!("{}{CATALOG}", server.uri())
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+fn ok_json(value: &Value) -> ResponseTemplate {
+    ResponseTemplate::new(200).set_body_json(value)
 }
 
-fn json_body(value: &Value) -> ResponseTemplate {
-    ResponseTemplate::new(200).set_body_raw(serde_json::to_vec(value).unwrap(), "application/json")
+fn sha256_of_json(value: &Value) -> String {
+    hex_encode(&Sha256::digest(serde_json::to_vec(value).unwrap()))
 }
 
-async fn serve(server: &MockServer, at: &str, response: ResponseTemplate) {
+async fn serve(at: &str, response: ResponseTemplate) -> MockServer {
+    let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path(at))
         .respond_with(response)
-        .mount(server)
+        .mount(&server)
         .await;
+    server
 }
 
 /// A record `parse_industrial_record` keeps (metropolitan department, geo point, consumption).
@@ -63,9 +63,9 @@ fn site(code_iris: &str, elec: f64) -> Value {
     })
 }
 
-fn sites(prefix: &str, count: usize) -> Vec<Value> {
+fn sites(count: usize) -> Vec<Value> {
     (0..count)
-        .map(|i| site(&format!("{prefix}{i:06}"), 1000.0 + i as f64))
+        .map(|i| site(&format!("{i:09}"), 1000.0 + i as f64))
         .collect()
 }
 
@@ -82,7 +82,7 @@ async fn discover_reads_each_entry_caps_the_limit_at_50_and_skips_entries_withou
         .and(path(CATALOG))
         .and(query_param("limit", "50"))
         .and(query_param("where", "search(\"iris\")"))
-        .respond_with(json_body(&json!({"results": [
+        .respond_with(ok_json(&json!({"results": [
             {"dataset_id": "a", "metas": {"default": {
                 "title": "Titre A", "description": "x".repeat(200), "publisher": "RTE"}}},
             {"dataset_id": ""},
@@ -98,30 +98,22 @@ async fn discover_reads_each_entry_caps_the_limit_at_50_and_skips_entries_withou
         .unwrap();
 
     assert_eq!(
-        found
-            .iter()
-            .map(|m| m.dataset_id.as_str())
-            .collect::<Vec<_>>(),
-        ["a", "b", "c"]
+        serde_json::to_value(&found).unwrap(),
+        json!([
+            {"dataset_id": "a", "title": "Titre A", "description": "x".repeat(180),
+             "publisher": "RTE", "explore_url": "https://odre.opendatasoft.com/explore/dataset/a/"},
+            {"dataset_id": "b", "title": "Titre B", "description": null,
+             "publisher": null, "explore_url": "https://odre.opendatasoft.com/explore/dataset/b/"},
+            {"dataset_id": "c", "title": "c", "description": null,
+             "publisher": null, "explore_url": "https://odre.opendatasoft.com/explore/dataset/c/"},
+        ])
     );
-    assert_eq!(found[0].title, "Titre A");
-    assert_eq!(found[0].description.as_deref().map(str::len), Some(180));
-    assert_eq!(found[0].publisher.as_deref(), Some("RTE"));
-    assert_eq!(
-        found[0].explore_url,
-        "https://odre.opendatasoft.com/explore/dataset/a/"
-    );
-    assert_eq!(found[1].title, "Titre B");
-    assert_eq!(found[1].publisher, None);
-    assert_eq!(found[2].title, "c", "the title falls back to the id");
-    assert_eq!(found[2].description, None);
 }
 
 #[tokio::test]
 async fn discover_returns_nothing_for_an_empty_or_missing_results_list() {
     for body in [json!({"results": []}), json!({})] {
-        let server = MockServer::start().await;
-        serve(&server, CATALOG, json_body(&body)).await;
+        let server = serve(CATALOG, ok_json(&body)).await;
         let found = discover_datasets_at(&base(&server), "iris", 10)
             .await
             .unwrap();
@@ -131,9 +123,7 @@ async fn discover_returns_nothing_for_an_empty_or_missing_results_list() {
 
 #[tokio::test]
 async fn discover_reports_the_http_status_and_the_first_500_characters_of_the_body() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         CATALOG,
         ResponseTemplate::new(503).set_body_string("x".repeat(600)),
     )
@@ -150,9 +140,7 @@ async fn discover_reports_the_http_status_and_the_first_500_characters_of_the_bo
 
 #[tokio::test]
 async fn discover_fails_on_a_body_that_is_not_json() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         CATALOG,
         ResponseTemplate::new(200).set_body_string("<html>"),
     )
@@ -167,21 +155,12 @@ async fn discover_fails_on_a_body_that_is_not_json() {
 
 #[tokio::test]
 async fn industrial_sites_are_sorted_by_electricity_and_cut_to_the_limit() {
-    let server = MockServer::start().await;
     let mut drom = site("971010101", 99_999.0);
     drom["code_insee_departement"] = json!("971");
-    let body = serde_json::to_vec(&json!({"results": [
+    let payload = json!({"results": [
         site("751010101", 10.0), site("751010102", 30.0), site("751010103", 20.0), drom,
-    ]}))
-    .unwrap();
-    Mock::given(method("GET"))
-        .and(path(IRIS_RECORDS))
-        .and(query_param("limit", "100"))
-        .and(query_param("offset", "0"))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(body.clone(), "application/json"))
-        .expect(1)
-        .mount(&server)
-        .await;
+    ]});
+    let server = serve(IRIS_RECORDS, ok_json(&payload)).await;
 
     let artifact = fetch_industrial_sites_at(&base(&server), 2).await.unwrap();
 
@@ -197,7 +176,7 @@ async fn industrial_sites_are_sorted_by_electricity_and_cut_to_the_limit() {
         artifact.meta.source_url,
         format!("{}{IRIS_RECORDS}?limit=100&offset=0", server.uri())
     );
-    assert_eq!(artifact.meta.source_sha256, sha256_hex(&body));
+    assert_eq!(artifact.meta.source_sha256, sha256_of_json(&payload));
     assert!(
         artifact.meta.notes.iter().any(|n| n.contains(
             "Records bruts paginés : 4, retenus (top 2) : 2, écartés (DROM, géoloc manquante, conso ≤ 0) : 1."
@@ -208,50 +187,30 @@ async fn industrial_sites_are_sorted_by_electricity_and_cut_to_the_limit() {
 }
 
 #[tokio::test]
-async fn industrial_pagination_asks_for_the_next_page_until_a_short_page() {
-    let server = MockServer::start().await;
-    for (offset, limit, count) in [("0", "100", 100), ("100", "50", 10)] {
-        Mock::given(method("GET"))
-            .and(path(IRIS_RECORDS))
-            .and(query_param("limit", limit))
-            .and(query_param("offset", offset))
-            .respond_with(json_body(
-                &json!({"results": sites(&format!("p{offset}-"), count)}),
-            ))
-            .expect(1)
-            .mount(&server)
-            .await;
+async fn industrial_pagination_asks_for_the_next_page_until_a_short_or_empty_page() {
+    for second_page in [10, 0] {
+        let server = MockServer::start().await;
+        for (offset, limit, count) in [("0", "100", 100), ("100", "50", second_page)] {
+            Mock::given(method("GET"))
+                .and(path(IRIS_RECORDS))
+                .and(query_param("limit", limit))
+                .and(query_param("offset", offset))
+                .respond_with(ok_json(&json!({"results": sites(count)})))
+                .expect(1)
+                .mount(&server)
+                .await;
+        }
+
+        // Asks for 3 × 50 = 150 records, in pages of at most 100.
+        let artifact = fetch_industrial_sites_at(&base(&server), 50).await.unwrap();
+
+        assert_eq!(artifact.industrial_sites.len(), 50, "{second_page}");
     }
-
-    // Asks for 3 × 50 = 150 records, in pages of at most 100.
-    let artifact = fetch_industrial_sites_at(&base(&server), 50).await.unwrap();
-
-    assert_eq!(artifact.industrial_sites.len(), 50);
-}
-
-#[tokio::test]
-async fn industrial_pagination_stops_on_an_empty_page() {
-    let server = MockServer::start().await;
-    for (offset, limit, count) in [("0", "100", 100), ("100", "50", 0)] {
-        Mock::given(method("GET"))
-            .and(path(IRIS_RECORDS))
-            .and(query_param("limit", limit))
-            .and(query_param("offset", offset))
-            .respond_with(json_body(&json!({"results": sites("p-", count)})))
-            .expect(1)
-            .mount(&server)
-            .await;
-    }
-
-    let artifact = fetch_industrial_sites_at(&base(&server), 50).await.unwrap();
-
-    assert_eq!(artifact.industrial_sites.len(), 50);
 }
 
 #[tokio::test]
 async fn industrial_empty_answer_gives_no_site_and_no_error() {
-    let server = MockServer::start().await;
-    serve(&server, IRIS_RECORDS, json_body(&json!({"results": []}))).await;
+    let server = serve(IRIS_RECORDS, ok_json(&json!({"results": []}))).await;
 
     let artifact = fetch_industrial_sites_at(&base(&server), 10).await.unwrap();
 
@@ -265,8 +224,7 @@ async fn industrial_empty_answer_gives_no_site_and_no_error() {
 
 #[tokio::test]
 async fn industrial_fails_without_a_results_array() {
-    let server = MockServer::start().await;
-    serve(&server, IRIS_RECORDS, json_body(&json!({"total_count": 0}))).await;
+    let server = serve(IRIS_RECORDS, ok_json(&json!({"total_count": 0}))).await;
 
     let message = err_text(fetch_industrial_sites_at(&base(&server), 10).await);
 
@@ -278,9 +236,7 @@ async fn industrial_fails_without_a_results_array() {
 
 #[tokio::test]
 async fn industrial_reports_the_http_status_with_the_page_url() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         IRIS_RECORDS,
         ResponseTemplate::new(500).set_body_string("boom"),
     )
@@ -299,9 +255,7 @@ async fn industrial_reports_the_http_status_with_the_page_url() {
 
 #[tokio::test]
 async fn industrial_fails_on_a_body_that_is_not_json() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         IRIS_RECORDS,
         ResponseTemplate::new(200).set_body_string("nope"),
     )
@@ -317,11 +271,9 @@ async fn industrial_fails_on_a_body_that_is_not_json() {
 
 #[tokio::test]
 async fn industrial_fails_when_no_record_can_be_parsed_and_lists_the_fields() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         IRIS_RECORDS,
-        json_body(&json!({"results": [{"foo": 1, "bar": 2}]})),
+        ok_json(&json!({"results": [{"foo": 1, "bar": 2}]})),
     )
     .await;
 
@@ -339,15 +291,9 @@ async fn industrial_fails_when_no_record_can_be_parsed_and_lists_the_fields() {
 
 #[tokio::test]
 async fn industrial_site_year_is_zero_when_annee_is_missing_sob_122() {
-    let server = MockServer::start().await;
     let mut record = site("751010101", 10.0);
     record.as_object_mut().unwrap().remove("annee");
-    serve(
-        &server,
-        IRIS_RECORDS,
-        json_body(&json!({"results": [record]})),
-    )
-    .await;
+    let server = serve(IRIS_RECORDS, ok_json(&json!({"results": [record]}))).await;
 
     let artifact = fetch_industrial_sites_at(&base(&server), 10).await.unwrap();
 
@@ -359,13 +305,12 @@ async fn industrial_site_year_is_zero_when_annee_is_missing_sob_122() {
 #[tokio::test]
 async fn rte_mix_sums_half_hour_steps_into_twh() {
     let server = MockServer::start().await;
-    let body = serde_json::to_vec(&json!([
+    let payload = json!([
         {"nucleaire": 40000.0, "hydraulique": 8000.0, "eolien": 2000.0, "solaire": 1200.0,
          "gaz": 3000.0, "charbon": 0.0, "fioul": 100.0, "bioenergies": 900.0,
          "pompage": -1200.0, "ech_physiques": -6000.0},
         {"nucleaire": 40000.0, "hydraulique": 8000.0},
-    ]))
-    .unwrap();
+    ]);
     Mock::given(method("GET"))
         .and(path(RTE_EXPORT))
         .and(query_param("lang", "fr"))
@@ -378,7 +323,7 @@ async fn rte_mix_sums_half_hour_steps_into_twh() {
             "select",
             "nucleaire,hydraulique,eolien,solaire,gaz,charbon,fioul,bioenergies,pompage,ech_physiques",
         ))
-        .respond_with(ResponseTemplate::new(200).set_body_raw(body.clone(), "application/json"))
+        .respond_with(ok_json(&payload))
         .expect(1)
         .mount(&server)
         .await;
@@ -401,7 +346,7 @@ async fn rte_mix_sums_half_hour_steps_into_twh() {
     );
     assert_eq!(mix.records_processed, 2);
     assert_eq!(mix.year, 2023);
-    assert_eq!(artifact.meta.source_sha256, sha256_hex(&body));
+    assert_eq!(artifact.meta.source_sha256, sha256_of_json(&payload));
     assert!(artifact.meta.source_url.starts_with(&format!(
         "{}{RTE_EXPORT}?lang=fr&timezone=UTC&where=",
         server.uri()
@@ -410,8 +355,7 @@ async fn rte_mix_sums_half_hour_steps_into_twh() {
 
 #[tokio::test]
 async fn rte_mix_of_an_empty_export_is_all_zeros() {
-    let server = MockServer::start().await;
-    serve(&server, RTE_EXPORT, json_body(&json!([]))).await;
+    let server = serve(RTE_EXPORT, ok_json(&json!([]))).await;
 
     let mix = fetch_rte_mix_at(&base(&server), 2023).await.unwrap().mix;
 
@@ -421,11 +365,9 @@ async fn rte_mix_of_an_empty_export_is_all_zeros() {
 
 #[tokio::test]
 async fn rte_mix_ignores_values_that_are_not_numbers() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         RTE_EXPORT,
-        json_body(&json!([{"nucleaire": "n/a", "hydraulique": 8000.0}])),
+        ok_json(&json!([{"nucleaire": "n/a", "hydraulique": 8000.0}])),
     )
     .await;
 
@@ -438,9 +380,7 @@ async fn rte_mix_ignores_values_that_are_not_numbers() {
 
 #[tokio::test]
 async fn rte_mix_reports_the_http_status_with_the_url() {
-    let server = MockServer::start().await;
-    serve(
-        &server,
+    let server = serve(
         RTE_EXPORT,
         ResponseTemplate::new(404).set_body_string("missing"),
     )
@@ -461,13 +401,7 @@ async fn rte_mix_reports_the_http_status_with_the_url() {
 #[tokio::test]
 async fn rte_mix_fails_on_a_body_that_is_not_a_json_array() {
     for body in ["{\"results\": []}", "garbage"] {
-        let server = MockServer::start().await;
-        serve(
-            &server,
-            RTE_EXPORT,
-            ResponseTemplate::new(200).set_body_string(body),
-        )
-        .await;
+        let server = serve(RTE_EXPORT, ResponseTemplate::new(200).set_body_string(body)).await;
 
         let message = err_text(fetch_rte_mix_at(&base(&server), 2023).await);
 
