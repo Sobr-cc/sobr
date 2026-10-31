@@ -33,7 +33,7 @@ use serde::Serialize;
 use crate::{
     distributions::Distribution,
     error::{EstimatorError, EstimatorResult},
-    params::EstimationParams,
+    params::{EstimationParams, DEFAULT_PUE, DEFAULT_WUE_L_PER_KWH, FRANCE_MIX_G_PER_KWH},
 };
 
 /// Statut de calibration d'un preset.
@@ -375,9 +375,9 @@ pub struct ModelPreset {
     /// (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert
     /// si l'utilisateur connaît sa valeur exacte.
     pub default_context_overhead_tokens: u32,
-    /// **C34.2** — `true` pour les modèles obsolètes conservés pour
-    /// reproductibilité historique de l'audit ledger uniquement (à exclure
-    /// par défaut de la liste UI via [`available_models_filtered`]).
+    /// **C34.2** — `true` for obsolete models kept only so the audit ledger
+    /// stays reproducible; [`available_models_filtered`] can leave them out
+    /// (the app lists [`available_models`] today).
     pub deprecated: bool,
     /// **C34.2** — URL canonique de la source vendor (model card, blog
     /// post, system card). Toujours HTTPS, validé en test.
@@ -1645,8 +1645,8 @@ pub fn available_models() -> Vec<&'static ModelPreset> {
 /// deprecated.
 ///
 /// Si `include_deprecated = false`, exclut les presets avec
-/// [`ModelPreset::deprecated`] = `true`. Utiliser ceci dans l'UI M1 / M9
-/// par défaut, et `available_models()` pour les outils d'audit historique.
+/// [`ModelPreset::deprecated`] = `true`. Not called by the app, which lists
+/// [`available_models`] (deprecated models included).
 #[must_use]
 pub fn available_models_filtered(include_deprecated: bool) -> Vec<&'static ModelPreset> {
     MODEL_REGISTRY
@@ -1689,18 +1689,11 @@ impl EstimationParams {
         Ok(Self {
             epsilon_prefill_mj_per_token: epsilon_prefill,
             epsilon_decode_mj_per_token: epsilon_decode,
-            pue: Distribution::Uniform {
-                low: 1.1,
-                high: 1.4,
-            },
-            // Par défaut : mix électrique France 2024 ADEME (~56 gCO₂eq/kWh).
-            // Override possible via with_if_electrical().
-            if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
+            pue: DEFAULT_PUE,
+            // Override with with_if_electrical().
+            if_electrical_g_per_kwh: FRANCE_MIX_G_PER_KWH,
             embodied_g_per_request: embodied,
-            wue_l_per_kwh: Distribution::Uniform {
-                low: 0.5,
-                high: 2.5,
-            },
+            wue_l_per_kwh: DEFAULT_WUE_L_PER_KWH,
         })
     }
 }

@@ -272,7 +272,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         // Calcul de référence :
         //   Vision OpenAI : (85 + 170×2×2) × 2 = 1530 tokens
         //   effective_in = 100 + 1530 = 1630 tokens
-        //   e_compute = 1630 × 2000 + 500 × 5000 = 5.76 J/req
+        //   e_compute = 1630 × 2000 + 500 × 5000 = 5.76 kJ/req
         //   e_total = 5.76 × 1.2 / 3.6 = 1.92 Wh = 1.92e-3 kWh
         //   usage = 1.92e-3 × 56 = 0.107 g
         //   + embodied P50 = 0.05 g
@@ -299,7 +299,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         // Calcul de référence :
         //   Document : 5 × 1100 = 5500 tokens (DOCUMENT_TOKENS_PER_PAGE)
         //   effective_in = 100 + 5500 = 5600 tokens
-        //   e_compute = 5600 × 2000 + 500 × 5000 = 13.7 J
+        //   e_compute = 5600 × 2000 + 500 × 5000 = 13.7 kJ
         //   e_total = 13.7 × 1.2 / 3.6 = 4.57 Wh
         //   usage = 4.57e-3 × 56 = 0.256 g
         //   + embodied 0.05 = 0.306 g
@@ -325,7 +325,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         // Calcul de référence :
         //   Audio : 30 × 10 = 300 tokens (AUDIO_TOKENS_PER_SECOND=10)
         //   effective_in = 100 + 300 = 400 tokens
-        //   e_compute = 400 × 2000 + 500 × 5000 = 3.3 J
+        //   e_compute = 400 × 2000 + 500 × 5000 = 3.3 kJ
         //   e_total = 3.3 × 1.2 / 3.6 = 1.1 Wh
         //   usage = 1.1e-3 × 56 = 0.0616 g
         //   + embodied 0.05 = 0.112 g
@@ -352,7 +352,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         //   auto_thinking = 1000 × 12.247 ≈ 12247 tokens
         //   effective_out = 1000 + 12247 = 13247 tokens
         //   o3 params : ε_prefill_p50 = 4000, ε_decode_p50 = 10000, embodied = 0.10
-        //   e_compute = 200 × 4000 + 13247 × 10000 = 133.27 J
+        //   e_compute = 200 × 4000 + 13247 × 10000 = 133.27 kJ
         //   e_total = 133.27 × 1.2 / 3.6 = 44.42 Wh
         //   usage = 44.42e-3 × 56 = 2.488 g
         //   + embodied 0.10 = 2.588 g
@@ -381,7 +381,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         //   auto_thinking = 500 × 10 = 5000 tokens
         //   effective_out = 500 + 5000 = 5500
         //   claude-3-7 params : ε_prefill_p50 = 2000, ε_decode_p50 = 5000, embodied = 0.05
-        //   e_compute = 2100 × 2000 + 5500 × 5000 = 31.7 J
+        //   e_compute = 2100 × 2000 + 5500 × 5000 = 31.7 kJ
         //   e_total = 31.7 × 1.2 / 3.6 = 10.57 Wh
         //   usage = 10.57e-3 × 56 = 0.592 g
         //   + embodied 0.05 = 0.642 g

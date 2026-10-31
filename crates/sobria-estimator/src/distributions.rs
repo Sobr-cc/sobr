@@ -50,6 +50,11 @@ pub enum Distribution {
 
 impl Distribution {
     /// Tire une valeur dans la distribution.
+    ///
+    /// # Panics
+    ///
+    /// On a distribution that [`Self::validate`] refuses, for example a
+    /// negative `std` or `sigma`, or `low > high` (SOB-210).
     pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
         match *self {
             Self::Point { value } => value,

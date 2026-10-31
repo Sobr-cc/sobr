@@ -12,6 +12,7 @@ use sobria_core::{EstimationRequest, Indicator};
 
 use crate::{
     error::{EstimatorError, EstimatorResult},
+    forecast,
     params::EstimationParams,
 };
 // `MonteCarloEngine` n'est plus référencé par la signature publique
@@ -60,6 +61,7 @@ pub struct YearlyScenarioOutcome {
     pub cumulative_p5_g: Vec<f64>,
     pub cumulative_p50_g: Vec<f64>,
     pub cumulative_p95_g: Vec<f64>,
+    /// Totals over `months`, not a calendar year despite the name (SOB-210).
     pub annual_p5_g: f64,
     pub annual_p50_g: f64,
     pub annual_p95_g: f64,
@@ -142,27 +144,9 @@ fn validate(req: &YearlyForecastRequest) -> EstimatorResult<()> {
             "au moins un scénario de forecast requis".into(),
         ));
     }
-    if req.scenarios.len() > MAX_FORECAST_SCENARIOS {
-        return Err(EstimatorError::Schema(format!(
-            "trop de scénarios : {} (max {MAX_FORECAST_SCENARIOS})",
-            req.scenarios.len()
-        )));
-    }
-    if req.months == 0 || req.months > MAX_FORECAST_HORIZON_MONTHS {
-        return Err(EstimatorError::Schema(format!(
-            "months {} hors bornes [1, {MAX_FORECAST_HORIZON_MONTHS}]",
-            req.months
-        )));
-    }
-    if !req.base_volume_per_day.is_finite()
-        || req.base_volume_per_day < 0.0
-        || req.base_volume_per_day > 1_000_000.0
-    {
-        return Err(EstimatorError::Schema(format!(
-            "base_volume_per_day {} hors bornes [0, 10⁶]",
-            req.base_volume_per_day
-        )));
-    }
+    forecast::check_scenario_count(req.scenarios.len(), MAX_FORECAST_SCENARIOS)?;
+    forecast::check_months(req.months, MAX_FORECAST_HORIZON_MONTHS)?;
+    forecast::check_volume_per_day(req.base_volume_per_day)?;
     let mut seen_labels = std::collections::HashSet::new();
     for s in &req.scenarios {
         if !(-50.0..=50.0).contains(&s.monthly_growth_pct) {
@@ -171,11 +155,8 @@ fn validate(req: &YearlyForecastRequest) -> EstimatorResult<()> {
                 s.monthly_growth_pct, s.label
             )));
         }
-        if !seen_labels.insert(s.label.clone()) {
-            return Err(EstimatorError::Schema(format!(
-                "label scénario en doublon : '{}'",
-                s.label
-            )));
+        if !seen_labels.insert(s.label.as_str()) {
+            return Err(forecast::duplicate_label(&s.label));
         }
     }
     Ok(())
@@ -203,8 +184,7 @@ fn project_scenario(
     let mut running_p50 = 0.0_f64;
     let mut running_p95 = 0.0_f64;
     for n in 0..months {
-        let exp = i32::try_from(n).unwrap_or(i32::MAX);
-        let factor = base_factor * growth.powi(exp);
+        let factor = forecast::grown(base_factor, growth, n);
         let m_p5 = baseline_p5 * factor;
         let m_p50 = baseline_p50 * factor;
         let m_p95 = baseline_p95 * factor;

@@ -14,6 +14,7 @@ use sobria_core::{EstimationRequest, EstimationResult, Indicator};
 use crate::{
     distributions::Distribution,
     error::{EstimatorError, EstimatorResult},
+    forecast,
     params::EstimationParams,
 };
 // `MonteCarloEngine` n'est plus référencé par la signature publique
@@ -120,9 +121,11 @@ pub struct ForecastResult {
     pub monthly_growth_pct: f64,
     /// Série mensuelle baseline en gCO₂eq (longueur = months).
     pub baseline_monthly_co2eq_g: Vec<f64>,
-    /// Cumul annuel baseline en gCO₂eq.
+    /// Baseline total over `months` (not a calendar year despite the name,
+    /// SOB-210), in gCO₂eq.
     pub baseline_annual_co2eq_g: f64,
-    /// Cumul annuel par scénario (ordre identique à `SimulationRequest.scenarios`).
+    /// Total over `months` per scenario, in the order of
+    /// `SimulationRequest.scenarios`.
     pub scenarios_annual_co2eq_g: Vec<f64>,
 }
 
@@ -167,20 +170,11 @@ pub fn simulate(
     request: &SimulationRequest,
     baseline_params: &EstimationParams,
 ) -> EstimatorResult<SimulationResult> {
-    if request.scenarios.len() > MAX_SCENARIOS {
-        return Err(EstimatorError::Schema(format!(
-            "trop de scénarios : {} (max {MAX_SCENARIOS})",
-            request.scenarios.len()
-        )));
-    }
-    // Vérification unicité des labels.
+    forecast::check_scenario_count(request.scenarios.len(), MAX_SCENARIOS)?;
     let mut seen_labels = std::collections::HashSet::new();
     for s in &request.scenarios {
-        if !seen_labels.insert(s.label.clone()) {
-            return Err(EstimatorError::Schema(format!(
-                "label scénario en doublon : '{}'",
-                s.label
-            )));
+        if !seen_labels.insert(s.label.as_str()) {
+            return Err(forecast::duplicate_label(&s.label));
         }
     }
     if let Some(f) = &request.forecast {
@@ -245,28 +239,14 @@ pub fn simulate(
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn validate_forecast(f: &ForecastConfig) -> EstimatorResult<()> {
-    if f.months == 0 || f.months > MAX_FORECAST_MONTHS {
-        return Err(EstimatorError::Schema(format!(
-            "months {} hors bornes [1, {MAX_FORECAST_MONTHS}]",
-            f.months
-        )));
-    }
+    forecast::check_months(f.months, MAX_FORECAST_MONTHS)?;
     if !(-50.0..=50.0).contains(&f.monthly_growth_pct) {
         return Err(EstimatorError::Schema(format!(
             "monthly_growth_pct {} hors bornes [-50, 50]",
             f.monthly_growth_pct
         )));
     }
-    if !f.base_volume_per_day.is_finite()
-        || f.base_volume_per_day < 0.0
-        || f.base_volume_per_day > 1_000_000.0
-    {
-        return Err(EstimatorError::Schema(format!(
-            "base_volume_per_day {} hors bornes [0, 10⁶]",
-            f.base_volume_per_day
-        )));
-    }
-    Ok(())
+    forecast::check_volume_per_day(f.base_volume_per_day)
 }
 
 fn co2_p50(result: &EstimationResult) -> EstimatorResult<f64> {
@@ -323,11 +303,7 @@ fn monthly_series(p50_per_req_g: f64, cfg: &ForecastConfig) -> Vec<f64> {
     let base_monthly = p50_per_req_g * cfg.base_volume_per_day * 30.0;
     let growth = 1.0 + cfg.monthly_growth_pct / 100.0;
     (0..cfg.months)
-        .map(|n| {
-            // Borné à MAX_FORECAST_MONTHS=60 par validate_forecast → cast safe.
-            let exp = i32::try_from(n).unwrap_or(i32::MAX);
-            base_monthly * growth.powi(exp)
-        })
+        .map(|n| forecast::grown(base_monthly, growth, n))
         .collect()
 }
 

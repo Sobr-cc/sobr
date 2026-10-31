@@ -1,5 +1,5 @@
 //! Trait commun à toutes les méthodologies d'empreinte LLM embarquées
-//! dans Sobr.ia (ADR-0012 à venir).
+//! dans Sobr.ia (ADR-0012).
 //!
 //! Sobr.ia v1.0+ propose un **catalogue de méthodologies scientifiques**
 //! sélectionnables par l'utilisateur :
@@ -126,6 +126,10 @@ pub trait EmpreinteEngine: Send + Sync {
     fn method(&self) -> EmpreinteMethod;
 
     /// Méta-info pour affichage UI / dossier candidature.
+    ///
+    /// # Panics
+    ///
+    /// Never: [`AVAILABLE_METHODS`] lists every [`EmpreinteMethod`].
     fn methodology_info(&self) -> &'static MethodologyInfo {
         AVAILABLE_METHODS
             .iter()
@@ -146,6 +150,10 @@ pub trait EmpreinteEngine: Send + Sync {
 }
 
 /// Récupère les infos d'une méthodologie par identifiant.
+///
+/// # Panics
+///
+/// Never: [`AVAILABLE_METHODS`] lists every [`EmpreinteMethod`].
 #[must_use]
 pub fn info_for(method: EmpreinteMethod) -> &'static MethodologyInfo {
     AVAILABLE_METHODS

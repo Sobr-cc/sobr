@@ -13,10 +13,9 @@
 //! Les **formules** ici portées sont publiées par Genai Impact sous
 //! licence **CC BY-SA 4.0** ([texte](https://creativecommons.org/licenses/by-sa/4.0/)).
 //! Le code Rust de portage (cette implémentation) est sous licence MIT
-//! pour cohérence avec le reste du projet Sobr.ia. L'attribution exigée
-//! par CC BY-SA est respectée via les références ci-dessus + dans
-//! `docs/methodology/ECOLOGITS-PORT.md` + dans la fiche méthodologie
-//! affichée en UI (page `/methodologies`).
+//! pour cohérence avec le reste du projet Sobr.ia. The CC BY-SA attribution
+//! is given by the references above and the methodology card shown in the
+//! app (`/methodologies`); a fuller attribution document is SOB-209.
 //!
 //! ## Différences avec l'implémentation Python de référence
 //!

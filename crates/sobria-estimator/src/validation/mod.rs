@@ -5,7 +5,8 @@
 //!
 //! Deux niveaux :
 //! - [`PlausibilityCase`] : ordre de grandeur (plage large), toujours actif.
-//! - [`ReproductionCase`] : reproduction stricte d'une valeur publiée à ±X %.
+//! - [`ReproductionCase`] : reproduction at ±X % of a target computed from the
+//!   presets, not a published figure (SOB-209).
 
 use chrono::Utc;
 use serde::Serialize;
@@ -39,13 +40,12 @@ pub struct PlausibilityCase {
     pub reference: &'static str,
 }
 
-/// Cas de test "reproduction stricte" (±X % d'une valeur publiée).
+/// Reproduction case: ±X % of a target computed from the presets (SOB-209).
 #[derive(Debug, Clone, Copy)]
 pub struct ReproductionCase {
     /// Identifiant stable.
     pub id: &'static str,
-    /// Méthodologie ciblée. Le test invoque le moteur correspondant via
-    /// la factory [`crate::engines::factory::engine_for`].
+    /// Methodology checked; [`run_reproduction`] builds the matching engine.
     pub method: EmpreinteMethod,
     /// DOI ou URL de la source.
     pub source_doi_or_url: &'static str,

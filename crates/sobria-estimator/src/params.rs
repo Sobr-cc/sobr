@@ -11,6 +11,22 @@ use crate::{
     error::{EstimatorError, EstimatorResult},
 };
 
+/// PUE used when no datacenter is known. No source yet (SOB-209).
+pub(crate) const DEFAULT_PUE: Distribution = Distribution::Uniform {
+    low: 1.1,
+    high: 1.4,
+};
+
+/// WUE in L/kWh used when no datacenter is known. No source yet (SOB-209).
+pub(crate) const DEFAULT_WUE_L_PER_KWH: Distribution = Distribution::Uniform {
+    low: 0.5,
+    high: 2.5,
+};
+
+/// France 2024 electricity mix (ADEME, ~56 gCO₂eq/kWh), used when no
+/// datacenter is known, whatever the model's hosting (SOB-209).
+pub(crate) const FRANCE_MIX_G_PER_KWH: Distribution = Distribution::Point { value: 56.0 };
+
 /// Ensemble distributionnel des paramètres physiques d'une estimation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct EstimationParams {
@@ -52,19 +68,13 @@ impl EstimationParams {
                 mu: (2.0_f64).ln(),
                 sigma: 0.3,
             },
-            pue: Distribution::Uniform {
-                low: 1.1,
-                high: 1.4,
-            },
-            if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
+            pue: DEFAULT_PUE,
+            if_electrical_g_per_kwh: FRANCE_MIX_G_PER_KWH,
             embodied_g_per_request: Distribution::LogNormal {
                 mu: (0.02_f64).ln(),
                 sigma: 0.4,
             },
-            wue_l_per_kwh: Distribution::Uniform {
-                low: 0.5,
-                high: 2.5,
-            },
+            wue_l_per_kwh: DEFAULT_WUE_L_PER_KWH,
         }
     }
 
