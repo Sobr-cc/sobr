@@ -7,6 +7,24 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — ADR-0023, the Sobr MCP server contract (2026-10-31, SOB-144)
+
+- **ADR-0023** (Proposed): Claude reads and acts on Sobr through MCP tools,
+  within the rights of the person who connected it.
+  - Two front doors share one contract and one repo (`sobr`): a stdio server
+    for the personal space and a Streamable HTTP route in the Sobr server for
+    an organization. One connection serves one space.
+  - Access comes from a grant made in Sobr (`read`, `write`, `act`), first as
+    a scoped token, later through OAuth 2.1. Rights are looked up on every
+    call, and a grant only narrows them.
+  - 21 read tools (C2) and 22 write tools (C3) are listed with inputs,
+    outputs and permissions. Irreversible tools return a pending action that
+    the person approves in Sobr, so a client without a screen works. A few
+    actions never go through the MCP.
+  - Every write and approval goes to an append-only, chained audit log.
+  - 22 build issues (108 points), marking those that wait for a Deep cleanup.
+  - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
+
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
 - **`sobria-import`**: removed the empty skeleton crate (one constant, no
