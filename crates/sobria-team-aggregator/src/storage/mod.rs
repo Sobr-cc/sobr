@@ -1,15 +1,12 @@
-//! Couche persistance du `sobria-team-aggregator`.
+//! Persistence layer of the `sobria-team-aggregator`.
 //!
-//! [`Storage`] encapsule une `rusqlite::Connection` mono-thread (WAL +
-//! foreign_keys activés). Le multi-thread `Send` est garanti par axum via
-//! `Arc<Mutex<Storage>>` (la connexion n'est pas `Sync`). Pour les charges
-//! C28.2 ce verrou global suffit ; on passera à un pool en C28.4 si les
-//! benchs le demandent.
+//! [`Storage`] wraps one single-threaded `rusqlite::Connection` (WAL and
+//! foreign keys on). The server shares it as `Arc<Mutex<Storage>>`, since the
+//! connection is not `Sync`.
 //!
-//! Les helpers par entité vivent dans les submodules (`admins`,
-//! `enrollment_codes`, `users`, `tokens`, `estimations`) sous forme de
-//! fonctions libres prenant `&Connection`. La struct `Storage` ne porte
-//! que l'ouverture/migrations + l'accès au KV `config`.
+//! Per-table helpers live in the submodules as free functions taking
+//! `&Connection`. `Storage` itself only opens the database, runs the
+//! migrations and reads and writes the `config` key-value table.
 
 pub mod admins;
 pub mod analytics;
@@ -21,37 +18,52 @@ pub mod users;
 
 use std::path::Path;
 
+use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::AggregatorResult;
 
-/// Façade SQLite mono-connexion (cf. doc du module).
+/// Reads an RFC 3339 text column as UTC; a parse failure reports column `col`.
+pub(crate) fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .map(|d| d.with_timezone(&Utc))
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
+        })
+}
+
+/// Reads an integer aggregate column as `u64`, clamping negatives to 0.
+pub(crate) fn get_count(row: &rusqlite::Row<'_>, idx: usize) -> rusqlite::Result<u64> {
+    Ok(row.get::<_, i64>(idx)?.max(0) as u64)
+}
+
+/// Single-connection SQLite facade (see the module doc).
 pub struct Storage {
     conn: Connection,
 }
 
 impl Storage {
-    /// Ouvre `team.sqlite` (le crée si absent) et applique le schéma v1.
+    /// Opens `team.sqlite` (creates it if missing) and applies the schema.
     pub fn open(path: &Path) -> AggregatorResult<Self> {
         let conn = Connection::open(path)?;
         schema::install(&conn)?;
         Ok(Self { conn })
     }
 
-    /// Ouvre une base en mémoire (tests).
+    /// Opens an in-memory database (tests).
     pub fn open_in_memory() -> AggregatorResult<Self> {
         let conn = Connection::open_in_memory()?;
         schema::install(&conn)?;
         Ok(Self { conn })
     }
 
-    /// Accès partagé en lecture-écriture à la connexion pour les helpers
-    /// par entité (`users::insert(storage.connection(), …)`).
+    /// Shared read-write access to the connection for the per-entity
+    /// helpers (`users::insert(storage.connection(), …)`).
     pub fn connection(&self) -> &Connection {
         &self.conn
     }
 
-    /// Lit une valeur du KV `config`.
+    /// Reads a value from the `config` KV.
     pub fn get_config(&self, key: &str) -> AggregatorResult<Option<String>> {
         let value = self
             .conn
@@ -64,7 +76,7 @@ impl Storage {
         Ok(value)
     }
 
-    /// Pose une valeur du KV `config` (upsert).
+    /// Sets a value in the `config` KV (upsert).
     pub fn set_config(&self, key: &str, value: &str) -> AggregatorResult<()> {
         self.conn.execute(
             "INSERT INTO config (key, value) VALUES (?1, ?2)

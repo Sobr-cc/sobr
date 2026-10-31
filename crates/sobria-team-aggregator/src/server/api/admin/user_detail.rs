@@ -1,18 +1,19 @@
-//! GET /api/v1/admin/users/:id/analytics — détail de consommation d'UN
-//! employé (C44), gouverné par la politique de visibilité (ADR-0016) :
+//! GET /api/v1/admin/users/:id/analytics — usage detail of ONE
+//! employee, governed by the visibility policy (ADR-0016):
 //!
-//! - `identified` : accessible pour tout employé.
-//! - `opt_in`     : accessible UNIQUEMENT si l'employé a activé son
-//!   partage identifié (ADR-0015 §3) — sinon 403 explicite.
-//! - `anonymous`  : toujours 403 (aucune identification, même volontaire).
+//! - `identified` : available for every employee.
+//! - `opt_in`     : available ONLY if the employee turned on identified
+//!   sharing (ADR-0015 §3) — otherwise an explicit 403.
+//! - `anonymous`  : always 403 (no identification, even voluntary).
 
 use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::{DateTime, Duration, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use super::parse_window;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -55,14 +56,9 @@ pub async fn handle(
     Path(user_id): Path<String>,
     Query(q): Query<DetailQuery>,
 ) -> ApiResult<Json<UserDetailResponse>> {
-    let now = Utc::now();
-    let from = parse_or(q.from.as_deref(), now - Duration::days(30))?;
-    let to = parse_or(q.to.as_deref(), now)?;
+    let (from, to) = parse_window(q.from.as_deref(), q.to.as_deref(), Utc::now())?;
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let conn = storage.connection();
 
     let pol = policy::load(&storage);
@@ -73,9 +69,9 @@ pub async fn handle(
     match pol {
         VisibilityPolicy::Identified => {},
         VisibilityPolicy::OptIn if share => {},
-        // 403 : l'UI web-team traduit selon la politique courante
-        // (opt-in non activé / anonyme strict) — `ApiError::Forbidden`
-        // est un variant unitaire, le contexte vit côté client.
+        // 403: the web-team UI words it by the current policy
+        // (opt-in not turned on / strict anonymous) — `ApiError::Forbidden`
+        // is a unit variant, the context lives on the client.
         VisibilityPolicy::OptIn | VisibilityPolicy::Anonymous => {
             return Err(ApiError::Forbidden);
         },
@@ -96,13 +92,4 @@ pub async fn handle(
         top_models: analytics::top_models(conn, Some(&user_id), from, to, 10)?,
         method_breakdown: analytics::method_breakdown(conn, Some(&user_id), from, to)?,
     }))
-}
-
-fn parse_or(raw: Option<&str>, default: DateTime<Utc>) -> Result<DateTime<Utc>, ApiError> {
-    match raw {
-        None | Some("") => Ok(default),
-        Some(s) => DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
-    }
 }

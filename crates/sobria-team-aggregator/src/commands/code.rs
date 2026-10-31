@@ -1,23 +1,21 @@
-//! Commande CLI `sobria-team-aggregator code` (create/list/revoke).
+//! `sobria-team-aggregator code` CLI command (create/list/revoke).
 //!
-//! - `code create N --ttl-days 7 --admin admin` : génère N codes 12 chiffres
-//!   (OS RNG), les hashe Argon2id, les insère, et les affiche en clair UNE
-//!   seule fois (warning UX dans la sortie).
-//! - `code list` : table tabulée des codes existants (id, créé par, état).
-//! - `code revoke <id>` : pose `revoked_at` = `now`.
+//! - `code create N --ttl-days 7 --admin admin`: generates N 12-digit codes
+//!   (OS RNG), hashes them with Argon2id, inserts them, and prints them in
+//!   clear ONLY once (UX warning in the output).
+//! - `code list`: tabular view of the existing codes (id, created by, state).
+//! - `code revoke <id>`: sets `revoked_at` = `now`.
 
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use rand::RngCore;
-use ulid::Ulid;
 
 use crate::config::DataPaths;
 use crate::storage::{admins, enrollment_codes, Storage};
 
-/// Codes nouvellement créés (clair + métadonnées).
+/// Newly created codes (clear text + metadata).
 pub use crate::storage::enrollment_codes::CreatedCode;
 
-/// Crée N codes pour `admin_username` (défaut `admin`), valides `ttl_days`.
+/// Creates N codes for `admin_username` (default `admin`), valid `ttl_days`.
 pub fn create_batch(
     paths: &DataPaths,
     count: u32,
@@ -38,28 +36,17 @@ pub fn create_batch(
     let now = Utc::now();
     let expires_at = now + Duration::days(ttl_days);
 
-    let mut out = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        let id = Ulid::new().to_string();
-        let code = random_12_digit_code();
-        enrollment_codes::insert(storage.connection(), &id, &code, &admin.id, now, expires_at)
-            .context("insert enrollment code")?;
-        out.push(CreatedCode {
-            id,
-            code,
-            expires_at,
-        });
-    }
-    Ok(out)
+    enrollment_codes::create_batch(storage.connection(), count, &admin.id, now, expires_at)
+        .context("insert enrollment code")
 }
 
-/// Liste les codes (admin view).
+/// Lists the codes (admin view).
 pub fn list_all(paths: &DataPaths) -> Result<Vec<enrollment_codes::EnrollmentCodeRow>> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     Ok(enrollment_codes::list_all(storage.connection())?)
 }
 
-/// Révoque un code par id.
+/// Revokes a code by id.
 pub fn revoke(paths: &DataPaths, id: &str) -> Result<bool> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     Ok(enrollment_codes::revoke(
@@ -67,22 +54,6 @@ pub fn revoke(paths: &DataPaths, id: &str) -> Result<bool> {
         id,
         Utc::now(),
     )?)
-}
-
-/// Code aléatoire 12 chiffres ASCII via OS RNG.
-///
-/// Entropie ≈ 40 bits (10^12 = 2^39.86) — suffisant car les codes sont
-/// révoqués après usage et Argon2id rend tout brute force serveur lent.
-fn random_12_digit_code() -> String {
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    // 16 octets → u128 ; on prend modulo 10^12 pour un nombre 12 chiffres.
-    let mut acc: u128 = 0;
-    for b in &bytes {
-        acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
-    }
-    let n: u64 = (acc % 1_000_000_000_000u128) as u64;
-    format!("{n:012}")
 }
 
 #[cfg(test)]
@@ -108,7 +79,7 @@ mod tests {
         }
         let clear_set: std::collections::HashSet<_> =
             codes.iter().map(|c| c.code.clone()).collect();
-        // Pas obligatoirement 5 distincts (RNG peut collisionner), mais ≥ 3.
+        // Not necessarily 5 distinct (the RNG may collide), but ≥ 3.
         assert!(clear_set.len() >= 3, "trop de collisions: {clear_set:?}");
 
         let listed = list_all(&paths).unwrap();

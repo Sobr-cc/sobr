@@ -1,16 +1,16 @@
-//! Export PROV-O JSON-LD team-spécifique (différent du sidecar produit par
-//! `sobria-export` qui est centré audit-ledger).
+//! Team-specific PROV-O JSON-LD export (unlike the sidecar produced by
+//! `sobria-export`, which is centered on the audit ledger).
 //!
-//! Le document expose :
+//! The document exposes:
 //!
-//! - un `prov:Bundle` racine pour le rapport équipe (org + période) ;
-//! - un `prov:Agent` par employé enrôlé (anonymisable via flag) ;
-//! - un `prov:Activity` par estimation, avec :
-//!   * `prov:wasAssociatedWith` → l'agent user
-//!   * `prov:generatedAtTime`   → `ts` de l'estimation
+//! - a root `prov:Bundle` for the team report (org + period);
+//! - one `prov:Agent` per enrolled employee (can be anonymized with a flag);
+//! - one `prov:Activity` per estimation, with:
+//!   * `prov:wasAssociatedWith` → the user agent
+//!   * `prov:generatedAtTime`   → the estimation `ts`
 //!   * `sobria:methodology`, `sobria:modelId`, `sobria:gco2eqGramsP50`...
 //!
-//! Voir <https://www.w3.org/TR/prov-o/>.
+//! See <https://www.w3.org/TR/prov-o/>.
 
 use std::collections::BTreeMap;
 
@@ -19,7 +19,7 @@ use serde_json::{json, Value};
 
 use crate::storage::estimations::EstimationRow;
 
-/// Construit le JSON-LD PROV-O à partir des rows et de l'option `anonymize`.
+/// Builds the PROV-O JSON-LD from the rows and the `anonymize` option.
 pub fn build_team_provo(
     rows: &[EstimationRow],
     organization_name: &str,
@@ -33,7 +33,7 @@ pub fn build_team_provo(
         period_end.format("%Y%m%d")
     );
 
-    // Regroupe par user_id → ordre stable pour rendu déterministe.
+    // Group by user_id → stable order for deterministic output.
     let mut users: BTreeMap<&str, (&str, Option<&str>)> = BTreeMap::new();
     for r in rows {
         users
@@ -45,15 +45,11 @@ pub fn build_team_provo(
         .iter()
         .enumerate()
         .map(|(i, (uid, (fp, name)))| {
-            let display = if anonymize {
-                format!("Employé #{}", i + 1)
+            let (display, label) = if anonymize {
+                let alias = format!("Employé #{}", i + 1);
+                (alias.clone(), alias)
             } else {
-                name.unwrap_or(*fp).to_string()
-            };
-            let label = if anonymize {
-                format!("Employé #{}", i + 1)
-            } else {
-                format!("Employé {fp}")
+                (name.unwrap_or(*fp).to_string(), format!("Employé {fp}"))
             };
             json!({
                 "@id": format!("sobria-team:user-{uid}"),
@@ -90,8 +86,8 @@ pub fn build_team_provo(
         })
         .collect();
 
-    // Totaux agrégés sur la fenêtre (utile pour les consommateurs PROV-O
-    // qui ne veulent qu'un résumé).
+    // Aggregated totals over the window (useful for PROV-O consumers
+    // that only want a summary).
     let total_count = rows.len() as u64;
     let total_gco2eq: f64 = rows.iter().map(|r| r.gco2eq_p50).sum();
     let total_water_ml: f64 = rows.iter().map(|r| r.water_ml).sum();
@@ -233,7 +229,7 @@ mod tests {
                 );
             }
         }
-        // Le bundle doit signaler l'anonymisation.
+        // The bundle must flag the anonymization.
         assert_eq!(v["@graph"][0]["sobria:anonymized"], true);
     }
 

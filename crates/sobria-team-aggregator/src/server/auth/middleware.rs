@@ -1,10 +1,10 @@
-//! Extracteurs axum d'authentification.
+//! axum authentication extractors.
 //!
-//! - [`AuthenticatedUser`] : le token Bearer doit décoder en `role=user`.
-//! - [`AuthenticatedAdmin`] : `role=admin`.
+//! - [`AuthenticatedUser`]: the Bearer token must decode to `role=user`.
+//! - [`AuthenticatedAdmin`]: the Bearer token must decode to `role=admin`.
 //!
-//! Les deux lisent `Authorization: Bearer <jwt>`, vérifient la signature
-//! avec la `jwt_signing_key` du `ServerState`, puis renvoient les claims.
+//! Both read `Authorization: Bearer <jwt>`, verify the signature
+//! with the `ServerState`'s `jwt_signing_key`, then return the claims.
 
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 
@@ -12,13 +12,13 @@ use crate::server::auth::jwt::{verify, Claims, Role};
 use crate::server::error::ApiError;
 use crate::server::ServerState;
 
-/// Caller authentifié en `user`.
+/// Caller authenticated as `user`.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {
     pub claims: Claims,
 }
 
-/// Caller authentifié en `admin`.
+/// Caller authenticated as `admin`.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedAdmin {
     pub claims: Claims,
@@ -31,7 +31,7 @@ impl FromRequestParts<ServerState> for AuthenticatedUser {
         parts: &mut Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, state).await?;
+        let claims = extract_claims(parts, state)?;
         if claims.role != Role::User {
             return Err(ApiError::Forbidden);
         }
@@ -46,7 +46,7 @@ impl FromRequestParts<ServerState> for AuthenticatedAdmin {
         parts: &mut Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, state).await?;
+        let claims = extract_claims(parts, state)?;
         if claims.role != Role::Admin {
             return Err(ApiError::Forbidden);
         }
@@ -54,7 +54,7 @@ impl FromRequestParts<ServerState> for AuthenticatedAdmin {
     }
 }
 
-async fn extract_claims(parts: &Parts, state: &ServerState) -> Result<Claims, ApiError> {
+fn extract_claims(parts: &Parts, state: &ServerState) -> Result<Claims, ApiError> {
     let header = parts
         .headers
         .get("authorization")

@@ -1,12 +1,12 @@
-//! Smoke test C28.4 : le binaire sert le dashboard Svelte embedded.
+//! C28.4 smoke test: the binary serves the embedded Svelte dashboard.
 //!
-//! Vérifie :
-//! - GET / → 200 text/html (index.html embedded).
-//! - GET /admin/dashboard → 200 text/html (SPA fallback : route client-side
-//!   inconnue côté serveur, on doit renvoyer index.html).
-//! - GET /_app/version.json → 200 application/json (asset SvelteKit embedded).
-//! - GET /health → 200 application/json (API toujours OK).
-//! - GET /style.css.does-not-exist → 404 (path avec extension non trouvé).
+//! Checks:
+//! - GET / → 200 text/html (embedded index.html).
+//! - GET /admin/dashboard → 200 text/html (SPA fallback: a client-side route
+//!   unknown to the server must return index.html).
+//! - GET /_app/version.json → 200 application/json (embedded SvelteKit asset).
+//! - GET /health → 200 application/json (API still OK).
+//! - GET /style.css.does-not-exist → 404 (path with an extension, not found).
 //!
 //! Skipped when the binary was built without `web-team/build` (Rust-only CI),
 //! unless `SOBRIA_REQUIRE_EMBEDDED_UI=1`: then the missing bundle fails.
@@ -54,7 +54,7 @@ async fn embedded_dashboard_is_served() {
         .build()
         .expect("client");
 
-    // Attend le démarrage du serveur.
+    // Wait for the server to start.
     for _ in 0..30 {
         if let Ok(r) = client.get(format!("{base_url}/health")).send().await {
             if r.status().is_success() {
@@ -104,7 +104,7 @@ async fn embedded_dashboard_is_served() {
         "content-type = {v_ct}"
     );
 
-    // 4. /health reste joignable
+    // 4. /health stays reachable
     let h = client
         .get(format!("{base_url}/health"))
         .send()
@@ -112,7 +112,7 @@ async fn embedded_dashboard_is_served() {
         .expect("health send");
     assert_eq!(h.status(), 200);
 
-    // 5. Path avec extension qui n'existe pas → 404 (pas de fallback agressif).
+    // 5. Missing path with an extension → 404 (no aggressive fallback).
     let nf = client
         .get(format!("{base_url}/style.does-not-exist.css"))
         .send()

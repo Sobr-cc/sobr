@@ -1,7 +1,7 @@
 # Capturing Claude Code usage without storing prompts
 
 > **Status**: proposal for the "Claude Code and MCP" project (SOB-145). **Checked on 2026-10-31** against the official Claude Code documentation (`code.claude.com/docs`).
-> **Related**: ADR-0019 decision 4 (where the import is built), ADR-0022 (the session model and the upload contract), ADR-0015 and CLAUDE.md section 7 (privacy), SOB-146 (session identity and duplicates, not written yet), SOB-67 (the old `sobria-import` crate is removed).
+> **Related**: ADR-0019 decision 4 (where the import is built), ADR-0022 (the session model and the upload contract), ADR-0015 and CLAUDE.md section 7 (privacy), ADR-0025 (session identity and duplicates, SOB-146), SOB-67 (the old `sobria-import` crate is removed).
 > **Amendment 1 (2026-10-31, SOB-203, decision [SOB-198](https://linear.app/sobrcc/issue/SOB-198), option A):** the device keeps the folder, repo and branch of a session for 24 months, on the device only, so that rules from corrections can run on past sessions. The server never receives them. The previous wording is kept here for the record: "No prompt text, response text, tool input or output, file path or command line is stored, on the device or on the server", and "Never stored: ... file paths, folder, repo and branch names, command lines, ... The project path may be read to choose a project, but it is not stored or uploaded." Both sentences are replaced by the text below ("What we store per session", the table of what Sobr stores, and "Kept on the device, never uploaded").
 > Every fact about Claude Code links to the official page it comes from. "No official source" means we looked and found none; it is never filled in by guessing. The documentation is read through a fetch tool that summarises pages, so a link is where to confirm a fact, not a proof by itself (see "How this was checked").
 
@@ -13,7 +13,7 @@ Sobr can measure Claude Code three ways. None of them needs to keep prompt text,
 |---|---|---|---|---|
 | Local transcripts | whatever the lines hold, in an **unofficial, unstable** format (no official schema) | yes, 30 days by default | **yes**, in the same files | Import history with an allow-list reader that fails closed |
 | Plugin: status line and hooks | live model, a cost estimate (a running total), the **last call's** token counts (not totals), session ID, and the path of the transcript | no | only in a few hook events, which we do not subscribe to | Status line for the live display and the cost; a `SessionEnd` hook hands the transcript to the local reader for the totals; no prompt-bearing hook |
-| OpenTelemetry | metrics (model, token totals, cost, session ID) and events | no | **no prompt text** unless `OTEL_LOG_USER_PROMPTS` is set; but it does send the user's email and account IDs, which the receiver must drop | Optional, for organizations; metrics only, through a collector run by the organization |
+| OpenTelemetry | metrics (model, token totals, cost, session ID) and events | no | **no prompt text** unless `OTEL_LOG_USER_PROMPTS` is set; but it does send the user's email and account IDs, which the receiver must drop | Optional; metrics only, received by the desktop app on the same machine (ADR-0025); an organization can deliver the settings through the managed settings |
 
 **Token totals per interactive session come only from the transcript (unofficial) or from OpenTelemetry (official, opt-in).** The status line gives a cost total but no token total. Thibault decided on October 31 (SOB-162, option 1) that Sobr reads the transcripts, with the guard rails of section 1, so a solo user gets token totals from them.
 
@@ -102,7 +102,7 @@ Each source also hands over fields that must be **dropped at the boundary**, bef
 
 **Recommendation**: option 3 with **no hook that carries text**: subscribe only to `SessionStart`, `SessionEnd` and the model-switch events. The live display and the cost come from the status line; the token totals come from the transcript at the end of the session (or from OpenTelemetry). The status line is enabled by the consent step Thibault chose (SOB-164, October 31, option 1): a plugin command, run once and explained on screen, writes the `statusLine` setting. The live display can always be turned off by the user (`/statusline delete`, or disabling the plugin).
 
-## 3. OpenTelemetry (optional, for organizations)
+## 3. OpenTelemetry (optional)
 
 Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unless said otherwise.
 
@@ -125,30 +125,63 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 
 **Privacy limits of this path**
 
-- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `organization.id`, `user.account_uuid` and `user.account_id`, to whatever endpoint is configured. They reach the collector before any filter runs, so the collector must run in the organization's own infrastructure, never on a third party's.
-- The allow-list is therefore a hard requirement, enforced twice: by the collector, and by the Sobr server contract, which refuses any field outside the ADR-0022 upload contract. A collector that forwards more than the allow-list breaks that contract.
-- ADR-0022's rule that no clock time leaves a device binds the Sobr clients. It does not constrain what Claude Code sends to a collector; the collector is what brings the data back inside the rule.
+- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `user.id`, `organization.id`, `user.account_uuid` and `user.account_id`, to whatever endpoint is configured. The endpoint is therefore the desktop app on the member's own machine (ADR-0025, point 2 and section 8), and nothing leaves the device before the space upload of ADR-0022.
+- The receiver in the app applies an allow-list at once and turns the increments into totals (ADR-0025, build issue 4). The identity attributes arrive in every data point (see "What the local receiver must accept"), so the allow-list is not optional.
+- The organization collector that would forward to the server with Claude Code's session ID was the option B of ADR-0025 and was rejected: it adds a third-party ID to the upload contract and a second merge point.
 
 **Receiving**
 
-- A receiver speaks OTLP over gRPC or HTTP (protobuf or JSON). The page shows a collector on ports 4317 (gRPC) and 4318 (HTTP) and paths ending `/v1/metrics`, `/v1/logs`, `/v1/traces`. Whether a base endpoint gets these paths added automatically: no official source. Authentication headers can be static or come from an `otelHeadersHelper`. The page gives a collector `attributes` processor that deletes `prompt` and `prompt_text`.
-- Sampling, retries and delivery when the receiver is down: no official source.
+- A receiver speaks OTLP over gRPC or HTTP (protobuf or JSON). The page shows a collector on ports 4317 (gRPC) and 4318 (HTTP) and paths ending `/v1/metrics`, `/v1/logs`, `/v1/traces`. Authentication headers can be static or come from an `otelHeadersHelper`. The page gives a collector `attributes` processor that deletes `prompt` and `prompt_text`.
+- The page does not say how a base endpoint gets its path, nor what happens when the receiver is down. SOB-166 tested both, below.
 
-**Options**
+**What the local receiver must accept** (tested in SOB-166 with real `claude -p` runs: Claude Code 2.1.314, Windows, October 31, 2026; a stand-in receiver on `127.0.0.1` recorded the requests)
 
-1. *The Sobr server is an OTLP receiver.* One less piece to run, but the server must handle OTLP and strip identities itself.
-2. *An OpenTelemetry Collector in front* (the pattern the documentation shows): it deletes the identity and path attributes and cuts timestamps to the day, then forwards to the Sobr API.
-3. *Not in v1.*
+| Question | Result |
+|---|---|
+| Path of a base endpoint | `OTEL_EXPORTER_OTLP_ENDPOINT=http://host:port` sends `POST /v1/metrics`. With a path (`http://host:port/prefix`) it sends `POST /prefix/v1/metrics`. `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` is used as given (`/custom/metrics` stayed `/custom/metrics`). gRPC to port 4317 also reached a collector. |
+| Protocols | `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` sends `Content-Type: application/json`; `http/protobuf` sends `application/x-protobuf`. No `Content-Encoding` was sent. User agent `OTel-OTLP-Exporter-JavaScript/0.208.0`. |
+| Headers | `OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer …,x-sobr-test=1"` arrived on every request. `otelHeadersHelper` (a command that prints a JSON object), set in a `--settings` file, also worked: its headers arrived. |
+| Temporality | Delta: `aggregationTemporality` is 1 and the sums are monotonic. An export holds only the increase since the previous one, so the receiver adds them (ADR-0025, section 2). The sums received equal the totals in the `--output-format json` result of Claude Code (input, output, cache read, cache creation, cost). |
+| What an export holds | `claude_code.token.usage`: one data point per `type` (`input`, `output`, `cacheRead`, `cacheCreation`) and per call. `claude_code.cost.usage`: one per call. Calls are split by `query_source` (`main`, `auxiliary`) and `effort`, so several data points can share `model`, `type` and `session.id`. `claude_code.session.count` and `claude_code.active_time.total` come too. Each data point carries `startTimeUnixNano` and `timeUnixNano`. |
+| Attributes seen | Data point: `effort`, `model`, `organization.id`, `query_source`, `session.id`, `terminal.type`, `type`, `user.account_id`, `user.account_uuid`, `user.email`, `user.id` (and `start_type` on `session.count`). Resource: `host.arch`, `os.type`, `os.version`, `service.name`, `service.version`. Scope: `com.anthropic.claude_code` and the Claude Code version. No exemplars and no flags. |
+| When it sends | Once per export interval (`OTEL_METRIC_EXPORT_INTERVAL`, 60 s by default) and once at exit: a `claude -p` run of a few seconds with the default interval sent one request holding all four metrics. |
+| The same ID everywhere | The `session.id` of the metrics is the `session_id` of the hooks and the transcript file name, in new, resumed, forked and cleared sessions (SOB-163). |
+| Nothing listens | Claude Code exits 0, prints nothing on stderr, takes the same time, and **does not retry**: a call made while nothing listened never arrived, and delta increments cannot be recovered. **A member whose app is not running is not measured.** |
+| The receiver answers an error | `503`: the same payload was sent again with a growing delay (four tries within 5 s seen), then dropped; no message, exit 0. `400`: not retried. Answer `200` at once. |
+| Logs and traces | With `OTEL_LOGS_EXPORTER=otlp` Claude Code also posts logs; a collector with a metrics-only pipeline answered 404 to `/v1/logs` and `/v1/traces`, and Claude Code still exited 0. Keep `OTEL_LOGS_EXPORTER=none`. |
+| Settings that deliver the variables | The `env` block of a settings file (`--settings`), with no telemetry variable in the process environment, delivered all of them: the three requests Claude Code made in that run reached the receiver. **The managed settings file itself (machine-wide) was not installed for the test**; the documentation says it uses the same `env` block. |
 
-**Recommendation**: option 2 first, option 1 later if the collector is a burden. Send **metrics only** (`OTEL_LOGS_EXPORTER=none`): `claude_code.token.usage` and `claude_code.cost.usage` already give model, tokens, cost and session ID, with no per-prompt event at all. Accept only those two names, keep `model`, `type`, `session.id` and the value, drop every other attribute, and cut the time to the day, as ADR-0022 requires. It stays optional: an administrator sets it in the managed settings.
+**The managed settings that point Claude Code at the local app.** An organization puts this in the managed settings file (paths in "Enable it" above); a member can set the same in their own settings. The port is the one the app listens on; it is not chosen here.
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "none",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/json",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "http://127.0.0.1:<app port>"
+  }
+}
+```
+
+Both protocols reached the stand-in, so the receiver may take one. `http/json` needs no protobuf decoder. The receiver is reachable by any process on the machine, and `OTEL_EXPORTER_OTLP_HEADERS` can carry a token for it to check. Which protocol, and whether to require a token, are choices for build issue 4, not decided here. A small stand-in receiver for tests is in `tools/otel-receiver-stub/`.
+
+**Options** (ADR-0025, point 2 and section 8)
+
+1. *A. The desktop app receives OpenTelemetry on the same machine (chosen).* The user, or the managed settings, point `OTEL_EXPORTER_OTLP_ENDPOINT` at the local app. A member without the app is not measured.
+2. *B. The organization's collector forwards to the server with Claude Code's session ID. Rejected.*
+3. *C. As B, with a keyed hash of the ID. Rejected.*
+
+**Recommendation**: option A, as ADR-0025 decided. This changes the recommendation of the first version of this note (a collector in front of the server). Send **metrics only** (`OTEL_LOGS_EXPORTER=none`): `claude_code.token.usage` and `claude_code.cost.usage` already give model, tokens, cost and session ID, with no per-prompt event at all. The receiver keeps those two names, `model`, `type`, `session.id`, the value and the record times, and drops every other attribute. The record times stay on the device: the upload carries only the day, as ADR-0022 and ADR-0025 (section 2) say. It stays optional.
 
 ## 4. Double counting
 
-The rules belong to the session duplicates ADR (**SOB-146, not written yet**, in Backlog; ADR-0022 blocks it and leaves it open). This note gives it the facts:
+The rules are in ADR-0025 (session identity and duplicates, Accepted, SOB-146). This note gave it the facts:
 
-- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). A test on a real session must check it before any rule relies on it (SOB-163).
+- The session ID appears as the transcript file name, as `session_id` in hooks and in the status line, and as `session.id` in OpenTelemetry. The documentation states that the status line `prompt_id` "Matches the `prompt.id` attribute on OpenTelemetry events"; **it does not state that `session_id` and `session.id` are the same value** (no official source). SOB-163 tested it on Claude Code 2.1.314: one value in the hooks, the SDK result, the transcript file name and OpenTelemetry, in new, resumed, forked and cleared sessions. The status line was not tested.
 - Inside one source: assistant messages that share an ID must be counted once (SDK cost tracking). Subagents write their own transcripts; the SDK `usage` field leaves subagents out while `total_cost_usd` includes them ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), not re-checked). The importer must not add a subagent transcript and its parent's totals.
-- Across sources: one measurement per session and source (ADR-0022), then SOB-146 picks which source wins. Suggested input for it: prefer OpenTelemetry (official, token totals and cost), then the transcript (unofficial, token totals), then the status line, which gives the cost total and the last call only and so cannot stand alone for tokens. The status line stays the live display.
+- Across sources: one measurement per session and source (ADR-0022), and ADR-0025 sets which source wins. The status line gives the cost total and the last call only, so it cannot stand alone for tokens; it stays the live display.
 - The cost figures are client-side estimates at list price, not billing ([cost tracking](https://code.claude.com/docs/en/agent-sdk/cost-tracking), [status line](https://code.claude.com/docs/en/statusline)); they must not be matched to a bill.
 
 ## 5. Where the import is built
@@ -157,15 +190,15 @@ ADR-0019 decision 4 (option 4a) puts the **log import in a crate of `sobr`**: it
 
 - **Log import**: a crate of `sobr` (named with the `sobr-` prefix of ADR-0020), on the device only. It reads the allow-listed keys and writes sessions that follow the ADR-0022 contract. The removed `sobria-import` skeleton (SOB-67) gives nothing to reuse.
 - **Status line script and hooks**: in the `claude-code` plugin. The script prints nothing useful to the user by itself; it hands the numbers to the local app. How it reaches the app (native messaging bridge of ADR-0013, a local socket, a file) is part of the plugin design.
-- **OpenTelemetry**: a collector configuration plus a small receiver module in the organization server in `sobr`, not in the app.
+- **OpenTelemetry**: a local receiver in the desktop app (ADR-0025, build issue 4), with the allow-list of section 3. No receiver in the organization server.
 
 ## Open questions
 
 Each one is a Linear issue.
 
 1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID, `cwd` and `gitBranch`) from real sample files, and pin them with golden tests. Done in the transcript keys note (SOB-161); the repo has no key and comes from the `origin` remote of `cwd`.
-2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
-3. **Research, SOB-166**: build a collector configuration for the metrics-only path and check, with a real Claude Code run, the paths, the headers, the temporality and what happens when the receiver is down.
+2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value. Done in section 4 (the status line was not tested).
+3. **Research, SOB-166**: find what the app's local receiver must accept, with real Claude Code runs. Done in section 3.
 
 ## Decided
 
@@ -178,6 +211,7 @@ Thibault answered both Decision issues of this note on October 31 (option 1 each
 
 - Three read-only research runs opened the official pages (hooks and status line, OpenTelemetry, local logs). I re-read these key points on the pages myself: the transcript location, retention and the "format is internal" sentence ([Manage sessions](https://code.claude.com/docs/en/sessions)); the status line fields, including that the token counts are from the most recent API response, and its removal ([status line](https://code.claude.com/docs/en/statusline)); the `OTEL_LOG_USER_PROMPTS` default and the metric and event names; the OpenTelemetry "opt-in" sentence ([Monitoring usage](https://code.claude.com/docs/en/monitoring-usage)); on the raw pages, the plugin manifest `settings` limit ([Plugins reference](https://code.claude.com/docs/en/plugins-reference)) and which hook events carry a `model` field ([Hooks](https://code.claude.com/docs/en/hooks)). A first draft said the status line gave token totals; the page shows it does not, and the note was corrected.
 - Marked "reported by the research run, not re-checked", or not marked but outside the points above: the managed settings file paths and precedence; the SDK cost tracking rules; which hook events carry which fields (the run read the raw hooks page for these); the status line refresh timing; the facts taken from "The .claude directory" page (plaintext content, `history.jsonl`, `stats-cache.json`, subagent transcripts, the Windows path); the export intervals, the other metric names, the attribute defaults, the content flags other than `OTEL_LOG_USER_PROMPTS`, and the tracing remark.
+- The table "What the local receiver must accept" (section 3) comes from real `claude -p` runs (SOB-166, Claude Code 2.1.314) against a stand-in receiver on `127.0.0.1`; the raw captures held the account e-mail and were deleted.
 - The pages are long and change often. Confirm a fact on its page before building on it, and read the version of Claude Code you target.
 
 ## Sources

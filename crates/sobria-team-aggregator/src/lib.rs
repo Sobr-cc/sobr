@@ -1,10 +1,6 @@
-//! Sobr.ia — `sobria-team-aggregator` (binaire HTTPS self-hosted).
+//! Sobr.ia `sobria-team-aggregator`: the self-hosted HTTPS server of team mode.
 //!
-//! Voir ADR-0013 Phase 2 et `docs/archive/chantiers/C28-mode-equipe-self-hosted.md`.
-//! C28.1 (cet incrément) livre le bootstrap : crate + CLI `init`/`serve`,
-//! TLS auto-signé via rcgen, schéma SQLite v1, admin initial Argon2id et
-//! route `/health`. Les API d'auth, d'admin et d'analytics sont prévues
-//! dans les sous-chantiers suivants (C28.2 → C28.5).
+//! See ADR-0013, ADR-0015, ADR-0016 and the crate README.
 
 #![forbid(unsafe_code)]
 
