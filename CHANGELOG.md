@@ -7,6 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Official model sources per provider (2026-10-31, SOB-6)
+
+- **`docs/sources/CATALOGUE-SOURCES.md`**: new section listing, for the nine
+  providers of the model referential, the official model list API, pricing
+  page, terms on automated access, published context windows and retired
+  models, and whether scraping would be needed. Providers without an official
+  machine-readable source (Meta Llama, Microsoft) are listed apart with a
+  recommendation. No code and no model data changed.
+
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
 - **`sobria-import`**: removed the empty skeleton crate (one constant, no
