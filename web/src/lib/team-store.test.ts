@@ -40,15 +40,14 @@ async function fresh() {
   return { api, ...store };
 }
 
-function deferred() {
-  let resolve!: () => void;
-  let reject!: (e: unknown) => void;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
+async function freshLoaded() {
+  const ctx = await fresh();
+  ctx.api.getTeamStatus.mockResolvedValue(ENROLLED);
+  await ctx.loadTeam();
+  return ctx;
 }
+
+type LooseSave = (field: string, value: unknown) => Promise<void>;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -85,14 +84,14 @@ describe('loadTeam', () => {
 describe('saveTeamField', () => {
   it('updates the url locally before the IPC answers, then keeps it', async () => {
     const { api, teamStore, saveTeamField } = await fresh();
-    const pending = deferred();
+    const pending = Promise.withResolvers<undefined>();
     api.setTeamUrl.mockReturnValue(pending.promise);
 
     const saving = saveTeamField('url', 'https://team.example.org');
 
     expect(get(teamStore).url).toBe('https://team.example.org');
     expect(api.setTeamUrl.mock.calls).toEqual([['https://team.example.org']]);
-    pending.resolve();
+    pending.resolve(undefined);
     await saving;
     expect(get(teamStore)).toEqual({ ...INITIAL, url: 'https://team.example.org' });
   });
@@ -142,43 +141,56 @@ describe('saveTeamField', () => {
   });
 
   it('restores the previous state and rethrows when the mode IPC fails', async () => {
-    const { api, teamStore, saveTeamField } = await fresh();
+    const { api, teamStore, saveTeamField } = await freshLoaded();
+    const before = get(teamStore);
     const error = new Error('storage');
     api.setTeamMode.mockRejectedValue(error);
 
     await expect(saveTeamField('mode', 'team')).rejects.toBe(error);
 
-    expect(get(teamStore)).toEqual(INITIAL);
+    expect(get(teamStore)).toEqual(before);
+    expect(before.mode).toBe('both');
   });
 
   it('restores the previous state and rethrows when the certificate IPC fails', async () => {
-    const { api, teamStore, saveTeamField } = await fresh();
+    const { api, teamStore, saveTeamField } = await freshLoaded();
+    const before = get(teamStore);
     const error = new Error('storage');
     api.setTeamAcceptInvalidCerts.mockRejectedValue(error);
 
-    await expect(saveTeamField('accept_invalid_certs', true)).rejects.toBe(error);
+    await expect(saveTeamField('accept_invalid_certs', false)).rejects.toBe(error);
+
+    expect(get(teamStore)).toEqual(before);
+    expect(before.accept_invalid_certs).toBe(true);
+  });
+
+  it('rolls back to the initial state when nothing was loaded', async () => {
+    const { api, teamStore, saveTeamField } = await fresh();
+    api.setTeamMode.mockRejectedValue(new Error('storage'));
+
+    await expect(saveTeamField('mode', 'team')).rejects.toThrow('storage');
 
     expect(get(teamStore)).toEqual(INITIAL);
   });
 
   it('shows the optimistic value while the IPC is pending, then rolls back', async () => {
-    const { api, teamStore, saveTeamField } = await fresh();
-    const pending = deferred();
+    const { api, teamStore, saveTeamField } = await freshLoaded();
+    const pending = Promise.withResolvers<undefined>();
     api.setTeamMode.mockReturnValue(pending.promise);
 
-    const saving = saveTeamField('mode', 'both');
-    expect(get(teamStore).mode).toBe('both');
+    const saving = saveTeamField('mode', 'local');
+    expect(get(teamStore).mode).toBe('local');
     pending.reject(new Error('offline'));
 
     await expect(saving).rejects.toThrow('offline');
-    expect(get(teamStore).mode).toBe('local');
+    expect(get(teamStore).mode).toBe('both');
   });
 
   it('forwards a value outside the mode union to the IPC without patching the store', async () => {
     const { api, teamStore, saveTeamField } = await fresh();
     api.setTeamMode.mockResolvedValue();
 
-    await (saveTeamField as (field: string, value: unknown) => Promise<void>)('mode', 'weird');
+    await (saveTeamField as LooseSave)('mode', 'weird');
 
     expect(api.setTeamMode.mock.calls).toEqual([['weird']]);
     expect(get(teamStore)).toEqual(INITIAL);
@@ -188,7 +200,7 @@ describe('saveTeamField', () => {
     const { api, teamStore, saveTeamField } = await fresh();
     api.setTeamUrl.mockResolvedValue();
 
-    await (saveTeamField as (field: string, value: unknown) => Promise<void>)('url', 5);
+    await (saveTeamField as LooseSave)('url', 5);
 
     expect(api.setTeamUrl.mock.calls).toEqual([[5]]);
     expect(get(teamStore)).toEqual(INITIAL);

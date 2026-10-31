@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { AppPreferencesDto, CountryAggregateDto } from '../api';
+
 type Handlers = (typeof import('./index'))['demoHandlers'];
 
 interface Triplet {
@@ -39,15 +41,6 @@ interface ModelDetail {
   epsilon_decode_mj_per_token: Triplet;
   embodied_g_per_request: Triplet;
 }
-interface CountryRow {
-  country_iso: string;
-  datacenter_count: number;
-  avg_pue: number;
-  if_electrical_g_per_kwh: number;
-  total_capacity_mw?: number;
-  centroid_lat: number;
-  centroid_lon: number;
-}
 interface Day {
   date: string;
   request_count: number;
@@ -73,9 +66,6 @@ interface Dashboard {
   daily_series: Day[];
   method_breakdown: unknown[];
   warning_multi_method: boolean;
-}
-interface Preferences {
-  lang: string;
 }
 interface Thrown {
   code: string;
@@ -411,7 +401,7 @@ describe('datacenters', () => {
   });
 
   it('averages PUE, carbon intensity and centroid per country, in order of first appearance', () => {
-    const rows = call<CountryRow[]>('aggregate_datacenters_by_country');
+    const rows = call<CountryAggregateDto[]>('aggregate_datacenters_by_country');
 
     expect(rows.map((r) => [r.country_iso, r.datacenter_count])).toEqual([
       ['FR', 4],
@@ -437,7 +427,7 @@ describe('datacenters', () => {
   });
 
   it('leaves out the capacity of countries where no datacenter declares one', () => {
-    const rows = call<CountryRow[]>('aggregate_datacenters_by_country');
+    const rows = call<CountryAggregateDto[]>('aggregate_datacenters_by_country');
     const withoutCapacity = rows
       .filter((r) => !('total_capacity_mw' in r))
       .map((r) => r.country_iso);
@@ -485,9 +475,9 @@ describe('preferences', () => {
   });
 
   it('returns a copy, so editing the answer does not change the stored preferences', () => {
-    call<Preferences>('get_app_preferences').lang = 'en';
+    call<AppPreferencesDto>('get_app_preferences').lang = 'en';
 
-    expect(call<Preferences>('get_app_preferences').lang).toBe('fr');
+    expect(call<AppPreferencesDto>('get_app_preferences').lang).toBe('fr');
   });
 
   it('merges the saved fields into the in-memory preferences and returns null', () => {
@@ -502,7 +492,7 @@ describe('preferences', () => {
     vi.resetModules();
     const again = (await import('./index')).demoHandlers;
 
-    expect((again.get_app_preferences?.() as Preferences).lang).toBe('fr');
+    expect((again.get_app_preferences?.() as AppPreferencesDto).lang).toBe('fr');
   });
 });
 
@@ -678,5 +668,17 @@ describe('get_dashboard_summary', () => {
 
     expect(s.period_start).toBe('2026-05-13T22:00:00.000Z');
     expect(s.daily_series[0]?.date).toBe('2026-05-13');
+  });
+
+  // SOB-184: the point count is rounded from the elapsed time, so it changes at noon.
+  it('returns one more daily point from noon on', () => {
+    vi.setSystemTime(new Date(Date.UTC(2026, 4, 14, 14, 0, 0)));
+
+    const week = call<Dashboard>('get_dashboard_summary', { period: 'last_7_days' });
+    const month = call<Dashboard>('get_dashboard_summary', { period: 'this_month' });
+
+    expect(week.daily_series).toHaveLength(7);
+    expect(week.daily_series.at(-1)?.date).toBe('2026-05-14');
+    expect(month.daily_series).toHaveLength(14);
   });
 });

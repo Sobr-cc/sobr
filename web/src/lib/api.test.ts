@@ -1,22 +1,51 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
 import { invoke } from '@tauri-apps/api/core';
 
-import { estimatePrompt, metaInfo, SobriaIpcError, verifyAudit } from './api';
+import {
+  estimatePrompt,
+  getModelDetail,
+  isBackendAvailable,
+  isTauriContext,
+  metaInfo,
+  SobriaIpcError,
+  verifyAudit
+} from './api';
 
 const mockedInvoke = vi.mocked(invoke);
 
-async function rejection(err: unknown): Promise<SobriaIpcError> {
-  mockedInvoke.mockRejectedValue(err);
-  const caught: unknown = await metaInfo().then(
+async function rejectionOf(call: Promise<unknown>): Promise<SobriaIpcError> {
+  const caught: unknown = await call.then(
     () => undefined,
     (e: unknown) => e
   );
   expect(caught).toBeInstanceOf(SobriaIpcError);
   return caught as SobriaIpcError;
 }
+
+function rejection(err: unknown): Promise<SobriaIpcError> {
+  mockedInvoke.mockRejectedValue(err);
+  return rejectionOf(metaInfo());
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('execution context', () => {
+  it.each([
+    ['no window', undefined, false, false],
+    ['a plain browser window', {}, false, true],
+    ['a window with the Tauri internals', { __TAURI_INTERNALS__: {} }, true, true]
+  ])('with %s', (_label, win, tauri, backend) => {
+    if (win !== undefined) vi.stubGlobal('window', win);
+
+    expect(isTauriContext()).toBe(tauri);
+    expect(isBackendAvailable()).toBe(backend);
+  });
+});
 
 describe('IPC error normalization (Tauri context)', () => {
   beforeEach(() => {
@@ -101,37 +130,36 @@ describe('IPC error normalization (Tauri context)', () => {
   });
 });
 
-describe('IPC error normalization (web demo, no Tauri)', () => {
+describe('IPC calls and error normalization (web demo, no Tauri)', () => {
   beforeEach(() => {
-    vi.unstubAllGlobals();
     vi.stubGlobal('window', {});
     mockedInvoke.mockReset();
   });
 
+  it('answers a covered command from the demo data, with its arguments', async () => {
+    await expect(metaInfo()).resolves.toMatchObject({ app_version: 'démo web (fixtures seed 42)' });
+    await expect(getModelDetail('o3')).resolves.toMatchObject({ id: 'o3' });
+    expect(mockedInvoke).not.toHaveBeenCalled();
+  });
+
   it('turns a raw {code, message} thrown by a demo handler into a SobriaIpcError', async () => {
-    const caught: unknown = await estimatePrompt({
-      model_id: 'no-such-model',
-      tokens_in: 100,
-      tokens_out_estimated: 100
-    } as Parameters<typeof estimatePrompt>[0]).then(
-      () => undefined,
-      (e: unknown) => e
+    const e = await rejectionOf(
+      estimatePrompt({
+        model_id: 'no-such-model',
+        tokens_in: 100,
+        tokens_out_estimated: 100
+      } as Parameters<typeof estimatePrompt>[0])
     );
 
-    expect(caught).toBeInstanceOf(SobriaIpcError);
-    expect((caught as SobriaIpcError).code).toBe('unknown_model');
+    expect(e.code).toBe('unknown_model');
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
   it('rejects a command the demo does not cover with tauri_unavailable', async () => {
-    const caught: unknown = await verifyAudit().then(
-      () => undefined,
-      (e: unknown) => e
-    );
+    const e = await rejectionOf(verifyAudit());
 
-    expect(caught).toBeInstanceOf(SobriaIpcError);
-    expect((caught as SobriaIpcError).code).toBe('tauri_unavailable');
-    expect((caught as SobriaIpcError).message).toContain("l'application de bureau Sobr.ia");
+    expect(e.code).toBe('tauri_unavailable');
+    expect(e.message).toContain("l'application de bureau Sobr.ia");
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 });

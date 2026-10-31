@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AppPreferencesDto, ModuleId, Persona } from './api';
+import type { ModuleCategory } from './preferences';
 
 vi.mock('./api', () => ({
   getAppPreferences: vi.fn(),
@@ -27,16 +28,6 @@ async function fresh() {
   const api = vi.mocked(await import('./api'));
   const store = await import('./preferences');
   return { api, ...store };
-}
-
-function deferred() {
-  let resolve!: () => void;
-  let reject!: (e: unknown) => void;
-  const promise = new Promise<void>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
 }
 
 const SAVED: AppPreferencesDto = {
@@ -91,14 +82,14 @@ describe('preferences store', () => {
 
   it('savePreferences shows the new state before the IPC answers, then keeps it', async () => {
     const { api, preferences, savePreferences } = await fresh();
-    const pending = deferred();
+    const pending = Promise.withResolvers<undefined>();
     api.setAppPreferences.mockReturnValue(pending.promise);
 
     const saving = savePreferences(SAVED);
 
     expect(get(preferences)).toEqual({ ...SAVED, loaded: true });
     expect(api.setAppPreferences.mock.calls).toEqual([[SAVED]]);
-    pending.resolve();
+    pending.resolve(undefined);
     await saving;
     expect(get(preferences)).toEqual({ ...SAVED, loaded: true });
   });
@@ -118,13 +109,13 @@ describe('preferences store', () => {
 
   it('savePreferences rolls back to the unloaded initial state when nothing was loaded', async () => {
     const { api, preferences, savePreferences } = await fresh();
+    const before = get(preferences);
     api.setAppPreferences.mockRejectedValue(new Error('write failed'));
 
     await expect(savePreferences(SAVED)).rejects.toThrow('write failed');
 
-    expect(get(preferences).loaded).toBe(false);
-    expect(get(preferences).persona).toBeNull();
-    expect(get(preferences).lang).toBe('fr');
+    expect(get(preferences)).toEqual(before);
+    expect(before.loaded).toBe(false);
   });
 });
 
@@ -223,12 +214,7 @@ describe('persona catalogue', () => {
 });
 
 describe('module catalogue', () => {
-  const rows: [
-    ModuleId,
-    string,
-    'estimation' | 'visualisation' | 'reporting' | 'pedagogie',
-    string | null
-  ][] = [
+  const rows: [ModuleId, string, ModuleCategory, string | null][] = [
     ['m1', 'Estimer un prompt', 'estimation', '/'],
     ['m2', 'Workbench multi-prompts', 'estimation', null],
     ['m3', 'Comparer modèles', 'estimation', '/comparer'],
@@ -263,7 +249,6 @@ describe('module catalogue', () => {
     expect(moduleLabel(id)).toBe(label);
     expect(moduleCategory(id)).toBe(category);
     expect(moduleHref(id)).toBe(href);
-    expect(moduleDescription(id).length).toBeGreaterThan(0);
   });
 
   it('keeps the descriptions', () => {
