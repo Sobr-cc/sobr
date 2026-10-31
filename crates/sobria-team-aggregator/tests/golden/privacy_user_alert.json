@@ -38,7 +38,7 @@
     "status": 200
   },
   {
-    "note": "trigger seen by the admin",
+    "note": "trigger seen by the admin, once notified",
     "value": {
       "notify_error": null,
       "observed_gco2eq": 0.42,

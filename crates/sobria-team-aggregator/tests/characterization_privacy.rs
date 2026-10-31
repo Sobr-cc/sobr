@@ -286,7 +286,10 @@ async fn user_alert_ignores_policy_and_consent() {
             )
             .await;
         rows = body["triggers"].as_array().expect("triggers").clone();
-        if rows.first().is_some_and(|row| !row["notified_at"].is_null()) {
+        if rows
+            .first()
+            .is_some_and(|row| !row["notified_at"].is_null())
+        {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
