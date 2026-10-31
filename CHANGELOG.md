@@ -25,6 +25,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - 22 build issues (111 points), marking those that wait for a Deep cleanup.
   - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
 
+### Changed — smaller debug builds (2026-10-31, SOB-106)
+
+- **Cargo profiles**: `dev` and `test` keep line tables only for workspace
+  crates, and dependencies build without debug info. Backtraces still show
+  file and line for workspace crates; dependency frames show names only.
+  A debugger no longer sees local variables. `CARGO_PROFILE_DEV_DEBUG=true`
+  (`CARGO_PROFILE_TEST_DEBUG=true` for tests) restores full debug info for
+  workspace crates; dependencies also need
+  `--config 'profile.dev.package."*".debug=true'`. A clean
+  `cargo test --workspace --no-run` on Windows drops from 27.8 GB to 8.1 GB
+  of `target/`, and a clean `cargo test -p sobria-estimator --no-run` from
+  374 MB to 263 MB.
+
 ### Added — Characterization tests of the team server (2026-10-30, SOB-10)
 
 - **`sobria-team-aggregator`**: `tests/characterization_*.rs` pin the status code,
@@ -47,6 +60,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   `tests/characterization/golden.rs`). Before, it stopped at the first
   rewritten file. `assert_golden` is unchanged for single-file tests. Test
   code only: the estimator and the golden values are untouched.
+
+### Added — Official model sources per provider (2026-10-31, SOB-6)
+
+- **`docs/sources/CATALOGUE-SOURCES.md`**: new section listing, for the nine
+  providers of the model referential, the official model list API, pricing
+  page, terms on automated access, published context windows and retired
+  models, and whether scraping would be needed. A Hugging Face section covers
+  the no-key source for the open-weight models of the referential (Llama, Phi,
+  Mistral, DeepSeek); the closed models need each provider's API key.
+  Providers without an official machine-readable source (Meta Llama,
+  Microsoft) are listed apart with a recommendation. No code and no model
+  data changed.
 
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
