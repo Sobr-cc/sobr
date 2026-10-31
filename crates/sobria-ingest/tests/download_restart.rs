@@ -1,10 +1,10 @@
 //! Characterization tests of the downloader's timeout and retry (SOB-222).
 //!
-//! The ComparIA files weigh 682 MB, 733 MB and 3.4 GB. The audit
-//! (`download.rs:34,80,211`) found that the 60 s timeout covers the whole
-//! body and that a retry starts again at byte 0. A hand-written local server
-//! plays a connection that stalls and one that drips, with a short timeout
-//! on the client. SOB-123 is the issue that fixes it.
+//! The ComparIA files weigh 682 MB, 733 MB and 3.4 GB. The audit found that
+//! the 60 s timeout (`DEFAULT_TIMEOUT`) covers the whole body and that a retry
+//! of `fetch_to_file` starts again at byte 0. A hand-written local server plays
+//! a connection that stalls and one that drips, with a short timeout on the
+//! client. SOB-123 is the issue that fixes it.
 
 use std::{
     sync::{
@@ -37,6 +37,8 @@ struct Stub {
     url: String,
     /// The raw text of each request, lower-cased, in arrival order.
     requests: Arc<Mutex<Vec<String>>>,
+    /// Body bytes written by the [`Script::Drip`] connections.
+    dripped: Arc<AtomicUsize>,
 }
 
 /// Starts a server where connection `i` follows `scripts[i]` (the last script
@@ -45,24 +47,30 @@ async fn start(scripts: Vec<Script>) -> Stub {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let url = format!("http://{}/file", listener.local_addr().expect("address"));
     let requests = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&requests);
-    let index = Arc::new(AtomicUsize::new(0));
+    let dripped = Arc::new(AtomicUsize::new(0));
+    let (seen, sent) = (Arc::clone(&requests), Arc::clone(&dripped));
+    let last = *scripts.last().expect("a script");
+    let mut scripts = scripts.into_iter().chain(std::iter::repeat(last));
 
     tokio::spawn(async move {
-        loop {
-            let Ok((stream, _)) = listener.accept().await else {
-                return;
-            };
-            let i = index.fetch_add(1, Ordering::SeqCst);
-            let script = scripts[i.min(scripts.len() - 1)];
-            let seen = Arc::clone(&seen);
-            tokio::spawn(async move { serve(stream, script, seen).await });
+        while let Ok((stream, _)) = listener.accept().await {
+            let script = scripts.next().expect("an endless iterator");
+            tokio::spawn(serve(stream, script, Arc::clone(&seen), Arc::clone(&sent)));
         }
     });
-    Stub { url, requests }
+    Stub {
+        url,
+        requests,
+        dripped,
+    }
 }
 
-async fn serve(mut stream: TcpStream, script: Script, seen: Arc<Mutex<Vec<String>>>) {
+async fn serve(
+    mut stream: TcpStream,
+    script: Script,
+    seen: Arc<Mutex<Vec<String>>>,
+    dripped: Arc<AtomicUsize>,
+) {
     let mut request = Vec::new();
     let mut chunk = [0u8; 1024];
     while !request.windows(4).any(|w| w == b"\r\n\r\n") {
@@ -83,19 +91,17 @@ async fn serve(mut stream: TcpStream, script: Script, seen: Arc<Mutex<Vec<String
     match script {
         Script::StallAfterHalf => {
             let _ = stream.write_all(&BODY[..BODY.len() / 2]).await;
-            let _ = stream.flush().await;
             tokio::time::sleep(Duration::from_secs(60)).await;
         },
         Script::Full => {
             let _ = stream.write_all(BODY).await;
-            let _ = stream.shutdown().await;
         },
         Script::Drip => {
             for byte in BODY {
                 if stream.write_all(&[*byte]).await.is_err() {
                     return;
                 }
-                let _ = stream.flush().await;
+                dripped.fetch_add(1, Ordering::SeqCst);
                 tokio::time::sleep(Duration::from_millis(200)).await;
             }
         },
@@ -139,22 +145,24 @@ async fn download_quirk_a_timeout_restarts_the_file_from_byte_zero_without_a_ran
 
 #[tokio::test]
 async fn download_quirk_the_timeout_covers_the_whole_body_even_while_data_flows() {
-    // 10 bytes at 200 ms each take 2 s; the client gives up after 1 s although
+    // 10 bytes at 200 ms each take 2 s; the client gives up after 0.5 s although
     // a byte arrives every 200 ms. A timeout on idle time would let it finish.
     let stub = start(vec![Script::Drip]).await;
     let tmp = tempfile::tempdir().expect("tmp");
     let dest = tmp.path().join("file.bin");
 
-    let result = downloader(Duration::from_secs(1), 1)
+    let error = downloader(Duration::from_millis(500), 1)
         .fetch_to_file(&stub.url, &dest, None)
-        .await;
+        .await
+        .expect_err("the download should time out");
 
-    let Err(error) = result else {
-        panic!("the download should time out");
-    };
     assert!(
         matches!(&error, IngestError::Http(e) if e.is_timeout()),
         "{error:?}"
+    );
+    assert!(
+        stub.dripped.load(Ordering::SeqCst) >= 2,
+        "bytes were arriving when the client gave up"
     );
     assert_eq!(
         stub.requests.lock().expect("lock").len(),

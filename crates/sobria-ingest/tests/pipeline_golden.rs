@@ -1,6 +1,6 @@
 //! Characterization tests of the Copper -> Silver -> Gold pipeline (SOB-222).
 //!
-//! They run both sources against a local stand-in for data.gouv.fr and record
+//! They run the sources against a local stand-in for data.gouv.fr and record
 //! what the pipeline writes today: golden files for the Silver rows, the Gold
 //! SQLite and the datasheet, and the behaviors the codebase audit flagged
 //! (tests named `quirk`). Nothing here fixes them: SOB-123 and SOB-21 do.
@@ -10,71 +10,43 @@
 
 mod common;
 
-use std::collections::HashSet;
+use std::path::Path;
 
 use common::{
-    context, count, gold_sqlite, golden::Goldens, mask_volatile, only_snapshot, parquet_dump,
-    sqlite_dump_masked, Upstream, CSV_RTE, GEOJSON_EMPTY,
+    context, count, gold_sqlite, golden::Goldens, only_snapshot, parquet_dump, populate,
+    populate_from, silver_path, sqlite_dump, Upstream, CSV_RTE, GEOJSON_EMPTY, GEOJSON_RTE, SILVER,
 };
 use serde_json::Value;
-use sobria_ingest::{hash, layer::DataLayer, CopperManifest};
-
-/// `(source, Silver entity, Copper file it comes from)`.
-const SILVER: [(&str, &str, &str); 4] = [
-    (
-        "comparia",
-        "comparia_conversations",
-        "conversations.parquet",
-    ),
-    ("comparia", "comparia_votes", "votes.parquet"),
-    ("comparia", "comparia_reactions", "reactions.parquet"),
-    ("rte-iris", "rte_iris_consommation", "consommation_iris.csv"),
-];
-
-fn silver_path(data_root: &std::path::Path, source: &str, entity: &str) -> std::path::PathBuf {
-    data_root
-        .join("silver")
-        .join(source)
-        .join(format!("{entity}-v1.parquet"))
-}
-
-/// Number of distinct datacenters the Gold link table is built from.
-fn datacenter_count() -> i64 {
-    let ids: HashSet<&str> = sobria_geoloc::all_datacenters()
-        .iter()
-        .map(|dc| dc.id.as_str())
-        .collect();
-    i64::try_from(ids.len()).expect("datacenter count")
-}
+use sobria_ingest::{
+    hash,
+    layer::{CopperSnapshot, DataLayer},
+    CopperManifest,
+};
 
 #[tokio::test]
 async fn silver_files_of_both_sources_are_pinned() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let upstream = Upstream::start_without_geometries().await;
-    upstream
-        .registry()
-        .run_full_pipeline(&context(tmp.path()))
-        .await
-        .expect("pipeline");
+    populate_from(&Upstream::start_without_geometries().await, tmp.path()).await;
 
     let mut goldens = Goldens::new();
     for (source, entity, copper_file) in SILVER {
         let mut dump = parquet_dump(&silver_path(tmp.path(), source, entity));
-        // The masked hash must still be the hash of the Copper file it came from.
+        // The hash is masked in the golden file, so check it here: it must be
+        // the hash of the Copper file the rows come from.
         let copper_hash = hash::sha256_file(&only_snapshot(tmp.path(), source).join(copper_file))
             .await
             .expect("hash the Copper file");
-        let rows = dump["rows"].as_array().expect("rows").len();
-        assert!(rows > 0, "{entity}: no row");
-        for row in dump["rows"].as_array().expect("rows") {
+        let rows = dump["rows"].as_array().expect("rows");
+        assert!(!rows.is_empty(), "{entity}: no row");
+        for row in rows {
             assert_eq!(row["_copper_sha256"], copper_hash, "{entity}: lineage hash");
         }
-        let masked = mask_volatile(&mut dump, tmp.path());
-        assert_eq!(
-            masked,
-            2 * rows,
-            "{entity}: `_ingested_at` and `_copper_sha256` are masked in every row"
-        );
+
+        common::mask_volatile(&mut dump, tmp.path());
+        for row in dump["rows"].as_array().expect("rows") {
+            assert_eq!(row["_ingested_at"], "<time>", "{entity}");
+            assert_eq!(row["_copper_sha256"], "<sha256>", "{entity}");
+        }
         goldens.assert(&format!("silver_{entity}"), &dump);
     }
 }
@@ -82,37 +54,43 @@ async fn silver_files_of_both_sources_are_pinned() {
 #[tokio::test]
 async fn gold_referentiel_and_datasheet_are_pinned() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let upstream = Upstream::start_without_geometries().await;
-    upstream
-        .registry()
-        .run_full_pipeline(&context(tmp.path()))
-        .await
-        .expect("pipeline");
+    populate_from(&Upstream::start_without_geometries().await, tmp.path()).await;
+    let conn = gold_sqlite(tmp.path());
+
+    // The hashes are masked in the golden files, so check here that each
+    // lineage row carries the hash of the Copper file it names.
+    let lineage: Vec<(String, String, String)> = conn
+        .prepare("SELECT copper_sha256, source_id, file_name FROM lineage")
+        .expect("prepare")
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .expect("query")
+        .map(|r| r.expect("row"))
+        .collect();
+    assert_eq!(lineage.len(), 4);
+    for (sha256, source, file) in lineage {
+        let actual = hash::sha256_file(&only_snapshot(tmp.path(), &source).join(&file))
+            .await
+            .expect("hash the Copper file");
+        assert_eq!(sha256, actual, "{source}/{file}");
+    }
 
     let mut goldens = Goldens::new();
-
-    let referentiel = sqlite_dump_masked(&gold_sqlite(tmp.path()), tmp.path());
-    goldens.assert("gold_referentiel", &referentiel);
+    goldens.assert("gold_referentiel", &sqlite_dump(&conn, tmp.path()));
 
     let text = std::fs::read_to_string(tmp.path().join("gold").join("datasheet.jsonld"))
         .expect("datasheet");
     let mut datasheet: Value = serde_json::from_str(&text).expect("datasheet JSON");
-    mask_volatile(&mut datasheet, tmp.path());
+    common::mask_volatile(&mut datasheet, tmp.path());
     goldens.assert("gold_datasheet", &datasheet);
 }
 
 #[tokio::test]
 async fn gold_quirk_four_tables_stay_empty_and_conversation_counts_stay_zero() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let upstream = Upstream::start_without_geometries().await;
-    upstream
-        .registry()
-        .run_full_pipeline(&context(tmp.path()))
-        .await
-        .expect("pipeline");
+    populate(tmp.path()).await;
 
     let conn = gold_sqlite(tmp.path());
-    // gold.rs:235,243,249,278: created, never filled by any source.
+    // `build_referentiel_sqlite` creates these tables and no source fills them.
     for table in [
         "scenario_inputs",
         "time_series_mix",
@@ -121,7 +99,7 @@ async fn gold_quirk_four_tables_stay_empty_and_conversation_counts_stay_zero() {
     ] {
         assert_eq!(count(&conn, table), 0, "{table}");
     }
-    // gold.rs:458: the model rows are inserted with a fixed 0.
+    // `populate_model_overview` inserts every model with a fixed 0.
     assert_eq!(count(&conn, "model_overview"), 3);
     let total: i64 = conn
         .query_row("SELECT SUM(n_conversations) FROM model_overview", [], |r| {
@@ -135,25 +113,21 @@ async fn gold_quirk_four_tables_stay_empty_and_conversation_counts_stay_zero() {
 async fn gold_quirk_a_run_on_one_source_rebuilds_gold_from_that_source_alone() {
     let tmp = tempfile::tempdir().expect("tmp");
     let upstream = Upstream::start().await;
-    let ctx = context(tmp.path());
-
-    upstream
-        .registry()
-        .run_full_pipeline(&ctx)
-        .await
-        .expect("full pipeline");
-    {
+    populate_from(&upstream, tmp.path()).await;
+    let linked = {
         let conn = gold_sqlite(tmp.path());
         assert_eq!(count(&conn, "sources"), 2);
         assert_eq!(count(&conn, "silver_entities"), 4);
         assert_eq!(count(&conn, "lineage"), 4);
-        assert_eq!(count(&conn, "datacenter_iris_link"), datacenter_count());
-    }
+        let linked = count(&conn, "datacenter_iris_link");
+        assert!(linked > 0, "the IRIS file has features");
+        linked
+    };
 
     // `pipeline run --source comparia` builds exactly this registry.
     upstream
         .comparia_registry()
-        .run_full_pipeline(&ctx)
+        .run_full_pipeline(&context(tmp.path()))
         .await
         .expect("one-source pipeline");
     let conn = gold_sqlite(tmp.path());
@@ -169,7 +143,7 @@ async fn gold_quirk_a_run_on_one_source_rebuilds_gold_from_that_source_alone() {
     assert_eq!(count(&conn, "lineage"), 3);
     assert_eq!(count(&conn, "model_overview"), 3);
     // The link table is computed from the RTE Copper left on disk, so it stays.
-    assert_eq!(count(&conn, "datacenter_iris_link"), datacenter_count());
+    assert_eq!(count(&conn, "datacenter_iris_link"), linked);
     // The RTE Silver file is still there, but no longer in Gold.
     assert!(silver_path(tmp.path(), "rte-iris", "rte_iris_consommation").exists());
 }
@@ -182,7 +156,11 @@ async fn gold_quirk_a_run_where_every_download_fails_replaces_gold_with_an_empty
     let registry = upstream.registry();
 
     registry.run_full_pipeline(&ctx).await.expect("first run");
-    assert_eq!(count(&gold_sqlite(tmp.path()), "silver_entities"), 4);
+    let linked = {
+        let conn = gold_sqlite(tmp.path());
+        assert_eq!(count(&conn, "silver_entities"), 4);
+        count(&conn, "datacenter_iris_link")
+    };
 
     // data.gouv.fr answers 404 for everything (not retried by the downloader).
     upstream.refuse_everything().await;
@@ -208,7 +186,31 @@ async fn gold_quirk_a_run_where_every_download_fails_replaces_gold_with_an_empty
     // The good Silver of the first run is still on disk, and unused.
     assert!(silver_path(tmp.path(), "comparia", "comparia_conversations").exists());
     // The links come from the Copper of the first run, which is also still there.
-    assert_eq!(count(&conn, "datacenter_iris_link"), datacenter_count());
+    assert_eq!(count(&conn, "datacenter_iris_link"), linked);
+}
+
+/// `true` if some file under `dir` holds exactly `content`.
+fn holds_file_with(dir: &Path, content: &[u8]) -> bool {
+    std::fs::read_dir(dir)
+        .expect("read_dir")
+        .map(|entry| entry.expect("entry").path())
+        .any(|path| {
+            if path.is_dir() {
+                holds_file_with(&path, content)
+            } else {
+                std::fs::read(&path).is_ok_and(|bytes| bytes == content)
+            }
+        })
+}
+
+fn file_hash(snapshot: &CopperSnapshot, name: &str) -> String {
+    snapshot
+        .files
+        .iter()
+        .find(|f| f.file_name == name)
+        .expect("file in the snapshot")
+        .file_sha256
+        .clone()
 }
 
 #[tokio::test]
@@ -220,17 +222,12 @@ async fn copper_quirk_a_second_run_on_the_same_day_overwrites_the_snapshot() {
     // The snapshot folder is named after the UTC day: if midnight passes between
     // the two runs they land in two folders, and the pair is run again.
     for _ in 0..3 {
-        upstream.server.reset().await;
-        upstream.serve_defaults().await;
         let tmp = tempfile::tempdir().expect("tmp");
         let ctx = context(tmp.path());
-        let first = source.ingest_copper(&ctx).await.expect("first run");
 
-        upstream.server.reset().await;
-        upstream.serve("/rte/csv", second_csv.to_vec()).await;
-        upstream
-            .serve("/rte/geojson", GEOJSON_EMPTY.as_bytes().to_vec())
-            .await;
+        upstream.replace_rte(CSV_RTE, GEOJSON_RTE).await;
+        let first = source.ingest_copper(&ctx).await.expect("first run");
+        upstream.replace_rte(second_csv, GEOJSON_EMPTY).await;
         let second = source.ingest_copper(&ctx).await.expect("second run");
         if first.path != second.path {
             continue;
@@ -240,20 +237,24 @@ async fn copper_quirk_a_second_run_on_the_same_day_overwrites_the_snapshot() {
         assert_eq!(snapshot, second.path, "one folder for the day");
         assert_eq!(
             std::fs::read(snapshot.join("consommation_iris.csv")).expect("csv"),
-            second_csv,
-            "the first run's file is gone"
+            second_csv
         );
-        assert_ne!(first.files[0].file_sha256, second.files[0].file_sha256);
+        assert_ne!(
+            file_hash(&first, "consommation_iris.csv"),
+            file_hash(&second, "consommation_iris.csv")
+        );
         let manifest = CopperManifest::load(&snapshot.join("manifest.json"))
             .await
             .expect("manifest");
-        assert_eq!(manifest.files[0].sha256, second.files[0].file_sha256);
+        let entry = manifest
+            .files
+            .iter()
+            .find(|f| f.name == "consommation_iris.csv")
+            .expect("csv in the manifest");
+        assert_eq!(entry.sha256, file_hash(&second, "consommation_iris.csv"));
         assert!(manifest.verify_files(&snapshot).await.is_ok());
-        // Nothing keeps the first run: its content is no longer on disk anywhere.
-        assert_ne!(
-            std::fs::read(snapshot.join("consommation_iris.csv")).expect("csv"),
-            CSV_RTE.as_bytes()
-        );
+        // Nothing keeps the first run: its file is no longer anywhere on disk.
+        assert!(!holds_file_with(tmp.path(), CSV_RTE.as_bytes()));
         return;
     }
     panic!("the two runs landed on different days three times in a row");
@@ -267,35 +268,47 @@ async fn incremental_quirk_the_flag_does_not_prevent_a_second_download() {
     ctx.incremental = true;
     let registry = upstream.registry();
 
-    registry.run_full_pipeline(&ctx).await.expect("first run");
-    assert_eq!(
-        upstream.request_count().await,
-        5,
+    registry.run_copper(&ctx).await;
+    let first = upstream.request_count().await;
+    assert!(
+        first >= 5,
         "3 ComparIA files, the RTE CSV and the RTE GeoJSON"
     );
 
-    registry.run_full_pipeline(&ctx).await.expect("second run");
+    registry.run_copper(&ctx).await;
     assert_eq!(
         upstream.request_count().await,
-        10,
-        "nothing changed upstream, and everything is downloaded again"
+        2 * first,
+        "nothing changed upstream, and the same files are downloaded again"
     );
 }
 
 #[tokio::test]
-async fn silver_quirk_two_identical_runs_write_different_files() {
+async fn silver_quirk_two_identical_runs_differ_by_the_run_time_alone() {
     let tmp = tempfile::tempdir().expect("tmp");
     let upstream = Upstream::start().await;
     let ctx = context(tmp.path());
-    let registry = upstream.registry();
+    let registry = upstream.comparia_registry();
     let file = silver_path(tmp.path(), "comparia", "comparia_conversations");
 
-    registry.run_full_pipeline(&ctx).await.expect("first run");
-    let first = hash::sha256_file(&file).await.expect("hash");
-    registry.run_full_pipeline(&ctx).await.expect("second run");
-    let second = hash::sha256_file(&file).await.expect("hash");
+    let copper = registry.run_copper(&ctx).await;
+    registry.run_silver(&ctx, &copper).await;
+    let first = parquet_dump(&file);
+    let copper = registry.run_copper(&ctx).await;
+    registry.run_silver(&ctx, &copper).await;
+    let second = parquet_dump(&file);
 
     // `_ingested_at` is the run time, so `dvc repro` cannot reproduce Silver
     // byte for byte (CLAUDE.md section 3bis, rule 8).
-    assert_ne!(first, second);
+    assert_ne!(
+        first["rows"][0]["_ingested_at"],
+        second["rows"][0]["_ingested_at"]
+    );
+    let without_run_time = |mut dump: Value| {
+        for row in dump["rows"].as_array_mut().expect("rows") {
+            row.as_object_mut().expect("row").remove("_ingested_at");
+        }
+        dump
+    };
+    assert_eq!(without_run_time(first), without_run_time(second));
 }

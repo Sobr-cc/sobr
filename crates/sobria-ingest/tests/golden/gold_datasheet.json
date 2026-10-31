@@ -58,7 +58,7 @@
     {
       "@id": "sobria:silver:comparia_conversations",
       "@type": "prov:Entity",
-      "prov:wasDerivedFrom": ["sobria:copper:a1afed3b2b880085f0991eb0ede289249b4503999da2a8256aed4c86525a83a7"],
+      "prov:wasDerivedFrom": ["sobria:copper:<sha256>"],
       "schema:name": "comparia_conversations",
       "schema:version": "v1",
       "sobria:rowCount": 3
@@ -66,7 +66,7 @@
     {
       "@id": "sobria:silver:comparia_votes",
       "@type": "prov:Entity",
-      "prov:wasDerivedFrom": ["sobria:copper:b45c923409722351d2ef91aa40db17bfc29c07b85b46ad43d84df88ae4735511"],
+      "prov:wasDerivedFrom": ["sobria:copper:<sha256>"],
       "schema:name": "comparia_votes",
       "schema:version": "v1",
       "sobria:rowCount": 2
@@ -74,7 +74,7 @@
     {
       "@id": "sobria:silver:comparia_reactions",
       "@type": "prov:Entity",
-      "prov:wasDerivedFrom": ["sobria:copper:f951a0cf3b5f09383419535df197258524f137661cf91a3fa9a0ecc2b65e5ab2"],
+      "prov:wasDerivedFrom": ["sobria:copper:<sha256>"],
       "schema:name": "comparia_reactions",
       "schema:version": "v1",
       "sobria:rowCount": 1
@@ -82,7 +82,7 @@
     {
       "@id": "sobria:silver:rte_iris_consommation",
       "@type": "prov:Entity",
-      "prov:wasDerivedFrom": ["sobria:copper:d515a0b67e114d44a4519fc80a3eff0cbb0d8a363dd04edd138831dedbd72de5"],
+      "prov:wasDerivedFrom": ["sobria:copper:<sha256>"],
       "schema:name": "rte_iris_consommation",
       "schema:version": "v1",
       "sobria:rowCount": 2
@@ -139,28 +139,28 @@
   "schema:version": "<crate-version>",
   "sobria:copperReferences": [
     {
-      "@id": "sobria:copper:a1afed3b2b880085f0991eb0ede289249b4503999da2a8256aed4c86525a83a7",
+      "@id": "sobria:copper:<sha256>",
       "@type": "prov:Entity",
       "prov:wasAttributedTo": "sobria:source:comparia",
       "schema:identifier": "<sha256>",
       "schema:name": "conversations.parquet"
     },
     {
-      "@id": "sobria:copper:b45c923409722351d2ef91aa40db17bfc29c07b85b46ad43d84df88ae4735511",
+      "@id": "sobria:copper:<sha256>",
       "@type": "prov:Entity",
       "prov:wasAttributedTo": "sobria:source:comparia",
       "schema:identifier": "<sha256>",
       "schema:name": "votes.parquet"
     },
     {
-      "@id": "sobria:copper:f951a0cf3b5f09383419535df197258524f137661cf91a3fa9a0ecc2b65e5ab2",
+      "@id": "sobria:copper:<sha256>",
       "@type": "prov:Entity",
       "prov:wasAttributedTo": "sobria:source:comparia",
       "schema:identifier": "<sha256>",
       "schema:name": "reactions.parquet"
     },
     {
-      "@id": "sobria:copper:d515a0b67e114d44a4519fc80a3eff0cbb0d8a363dd04edd138831dedbd72de5",
+      "@id": "sobria:copper:<sha256>",
       "@type": "prov:Entity",
       "prov:wasAttributedTo": "sobria:source:rte-iris",
       "schema:identifier": "<sha256>",

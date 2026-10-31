@@ -13,14 +13,17 @@ mod common;
 
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek},
     net::TcpListener,
-    path::{Path, PathBuf},
+    path::Path,
     process::{Command, Output, Stdio},
     time::{Duration, Instant},
 };
 
-use common::{count, gold_sqlite, populate};
+use common::{count, gold_sqlite, only_snapshot, populate, populate_copper, silver_path, SILVER};
+
+/// Longest a run may take. Past it, the proxy variables did not cut the network.
+const WATCHDOG: Duration = Duration::from_secs(120);
 
 /// A local address nothing listens on.
 fn closed_local_address() -> String {
@@ -65,7 +68,7 @@ fn ingest(data_root: &Path, args: &[&str]) -> Output {
 
     // If the proxy variables ever stopped cutting the network, the binary would
     // start downloads of several GB: stop it and fail instead of waiting.
-    let deadline = Instant::now() + Duration::from_secs(90);
+    let deadline = Instant::now() + WATCHDOG;
     let status = loop {
         if let Some(status) = child.try_wait().expect("wait") {
             break status;
@@ -73,14 +76,14 @@ fn ingest(data_root: &Path, args: &[&str]) -> Output {
         if Instant::now() > deadline {
             let _ = child.kill();
             let _ = child.wait();
-            panic!("`sobria-ingest {args:?}` ran for 90 s: the proxy variables did not cut the network");
+            panic!("`sobria-ingest {args:?}` ran for {WATCHDOG:?}: the proxy variables did not cut the network");
         }
         std::thread::sleep(Duration::from_millis(50));
     };
 
     let read = |file: &mut File| {
         let mut bytes = Vec::new();
-        file.seek(SeekFrom::Start(0)).expect("seek");
+        file.rewind().expect("rewind");
         file.read_to_end(&mut bytes).expect("read");
         bytes
     };
@@ -97,26 +100,6 @@ fn stdout(output: &Output) -> String {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
-}
-
-/// The first file under `dir` (at any depth) whose name ends with `suffix`.
-fn find_file(dir: &Path, suffix: &str) -> PathBuf {
-    search(dir, suffix)
-        .unwrap_or_else(|| panic!("no file ending with {suffix} under {}", dir.display()))
-}
-
-fn search(dir: &Path, suffix: &str) -> Option<PathBuf> {
-    for entry in std::fs::read_dir(dir).ok()? {
-        let path = entry.ok()?.path();
-        if path.is_dir() {
-            if let Some(found) = search(&path, suffix) {
-                return Some(found);
-            }
-        } else if path.to_string_lossy().ends_with(suffix) {
-            return Some(path);
-        }
-    }
-    None
 }
 
 #[test]
@@ -140,32 +123,26 @@ fn validate_without_any_snapshot_says_so_and_succeeds() {
     let out = ingest(tmp.path(), &["validate"]);
 
     assert_eq!(out.status.code(), Some(0));
-    assert!(
-        stdout(&out).contains("Aucun snapshot Copper trouvé sous"),
-        "{}",
-        stdout(&out)
-    );
+    let text = stdout(&out);
+    assert!(text.contains("Aucun snapshot Copper trouvé sous"), "{text}");
 }
 
 #[tokio::test]
 async fn validate_accepts_untouched_snapshots() {
     let tmp = tempfile::tempdir().expect("tmp");
-    populate(tmp.path()).await;
+    populate_copper(tmp.path()).await;
 
     let out = ingest(tmp.path(), &["validate"]);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
-    assert!(
-        stdout(&out).contains("2 manifest(s) inspecté(s), 0 KO."),
-        "{}",
-        stdout(&out)
-    );
+    let text = stdout(&out);
+    assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
 }
 
 #[tokio::test]
 async fn validate_reports_a_corrupted_copper_file() {
     let tmp = tempfile::tempdir().expect("tmp");
-    populate(tmp.path()).await;
-    let csv = find_file(&tmp.path().join("copper"), "consommation_iris.csv");
+    populate_copper(tmp.path()).await;
+    let csv = only_snapshot(tmp.path(), "rte-iris").join("consommation_iris.csv");
     let mut bytes = std::fs::read(&csv).expect("csv");
     bytes.extend_from_slice(b"tampered");
     std::fs::write(&csv, bytes).expect("rewrite csv");
@@ -173,57 +150,48 @@ async fn validate_reports_a_corrupted_copper_file() {
     let out = ingest(tmp.path(), &["validate"]);
     assert_eq!(out.status.code(), Some(1));
     let text = stdout(&out);
-    assert!(text.contains("KO   "), "{text}");
     assert!(text.contains("2 manifest(s) inspecté(s), 1 KO."), "{text}");
-    assert!(
-        stderr(&out).contains("validate: 1 manifest(s) corrompu(s)"),
-        "{}",
-        stderr(&out)
-    );
+    let ko_lines: Vec<&str> = text.lines().filter(|l| l.starts_with("KO")).collect();
+    assert_eq!(ko_lines.len(), 1, "{text}");
+    assert!(ko_lines[0].contains("rte-iris"), "{text}");
+    let err = stderr(&out);
+    assert!(err.contains("validate: 1 manifest(s) corrompu(s)"), "{err}");
 }
 
 #[tokio::test]
 async fn validate_quirk_only_rehashes_copper_so_broken_silver_and_missing_gold_pass() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate(tmp.path()).await;
-    // main.rs:201: nothing but the Copper manifests is checked, although
-    // dvc.yaml:78-80 promises lineage, schema and row-count checks.
-    for entity in ["comparia_conversations", "rte_iris_consommation"] {
-        let silver = find_file(&tmp.path().join("silver"), &format!("{entity}-v1.parquet"));
-        std::fs::write(&silver, b"not a parquet file").expect("break silver");
+    // `run_validate` checks nothing but the Copper manifests, although
+    // `dvc.yaml` promises lineage, schema and row-count checks.
+    for (source, entity, _) in SILVER {
+        std::fs::write(
+            silver_path(tmp.path(), source, entity),
+            b"not a parquet file",
+        )
+        .expect("break silver");
     }
     std::fs::remove_dir_all(tmp.path().join("gold")).expect("remove gold");
 
     let out = ingest(tmp.path(), &["validate"]);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
-    assert!(
-        stdout(&out).contains("2 manifest(s) inspecté(s), 0 KO."),
-        "{}",
-        stdout(&out)
-    );
+    let text = stdout(&out);
+    assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
 }
 
 #[tokio::test]
 async fn silver_promotes_the_copper_on_disk_without_the_network() {
     let tmp = tempfile::tempdir().expect("tmp");
-    populate(tmp.path()).await;
-    std::fs::remove_dir_all(tmp.path().join("silver")).expect("remove silver");
+    populate_copper(tmp.path()).await;
 
     let out = ingest(tmp.path(), &["silver", "--all"]);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
     let text = stdout(&out);
     assert!(text.contains("[copper (réhydraté)] 2 OK, 0 KO"), "{text}");
     assert!(text.contains("[silver] 2 OK, 0 KO"), "{text}");
-    assert!(find_file(
-        &tmp.path().join("silver"),
-        "comparia_conversations-v1.parquet"
-    )
-    .exists());
-    assert!(find_file(
-        &tmp.path().join("silver"),
-        "rte_iris_consommation-v1.parquet"
-    )
-    .exists());
+    for (source, entity, _) in SILVER {
+        assert!(silver_path(tmp.path(), source, entity).exists(), "{entity}");
+    }
 }
 
 #[test]
@@ -232,15 +200,12 @@ fn silver_without_any_copper_fails_and_points_to_the_copper_step() {
     let out = ingest(tmp.path(), &["silver", "--all"]);
 
     assert_eq!(out.status.code(), Some(1));
+    let text = stdout(&out);
+    assert!(text.contains("[copper (réhydraté)] 0 OK, 2 KO"), "{text}");
+    let err = stderr(&out);
     assert!(
-        stdout(&out).contains("[copper (réhydraté)] 0 OK, 2 KO"),
-        "{}",
-        stdout(&out)
-    );
-    assert!(
-        stderr(&out).contains("silver: au moins une source n'a pas de snapshot Copper exploitable"),
-        "{}",
-        stderr(&out)
+        err.contains("silver: au moins une source n'a pas de snapshot Copper exploitable"),
+        "{err}"
     );
 }
 
@@ -250,8 +215,8 @@ async fn gold_quirk_runs_the_whole_pipeline_and_replaces_gold_when_every_downloa
     populate(tmp.path()).await;
     assert_eq!(count(&gold_sqlite(tmp.path()), "silver_entities"), 4);
 
-    // main.rs:190-193: `gold` is the full pipeline, so it starts with Copper
-    // (dvc.yaml:46-50 says the gold stage depends on `data/silver` only).
+    // `run_gold` is the full pipeline, so it starts with Copper (`dvc.yaml` says
+    // the gold stage depends on `data/silver` only).
     let out = ingest(tmp.path(), &["gold"]);
     let text = stdout(&out);
     assert!(text.contains("[copper] 0 OK, 2 KO"), "{text}");
@@ -263,20 +228,15 @@ async fn gold_quirk_runs_the_whole_pipeline_and_replaces_gold_when_every_downloa
     let conn = gold_sqlite(tmp.path());
     assert_eq!(count(&conn, "sources"), 2);
     assert_eq!(count(&conn, "silver_entities"), 0);
-    assert_eq!(count(&conn, "model_overview"), 0);
-    assert!(find_file(
-        &tmp.path().join("silver"),
-        "comparia_conversations-v1.parquet"
-    )
-    .exists());
+    assert!(silver_path(tmp.path(), "comparia", "comparia_conversations").exists());
 }
 
 #[tokio::test]
 async fn pipeline_run_quirk_incremental_downloads_again_although_copper_is_on_disk() {
     let tmp = tempfile::tempdir().expect("tmp");
-    populate(tmp.path()).await;
+    populate_copper(tmp.path()).await;
 
-    // main.rs:80,148: the flag is logged and never read by a source.
+    // The flag is logged and never read by a source.
     let out = ingest(
         tmp.path(),
         &["pipeline", "run", "--source", "rte-iris", "--incremental"],

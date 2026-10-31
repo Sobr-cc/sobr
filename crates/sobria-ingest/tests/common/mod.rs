@@ -25,7 +25,7 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
 };
 
-/// Routes served by [`Upstream`] and the Copper file name of each.
+/// `(route, Copper file, Silver entity)` of the three ComparIA files.
 pub const COMPARIA_ROUTES: [(&str, &str, &str); 3] = [
     (
         "/comparia/conversations",
@@ -38,6 +38,19 @@ pub const COMPARIA_ROUTES: [(&str, &str, &str); 3] = [
         "reactions.parquet",
         "comparia_reactions",
     ),
+];
+
+/// `(source, Silver entity, Copper file it comes from)`: every Silver file of
+/// the two sources.
+pub const SILVER: [(&str, &str, &str); 4] = [
+    (
+        "comparia",
+        "comparia_conversations",
+        "conversations.parquet",
+    ),
+    ("comparia", "comparia_votes", "votes.parquet"),
+    ("comparia", "comparia_reactions", "reactions.parquet"),
+    ("rte-iris", "rte_iris_consommation", "consommation_iris.csv"),
 ];
 
 pub const CSV_RTE: &str = "code_iris,conso_elec_mwh,conso_gaz_mwh,nb_sites,annee
@@ -63,60 +76,48 @@ fn parquet(mut df: DataFrame) -> Vec<u8> {
     buf
 }
 
-pub fn comparia_conversations() -> Vec<u8> {
-    parquet(
-        df![
-            "id" => [1u32, 2, 3],
-            "model" => ["gpt-4o-mini", "claude-3-5", "mistral-large"],
-        ]
-        .expect("conversations frame"),
-    )
-}
-
-pub fn comparia_votes() -> Vec<u8> {
-    parquet(df!["id" => [1u32, 2], "choice" => ["a", "b"]].expect("votes frame"))
-}
-
-pub fn comparia_reactions() -> Vec<u8> {
-    parquet(df!["id" => [1u32], "reaction" => ["like"]].expect("reactions frame"))
+fn comparia_bodies() -> [Vec<u8>; 3] {
+    [
+        parquet(
+            df![
+                "id" => [1u32, 2, 3],
+                "model" => ["gpt-4o-mini", "claude-3-5", "mistral-large"],
+            ]
+            .expect("conversations frame"),
+        ),
+        parquet(df!["id" => [1u32, 2], "choice" => ["a", "b"]].expect("votes frame")),
+        parquet(df!["id" => [1u32], "reaction" => ["like"]].expect("reactions frame")),
+    ]
 }
 
 /// A local server that plays data.gouv.fr: it serves the five upstream files
 /// and counts the requests it receives.
 pub struct Upstream {
-    pub server: MockServer,
+    server: MockServer,
 }
 
 impl Upstream {
     pub async fn start() -> Self {
-        let upstream = Self {
-            server: MockServer::start().await,
-        };
-        upstream.serve_defaults().await;
-        upstream
+        Self::start_with(GEOJSON_RTE).await
     }
 
     /// Like [`Upstream::start`], with [`GEOJSON_EMPTY`] as the IRIS file.
     pub async fn start_without_geometries() -> Self {
+        Self::start_with(GEOJSON_EMPTY).await
+    }
+
+    async fn start_with(geojson: &str) -> Self {
         let upstream = Self {
             server: MockServer::start().await,
         };
-        upstream.serve_all(GEOJSON_EMPTY).await;
+        for ((route, _, _), body) in COMPARIA_ROUTES.iter().zip(comparia_bodies()) {
+            upstream.serve(route, body).await;
+        }
+        upstream.serve_rte(CSV_RTE, geojson).await;
         upstream
     }
 
-    async fn serve_all(&self, geojson: &str) {
-        self.serve("/comparia/conversations", comparia_conversations())
-            .await;
-        self.serve("/comparia/votes", comparia_votes()).await;
-        self.serve("/comparia/reactions", comparia_reactions())
-            .await;
-        self.serve("/rte/csv", CSV_RTE.as_bytes().to_vec()).await;
-        self.serve("/rte/geojson", geojson.as_bytes().to_vec())
-            .await;
-    }
-
-    pub async fn serve(&self, route: &str, body: Vec<u8>) {
+    async fn serve(&self, route: &str, body: impl Into<Vec<u8>>) {
         Mock::given(method("GET"))
             .and(wm_path(route))
             .respond_with(ResponseTemplate::new(200).set_body_bytes(body))
@@ -124,8 +125,15 @@ impl Upstream {
             .await;
     }
 
-    pub async fn serve_defaults(&self) {
-        self.serve_all(GEOJSON_RTE).await;
+    async fn serve_rte(&self, csv: impl Into<Vec<u8>>, geojson: &str) {
+        self.serve("/rte/csv", csv).await;
+        self.serve("/rte/geojson", geojson).await;
+    }
+
+    /// Serves these two RTE files and nothing else.
+    pub async fn replace_rte(&self, csv: impl Into<Vec<u8>>, geojson: &str) {
+        self.server.reset().await;
+        self.serve_rte(csv, geojson).await;
     }
 
     /// Replaces every route by a `404` (not retried by the downloader).
@@ -176,17 +184,16 @@ impl Upstream {
         )
     }
 
-    /// Both sources, like `LayerRegistry::standard()` but on the local server.
-    pub fn registry(&self) -> LayerRegistry {
-        let mut registry = LayerRegistry::new();
-        registry.register(Arc::new(self.comparia()));
-        registry.register(Arc::new(self.rte_iris()));
-        registry
-    }
-
     pub fn comparia_registry(&self) -> LayerRegistry {
         let mut registry = LayerRegistry::new();
         registry.register(Arc::new(self.comparia()));
+        registry
+    }
+
+    /// Both sources, like `LayerRegistry::standard()` but on the local server.
+    pub fn registry(&self) -> LayerRegistry {
+        let mut registry = self.comparia_registry();
+        registry.register(Arc::new(self.rte_iris()));
         registry
     }
 }
@@ -194,15 +201,12 @@ impl Upstream {
 pub fn context(data_root: &Path) -> Context {
     Context {
         data_root: data_root.to_path_buf(),
-        incremental: false,
-        seed: 42,
+        ..Context::default()
     }
 }
 
-/// Runs the full pipeline of both sources into `data_root`, then stops the
-/// local server: what is left on disk is a normal Copper, Silver and Gold.
-pub async fn populate(data_root: &Path) {
-    let upstream = Upstream::start().await;
+/// Runs the full pipeline of both sources against `upstream` into `data_root`.
+pub async fn populate_from(upstream: &Upstream, data_root: &Path) {
     let report = upstream
         .registry()
         .run_full_pipeline(&context(data_root))
@@ -211,9 +215,25 @@ pub async fn populate(data_root: &Path) {
     assert!(report.failed_sources().is_empty(), "{report:?}");
 }
 
+/// Copper, Silver and Gold of both sources, then the local server stops: what
+/// is left on disk is a normal data folder.
+pub async fn populate(data_root: &Path) {
+    populate_from(&Upstream::start().await, data_root).await;
+}
+
+/// Only the Copper of both sources.
+pub async fn populate_copper(data_root: &Path) {
+    let copper = Upstream::start()
+        .await
+        .registry()
+        .run_copper(&context(data_root))
+        .await;
+    assert!(copper.iter().all(|step| step.is_ok()), "Copper failed");
+}
+
 /// The only snapshot folder of a source under `data/copper/<source>/`.
 pub fn only_snapshot(data_root: &Path, source: &str) -> PathBuf {
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(data_root.join("copper").join(source))
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(context(data_root).copper_root(source))
         .expect("copper folder")
         .map(|entry| entry.expect("entry").path())
         .collect();
@@ -221,8 +241,15 @@ pub fn only_snapshot(data_root: &Path, source: &str) -> PathBuf {
     dirs.pop().expect("one folder")
 }
 
+pub fn silver_path(data_root: &Path, source: &str, entity: &str) -> PathBuf {
+    context(data_root)
+        .silver_root(source)
+        .join(format!("{entity}-v1.parquet"))
+}
+
 pub fn gold_sqlite(data_root: &Path) -> Connection {
-    Connection::open(data_root.join("gold").join("referentiel.sqlite")).expect("open the Gold")
+    Connection::open(context(data_root).gold_root().join("referentiel.sqlite"))
+        .expect("open the Gold")
 }
 
 pub fn count(conn: &Connection, table: &str) -> i64 {
@@ -245,22 +272,20 @@ pub fn parquet_dump(path: &Path) -> Value {
         .iter()
         .map(|c| json!({"name": c.name().as_str(), "dtype": c.dtype().to_string()}))
         .collect();
-    let as_text: Vec<(String, Column)> = df
+    let as_text: Vec<Column> = df
         .get_columns()
         .iter()
-        .map(|c| {
-            (
-                c.name().to_string(),
-                c.cast(&DataType::String).expect("cast to text"),
-            )
-        })
+        .map(|c| c.cast(&DataType::String).expect("cast to text"))
         .collect();
     let rows: Vec<Value> = (0..df.height())
         .map(|i| {
             let mut row = Map::new();
-            for (name, column) in &as_text {
+            for column in &as_text {
                 let cell = column.str().expect("text column").get(i);
-                row.insert(name.clone(), cell.map_or(Value::Null, |s| json!(s)));
+                row.insert(
+                    column.name().to_string(),
+                    cell.map_or(Value::Null, |s| json!(s)),
+                );
             }
             Value::Object(row)
         })
@@ -278,9 +303,11 @@ fn cell(value: ValueRef<'_>) -> Value {
     }
 }
 
-/// The Gold SQLite as `{tables: {name: {sql, row_count, rows}}, indexes}`.
-/// The shadow tables of the full-text index are left out.
-pub fn sqlite_dump(conn: &Connection) -> Value {
+/// The Gold SQLite as `{tables: {name: {sql, rows}}, indexes}`, masked.
+/// The shadow tables of the full-text index are left out, the SQL text is
+/// read without its indentation, and the rows are ordered by their masked
+/// text: the order must not depend on the value of a hash.
+pub fn sqlite_dump(conn: &Connection, data_root: &Path) -> Value {
     let mut statement = conn
         .prepare(
             "SELECT name, sql FROM sqlite_master \
@@ -295,17 +322,10 @@ pub fn sqlite_dump(conn: &Connection) -> Value {
 
     let mut out = Map::new();
     for (name, sql) in tables {
-        let width = conn
-            .prepare(&format!("SELECT * FROM {name}"))
-            .expect("select all")
-            .column_count();
-        let order: Vec<String> = (1..=width).map(|i| i.to_string()).collect();
         let mut select = conn
-            .prepare(&format!(
-                "SELECT * FROM {name} ORDER BY {}",
-                order.join(", ")
-            ))
-            .expect("select ordered");
+            .prepare(&format!("SELECT * FROM {name}"))
+            .expect("select all");
+        let width = select.column_count();
         let rows: Vec<Value> = select
             .query_map([], |row| {
                 Ok(Value::Array(
@@ -317,10 +337,7 @@ pub fn sqlite_dump(conn: &Connection) -> Value {
             .expect("rows")
             .map(|r| r.expect("row"))
             .collect();
-        out.insert(
-            name,
-            json!({"sql": sql, "row_count": rows.len(), "rows": rows}),
-        );
+        out.insert(name, json!({"sql": one_line(&sql), "rows": rows}));
     }
 
     let mut statement = conn
@@ -331,42 +348,103 @@ pub fn sqlite_dump(conn: &Connection) -> Value {
         .expect("list indexes");
     let indexes: Vec<Value> = statement
         .query_map([], |row| {
-            Ok(json!({"name": row.get::<_, String>(0)?, "sql": row.get::<_, String>(1)?}))
+            Ok(json!({"name": row.get::<_, String>(0)?, "sql": one_line(&row.get::<_, String>(1)?)}))
         })
         .expect("indexes")
         .map(|r| r.expect("index row"))
         .collect();
 
-    json!({"tables": out, "indexes": indexes})
-}
-
-/// Masks what changes from run to run in a value read back from the pipeline:
-/// timestamps (alone or inside a sentence), the SHA-256 and the size of
-/// generated files, the temp data root and the crate version. Returns the
-/// number of masked values, so a test can check that the masking happened.
-pub fn mask_volatile(value: &mut Value, data_root: &Path) -> usize {
-    let root = data_root.to_string_lossy().replace('\\', "/");
-    mask(value, &root)
-}
-
-/// [`sqlite_dump`] of the Gold, masked. The rows were read ordered by their
-/// raw values, hashes included, so they are ordered again by their masked
-/// text: the order must not depend on the value of a hash.
-pub fn sqlite_dump_masked(conn: &Connection, data_root: &Path) -> Value {
-    let mut dump = sqlite_dump(conn);
+    let mut dump = json!({"tables": out, "indexes": indexes});
     mask_volatile(&mut dump, data_root);
-    if let Some(tables) = dump["tables"].as_object_mut() {
-        for table in tables.values_mut() {
-            if let Some(rows) = table["rows"].as_array_mut() {
-                rows.sort_by_key(ToString::to_string);
-            }
-        }
+    for table in dump["tables"].as_object_mut().expect("tables").values_mut() {
+        table["rows"]
+            .as_array_mut()
+            .expect("rows")
+            .sort_by_key(ToString::to_string);
     }
     dump
 }
 
-/// Replaces the first RFC 3339 timestamp found inside `text`.
-fn mask_embedded_time(text: &str) -> Option<String> {
+fn one_line(sql: &str) -> String {
+    sql.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Masks what changes from run to run in a value read back from the pipeline:
+/// timestamps and SHA-256 hashes (alone or inside a longer string), the size
+/// of generated files, the temp data root and the crate version.
+pub fn mask_volatile(value: &mut Value, data_root: &Path) {
+    let root = data_root.to_string_lossy().replace('\\', "/");
+    mask(value, &root);
+}
+
+fn mask(value: &mut Value, root: &str) {
+    match value {
+        Value::String(text) => *text = mask_text(text, root),
+        Value::Array(items) => items.iter_mut().for_each(|v| mask(v, root)),
+        Value::Object(map) => {
+            for (key, v) in map.iter_mut() {
+                if key == "schema:contentSize" {
+                    *v = json!("<size>");
+                } else {
+                    mask(v, root);
+                }
+            }
+        },
+        _ => {},
+    }
+}
+
+fn mask_text(text: &str, root: &str) -> String {
+    if text == env!("CARGO_PKG_VERSION") {
+        return "<crate-version>".to_string();
+    }
+    let normalized = text.replace('\\', "/");
+    let text = if normalized.contains(root) {
+        normalized.replace(root, "<data_root>")
+    } else {
+        text.to_string()
+    };
+    mask_time(&mask_hash(&text))
+}
+
+/// Replaces each run of exactly 64 hexadecimal digits.
+fn mask_hash(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut run = String::new();
+    // A final non-hex sentinel flushes the last run.
+    for c in text.chars().chain(std::iter::once('\0')) {
+        if c.is_ascii_hexdigit() {
+            run.push(c);
+            continue;
+        }
+        if run.len() == 64 {
+            out.push_str("<sha256>");
+        } else {
+            out.push_str(&run);
+        }
+        run.clear();
+        if c != '\0' {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Replaces each RFC 3339 timestamp.
+fn mask_time(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some((start, end)) = find_time(rest) {
+        out.push_str(&rest[..start]);
+        out.push_str("<time>");
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Byte range of the first RFC 3339 timestamp in `text`.
+fn find_time(text: &str) -> Option<(usize, usize)> {
     for start in 0..text.len().saturating_sub(18) {
         if !text.is_char_boundary(start) {
             continue;
@@ -381,51 +459,12 @@ fn mask_embedded_time(text: &str) -> Option<String> {
         if !looks_like_a_date {
             continue;
         }
-        let end = rest
+        let len = rest
             .find(|c: char| !(c.is_ascii_digit() || "T:.+-Z".contains(c)))
             .unwrap_or(rest.len());
-        if chrono::DateTime::parse_from_rfc3339(&rest[..end]).is_ok() {
-            return Some(format!("{}<time>{}", &text[..start], &rest[end..]));
+        if chrono::DateTime::parse_from_rfc3339(&rest[..len]).is_ok() {
+            return Some((start, start + len));
         }
     }
     None
-}
-
-fn mask(value: &mut Value, root: &str) -> usize {
-    match value {
-        Value::String(text) => {
-            let normalized = text.replace('\\', "/");
-            let masked = if chrono::DateTime::parse_from_rfc3339(text).is_ok() {
-                Some("<time>".to_string())
-            } else if text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit()) {
-                Some("<sha256>".to_string())
-            } else if text == env!("CARGO_PKG_VERSION") {
-                Some("<crate-version>".to_string())
-            } else if normalized.contains(root) {
-                Some(normalized.replace(root, "<data_root>"))
-            } else {
-                mask_embedded_time(text)
-            };
-            match masked {
-                Some(new) => {
-                    *text = new;
-                    1
-                },
-                None => 0,
-            }
-        },
-        Value::Array(items) => items.iter_mut().map(|v| mask(v, root)).sum(),
-        Value::Object(map) => map
-            .iter_mut()
-            .map(|(key, v)| {
-                if key == "schema:contentSize" {
-                    *v = json!("<size>");
-                    1
-                } else {
-                    mask(v, root)
-                }
-            })
-            .sum(),
-        _ => 0,
-    }
 }
