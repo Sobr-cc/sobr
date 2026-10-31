@@ -27,8 +27,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   file does.
 - Not covered: the effect of the "accept invalid certificates" setting on a
   TLS connection (only the stored flag is pinned).
-- Pinned quirks: the new token pair is lost when the retry after a refresh
-  fails, and `team_set_url("https://")` is stored as `https:`.
+- Pinned quirks, filed in Triage: the new token pair is lost when the retry
+  after a refresh fails (SOB-199), and `team_set_url("https://")` is stored as
+  `https:` (SOB-201). The certificate setting is SOB-200; the dead variable
+  of `tests/bridge_server.rs` is SOB-202.
 
 ### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
 
