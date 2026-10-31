@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { estimateFromHome } from './helpers/estimate';
+import { settled } from './helpers/settle';
 
 /**
  * Characterization of the Understand pages in demo mode (SOB-224): what the pages do today,
@@ -113,6 +114,7 @@ test.describe('/modeles', () => {
         /34 visibles/,
         FIRST_PAINT
       );
+      await settled(page);
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }
   });

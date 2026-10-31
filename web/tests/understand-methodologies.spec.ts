@@ -70,6 +70,17 @@ test('quirk — toggling "Voir aussi" overwrites a setting changed elsewhere mea
   expect(stored).toEqual({ ...OPENED_WITH, also_show_methods: [] });
 });
 
+test('a saved default method is still the default after a reload', async ({ page }) => {
+  const cards = await openMethodologies(page);
+  await cards.nth(1).getByRole('button', { name: 'Définir comme par défaut' }).click();
+  await expect(page.getByRole('status')).toHaveText('EcoLogits 2026-01 définie par défaut.');
+
+  await page.reload();
+
+  await expect(cards.nth(1)).toContainText('Par défaut');
+  await expect(cards.nth(0)).not.toContainText('Par défaut');
+});
+
 test('the default method cannot be unchecked as a reference or chosen again', async ({ page }) => {
   const afnor = (await openMethodologies(page)).nth(0);
   const choose = afnor.getByRole('button', { name: 'Méthodo par défaut active' });

@@ -8,6 +8,7 @@ import {
   regionAggregates,
   SANKEY
 } from './helpers/fixtures';
+import { settled } from './helpers/settle';
 import { installTauriStub, ipcCalls } from './helpers/tauri-stub';
 
 /**
@@ -45,6 +46,7 @@ test.describe('/territoire', () => {
 
     await expect(page.locator('.leaflet-container')).toBeAttached(MAP_READY);
     await expect(page.locator('.sankey-card')).toBeVisible();
+    await settled(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
     const calls = await ipcCalls(page, 'list_industrial_sites_fr');
     expect(calls.map((c) => c.args)).toEqual([{ limit: 200, offset: 0 }]);
@@ -57,11 +59,14 @@ test.describe('/territoire', () => {
     await openWith(page, SITES);
     await expect(page.locator('.leaflet-container')).toBeAttached(MAP_READY);
 
+    await settled(page);
     expect(await ipcCalls(page, 'list_industrial_sites_fr')).toHaveLength(1);
-    await expect(
-      page.getByRole('button', { name: /suivant|plus de sites|charger|voir plus/i })
-    ).toHaveCount(0);
-    await expect(page.getByText(/limité|tronqu|seulement les 200|top 200/i)).toHaveCount(0);
+    await expect(page.locator('section.hero')).toHaveText(
+      "Cartographie IRIS · 13 régions L'angle territorial français de l'impact IA. 200 sites industriels FR top-consommateurs (RTE IRIS / ODRÉ), agrégés par région avec leur mix énergétique. Sankey national en bas de page pour situer l'usage IA dans la production électrique réelle 2023."
+    );
+    await expect(page.locator('div.grid')).toHaveText(
+      "Filtres Restreindre la carte Régions toutes IDF Île-de-France 67 ARA Auvergne-Rhône-Alpes 67 HDF Hauts-de-France 66 Conso. ≥ 0 GWh 0 201 GWh +− Leaflet | © OpenStreetMap · © CARTO Zoom 5/18 · vue régionale (13 régions) Cliquez un marker Sites individuels au zoom ≥ 6, agrégats régionaux en dessous. Le détail de la sélection s'affiche ici."
+    );
   });
 
   test('quirk — the hero says 200 sites whatever the backend returned', async ({ page }) => {

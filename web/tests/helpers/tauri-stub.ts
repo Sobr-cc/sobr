@@ -5,8 +5,9 @@ import type { Page } from '@playwright/test';
  * their desktop branch in a plain browser.
  * - `responses`: answer per command; `{ __error: { code, message } }` rejects; no entry
  *   rejects with `tauri_unavailable`.
- * - `state.prefs`: backs `get_app_preferences` / `set_app_preferences`; see `setStubPrefs`.
- * - `ipcCalls` lists every command received.
+ * - `state.prefs`: backs `get_app_preferences` / `set_app_preferences`; kept in `sessionStorage`,
+ *   so it survives a reload; change it from a test with `setStubPrefs`.
+ * - `ipcCalls` lists the commands received since the page loaded (it restarts on a reload).
  */
 type StubState = { prefs?: Record<string, unknown> };
 
@@ -21,29 +22,59 @@ export interface IpcCall {
 }
 
 interface StubWindow {
-  __sobriaIpc: { calls: IpcCall[]; state: StubState };
+  __sobriaIpc: {
+    calls: IpcCall[];
+    state: StubState;
+    setPrefs(prefs: Record<string, unknown>): void;
+  };
 }
 
 export async function installTauriStub(page: Page, stub: IpcStub): Promise<void> {
   await page.addInitScript((options) => {
+    const KEY = '__sobriaIpcState';
     const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value ?? null));
     const calls: IpcCall[] = [];
-    const state: StubState = clone(options.state ?? {});
+    let state: StubState = clone(options.state ?? {});
+    try {
+      const kept = sessionStorage.getItem(KEY);
+      if (kept) state = JSON.parse(kept) as StubState;
+    } catch {
+      // No storage on this document: the state then lasts one page load.
+    }
+    const save = () => {
+      try {
+        sessionStorage.setItem(KEY, JSON.stringify(state));
+      } catch {
+        // See above.
+      }
+    };
+    const setPrefs = (prefs: Record<string, unknown>) => {
+      state.prefs = clone(prefs);
+      save();
+    };
     const invoke = async (cmd: string, args?: Record<string, unknown>) => {
       calls.push({ cmd, args: clone(args) });
       const answer = options.responses[cmd] as { __error?: unknown } | undefined;
       if (answer && typeof answer === 'object' && '__error' in answer) throw answer.__error;
       if (state.prefs && cmd === 'get_app_preferences') return clone(state.prefs);
       if (state.prefs && cmd === 'set_app_preferences') {
-        state.prefs = clone(args?.prefs) as Record<string, unknown>;
+        setPrefs(args?.prefs as Record<string, unknown>);
         return null;
       }
       if (cmd in options.responses) return clone(options.responses[cmd]);
       throw { code: 'tauri_unavailable', message: `stub: no answer for ${cmd}` };
     };
+    Object.defineProperty(window, '__sobriaIpc', {
+      value: {
+        calls,
+        setPrefs,
+        get state() {
+          return state;
+        }
+      }
+    });
     Object.assign(window, {
-      __TAURI_INTERNALS__: { invoke, transformCallback: () => 0, metadata: {} },
-      __sobriaIpc: { calls, state }
+      __TAURI_INTERNALS__: { invoke, transformCallback: () => 0, metadata: {} }
     });
   }, stub);
 }
@@ -59,6 +90,6 @@ export async function stubPrefs(page: Page): Promise<Record<string, unknown> | u
 
 export async function setStubPrefs(page: Page, prefs: Record<string, unknown>): Promise<void> {
   await page.evaluate((next) => {
-    (window as unknown as StubWindow).__sobriaIpc.state.prefs = next;
+    (window as unknown as StubWindow).__sobriaIpc.setPrefs(next);
   }, prefs);
 }
