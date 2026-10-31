@@ -10,12 +10,12 @@
 //!
 //! ## License & attribution
 //!
-//! Les **formules** ici portées sont publiées par Genai Impact sous
-//! licence **CC BY-SA 4.0** ([texte](https://creativecommons.org/licenses/by-sa/4.0/)).
-//! Le code Rust de portage (cette implémentation) est sous licence MIT
-//! pour cohérence avec le reste du projet Sobr.ia. The CC BY-SA attribution
-//! is given by the references above and the methodology card shown in the
-//! app (`/methodologies`); a fuller attribution document is SOB-209.
+//! The **formulas** ported here are published by GenAI Impact under
+//! **CC BY-SA 4.0** ([text](https://creativecommons.org/licenses/by-sa/4.0/)).
+//! This Rust port is under the MIT licence, like the rest of Sobr.ia. The
+//! CC BY-SA attribution is given by the references above and by the
+//! methodology card shown in the app (`/methodologies`); a fuller attribution
+//! document is SOB-209.
 //!
 //! ## Différences avec l'implémentation Python de référence
 //!
@@ -228,7 +228,7 @@ impl EcoLogitsEngine {
         let if_elec = Self::point_value(params.if_electrical_g_per_kwh);
         let wue = Self::point_value(params.wue_l_per_kwh);
 
-        // C34.3 — effective tokens. EcoLogits utilise principalement t_out
+        // Effective tokens. EcoLogits utilise principalement t_out
         // pour ses formules f_energy_per_token / f_latency_per_token ; on y
         // injecte donc l'effective_out (qui inclut thinking auto pour
         // reasoning models). L'overhead côté input (system + tools + memory
@@ -341,7 +341,7 @@ impl EmpreinteEngine for EcoLogitsEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::validation::request_for as req;
+    use crate::test_support::request as req;
     use sobria_core::Indicator;
 
     fn params_point(pue: f64, if_elec: f64, wue: f64) -> EstimationParams {

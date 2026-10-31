@@ -21,8 +21,10 @@ the ones still missing are listed in SOB-209.
 ## Tests
 
 ```bash
-SOBRIA_SEED=42 cargo test -p sobria-estimator
+cargo test -p sobria-estimator
 ```
 
-`tests/characterization/` pins today's outputs in `tests/golden/` (SOB-9); see
-`tests/golden/README.md` before changing a golden file.
+The engines use the fixed seed `sobria_core::DEFAULT_SEED` (42); nothing reads
+`SOBRIA_SEED` yet (SOB-84). `tests/characterization/` pins today's outputs in
+`tests/golden/` (SOB-9); see `tests/golden/README.md` before changing a golden
+file.

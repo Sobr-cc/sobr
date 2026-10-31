@@ -135,19 +135,10 @@ pub fn overhead_from_preset(preset: &ModelPreset, output_tokens: u32) -> Context
 mod tests {
     use super::*;
     use crate::model_presets::find_preset;
-    use chrono::Utc;
     use sobria_core::EstimationRequest;
 
     fn base_request(model_id: &str, t_in: u32, t_out: u32) -> EstimationRequest {
-        EstimationRequest {
-            model_id: model_id.into(),
-            tokens_in: t_in,
-            tokens_out_estimated: t_out,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: ContextOverhead::default(),
-        }
+        crate::test_support::request(model_id, t_in, t_out)
     }
 
     #[test]

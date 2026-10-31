@@ -294,7 +294,7 @@ mod tests {
     use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        crate::validation::request_for("gpt-4o-mini", 100, 500)
+        crate::test_support::request("gpt-4o-mini", 100, 500)
     }
 
     fn sim_request_with(scenarios: Vec<Scenario>) -> SimulationRequest {
@@ -305,7 +305,7 @@ mod tests {
         }
     }
 
-    /// Helper test (C25-A8) : construit les params du baseline du request
+    /// Helper test : construit les params du baseline du request
     /// et délègue à `simulate`. Permet de garder les tests internes
     /// concis après le changement de signature `simulate(engine, req,
     /// baseline_params)`.

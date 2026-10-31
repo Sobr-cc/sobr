@@ -32,7 +32,7 @@ const ZERO_OVERHEAD: ContextOverhead = ContextOverhead {
 /// Helper : pas de modalités (cas legacy texte).
 const NO_MODALITIES: &[InputModality] = &[];
 
-// ─── Constantes modalités pour les cas C34.6 ────────────────────────────
+// ─── Constantes modalités pour les cas multimodaux ────────────────────────────
 /// 2 images 1024×1024 haute résolution.
 const TWO_HIGH_IMAGES_1024: &[InputModality] = &[InputModality::VisionHigh {
     image_count: 2,
@@ -247,7 +247,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         overhead: ZERO_OVERHEAD,
     },
     // ════════════════════════════════════════════════════════════════════════
-    // C34.6 — Cas modalités + overhead + reasoning thinking auto
+    // Cas modalités + overhead + reasoning thinking auto
     //
     // Ces 5 cas vérifient que le pipeline `effective_tokens` (cf.
     // crates/sobria-estimator/src/effective_tokens.rs) injecte correctement :

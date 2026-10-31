@@ -98,7 +98,7 @@ impl MonteCarloEngine {
         let mut energy_samples = Vec::with_capacity(n_usize);
         let mut water_samples = Vec::with_capacity(n_usize);
 
-        // C34.3 — effective tokens incluant overhead système + modalités
+        // Effective tokens incluant overhead système + modalités
         // + thinking tokens auto pour reasoning models. Si le modèle est
         // inconnu, fallback aux valeurs brutes (pas d'overhead/modality).
         let preset_opt = find_preset(&request.model_id);
@@ -295,19 +295,10 @@ fn hypotheses_from_params(params: &EstimationParams) -> Vec<Hypothesis> {
 mod tests {
     use super::*;
     use crate::distributions::Distribution;
-    use chrono::Utc;
     use proptest::prelude::*;
 
     fn sample_request(tokens_in: u32, tokens_out: u32) -> EstimationRequest {
-        EstimationRequest {
-            model_id: "test-model".into(),
-            tokens_in,
-            tokens_out_estimated: tokens_out,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
+        crate::test_support::request("test-model", tokens_in, tokens_out)
     }
 
     #[test]

@@ -74,7 +74,7 @@ pub enum VendorUnit {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// C34.2 — Nouveaux enums : ModelFamily, ArchitectureKind, VisionPricing
+// Enums : ModelFamily, ArchitectureKind, VisionPricing
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Famille du fabricant. Sert au filtrage et au regroupement UI.
@@ -273,7 +273,7 @@ pub struct ModelPreset {
     pub id: &'static str,
     /// Nom commercial.
     pub display_name: &'static str,
-    /// Provider (legacy — `model_family` est la version typée C34.2).
+    /// Provider (legacy — `model_family` est la version typée).
     pub provider: &'static str,
     /// Famille (regroupement intra-provider, legacy).
     pub family: &'static str,
@@ -426,7 +426,7 @@ pub fn extrapolate_embodied(n_b: f64) -> (f64, f64, f64) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers C34.2 : valeurs vision pricing canoniques par vendor
+// Helpers : valeurs vision pricing canoniques par vendor
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// OpenAI Vision pricing canonique : `85 + 170 × tiles`.
@@ -1386,7 +1386,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "EcoLogits 2026-01",
             "Mistral AI × ADEME × Carbone 4 (2025-08)",
         ],
-        // C32.4 — Première ACV complète d'un LLM, publiée par un vendor
+        // Première ACV complète d'un LLM, publiée par un vendor
         // mondial (Mistral AI) en partenariat avec ADEME + Carbone 4.
         vendor_disclosures: &[
             VendorDisclosure {
@@ -1476,7 +1476,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "HF AI Energy Score 2026",
             "Meta Llama 3.1 model card (MODEL_CARD.md)",
         ],
-        // C32.4 — Meta publie le training (mais pas l'inférence par prompt).
+        // Meta publie le training (mais pas l'inférence par prompt).
         vendor_disclosures: &[
             VendorDisclosure {
                 vendor: "Meta",
@@ -1561,7 +1561,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "Analogie Mistral Medium",
             "Google Environmental Impact paper (2025-08)",
         ],
-        // C32.4 — Google publie un prompt médian (méthodologie Google).
+        // Google publie un prompt médian (méthodologie Google).
         vendor_disclosures: &[
             VendorDisclosure {
                 vendor: "Google",
@@ -1682,12 +1682,12 @@ impl EstimationParams {
 mod tests {
     use super::*;
     use crate::engine::MonteCarloEngine;
-    use crate::validation::request_for;
+    use crate::test_support::request as request_for;
     use sobria_core::Indicator;
 
     #[test]
     fn registry_has_at_least_25_presets() {
-        // DoD C34.2 : >= 25 presets totaux dans le registry.
+        // >= 25 presets totaux dans le registry.
         assert!(
             MODEL_REGISTRY.len() >= 25,
             "registry doit avoir >= 25 presets, a {}",
@@ -1712,7 +1712,7 @@ mod tests {
 
     #[test]
     fn registry_has_at_least_12_models_released_2025_or_later() {
-        // DoD C34.2 : >= 12 presets sortis 2025-2026.
+        // >= 12 presets sortis 2025-2026.
         let recent: Vec<&str> = MODEL_REGISTRY
             .iter()
             .filter(|p| !p.deprecated && p.release_date >= "2025-01-01")
@@ -1782,7 +1782,7 @@ mod tests {
 
     #[test]
     fn c34_new_presets_findable() {
-        // DoD C34.2 : tous les nouveaux presets clés sont accessibles via find_preset.
+        // Tous les nouveaux presets clés sont accessibles via find_preset.
         for id in &[
             "claude-opus-4-7",
             "claude-sonnet-4-6",
@@ -1836,7 +1836,7 @@ mod tests {
 
     #[test]
     fn at_least_three_vendors_have_disclosures() {
-        // C32.4 — Mistral Large 2, Gemini 2.0 Flash, Llama 3.1 70B au moins.
+        // Mistral Large 2, Gemini 2.0 Flash, Llama 3.1 70B au moins.
         let vendors_with_disclosure: std::collections::HashSet<&str> = MODEL_REGISTRY
             .iter()
             .flat_map(|p| p.vendor_disclosures.iter().map(|d| d.vendor))
@@ -1974,7 +1974,7 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // C34.2 — Tests des nouveaux champs et enums
+    // Tests des champs et enums
     // ─────────────────────────────────────────────────────────────────────────
 
     #[test]

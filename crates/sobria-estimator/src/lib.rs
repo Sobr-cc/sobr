@@ -45,6 +45,8 @@ mod forecast;
 pub mod model_presets;
 pub mod params;
 pub mod scenarios;
+#[cfg(test)]
+mod test_support;
 pub mod validation;
 pub mod yearly_forecast;
 

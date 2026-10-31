@@ -51,7 +51,8 @@ pub struct ReproductionCase {
     pub id: &'static str,
     /// Methodology checked; [`run_reproduction`] builds the matching engine.
     pub method: EmpreinteMethod,
-    /// DOI ou URL de la source.
+    /// Context for the model (model card or news page); the target itself is
+    /// computed from the presets (SOB-209).
     pub source_doi_or_url: &'static str,
     /// Modèle visé.
     pub model_id: &'static str,
@@ -129,7 +130,7 @@ pub enum Expectation {
 }
 
 /// Helper : construit un `EstimationRequest` pour un cas.
-pub(crate) fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationRequest {
+fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> EstimationRequest {
     EstimationRequest {
         model_id: model_id.into(),
         tokens_in,
