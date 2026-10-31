@@ -7,6 +7,18 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
+
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
+
 ### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
 
 - **`sobria-bridge`**, no behavior change (same replies, error texts and spool
