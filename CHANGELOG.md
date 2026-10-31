@@ -16,6 +16,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   its three accepted messages (tightening it is SOB-157). No production code
   changed.
 
+### Changed — Two estimator golden files in the renderer's layout (2026-10-31, SOB-141)
+
+- **`sobria-estimator`** (characterization tests): `simulate_ecologits.json` and
+  `forecast_yearly_ecologits.json` now use the layout the golden renderer
+  writes (arrays of numbers on one line). Parsed as JSON they equal the
+  previous files, number text included, so no golden value changed. An update
+  run (`SOBRIA_UPDATE_GOLDEN=1`) no longer rewrites them, which keeps the
+  water formula change (SOB-120) free of layout-only diffs.
+
 ### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
 
 - **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in
