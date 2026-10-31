@@ -7,6 +7,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — smaller debug builds (2026-10-31, SOB-106)
+
+- **Cargo profiles**: `dev` and `test` keep line tables only for workspace
+  crates, and dependencies build without debug info. Backtraces still show
+  file and line for workspace crates; dependency frames show names only.
+  A debugger no longer sees local variables. `CARGO_PROFILE_DEV_DEBUG=true`
+  (`CARGO_PROFILE_TEST_DEBUG=true` for tests) restores full debug info for
+  workspace crates; dependencies also need
+  `--config 'profile.dev.package."*".debug=true'`. A clean
+  `cargo test --workspace --no-run` on Windows drops from 27.8 GB to 8.1 GB
+  of `target/`, and a clean `cargo test -p sobria-estimator --no-run` from
+  374 MB to 263 MB.
+
 ### Added — Characterization tests of the team server (2026-10-30, SOB-10)
 
 - **`sobria-team-aggregator`**: `tests/characterization_*.rs` pin the status code,

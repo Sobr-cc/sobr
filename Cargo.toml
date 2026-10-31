@@ -116,7 +116,14 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# Full debug info filled the shared build disk (SOB-106): line tables for our crates, none for dependencies.
 [profile.dev]
 opt-level = 0
-debug = true
+debug = "line-tables-only"
 incremental = true
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"
