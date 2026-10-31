@@ -7,7 +7,7 @@ use sobria_core::{
     UncertaintyInterval,
 };
 
-use crate::shapes::{minimal_request, utc};
+use crate::shapes::{full_result, minimal_request, utc};
 
 const MINIMAL_REQUEST: &str = r#"{"model_id":"gpt-4o-mini","tokens_in":23,"tokens_out_estimated":720,"timestamp":"2026-05-12T14:32:08Z"}"#;
 
@@ -47,13 +47,14 @@ const LEGACY_RESULT: &str = r#"{
 }"#;
 
 fn legacy_result() -> EstimationResult {
-    let mut request = minimal_request();
-    request.tokens_in = 10;
-    request.tokens_out_estimated = 50;
-    request.timestamp = utc("2026-04-01T10:00:00Z");
     EstimationResult {
         method: EmpreinteMethod::AfnorSobria,
-        request,
+        request: EstimationRequest {
+            tokens_in: 10,
+            tokens_out_estimated: 50,
+            timestamp: utc("2026-04-01T10:00:00Z"),
+            ..minimal_request()
+        },
         indicators: vec![IndicatorValue {
             indicator: Indicator::Co2Eq,
             interval: UncertaintyInterval::new(1.0, 2.0, 3.0).unwrap(),
@@ -118,6 +119,25 @@ fn unknown_fields_are_accepted_and_dropped_at_every_depth() {
     with_extra["indicators"][0]["interval"]["p99"] = json!(9.0);
     let result: EstimationResult = serde_json::from_value(with_extra).unwrap();
     assert_eq!(result, legacy_result());
+}
+
+#[test]
+fn unknown_fields_are_accepted_in_every_nested_type_of_a_result() {
+    let mut value = serde_json::to_value(full_result()).unwrap();
+    for pointer in [
+        "/request",
+        "/indicators/0",
+        "/indicators/0/interval",
+        "/indicators/0/bins",
+        "/equivalents/0",
+        "/hypotheses/0",
+    ] {
+        value.pointer_mut(pointer).unwrap()["extra"] = json!(1);
+    }
+
+    let result: EstimationResult = serde_json::from_value(value).unwrap();
+
+    assert_eq!(result, full_result());
 }
 
 #[test]

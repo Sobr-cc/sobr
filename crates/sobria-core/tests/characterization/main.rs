@@ -4,8 +4,6 @@
 //!
 //! The golden files are in `tests/golden/`; see `test-support/golden.rs` to rewrite them.
 
-// The comparator also serves other crates; this one does not use every function.
-#[allow(dead_code)]
 #[path = "../../../../test-support/golden.rs"]
 mod golden;
 

@@ -18,27 +18,35 @@ fn a_minimal_request_is_valid() {
 
 #[test]
 fn ten_million_tokens_are_accepted_and_one_more_is_refused() {
-    let mut ok = minimal_request();
-    ok.tokens_in = MAX_TOKENS;
-    ok.tokens_out_estimated = MAX_TOKENS;
+    let ok = EstimationRequest {
+        tokens_in: MAX_TOKENS,
+        tokens_out_estimated: MAX_TOKENS,
+        ..minimal_request()
+    };
     assert!(ok.validate().is_ok());
 
-    let mut too_many_in = minimal_request();
-    too_many_in.tokens_in = MAX_TOKENS + 1;
+    let too_many_in = EstimationRequest {
+        tokens_in: MAX_TOKENS + 1,
+        ..minimal_request()
+    };
     assert_eq!(
         error(&too_many_in),
         format!("{PREFIX}tokens absurdes : in=10000001, out=720")
     );
 
-    let mut too_many_out = minimal_request();
-    too_many_out.tokens_out_estimated = MAX_TOKENS + 1;
+    let too_many_out = EstimationRequest {
+        tokens_out_estimated: MAX_TOKENS + 1,
+        ..minimal_request()
+    };
     assert_eq!(
         error(&too_many_out),
         format!("{PREFIX}tokens absurdes : in=23, out=10000001")
     );
 
-    let mut max = minimal_request();
-    max.tokens_in = u32::MAX;
+    let max = EstimationRequest {
+        tokens_in: u32::MAX,
+        ..minimal_request()
+    };
     assert_eq!(
         error(&max),
         format!("{PREFIX}tokens absurdes : in=4294967295, out=720")
@@ -48,8 +56,10 @@ fn ten_million_tokens_are_accepted_and_one_more_is_refused() {
 #[test]
 fn a_blank_model_id_is_refused_and_a_padded_one_is_accepted() {
     for blank in ["", " ", "\t\n"] {
-        let mut request = minimal_request();
-        request.model_id = blank.into();
+        let request = EstimationRequest {
+            model_id: blank.into(),
+            ..minimal_request()
+        };
 
         assert_eq!(
             error(&request),
@@ -58,19 +68,25 @@ fn a_blank_model_id_is_refused_and_a_padded_one_is_accepted() {
         );
     }
 
-    let mut padded = minimal_request();
-    padded.model_id = " gpt-4o-mini ".into();
+    let padded = EstimationRequest {
+        model_id: " gpt-4o-mini ".into(),
+        ..minimal_request()
+    };
     assert!(padded.validate().is_ok());
 }
 
 #[test]
 fn thirty_two_modalities_are_accepted_and_thirty_three_are_refused() {
-    let mut ok = minimal_request();
-    ok.modalities = vec![InputModality::Text; 32];
+    let ok = EstimationRequest {
+        modalities: vec![InputModality::Text; 32],
+        ..minimal_request()
+    };
     assert!(ok.validate().is_ok());
 
-    let mut too_many = minimal_request();
-    too_many.modalities = vec![InputModality::Text; 33];
+    let too_many = EstimationRequest {
+        modalities: vec![InputModality::Text; 33],
+        ..minimal_request()
+    };
     assert_eq!(
         error(&too_many),
         format!("{PREFIX}trop de modalities : 33 > 32")
@@ -79,43 +95,54 @@ fn thirty_two_modalities_are_accepted_and_thirty_three_are_refused() {
 
 #[test]
 fn each_overhead_field_accepts_ten_million_and_refuses_one_more() {
-    let fields: [fn(u32) -> ContextOverhead; 4] = [
-        |n| ContextOverhead::new(n, 0, 0, 0),
-        |n| ContextOverhead::new(0, n, 0, 0),
-        |n| ContextOverhead::new(0, 0, n, 0),
-        |n| ContextOverhead::new(0, 0, 0, n),
+    type Overhead = fn(u32) -> ContextOverhead;
+    let fields: [(&str, Overhead); 4] = [
+        ("system_prompt_tokens", |n| ContextOverhead::new(n, 0, 0, 0)),
+        ("tools_definition_tokens", |n| {
+            ContextOverhead::new(0, n, 0, 0)
+        }),
+        ("memory_tokens", |n| ContextOverhead::new(0, 0, n, 0)),
+        ("thinking_tokens_p50", |n| ContextOverhead::new(0, 0, 0, n)),
     ];
 
-    for (index, overhead) in fields.into_iter().enumerate() {
-        let mut ok = minimal_request();
-        ok.overhead = overhead(MAX_TOKENS);
-        assert!(ok.validate().is_ok(), "field {index}");
+    for (name, overhead) in fields {
+        let ok = EstimationRequest {
+            overhead: overhead(MAX_TOKENS),
+            ..minimal_request()
+        };
+        assert!(ok.validate().is_ok(), "{name}");
 
-        let mut too_many = minimal_request();
-        too_many.overhead = overhead(MAX_TOKENS + 1);
+        let too_many = EstimationRequest {
+            overhead: overhead(MAX_TOKENS + 1),
+            ..minimal_request()
+        };
         assert_eq!(
             error(&too_many),
             format!("{PREFIX}overhead tokens absurdes"),
-            "field {index}"
+            "{name}"
         );
     }
 }
 
 #[test]
 fn the_overhead_fields_are_limited_one_by_one_not_by_their_sum() {
-    let mut request = minimal_request();
-    request.overhead = ContextOverhead::new(MAX_TOKENS, MAX_TOKENS, MAX_TOKENS, MAX_TOKENS);
+    let request = EstimationRequest {
+        overhead: ContextOverhead::new(MAX_TOKENS, MAX_TOKENS, MAX_TOKENS, MAX_TOKENS),
+        ..minimal_request()
+    };
 
     assert!(request.validate().is_ok());
 }
 
 #[test]
 fn the_checks_run_in_order_tokens_then_model_then_modalities_then_overhead() {
-    let mut request = minimal_request();
-    request.tokens_in = MAX_TOKENS + 1;
-    request.model_id = String::new();
-    request.modalities = vec![InputModality::Text; 33];
-    request.overhead = ContextOverhead::new(MAX_TOKENS + 1, 0, 0, 0);
+    let mut request = EstimationRequest {
+        tokens_in: MAX_TOKENS + 1,
+        model_id: String::new(),
+        modalities: vec![InputModality::Text; 33],
+        overhead: ContextOverhead::new(MAX_TOKENS + 1, 0, 0, 0),
+        ..minimal_request()
+    };
     assert!(error(&request).contains("tokens absurdes"));
 
     request.tokens_in = 23;

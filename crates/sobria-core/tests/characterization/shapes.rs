@@ -11,7 +11,7 @@ use sobria_core::{
     UncertaintyInterval,
 };
 
-use crate::golden::Goldens;
+use crate::golden::assert_golden;
 
 pub fn utc(text: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(text)
@@ -19,7 +19,7 @@ pub fn utc(text: &str) -> DateTime<Utc> {
         .with_timezone(&Utc)
 }
 
-pub fn modalities() -> Vec<InputModality> {
+fn modalities() -> Vec<InputModality> {
     vec![
         InputModality::Text,
         InputModality::VisionLow { image_count: 2 },
@@ -47,7 +47,7 @@ pub fn minimal_request() -> EstimationRequest {
     }
 }
 
-pub fn full_request() -> EstimationRequest {
+fn full_request() -> EstimationRequest {
     EstimationRequest {
         datacenter_id: Some("openai-us-east-virginia".into()),
         modalities: modalities(),
@@ -60,7 +60,7 @@ fn interval(p5: f64, p50: f64, p95: f64) -> UncertaintyInterval {
     UncertaintyInterval::new(p5, p50, p95).unwrap()
 }
 
-fn full_result() -> EstimationResult {
+pub fn full_result() -> EstimationResult {
     EstimationResult {
         method: EmpreinteMethod::EcoLogits,
         request: full_request(),
@@ -134,7 +134,7 @@ fn full_result() -> EstimationResult {
     }
 }
 
-fn golden_text(name: &str) -> String {
+fn read_golden(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/golden")
         .join(format!("{name}.json"));
@@ -143,9 +143,9 @@ fn golden_text(name: &str) -> String {
 
 /// Compares the serialized value with `tests/golden/<name>.json`, then reads the file back.
 fn assert_shape<T: Serialize + DeserializeOwned + PartialEq + Debug>(name: &str, value: &T) {
-    Goldens::new().assert(name, value);
+    assert_golden(name, value);
 
-    let back: T = serde_json::from_str(&golden_text(name)).unwrap();
+    let back: T = serde_json::from_str(&read_golden(name)).unwrap();
     assert_eq!(&back, value);
 }
 
@@ -183,11 +183,11 @@ fn an_uncertainty_interval_has_the_golden_shape() {
 fn an_estimation_result_has_the_golden_shape() {
     let result = full_result();
     // The comparator masks `computed_at`, so its text is pinned here.
-    Goldens::new().assert("estimation_result", &result);
+    assert_golden("estimation_result", &result);
     let written = serde_json::to_value(&result).unwrap();
     assert_eq!(written["computed_at"], "2026-05-12T14:32:09.250Z");
 
-    let mut golden: Value = serde_json::from_str(&golden_text("estimation_result")).unwrap();
+    let mut golden: Value = serde_json::from_str(&read_golden("estimation_result")).unwrap();
     golden["computed_at"] = written["computed_at"].clone();
     let back: EstimationResult = serde_json::from_value(golden).unwrap();
     assert_eq!(back, result);
@@ -209,9 +209,9 @@ fn the_identifiers_of_personas_modules_methods_and_indicators_have_the_golden_sp
         "indicators": indicators,
     });
 
-    Goldens::new().assert("identifiers", &identifiers);
+    assert_golden("identifiers", &identifiers);
 
-    let golden: Value = serde_json::from_str(&golden_text("identifiers")).unwrap();
+    let golden: Value = serde_json::from_str(&read_golden("identifiers")).unwrap();
     let back = |key: &str| golden[key].clone();
     assert_eq!(
         serde_json::from_value::<Vec<Persona>>(back("personas")).unwrap(),
@@ -231,6 +231,10 @@ fn the_identifiers_of_personas_modules_methods_and_indicators_have_the_golden_sp
     );
 }
 
+fn json<T: Serialize>(value: &T) -> String {
+    serde_json::to_string(value).unwrap()
+}
+
 /// The comparator sorts keys, so the golden files do not pin the order of the written text,
 /// which the audit ledger stores and hashes.
 fn assert_keys_in_order(text: &str, keys: &[&str]) {
@@ -245,9 +249,8 @@ fn assert_keys_in_order(text: &str, keys: &[&str]) {
 
 #[test]
 fn the_written_text_keeps_the_field_order_of_the_structs() {
-    let request = serde_json::to_string(&full_request()).unwrap();
     assert_keys_in_order(
-        &request,
+        &json(&full_request()),
         &[
             "model_id",
             "tokens_in",
@@ -263,33 +266,30 @@ fn the_written_text_keeps_the_field_order_of_the_structs() {
         ],
     );
 
-    let result = serde_json::to_string(&full_result()).unwrap();
+    let result = full_result();
     assert_keys_in_order(
-        &result,
+        &json(&result),
         &[
             "method",
             "request",
             "indicators",
-            "indicator",
-            "interval",
-            "p5",
-            "p50",
-            "p95",
-            "unit",
-            "bins",
-            "min",
-            "max",
-            "counts",
             "equivalents",
-            "label",
-            "value",
-            "source",
             "hypotheses",
-            "key",
             "computed_at",
             "seed",
         ],
     );
+    assert_keys_in_order(
+        &json(&result.indicators[0]),
+        &["indicator", "interval", "unit", "bins"],
+    );
+    assert_keys_in_order(&json(&result.indicators[0].interval), &["p5", "p50", "p95"]);
+    assert_keys_in_order(
+        &json(result.indicators[0].bins.as_ref().unwrap()),
+        &["min", "max", "counts"],
+    );
+    assert_keys_in_order(&json(&result.equivalents[0]), &["label", "value", "source"]);
+    assert_keys_in_order(&json(&result.hypotheses[0]), &["key", "value", "source"]);
 }
 
 #[test]
