@@ -7,6 +7,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
+
+- **`docs/adr/`**: both ADR files and their rows in the index say Accepted
+  (2026-10-30), the day Thibault approved their PRs. No other line changes.
+
 ### Added — ADR-0023, the Sobr MCP server contract (2026-10-31, SOB-144)
 
 - **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
