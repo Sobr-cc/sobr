@@ -25,6 +25,20 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - 22 build issues (111 points), marking those that wait for a Deep cleanup.
   - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
 
+### Added — Characterization tests of the team server (2026-10-30, SOB-10)
+
+- **`sobria-team-aggregator`**: `tests/characterization_*.rs` pin the status code,
+  content type and body of every API endpoint, refusals included (enroll, login,
+  refresh, access guards, estimations, `/me/*`, enrollment codes, exports, alert
+  thresholds and triggers), and the privacy rules on aggregates: k-anonymity
+  (default of 5, floor of 3, unreadable value, `k - 1` / `k` boundary, identified
+  mode) checked as hidden below the threshold, and the three visibility policies
+  on analytics, users and user detail. Responses are recorded from a real HTTPS
+  server, random values are masked after a shape check, and the recordings are
+  compared with `tests/golden/*.json` (see the README there). The CSRD export is
+  checked for its header and size only. No production code changed, no
+  dependency added.
+
 ### Changed — One golden update run rewrites every file (2026-10-31, SOB-137)
 
 - **`sobria-estimator`** (characterization tests): with `SOBRIA_UPDATE_GOLDEN=1`,

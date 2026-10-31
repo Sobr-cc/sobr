@@ -1,0 +1,186 @@
+[
+  {
+    "body": {
+      "codes": [
+        {
+          "code": "<code#1>",
+          "expires_at": "<timestamp>",
+          "id": "<ulid#1>"
+        },
+        {
+          "code": "<code#2>",
+          "expires_at": "<timestamp>",
+          "id": "<ulid#2>"
+        },
+        {
+          "code": "<code#3>",
+          "expires_at": "<timestamp>",
+          "id": "<ulid#3>"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "codes: three codes, default lifetime",
+    "status": 200
+  },
+  {
+    "note": "default lifetime in hours",
+    "value": 168.0
+  },
+  {
+    "body": {
+      "codes": [
+        {
+          "code": "<code#4>",
+          "expires_at": "<timestamp>",
+          "id": "<ulid#4>"
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "codes: one code, 30 days",
+    "status": 200
+  },
+  {
+    "note": "30-day lifetime in hours",
+    "value": 720.0
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : count doit être ∈ [1, 500]"
+    },
+    "content_type": "application/json",
+    "request": "codes: count 0",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : count doit être ∈ [1, 500]"
+    },
+    "content_type": "application/json",
+    "request": "codes: count 501",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : ttl_days doit être ∈ [1, 365]"
+    },
+    "content_type": "application/json",
+    "request": "codes: lifetime 0",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : ttl_days doit être ∈ [1, 365]"
+    },
+    "content_type": "application/json",
+    "request": "codes: lifetime 366",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : ttl_days doit être ∈ [1, 365]"
+    },
+    "content_type": "application/json",
+    "request": "codes: lifetime -1",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `count`",
+    "content_type": "text/plain",
+    "request": "codes: count missing",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: count: invalid value: integer `-1`, expected u32",
+    "content_type": "text/plain",
+    "request": "codes: count negative",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: count: invalid type: string \"3\", expected u32",
+    "content_type": "text/plain",
+    "request": "codes: count is a string",
+    "status": 422
+  },
+  {
+    "body": "Failed to parse the request body as JSON: EOF while parsing an object",
+    "content_type": "text/plain",
+    "request": "codes: body is not JSON",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "codes: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "codes: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "revoked": true
+    },
+    "content_type": "application/json",
+    "request": "revoke: ok",
+    "status": 200
+  },
+  {
+    "body": {
+      "revoked": false
+    },
+    "content_type": "application/json",
+    "request": "revoke: the same code again",
+    "status": 200
+  },
+  {
+    "body": {
+      "revoked": false
+    },
+    "content_type": "application/json",
+    "request": "revoke: unknown id",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "revoke: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "revoke: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "invalid_enrollment_code",
+      "error": "code d'enrôlement invalide ou expiré"
+    },
+    "content_type": "application/json",
+    "request": "enroll with the revoked code",
+    "status": 401
+  }
+]

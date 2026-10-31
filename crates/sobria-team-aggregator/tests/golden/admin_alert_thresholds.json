@@ -1,0 +1,360 @@
+[
+  {
+    "body": {
+      "thresholds": []
+    },
+    "content_type": "application/json",
+    "request": "list: empty",
+    "status": 200
+  },
+  {
+    "body": {
+      "id": "<ulid#1>",
+      "threshold": {
+        "created_at": "<timestamp>",
+        "created_by_admin_id": "<ulid#2>",
+        "disabled_at": null,
+        "gco2eq_max": 10.0,
+        "id": "<ulid#1>",
+        "notify_kind": "log_only",
+        "notify_target": null,
+        "period": "daily",
+        "scope": "team",
+        "target_id": null
+      }
+    },
+    "content_type": "application/json",
+    "request": "create: team, daily, log only",
+    "status": 200
+  },
+  {
+    "body": {
+      "id": "<ulid#3>",
+      "threshold": {
+        "created_at": "<timestamp>",
+        "created_by_admin_id": "<ulid#2>",
+        "disabled_at": null,
+        "gco2eq_max": 2.5,
+        "id": "<ulid#3>",
+        "notify_kind": "webhook",
+        "notify_target": "https://example.invalid/hook",
+        "period": "weekly",
+        "scope": "user",
+        "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+      }
+    },
+    "content_type": "application/json",
+    "request": "create: user, weekly, webhook",
+    "status": 200
+  },
+  {
+    "body": {
+      "id": "<ulid#4>",
+      "threshold": {
+        "created_at": "<timestamp>",
+        "created_by_admin_id": "<ulid#2>",
+        "disabled_at": null,
+        "gco2eq_max": 1.0,
+        "id": "<ulid#4>",
+        "notify_kind": "log_only",
+        "notify_target": null,
+        "period": "monthly",
+        "scope": "user",
+        "target_id": "not-an-employee"
+      }
+    },
+    "content_type": "application/json",
+    "request": "create: user scope on an id that is not an employee",
+    "status": 200
+  },
+  {
+    "body": {
+      "id": "<ulid#5>",
+      "threshold": {
+        "created_at": "<timestamp>",
+        "created_by_admin_id": "<ulid#2>",
+        "disabled_at": null,
+        "gco2eq_max": 100.0,
+        "id": "<ulid#5>",
+        "notify_kind": "email",
+        "notify_target": "ops@example.invalid",
+        "period": "monthly",
+        "scope": "team",
+        "target_id": null
+      }
+    },
+    "content_type": "application/json",
+    "request": "create: team, monthly, email",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : gco2eq_max doit être > 0"
+    },
+    "content_type": "application/json",
+    "request": "create: gco2eq_max is 0",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : gco2eq_max doit être > 0"
+    },
+    "content_type": "application/json",
+    "request": "create: gco2eq_max is negative",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : scope=user requiert target_id"
+    },
+    "content_type": "application/json",
+    "request": "create: user scope without target",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : scope=team interdit target_id"
+    },
+    "content_type": "application/json",
+    "request": "create: team scope with a target",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : notify_kind=webhook|email exige notify_target"
+    },
+    "content_type": "application/json",
+    "request": "create: webhook without target",
+    "status": 400
+  },
+  {
+    "body": {
+      "code": "bad_request",
+      "error": "payload invalide : notify_kind=webhook|email exige notify_target"
+    },
+    "content_type": "application/json",
+    "request": "create: email without target",
+    "status": 400
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: period: unknown variant `hourly`, expected one of `daily`, `weekly`, `monthly`",
+    "content_type": "text/plain",
+    "request": "create: unknown period",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: scope: unknown variant `org`, expected `user` or `team`",
+    "content_type": "text/plain",
+    "request": "create: unknown scope",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: notify_kind: unknown variant `sms`, expected one of `webhook`, `email`, `log_only`",
+    "content_type": "text/plain",
+    "request": "create: unknown notify kind",
+    "status": 422
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `period`",
+    "content_type": "text/plain",
+    "request": "create: missing fields",
+    "status": 422
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "create: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "create: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "thresholds": [
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 100.0,
+          "id": "<ulid#5>",
+          "notify_kind": "email",
+          "notify_target": "ops@example.invalid",
+          "period": "monthly",
+          "scope": "team",
+          "target_id": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 1.0,
+          "id": "<ulid#4>",
+          "notify_kind": "log_only",
+          "notify_target": null,
+          "period": "monthly",
+          "scope": "user",
+          "target_id": "not-an-employee"
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 2.5,
+          "id": "<ulid#3>",
+          "notify_kind": "webhook",
+          "notify_target": "https://example.invalid/hook",
+          "period": "weekly",
+          "scope": "user",
+          "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 10.0,
+          "id": "<ulid#1>",
+          "notify_kind": "log_only",
+          "notify_target": null,
+          "period": "daily",
+          "scope": "team",
+          "target_id": null
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "list: four thresholds",
+    "status": 200
+  },
+  {
+    "body": {
+      "disabled": true
+    },
+    "content_type": "application/json",
+    "request": "delete: ok",
+    "status": 200
+  },
+  {
+    "body": {
+      "disabled": false
+    },
+    "content_type": "application/json",
+    "request": "delete: the same threshold again",
+    "status": 200
+  },
+  {
+    "body": {
+      "disabled": false
+    },
+    "content_type": "application/json",
+    "request": "delete: unknown id",
+    "status": 200
+  },
+  {
+    "body": {
+      "thresholds": [
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 100.0,
+          "id": "<ulid#5>",
+          "notify_kind": "email",
+          "notify_target": "ops@example.invalid",
+          "period": "monthly",
+          "scope": "team",
+          "target_id": null
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 1.0,
+          "id": "<ulid#4>",
+          "notify_kind": "log_only",
+          "notify_target": null,
+          "period": "monthly",
+          "scope": "user",
+          "target_id": "not-an-employee"
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": null,
+          "gco2eq_max": 2.5,
+          "id": "<ulid#3>",
+          "notify_kind": "webhook",
+          "notify_target": "https://example.invalid/hook",
+          "period": "weekly",
+          "scope": "user",
+          "target_id": "01HZZZZZZZZZZZZZZZZZZZZ001"
+        },
+        {
+          "created_at": "<timestamp>",
+          "created_by_admin_id": "<ulid#2>",
+          "disabled_at": "<timestamp>",
+          "gco2eq_max": 10.0,
+          "id": "<ulid#1>",
+          "notify_kind": "log_only",
+          "notify_target": null,
+          "period": "daily",
+          "scope": "team",
+          "target_id": null
+        }
+      ]
+    },
+    "content_type": "application/json",
+    "request": "list: a disabled threshold stays listed",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "delete: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "delete: user token",
+    "status": 403
+  },
+  {
+    "body": {
+      "code": "missing_auth",
+      "error": "authentification requise"
+    },
+    "content_type": "application/json",
+    "request": "list: no auth",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "forbidden",
+      "error": "rôle insuffisant pour cette opération"
+    },
+    "content_type": "application/json",
+    "request": "list: user token",
+    "status": 403
+  }
+]

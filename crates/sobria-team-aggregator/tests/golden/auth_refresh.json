@@ -1,0 +1,93 @@
+[
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "user"
+    },
+    "content_type": "application/json",
+    "request": "refresh: user",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "refresh: user, old token replayed",
+    "status": 401
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "user"
+    },
+    "content_type": "application/json",
+    "request": "refresh: user, rotated token",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "refresh: garbage token",
+    "status": 401
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "refresh: empty token",
+    "status": 401
+  },
+  {
+    "body": "Failed to deserialize the JSON body into the target type: missing field `refresh_token`",
+    "content_type": "text/plain",
+    "request": "refresh: missing field",
+    "status": 422
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "admin",
+      "subject_id": "<ulid#1>"
+    },
+    "content_type": "application/json",
+    "request": "login: admin (to get a refresh token)",
+    "status": 200
+  },
+  {
+    "body": {
+      "access_expires_at": "<timestamp>",
+      "access_token": "<jwt>",
+      "refresh_expires_at": "<timestamp>",
+      "refresh_token": "<refresh_token>",
+      "role": "admin"
+    },
+    "content_type": "application/json",
+    "request": "refresh: admin",
+    "status": 200
+  },
+  {
+    "body": {
+      "code": "invalid_token",
+      "error": "token invalide ou révoqué"
+    },
+    "content_type": "application/json",
+    "request": "refresh: admin, old token replayed",
+    "status": 401
+  }
+]
