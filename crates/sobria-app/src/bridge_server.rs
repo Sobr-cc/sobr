@@ -153,10 +153,8 @@ where
     let resp = dispatch_request(state.inner(), req);
     let bytes = serde_json::to_vec(&resp).context("encode BridgeResponse")?;
     let resp_len = u32::try_from(bytes.len()).context("response > u32")?;
-    let mut frame = Vec::with_capacity(4 + bytes.len());
-    frame.extend_from_slice(&resp_len.to_le_bytes());
-    frame.extend_from_slice(&bytes);
-    stream.write_all(&frame).await?;
+    stream.write_all(&resp_len.to_le_bytes()).await?;
+    stream.write_all(&bytes).await?;
     stream.flush().await?;
     Ok(())
 }
@@ -178,19 +176,20 @@ pub fn dispatch_request(state: &AppState, req: BridgeRequest) -> BridgeResponse 
                 ..BridgeResponse::ok(req_id)
             };
         },
-        BridgeRequest::Pair { req_id, code } => (req_id, handle_pair(state, &code)),
+        BridgeRequest::Pair { req_id, code } => (req_id.clone(), handle_pair(state, req_id, &code)),
         BridgeRequest::Estimate {
             req_id,
             secret,
             payload,
-        } => (req_id, handle_estimate(state, &secret, &payload)),
-        BridgeRequest::Revoke { req_id, secret } => (req_id, handle_revoke(state, &secret)),
+        } => (
+            req_id.clone(),
+            handle_estimate(state, req_id, &secret, &payload),
+        ),
+        BridgeRequest::Revoke { req_id, secret } => {
+            (req_id.clone(), handle_revoke(state, req_id, &secret))
+        },
     };
-    match reply {
-        // The handlers leave `req_id` empty: it is moved in here, not copied.
-        Ok(reply) => BridgeResponse { req_id, ..reply },
-        Err(msg) => BridgeResponse::err(req_id, msg),
-    }
+    reply.unwrap_or_else(|msg| BridgeResponse::err(req_id, msg))
 }
 
 /// Synthetic fingerprint on the app side: the bridge request carries none, so
@@ -199,7 +198,7 @@ fn bridge_fingerprint() -> &'static str {
     "sobria-bridge-native-messaging"
 }
 
-fn handle_pair(state: &AppState, code: &str) -> Result<BridgeResponse, String> {
+fn handle_pair(state: &AppState, req_id: String, code: &str) -> Result<BridgeResponse, String> {
     let now = chrono::Utc::now();
     let mut guard = state
         .pending_code
@@ -225,12 +224,13 @@ fn handle_pair(state: &AppState, code: &str) -> Result<BridgeResponse, String> {
         secret: Some(secret.secret_hex),
         pairing_id: Some(pairing_id),
         fingerprint: Some(fingerprint.into()),
-        ..BridgeResponse::ok(String::new())
+        ..BridgeResponse::ok(req_id)
     })
 }
 
 fn handle_estimate(
     state: &AppState,
+    req_id: String,
     secret: &str,
     payload: &serde_json::Value,
 ) -> Result<BridgeResponse, String> {
@@ -249,11 +249,11 @@ fn handle_estimate(
         .map_err(|e| format!("record_event: {e}"))?;
     Ok(BridgeResponse {
         pairing_id: Some(input.pairing_id),
-        ..BridgeResponse::ok(String::new())
+        ..BridgeResponse::ok(req_id)
     })
 }
 
-fn handle_revoke(state: &AppState, secret: &str) -> Result<BridgeResponse, String> {
+fn handle_revoke(state: &AppState, req_id: String, secret: &str) -> Result<BridgeResponse, String> {
     let store = state
         .extension_store
         .lock()
@@ -265,7 +265,7 @@ fn handle_revoke(state: &AppState, secret: &str) -> Result<BridgeResponse, Strin
     tracing::info!(%pairing_id, "socket_server: pairing révoqué via bridge");
     Ok(BridgeResponse {
         pairing_id: Some(pairing_id),
-        ..BridgeResponse::ok(String::new())
+        ..BridgeResponse::ok(req_id)
     })
 }
 

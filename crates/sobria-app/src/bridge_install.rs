@@ -387,19 +387,10 @@ pub fn uninstall_native_manifest_at(path: &Path) -> Result<()> {
 #[must_use]
 pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     let detected = detect_installed_browsers();
-    let installed = match dirs::home_dir() {
-        Some(home) => {
-            let appdata = dirs::config_dir();
-            BrowserKind::ALL
-                .into_iter()
-                .filter(|b| {
-                    manifest_install_path_for(HostOs::current(), *b, &home, appdata.as_deref())
-                        .is_ok_and(|p| p.exists())
-                })
-                .collect()
-        },
-        None => Vec::new(),
-    };
+    let installed = BrowserKind::ALL
+        .into_iter()
+        .filter(|b| manifest_install_path(*b).is_ok_and(|p| p.exists()))
+        .collect();
     BridgeStatus {
         bridge_path,
         installed,
