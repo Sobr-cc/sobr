@@ -5,6 +5,11 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
 ### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
