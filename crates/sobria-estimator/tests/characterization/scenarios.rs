@@ -10,7 +10,7 @@ use sobria_estimator::{
 
 use crate::{
     fixtures::{insert_error, outcome_json, params_for, request, to_json},
-    golden::assert_golden,
+    golden::{assert_golden, Goldens},
 };
 
 const METHODS: [(&str, EmpreinteMethod); 2] = [
@@ -125,11 +125,12 @@ fn param_overrides_any() {
 #[test]
 fn simulate_every_override_with_forecast() {
     let req = simulation(all_override_scenarios(), Some(forecast(12, 5.0, 1_000.0)));
+    let mut goldens = Goldens::new();
     for (name, method) in METHODS {
         let engine = engine_for(method);
         let result =
             simulate(engine.as_ref(), &req, &params_for("gpt-4o-mini")).expect("simulation");
-        assert_golden(&format!("simulate_{name}"), &result);
+        goldens.assert(&format!("simulate_{name}"), &result);
     }
 }
 
@@ -267,10 +268,11 @@ fn yearly(months: u32, base_volume_per_day: f64) -> YearlyForecastRequest {
 
 #[test]
 fn forecast_yearly_with_both_engines() {
+    let mut goldens = Goldens::new();
     for (name, method) in METHODS {
         let engine = engine_for(method);
         let result = forecast_yearly(engine.as_ref(), &yearly(12, 1_000.0)).expect("forecast");
-        assert_golden(&format!("forecast_yearly_{name}"), &result);
+        goldens.assert(&format!("forecast_yearly_{name}"), &result);
     }
 }
 
