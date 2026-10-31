@@ -46,7 +46,7 @@ chiffres parlants**.
 
 ```bash
 # 1. Téléchargez le binaire Sobr.ia pour votre OS depuis Releases GitHub
-#    https://github.com/BkOff-fr/defis-lia-generatif/releases
+#    https://github.com/Sobr-cc/sobr/releases
 
 # 2. Lancez l'app — aucune inscription, aucun compte
 ./sobria-app        # Linux / macOS
