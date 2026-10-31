@@ -7,6 +7,57 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
+
+- **`docs/sources/CATALOGUE-SOURCES.md`** (version 2.2): the French part (sources
+  S01 to S09, tiers, quick matrix, Silver schema overview, prerequisites,
+  retention policy) is translated to English, following "translate when touched"
+  (SOB-100). No fact, URL, identifier or number changed; the model catalog
+  section of SOB-6 is untouched. Proper names (Teréga, ODRÉ) keep their accents.
+
+### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
+
+- **`docs/adr/`**: both ADR files and their rows in the index say Accepted
+  (2026-10-30), the day Thibault approved their PRs. No other line changes.
+
+### Added — ADR-0023, the Sobr MCP server contract (2026-10-31, SOB-144)
+
+- **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
+  within the rights of the person who connected it. Thibault answered its
+  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
+  ADR-0019 and ADR-0022 are merged, so it is Accepted.
+  - Two front doors share one contract and one repo (`sobr`): a stdio server
+    for the personal space and a Streamable HTTP route in the Sobr server for
+    an organization. One connection serves one space.
+  - Access comes from a grant made in Sobr (`read`, `write`, `act`), first as
+    a scoped token, later through OAuth 2.1. Rights are looked up on every
+    call, and a grant only narrows them.
+  - 22 read tools (C2) and 25 write tools (C3) are listed with inputs,
+    outputs and permissions. Irreversible tools return a pending action that
+    the person approves in Sobr, so a client without a screen works. A few
+    actions never go through the MCP.
+  - Every write and approval goes to an append-only, chained audit log.
+  - 22 build issues (111 points), marking those that wait for a Deep cleanup.
+  - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
+
+### Added — Audit ledger migration test (2026-10-31, SOB-160)
+
+- **`sobria-audit`**: `tests/ledger_migration.rs` opens a committed v1 ledger
+  (`tests/fixtures/ledger-v1.sqlite`, no `method` column; `make_ledger_v1.py`
+  rebuilds it) and pins the v1 to v2 migration: the `method` column is added last
+  with `afnor_sobria` on every entry, the existing rows, their order, signatures and
+  the purged entry are unchanged, the chain still verifies and the indexes exist.
+  A second test pins that opening the migrated file again changes nothing.
+  `*.sqlite` is now marked binary in `.gitattributes`.
+
+### Changed — ADR-0016 breakdown by project (2026-10-31, SOB-153)
+
+- **ADR-0016, Amendment 1** (Accepted): in the `anonymous` and `opt_in`
+  policies, the breakdown by project appears only when every group shown,
+  "other projects" and "no project" included, has at least k contributors
+  (SOB-148), the rule ADR-0022 sets at task level. The code work waits for
+  the Deep cleanup of the team server (SOB-25).
+
 ### Added — ADR-0024, Kubernetes platform on Proxmox (2026-10-31, SOB-72)
 
 - **ADR-0024** (Proposed; Thibault chose every recommendation in SOB-175,
