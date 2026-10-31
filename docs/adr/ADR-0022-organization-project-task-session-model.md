@@ -7,7 +7,7 @@
 - **Technical context**: Data model and sessions project (SOB-143)
 - **Related**: ADR-0003 (SQLite), ADR-0009 (medallion), ADR-0013 (pairing,
   team mode), ADR-0014 (cloud, personal space), ADR-0015 and ADR-0016
-  (privacy, visibility), ADR-0019 (repos, Proposed), ADR-0021 (one app)
+  (privacy, visibility), ADR-0019 (repos), ADR-0021 (one app)
 
 > **Summary.** Every measured use of an AI tool ends up in one **session**.
 > A session always belongs to one **person** and, once its space is known, to
@@ -28,7 +28,8 @@
 ## Points decided
 
 Thibault answered these seven points on October 31 in the Decision issue
-SOB-151. He took every recommendation: 1A, 2A, 3A, 4A, 5A, 6A and 7A. Each
+SOB-151, and took the recommendation of each point (the letters there are
+SOB-151's, not those of the option tables below). Each
 choice rests on the matching part of the Decision section, which compares
 the options with their cost, effort and risk.
 
@@ -238,11 +239,12 @@ cases that each client must pass.
 
 **A space can only change downwards.** A person can withdraw their own
 session from an organization to their personal space, for example when an
-account was mapped to the wrong space. The server deletes it. In the
-personal space its attachment resets to "to classify", because the
-organization's projects and tasks do not exist there. The
-organization sees only the number of sessions withdrawn each month, under
-the same k rule as its other totals, with no name and no detail. A session
+account was mapped to the wrong space. This is possible as long as the
+server keeps that session's detail (24 months, §10). The server deletes it.
+In the personal space its attachment resets to "to classify", because the
+organization's projects and tasks do not exist there. The organization sees
+only the number of sessions withdrawn each month, and only in months when
+at least k members were active, with no name and no detail. A session
 never moves from the personal space to an organization.
 
 | Option | Cost | Effort | Risk |
@@ -318,7 +320,9 @@ Which roles may edit a project is for the Organization and identity project
 (ADR-0021, point 4). The links reach the members' devices, which use them to
 classify: a session in a repo whose remote matches a project's linked repo
 goes to that project. The match runs on the device, and only the resulting
-project ID is uploaded.
+project ID is uploaded. A repo, and a tracker project, can be linked to at
+most one project in a space; a second link is refused, so every client
+finds the same project.
 
 **Two limits hold for every role:**
 
@@ -361,7 +365,9 @@ Solo mode can be turned on only when the space has at most one project; in
 a space with no project, turning it on creates the hidden project.
 Switching it on or off changes no existing session: on, it applies to the
 sessions classified from then on; off, it shows the project as a normal
-one. An organization with a single project can use solo mode too.
+one. An organization with a single project can use solo mode too. In solo
+mode, the repos and tracker projects linked in the space's settings (Z2) are
+the hidden project's links, so trackers work as in any project (§5, §8).
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -410,8 +416,8 @@ another project:
   the session keeps its project.
 
 **A task created on use stays hidden from others,** in the anonymous and
-opt-in policies, for every period in which it has fewer than k contributors
-(§10 says how they are counted). Its existence would otherwise tell others
+opt-in policies, on every day it has fewer than k contributors (§10 says
+how they are counted). Its existence would otherwise tell others
 that someone worked on that issue, and the issue's assignee would name that
 person. The person always sees their own tasks.
 
@@ -422,7 +428,7 @@ person. The person always sees their own tasks.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — A task mirrors an issue only when an editor creates it or a session uses it, and a task created on use stays hidden from others in any period with fewer than k contributors (chosen)** | A lookup in the tracker when a session is classified, cached; per-task totals appear late on small projects | Small | Low |
+| **A — A task mirrors an issue only when an editor creates it or a session uses it, and a task created on use stays hidden from others on any day with fewer than k contributors (chosen)** | A lookup in the tracker when a session is classified, cached; per-task totals appear late on small projects | Small | Low |
 | B — Mirror every issue of a linked project | A sync job and stale copies of issues that never get a session | Large | Copies of tracker data that Sobr does not need |
 
 ### 9. The same model on the device and on the server
@@ -558,12 +564,13 @@ others see: dashboards, exports, alerts and the API.
 
 - Others see daily totals by project and by task, never single sessions.
   Exports become daily totals under the policy and k (SOB-114).
-- **Contributors are counted over the period a view shows,** as ADR-0015
-  rule 2 counts the users active in the queried window. k is the number of
-  distinct members with at least one session in a group during that period.
-  A daily series checks each day on its own, so a group shows only on the
-  days it has at least k contributors. The same count applies to tasks
-  created on use (§8) and to the monthly count of withdrawals (§3).
+- **The k check runs day by day.** For each day and each group, k is the
+  number of distinct members with at least one session in that group that
+  day, as ADR-0015 rule 2 counts the users active in a window; here the
+  window is always one day. A view over a longer period, such as a month,
+  adds up only the day values that passed the check. So a longer view never
+  shows more than its days do, and "month minus the days shown" gives
+  nothing back. The same daily check applies to tasks created on use (§8).
 - An alert on one member's budget is allowed only in the identified policy,
   or when that member has turned sharing on (SOB-115).
 - In the anonymous and opt-in policies, a project's breakdown by task
@@ -596,8 +603,10 @@ others see: dashboards, exports, alerts and the API.
   Nothing kept can then be subtracted down to one person. This is the same
   rule as the live views above;
 - when a member leaves, their name and their session detail are deleted
-  after they can export them. Their work use goes into totals built the
-  same way;
+  after they can export them. What stays is one row per day and group with
+  their totals, and no member. Each such row counts as one contributor of
+  that group that day, and is never shown on its own: it only adds to a
+  group that passes the all-groups check with it;
 - the device keeps the person's own copy.
 
 | Option | Cost | Effort | Risk |
@@ -680,7 +689,8 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
    which becomes a Sobr task in "Checkout", and uploads the session's IDs,
    model, day and metrics under Bob's Acme member ID. The repo, the branch
    name and the times stay on his machine.
-4. Carol's project page shows the project's daily totals. ACM-142 appears
+4. Carol's project page shows the project's daily totals, on the days when
+   Acme's breakdown by project passes the k check (§10). ACM-142 appears
    there only for the days when five people worked on it, and the breakdown
    by task only when every task shown, "other tasks" and "no task" each have
    at least five contributors that day. Carol never sees Bob's single
@@ -717,8 +727,9 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
 - Nobody but the person fixes a member's attachments; project links help.
 - Under the default policy, breakdowns by project are hidden in small
   organizations, and by task in small projects.
-- Comparing two periods can still hint at one person's change on a project,
-  as with ADR-0016's project totals today.
+- A past day's total can change when a late batch or a withdrawal arrives.
+  Someone who saw both values of that day learns the use that arrived or
+  left, when the day passed the k check both times.
 - Until the Organization and identity project brings real identities, each
   enrolled device is a member, so a person with two devices counts twice for
   k.
@@ -751,15 +762,15 @@ P1, P2, A7) wait for Design V7 and are not listed.
 
 | # | Issue | Area | Estimate | Waits for |
 |--|--|--|--|--|
-| 1 | Record the desktop app's sessions in the new model (crate, one database per space, pending store, the extension's estimates as sessions) | New crate, desktop backend | 8 | ADR-0019 accepted (SOB-65); the SOB-146 ADR accepted; **Deep cleanup SOB-26** (desktop backend) |
+| 1 | Record the desktop app's sessions in the new model (crate, one database per space, pending store, the extension's estimates as sessions), after draining the spool, and leave today's desktop stores read-only with an export (§11) | New crate, desktop backend | 8 | ADR-0019 accepted (SOB-65); the SOB-146 ADR accepted; **Deep cleanup SOB-26** (desktop backend) |
 | 2 | Choose each session's space from its source account, and keep space-pending sessions on the device | Desktop backend | 3 | #1; **SOB-26** |
 | 3 | Create projects and tasks by hand and attach sessions to them in the personal space | Model crate, desktop backend | 5 | #1; **SOB-26** |
 | 4 | Turn solo mode on and off for a space | Model crate, desktop backend | 2 | #3; **SOB-26** |
 | 5 | Apply attachment rules from corrections to past sessions | Model crate, desktop backend | 3 | #3; **SOB-26** |
-| 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables, under the day rule and the all-groups k rule at project and task level (§10, SOB-148) | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115; ADR-0016 amended by SOB-153 |
+| 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables, under the day rule and the all-groups k rule at project and task level (§10, SOB-148), and leave today's `team.sqlite` read-only with an export (§11) | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115; ADR-0016 amended by SOB-153 |
 | 7 | Serve projects, tasks, project links and daily totals with the visibility and k rules, and accept session uploads under the contract | Server | 5 | #6; **SOB-25** |
 | 8 | Upload organization sessions from the desktop app and queue attachment changes offline | Desktop backend | 5 | #2, #7; **SOB-26**; related to SOB-110 and SOB-132 |
-| 9 | Make the extension apply the space rule and send each estimate to one place under the contract, and retire `both` mode | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
+| 9 | Make the extension apply the space rule and send each estimate to one place under the contract, retire `both` mode, and keep its old labels and totals read-only (§11) | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
 | 10 | Link projects and tasks to Linear and GitHub, and classify sessions on the device from project links | Integrations, server, desktop backend | 5 | #7; the Z2 connections of the Linear and GitHub integrations project; **SOB-25**, **SOB-26** |
 | 11 | Read projects from the app in the browser extension, instead of free-text labels | Browser extension, bridge, desktop backend | 3 | #3, #9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 12 | Let a person withdraw a session from an organization to their personal space | Desktop backend, server | 2 | #8; **SOB-25**, **SOB-26** |
