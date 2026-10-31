@@ -12,11 +12,12 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **`docs/operations/host-contract.md`** (draft, to be confirmed by the server
   session): who owns what on the shared Proxmox host; the names, ranges and reach
   of Sobr machines as variables of a host file (no address in the document); a CPU
-  and RAM budget with hard limits and pinning that protect the game servers; whose
-  go each change needs (Claude approves Sobr's own machines; the host,
-  BrilliantStudio and any restart of the game VM need Thibault's explicit go);
-  backups off the one disk; the rule for a shared front end; the portability rule
-  and the risks accepted for now (SOB-211, SOB-212, SOB-213).
+  and RAM budget with hard limits and pinning, and limits on disk and network, that
+  protect the game servers; who checks the budget; whose go each change needs
+  (Claude approves Sobr's own machines; the host, BrilliantStudio and any restart
+  of the game VM need Thibault's explicit go); backups off the one disk, in a
+  window; the rule for a shared front end; the portability rule and the risks
+  accepted for now (SOB-211, SOB-212, SOB-213).
 
 ### Removed — unused `duckdb` dependency (2026-10-31, SOB-168)
 
