@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0014 phasing and feature table aligned with October 30 (2026-10-31, SOB-103)
+
+- **ADR-0014, Amendment 3** (Accepted): the phasing follows the calendar of
+  October 30, the data.gouv.fr application is off (SOB-104), the cloud is
+  announced with the V1 launch, and the README changes then. The card for the
+  organizations' trial is kept (SOB-105). Numbered after Amendment 2
+  (SOB-154).
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
