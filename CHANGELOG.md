@@ -21,6 +21,24 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   comparator's messages are in English. The estimator keeps the comparator's
   unit tests in `tests/characterization/golden.rs`.
 
+### Fixed — deterministic wrong-code pairing test (2026-10-31, SOB-92)
+
+- **`sobria-app`** (`bridge_server.rs`, test module):
+  `pair_with_wrong_code_returns_invalid_error` sent the fixed code `000000`,
+  which matched the random pending code once in a million runs. It now sends
+  `wrong_code_for(pending code)`, which always differs. The assertion keeps
+  its three accepted messages (tightening it is SOB-157). No production code
+  changed.
+
+### Changed — Two estimator golden files in the renderer's layout (2026-10-31, SOB-141)
+
+- **`sobria-estimator`** (characterization tests): `simulate_ecologits.json` and
+  `forecast_yearly_ecologits.json` now use the layout the golden renderer
+  writes (arrays of numbers on one line). Parsed as JSON they equal the
+  previous files, number text included, so no golden value changed. An update
+  run (`SOBRIA_UPDATE_GOLDEN=1`) no longer rewrites them, which keeps the
+  water formula change (SOB-120) free of layout-only diffs.
+
 ### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
 
 - **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in
