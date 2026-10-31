@@ -12,7 +12,6 @@ use std::{
     path::Path,
 };
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Maximum number of rows per batch (anti-abuse + performance cap).
@@ -48,17 +47,16 @@ pub enum BatchError {
 pub type BatchResult<T> = Result<T, BatchError>;
 
 /// One row of the input CSV.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct BatchInputRow {
     pub model_id: String,
     pub tokens_in: u32,
     pub tokens_out: u32,
-    #[serde(default)]
     pub datacenter_id: Option<String>,
 }
 
 /// One batch result row.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct BatchOutputRow {
     pub row_index: u32,
     pub model_id: String,

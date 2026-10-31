@@ -212,7 +212,7 @@ fn validate_description(desc: &str) -> Result<(), AppError> {
     Ok(())
 }
 
-fn validate_period(start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(), AppError> {
+pub(crate) fn validate_period(start: DateTime<Utc>, end: DateTime<Utc>) -> Result<(), AppError> {
     if end <= start {
         return Err(AppError::InvalidRequest(
             "period_end doit être strictement après period_start".into(),

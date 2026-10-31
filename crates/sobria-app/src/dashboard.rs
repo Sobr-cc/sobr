@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use sobria_audit::AuditEntry;
-use sobria_core::{EstimationResult, Indicator};
+use sobria_core::{EstimationResult, Indicator, IndicatorValue};
 
 /// Dashboard periods supported in v1.0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,8 +165,8 @@ pub fn aggregate(
     let (start, end) = period.window(now);
     let (prev_start, prev_end) = period.previous_window(now);
 
-    let current = aggregate_window(entries, start, end);
-    let previous = aggregate_window(entries, prev_start, prev_end);
+    let current = aggregate_window(entries, start, end, true);
+    let previous = aggregate_window(entries, prev_start, prev_end, false);
 
     // Top 5 models
     let mut top: Vec<TopModel> = current
@@ -202,22 +202,11 @@ pub fn aggregate(
     }
 
     let vs_previous = if previous.total_requests > 0 || current.total_requests > 0 {
-        let delta_co2_pct = if previous.total_co2eq > 0.0 {
-            ((current.total_co2eq - previous.total_co2eq) / previous.total_co2eq) * 100.0
-        } else if current.total_co2eq > 0.0 {
-            100.0
-        } else {
-            0.0
-        };
-        let delta_req_pct = if previous.total_requests > 0 {
-            ((f64::from(current.total_requests) - f64::from(previous.total_requests))
-                / f64::from(previous.total_requests))
-                * 100.0
-        } else if current.total_requests > 0 {
-            100.0
-        } else {
-            0.0
-        };
+        let delta_co2_pct = pct_delta(current.total_co2eq, previous.total_co2eq);
+        let delta_req_pct = pct_delta(
+            f64::from(current.total_requests),
+            f64::from(previous.total_requests),
+        );
         Some(DashboardComparison {
             previous_total_co2eq_g_p50: previous.total_co2eq,
             delta_co2eq_pct: delta_co2_pct,
@@ -267,12 +256,40 @@ pub fn aggregate(
 // Internals
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// P50 of the `ind` indicator in `values`, if present.
+pub(crate) fn indicator_p50(values: &[IndicatorValue], ind: Indicator) -> Option<f64> {
+    values
+        .iter()
+        .find(|i| i.indicator == ind)
+        .map(|i| i.interval.p50)
+}
+
+/// Percent change from `prev` to `cur`; 100 if only `cur` is positive, 0 if neither is.
+fn pct_delta(cur: f64, prev: f64) -> f64 {
+    if prev > 0.0 {
+        ((cur - prev) / prev) * 100.0
+    } else if cur > 0.0 {
+        100.0
+    } else {
+        0.0
+    }
+}
+
 #[derive(Debug, Default, Clone)]
-struct DayBucket {
+struct Bucket {
     requests: u32,
     co2: f64,
     energy: f64,
     water: f64,
+}
+
+impl Bucket {
+    fn add(&mut self, co2: f64, energy: f64, water: f64) {
+        self.requests = self.requests.saturating_add(1);
+        self.co2 += co2;
+        self.energy += energy;
+        self.water += water;
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -282,28 +299,22 @@ struct ModelBucket {
 }
 
 #[derive(Debug, Default, Clone)]
-struct MethodBucket {
-    requests: u32,
-    co2: f64,
-    energy: f64,
-    water: f64,
-}
-
-#[derive(Debug, Default, Clone)]
 struct WindowAggregate {
     total_requests: u32,
     total_co2eq: f64,
     total_energy: f64,
     total_water: f64,
-    by_day: HashMap<String, DayBucket>,
+    by_day: HashMap<String, Bucket>,
     by_model: HashMap<String, ModelBucket>,
-    by_method: HashMap<sobria_core::EmpreinteMethod, MethodBucket>,
+    by_method: HashMap<sobria_core::EmpreinteMethod, Bucket>,
 }
 
+/// Aggregates the `[start, end)` window; `breakdowns = false` fills only the totals.
 fn aggregate_window(
     entries: &[AuditEntry],
     start: DateTime<Utc>,
     end: DateTime<Utc>,
+    breakdowns: bool,
 ) -> WindowAggregate {
     let mut agg = WindowAggregate::default();
     for entry in entries {
@@ -318,32 +329,22 @@ fn aggregate_window(
         let parsed: Result<EstimationResult, _> =
             serde_json::from_str(&entry.estimation_result_json);
         let Ok(result) = parsed else { continue };
-        let co2 = result
-            .indicators
-            .iter()
-            .find(|i| matches!(i.indicator, Indicator::Co2Eq))
-            .map_or(0.0, |i| i.interval.p50);
-        let energy = result
-            .indicators
-            .iter()
-            .find(|i| matches!(i.indicator, Indicator::Energy))
-            .map_or(0.0, |i| i.interval.p50);
-        let water = result
-            .indicators
-            .iter()
-            .find(|i| matches!(i.indicator, Indicator::Water))
-            .map_or(0.0, |i| i.interval.p50);
+        let co2 = indicator_p50(&result.indicators, Indicator::Co2Eq).unwrap_or(0.0);
+        let energy = indicator_p50(&result.indicators, Indicator::Energy).unwrap_or(0.0);
+        let water = indicator_p50(&result.indicators, Indicator::Water).unwrap_or(0.0);
 
         agg.total_co2eq += co2;
         agg.total_energy += energy;
         agg.total_water += water;
+        if !breakdowns {
+            continue;
+        }
 
         let day_key = entry.timestamp.format("%Y-%m-%d").to_string();
-        let day = agg.by_day.entry(day_key).or_default();
-        day.requests = day.requests.saturating_add(1);
-        day.co2 += co2;
-        day.energy += energy;
-        day.water += water;
+        agg.by_day
+            .entry(day_key)
+            .or_default()
+            .add(co2, energy, water);
 
         let model = agg
             .by_model
@@ -353,11 +354,10 @@ fn aggregate_window(
         model.co2 += co2;
 
         // Per-methodology accumulation.
-        let method_bucket = agg.by_method.entry(result.method).or_default();
-        method_bucket.requests = method_bucket.requests.saturating_add(1);
-        method_bucket.co2 += co2;
-        method_bucket.energy += energy;
-        method_bucket.water += water;
+        agg.by_method
+            .entry(result.method)
+            .or_default()
+            .add(co2, energy, water);
     }
     agg
 }

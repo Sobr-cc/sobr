@@ -14,15 +14,17 @@ use sobria_core::{
     IndicatorValue, ModuleId, Persona,
 };
 use sobria_estimator::{
-    CalibrationStatus, ForecastConfig, ForecastResult, ModelPreset, Openness, ParamOverrides,
-    Scenario, ScenarioOutcome, SimulationRequest, SimulationResult, VendorDisclosure, VendorScope,
-    VendorUnit, VisionPricing, YearlyForecastRequest, YearlyForecastResult, YearlyScenario,
-    YearlyScenarioOutcome,
+    ArchitectureKind, CalibrationStatus, ForecastConfig, ForecastResult, ModelFamily, ModelPreset,
+    Openness, ParamOverrides, Scenario, ScenarioOutcome, SimulationRequest, SimulationResult,
+    VendorDisclosure, VendorScope, VendorUnit, VisionPricing, YearlyForecastRequest,
+    YearlyForecastResult, YearlyScenario, YearlyScenarioOutcome,
 };
 use sobria_geoloc::{
     CountryAggregate, DatacenterRecord, IndustrialSite, IndustrialSiteSummary, RegionFrAggregate,
     SankeyData, SankeyLink, SankeyNode,
 };
+
+use crate::{goals_store::PersonalGoal, pairing::PendingCode, project_store::Project};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // meta_info
@@ -68,6 +70,23 @@ pub struct ReferentielStatusDto {
     pub model_count: u64,
     /// Path of the SQLite file read (information only).
     pub path: String,
+}
+
+impl ReferentielStatusDto {
+    /// `available=false` status with empty metadata.
+    #[must_use]
+    pub fn unavailable(message: String, path: String) -> Self {
+        Self {
+            available: false,
+            message,
+            version: String::new(),
+            snapshot_date: String::new(),
+            sha256: String::new(),
+            source_count: 0,
+            model_count: 0,
+            path,
+        }
+    }
 }
 
 /// Result of an explicit reload request (`reload_referentiel`).
@@ -131,50 +150,65 @@ pub struct ModelPresetDto {
     pub source_url: String,
 }
 
+/// IPC string of an `Openness`.
+pub(crate) fn openness_str(o: Openness) -> &'static str {
+    match o {
+        Openness::Open => "open",
+        Openness::OpenWeights => "open_weights",
+        Openness::Closed => "closed",
+    }
+}
+
+/// IPC string of a `CalibrationStatus`.
+pub(crate) fn calibration_str(c: CalibrationStatus) -> &'static str {
+    match c {
+        CalibrationStatus::Validated => "validated",
+        CalibrationStatus::Indicative => "indicative",
+        CalibrationStatus::Extrapolated => "extrapolated",
+    }
+}
+
+/// IPC string of a `ModelFamily`.
+pub(crate) fn model_family_str(f: ModelFamily) -> &'static str {
+    match f {
+        ModelFamily::Anthropic => "anthropic",
+        ModelFamily::OpenAi => "open_ai",
+        ModelFamily::GoogleDeepMind => "google_deep_mind",
+        ModelFamily::MetaAi => "meta_ai",
+        ModelFamily::MistralAi => "mistral_ai",
+        ModelFamily::DeepSeek => "deep_seek",
+        ModelFamily::Xai => "xai",
+        ModelFamily::Alibaba => "alibaba",
+        ModelFamily::Microsoft => "microsoft",
+        ModelFamily::Other => "other",
+    }
+}
+
+/// IPC string of an `ArchitectureKind`.
+pub(crate) fn architecture_str(a: ArchitectureKind) -> &'static str {
+    match a {
+        ArchitectureKind::DenseTransformer => "dense_transformer",
+        ArchitectureKind::Moe { .. } => "moe",
+        ArchitectureKind::Mamba => "mamba",
+        ArchitectureKind::Hybrid => "hybrid",
+    }
+}
+
 impl From<&ModelPreset> for ModelPresetDto {
     fn from(p: &ModelPreset) -> Self {
-        use sobria_estimator::{ArchitectureKind, ModelFamily};
         Self {
             id: p.id.to_string(),
             display_name: p.display_name.to_string(),
             provider: p.provider.to_string(),
             family: p.family.to_string(),
             approx_params_billions: p.approx_params_billions,
-            openness: match p.openness {
-                Openness::Open => "open",
-                Openness::OpenWeights => "open_weights",
-                Openness::Closed => "closed",
-            }
-            .into(),
-            calibration: match p.calibration {
-                CalibrationStatus::Validated => "validated",
-                CalibrationStatus::Indicative => "indicative",
-                CalibrationStatus::Extrapolated => "extrapolated",
-            }
-            .into(),
+            openness: openness_str(p.openness).into(),
+            calibration: calibration_str(p.calibration).into(),
             sources: p.sources.iter().map(|s| (*s).to_string()).collect(),
             release_date: p.release_date.to_string(),
             active_params_b: p.active_params_b,
-            model_family: match p.model_family {
-                ModelFamily::Anthropic => "anthropic",
-                ModelFamily::OpenAi => "open_ai",
-                ModelFamily::GoogleDeepMind => "google_deep_mind",
-                ModelFamily::MetaAi => "meta_ai",
-                ModelFamily::MistralAi => "mistral_ai",
-                ModelFamily::DeepSeek => "deep_seek",
-                ModelFamily::Xai => "xai",
-                ModelFamily::Alibaba => "alibaba",
-                ModelFamily::Microsoft => "microsoft",
-                ModelFamily::Other => "other",
-            }
-            .into(),
-            architecture: match p.architecture {
-                ArchitectureKind::DenseTransformer => "dense_transformer",
-                ArchitectureKind::Moe { .. } => "moe",
-                ArchitectureKind::Mamba => "mamba",
-                ArchitectureKind::Hybrid => "hybrid",
-            }
-            .into(),
+            model_family: model_family_str(p.model_family).into(),
+            architecture: architecture_str(p.architecture).into(),
             vision_capable: p.vision_capable,
             audio_capable: p.audio_capable,
             reasoning_capable: p.reasoning_capable,
@@ -636,6 +670,21 @@ pub struct ProjectDto {
     pub updated_at: String,
 }
 
+impl From<Project> for ProjectDto {
+    fn from(p: Project) -> Self {
+        Self {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            period_start: p.period_start.to_rfc3339(),
+            period_end: p.period_end.to_rfc3339(),
+            tags: p.tags,
+            created_at: p.created_at.to_rfc3339(),
+            updated_at: p.updated_at.to_rfc3339(),
+        }
+    }
+}
+
 /// Creation payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProjectDto {
@@ -821,6 +870,17 @@ pub struct PersonalGoalDto {
     pub unit: String,
 }
 
+impl From<PersonalGoal> for PersonalGoalDto {
+    fn from(g: PersonalGoal) -> Self {
+        Self {
+            indicator: g.indicator.as_str().into(),
+            period: g.period.as_str().into(),
+            value_max: g.value_max,
+            unit: g.unit,
+        }
+    }
+}
+
 /// Consumption status of a goal.
 #[derive(Debug, Clone, Serialize)]
 pub struct BudgetStatusDto {
@@ -847,6 +907,12 @@ pub struct TripletDto {
     pub p5: f64,
     pub p50: f64,
     pub p95: f64,
+}
+
+impl From<(f64, f64, f64)> for TripletDto {
+    fn from((p5, p50, p95): (f64, f64, f64)) -> Self {
+        Self { p5, p50, p95 }
+    }
 }
 
 /// Detail sheet of a model, exposing its distribution params and
@@ -1525,6 +1591,18 @@ pub struct PairingCodeDto {
     pub seconds_remaining: i64,
 }
 
+impl PairingCodeDto {
+    /// Builds the DTO of `code`, with the seconds left at `now`.
+    #[must_use]
+    pub fn from_pending(code: &PendingCode, now: DateTime<Utc>) -> Self {
+        Self {
+            code: code.code.clone(),
+            expires_at: code.expires_at.to_rfc3339(),
+            seconds_remaining: (code.expires_at - now).num_seconds().max(0),
+        }
+    }
+}
+
 /// Secret produced once a pairing code is validated — this is what
 /// the extension stores in `chrome.storage.local` and presents with each
 /// request.
@@ -1617,11 +1695,8 @@ fn parse_payload_full(payload: &str) -> ParsedPayload {
     match parsed {
         Ok(r) => {
             let model_id = r.request.model_id.clone();
-            let co2eq_p50 = r
-                .indicators
-                .iter()
-                .find(|i| matches!(i.indicator, Indicator::Co2Eq))
-                .map_or(f64::NAN, |i| i.interval.p50);
+            let co2eq_p50 = crate::dashboard::indicator_p50(&r.indicators, Indicator::Co2Eq)
+                .unwrap_or(f64::NAN);
             ParsedPayload {
                 model_id,
                 co2eq_p50,

@@ -6,8 +6,10 @@
 //! - possible reuse from a CLI later (workstream C10),
 //! - a clean `IpcError` ↔ internal logic boundary.
 
-use chrono::Utc;
-use sobria_core::{EstimationRequest, Indicator, ModuleId};
+use std::sync::{Mutex, MutexGuard};
+
+use chrono::{DateTime, Utc};
+use sobria_core::{EstimationRequest, EstimationResult, Indicator, ModuleId};
 use sobria_estimator::{available_models, find_preset, Distribution, EstimationParams};
 use sobria_geoloc::{
     aggregate_by_country, aggregate_by_region, all_datacenters, find_datacenter,
@@ -17,27 +19,40 @@ use sobria_geoloc::{
 use tracing::{debug, info, warn};
 
 use crate::{
-    batch, dashboard,
+    batch,
+    dashboard::{self, DashboardPeriod},
     dto::{
-        AppPreferencesDto, AuditEntrySummaryDto, BatchAggregateDto, BatchModelAggregateDto,
-        BatchRequestDto, BatchResultDto, BenchmarkOutcomeDto, BenchmarkRequestDto,
-        BenchmarkResultDto, BudgetStatusDto, CompositionDto, CountryAggregateDto, CreateProjectDto,
+        architecture_str, calibration_str, model_family_str, openness_str, AppPreferencesDto,
+        AuditEntrySummaryDto, BatchAggregateDto, BatchModelAggregateDto, BatchRequestDto,
+        BatchResultDto, BenchmarkOutcomeDto, BenchmarkRequestDto, BenchmarkResultDto,
+        BudgetStatusDto, CompositionDto, CountryAggregateDto, CreateProjectDto,
         CsrdReportRequestDto, CsrdReportResultDto, DashboardSummaryDto, DatacenterDetailDto,
         DatacenterSummaryDto, DatasheetDto, EstimationRequestDto, EstimationResultDto,
-        IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto, ModelPresetDto,
-        PersonalGoalDto, ProjectDto, RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto,
-        SimulationResultDto, TripletDto, UpdateProjectDto, YearlyForecastRequestDto,
-        YearlyForecastResultDto,
+        IndicatorDto, IndustrialSiteSummaryDto, IntegrityReportDto, MetaInfo, ModelDetailDto,
+        ModelPresetDto, PairingCodeDto, PersonalGoalDto, ProjectDto, ReferentielStatusDto,
+        RegionFrAggregateDto, SankeyDataDto, SimulationRequestDto, SimulationResultDto,
+        UpdateProjectDto, YearlyForecastRequestDto, YearlyForecastResultDto,
     },
     error::{AppError, IpcError, IpcResult},
     goals_store::{GoalIndicator, GoalPeriod, PersonalGoal},
     preferences_store::StoredPreferences,
-    project_store::{NewProject, Project, ProjectUpdate},
+    project_store::{self, NewProject, Project, ProjectUpdate},
     state::AppState,
 };
 
 /// Constant exposed by `meta_info`.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Locks `m`, mapping poisoning to `AppError::Poisoned("<label>: <error>")`.
+fn lock<'a, T>(m: &'a Mutex<T>, label: &str) -> Result<MutexGuard<'a, T>, AppError> {
+    m.lock()
+        .map_err(|e| AppError::Poisoned(format!("{label}: {e}")))
+}
+
+/// Locks `m`, mapping poisoning to `AppError::Poisoned(<error>)`.
+fn lock_bare<T>(m: &Mutex<T>) -> Result<MutexGuard<'_, T>, AppError> {
+    m.lock().map_err(|e| AppError::Poisoned(e.to_string()))
+}
 
 /// Internal helper: resolves the effective methodology for "ambient"
 /// estimations (static M9/M12 sheets, M13 simulator, M16 forecaster)
@@ -65,25 +80,48 @@ fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
 /// - `InvalidRequest` if the id is unknown (the UI list always comes from
 ///   `list_datacenters`, so an orphan id is always a bug).
 fn apply_datacenter_override(
-    params: &mut sobria_estimator::params::EstimationParams,
+    params: &mut EstimationParams,
     datacenter_id: Option<&str>,
 ) -> IpcResult<()> {
     let Some(id) = datacenter_id else {
         return Ok(());
     };
-    let dc = sobria_geoloc::find_datacenter(id).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
-            "datacenter inconnu : {id}"
-        )))
-    })?;
-    params.pue = sobria_estimator::distributions::Distribution::Point { value: dc.pue };
-    params.if_electrical_g_per_kwh = sobria_estimator::distributions::Distribution::Point {
+    let dc = find_datacenter(id)
+        .ok_or_else(|| IpcError::invalid_request(format!("datacenter inconnu : {id}")))?;
+    params.pue = Distribution::Point { value: dc.pue };
+    params.if_electrical_g_per_kwh = Distribution::Point {
         value: dc.if_electrical_g_per_kwh,
     };
     if let Some(wue) = dc.wue_l_per_kwh {
-        params.wue_l_per_kwh = sobria_estimator::distributions::Distribution::Point { value: wue };
+        params.wue_l_per_kwh = Distribution::Point { value: wue };
     }
     Ok(())
+}
+
+/// Fails with `unknown_model` if `model_id` has no preset.
+fn ensure_known_model(model_id: &str) -> IpcResult<()> {
+    if find_preset(model_id).is_none() {
+        return Err(IpcError::from(AppError::UnknownModel(model_id.to_string())));
+    }
+    Ok(())
+}
+
+/// Shared checks of `estimate_prompt` and `estimate_for_comparison`.
+fn validate_estimation_request(req: &EstimationRequestDto) -> IpcResult<()> {
+    ensure_known_model(&req.model_id)?;
+    if req.tokens_in == 0 && req.tokens_out_estimated == 0 {
+        return Err(IpcError::invalid_request(
+            "tokens_in et tokens_out_estimated sont tous les deux nuls",
+        ));
+    }
+    Ok(())
+}
+
+/// Appends `result` to the ledger and returns the new entry id.
+fn append_to_ledger(state: &AppState, result: &EstimationResult) -> IpcResult<i64> {
+    let mut ledger = lock(&state.ledger, "ledger")?;
+    let entry = ledger.append(result).map_err(AppError::from)?;
+    Ok(entry.id)
 }
 
 /// Runtime metadata.
@@ -154,7 +192,7 @@ pub fn list_vendor_comparison() -> IpcResult<Vec<crate::dto::VendorComparisonRow
 /// returns an `available=false` status with an explicit message
 /// rather than an IPC error, so the UI can offer a
 /// reload action.
-pub fn get_referentiel_status() -> IpcResult<crate::dto::ReferentielStatusDto> {
+pub fn get_referentiel_status() -> IpcResult<ReferentielStatusDto> {
     Ok(referentiel_status_dto())
 }
 
@@ -208,8 +246,7 @@ pub fn reload_referentiel() -> IpcResult<crate::dto::ReferentielReloadResultDto>
 /// Internal helper: opens the referential and builds a DTO. Turns errors
 /// into `available=false` instead of propagating them, and lets the UI
 /// decide.
-fn referentiel_status_dto() -> crate::dto::ReferentielStatusDto {
-    use crate::dto::ReferentielStatusDto;
+fn referentiel_status_dto() -> ReferentielStatusDto {
     match sobria_referentiel::load() {
         Ok(r) => match r.status() {
             Ok(s) => ReferentielStatusDto {
@@ -222,28 +259,16 @@ fn referentiel_status_dto() -> crate::dto::ReferentielStatusDto {
                 model_count: s.model_count,
                 path: s.path,
             },
-            Err(e) => ReferentielStatusDto {
-                available: false,
-                message: format!("Référentiel ouvert mais lecture KO : {e}"),
-                version: String::new(),
-                snapshot_date: String::new(),
-                sha256: String::new(),
-                source_count: 0,
-                model_count: 0,
-                path: String::new(),
-            },
+            Err(e) => ReferentielStatusDto::unavailable(
+                format!("Référentiel ouvert mais lecture KO : {e}"),
+                String::new(),
+            ),
         },
-        Err(e) => ReferentielStatusDto {
-            available: false,
-            message: format!("{e}"),
-            version: String::new(),
-            snapshot_date: String::new(),
-            sha256: String::new(),
-            source_count: 0,
-            model_count: 0,
-            path: std::env::var(sobria_referentiel::REFERENTIEL_PATH_ENV)
+        Err(e) => ReferentielStatusDto::unavailable(
+            format!("{e}"),
+            std::env::var(sobria_referentiel::REFERENTIEL_PATH_ENV)
                 .unwrap_or_else(|_| sobria_referentiel::DEFAULT_REFERENTIEL_PATH.to_string()),
-        },
+        ),
     }
 }
 
@@ -268,23 +293,13 @@ pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
 pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDetailDto> {
     let preset = find_preset(model_id)
         .ok_or_else(|| IpcError::new("not_found", format!("modèle '{model_id}' inconnu")))?;
-    let openness = match preset.openness {
-        sobria_estimator::Openness::Open => "open",
-        sobria_estimator::Openness::OpenWeights => "open_weights",
-        sobria_estimator::Openness::Closed => "closed",
-    };
-    let calibration = match preset.calibration {
-        sobria_estimator::CalibrationStatus::Validated => "validated",
-        sobria_estimator::CalibrationStatus::Indicative => "indicative",
-        sobria_estimator::CalibrationStatus::Extrapolated => "extrapolated",
-    };
 
     // Baseline for context (not logged).
     // Honours the user's default methodology; otherwise the model sheet
     // would show an AFNOR baseline while the user computes with EcoLogits
     // (misleading display).
     let params = EstimationParams::for_model(model_id).map_err(AppError::from)?;
-    let req = sobria_core::EstimationRequest {
+    let req = EstimationRequest {
         model_id: model_id.to_string(),
         tokens_in: 100,
         tokens_out_estimated: 500,
@@ -300,16 +315,8 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         .iter()
         .find(|i| matches!(i.indicator, Indicator::Co2Eq))
         .ok_or_else(|| AppError::Internal("CO2eq indicator manquant".into()))?;
-    let energy_p50 = result
-        .indicators
-        .iter()
-        .find(|i| matches!(i.indicator, Indicator::Energy))
-        .map_or(0.0, |i| i.interval.p50);
-    let water_p50 = result
-        .indicators
-        .iter()
-        .find(|i| matches!(i.indicator, Indicator::Water))
-        .map_or(0.0, |i| i.interval.p50);
+    let energy_p50 = dashboard::indicator_p50(&result.indicators, Indicator::Energy).unwrap_or(0.0);
+    let water_p50 = dashboard::indicator_p50(&result.indicators, Indicator::Water).unwrap_or(0.0);
 
     Ok(ModelDetailDto {
         id: preset.id.into(),
@@ -317,24 +324,12 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         provider: preset.provider.into(),
         family: preset.family.into(),
         approx_params_billions: preset.approx_params_billions,
-        openness: openness.into(),
-        calibration: calibration.into(),
+        openness: openness_str(preset.openness).into(),
+        calibration: calibration_str(preset.calibration).into(),
         sources: preset.sources.iter().map(|s| (*s).to_string()).collect(),
-        epsilon_prefill_mj_per_token: TripletDto {
-            p5: preset.epsilon_prefill_mj.0,
-            p50: preset.epsilon_prefill_mj.1,
-            p95: preset.epsilon_prefill_mj.2,
-        },
-        epsilon_decode_mj_per_token: TripletDto {
-            p5: preset.epsilon_decode_mj.0,
-            p50: preset.epsilon_decode_mj.1,
-            p95: preset.epsilon_decode_mj.2,
-        },
-        embodied_g_per_request: TripletDto {
-            p5: preset.embodied_g_per_req.0,
-            p50: preset.embodied_g_per_req.1,
-            p95: preset.embodied_g_per_req.2,
-        },
+        epsilon_prefill_mj_per_token: preset.epsilon_prefill_mj.into(),
+        epsilon_decode_mj_per_token: preset.epsilon_decode_mj.into(),
+        embodied_g_per_request: preset.embodied_g_per_req.into(),
         baseline_co2eq_p5_g: co2.interval.p5,
         baseline_co2eq_p50_g: co2.interval.p50,
         baseline_co2eq_p95_g: co2.interval.p95,
@@ -345,26 +340,8 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         // C34.5 — model capabilities for the M9 sheet.
         release_date: preset.release_date.into(),
         active_params_b: preset.active_params_b,
-        model_family: match preset.model_family {
-            sobria_estimator::ModelFamily::Anthropic => "anthropic",
-            sobria_estimator::ModelFamily::OpenAi => "open_ai",
-            sobria_estimator::ModelFamily::GoogleDeepMind => "google_deep_mind",
-            sobria_estimator::ModelFamily::MetaAi => "meta_ai",
-            sobria_estimator::ModelFamily::MistralAi => "mistral_ai",
-            sobria_estimator::ModelFamily::DeepSeek => "deep_seek",
-            sobria_estimator::ModelFamily::Xai => "xai",
-            sobria_estimator::ModelFamily::Alibaba => "alibaba",
-            sobria_estimator::ModelFamily::Microsoft => "microsoft",
-            sobria_estimator::ModelFamily::Other => "other",
-        }
-        .into(),
-        architecture: match preset.architecture {
-            sobria_estimator::ArchitectureKind::DenseTransformer => "dense_transformer",
-            sobria_estimator::ArchitectureKind::Moe { .. } => "moe",
-            sobria_estimator::ArchitectureKind::Mamba => "mamba",
-            sobria_estimator::ArchitectureKind::Hybrid => "hybrid",
-        }
-        .into(),
+        model_family: model_family_str(preset.model_family).into(),
+        architecture: architecture_str(preset.architecture).into(),
         moe_experts: match preset.architecture {
             sobria_estimator::ArchitectureKind::Moe { experts, .. } => Some(experts),
             _ => None,
@@ -398,17 +375,9 @@ pub fn estimate_prompt(
     req: EstimationRequestDto,
     state: &AppState,
 ) -> IpcResult<EstimationResultDto> {
-    // Check the model is known before any conversion (stable error for the UI).
-    if find_preset(&req.model_id).is_none() {
-        return Err(IpcError::from(AppError::UnknownModel(req.model_id.clone())));
-    }
-
-    // Basic validation before Monte-Carlo (the engine validates too).
-    if req.tokens_in == 0 && req.tokens_out_estimated == 0 {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "tokens_in et tokens_out_estimated sont tous les deux nuls".into(),
-        )));
-    }
+    // Model first (stable error for the UI), then a basic token check
+    // before Monte-Carlo (the engine validates too).
+    validate_estimation_request(&req)?;
 
     let model_id = req.model_id.clone();
     let method_override = req.method;
@@ -418,29 +387,14 @@ pub fn estimate_prompt(
     apply_datacenter_override(&mut params, datacenter_id.as_deref())?;
 
     // Methodology choice: explicit override > user preference > default.
-    let method = method_override.unwrap_or_else(|| {
-        // Best-effort read of the preferences; on error, fall back to the default.
-        state
-            .preferences
-            .lock()
-            .ok()
-            .and_then(|store| store.read_all().ok())
-            .and_then(|p| p.default_method)
-            .unwrap_or_else(sobria_core::EmpreinteMethod::default_method)
-    });
+    let method = method_override.unwrap_or_else(|| user_default_method(state));
     let engine = sobria_estimator::engine_for(method);
 
     let result = engine
         .estimate(&core_req, &params)
         .map_err(AppError::from)?;
 
-    let mut ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    let entry = ledger.append(&result).map_err(AppError::from)?;
-    let audit_id = entry.id;
-    drop(ledger);
+    let audit_id = append_to_ledger(state, &result)?;
 
     // Persist "last used" (C25). Best-effort: a failure does not break
     // the estimation; we log and carry on. The current value (Some or None)
@@ -486,14 +440,7 @@ pub fn estimate_for_comparison(
     req: EstimationRequestDto,
     method: sobria_core::EmpreinteMethod,
 ) -> IpcResult<EstimationResultDto> {
-    if find_preset(&req.model_id).is_none() {
-        return Err(IpcError::from(AppError::UnknownModel(req.model_id.clone())));
-    }
-    if req.tokens_in == 0 && req.tokens_out_estimated == 0 {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "tokens_in et tokens_out_estimated sont tous les deux nuls".into(),
-        )));
-    }
+    validate_estimation_request(&req)?;
 
     let model_id = req.model_id.clone();
     let datacenter_id = req.datacenter_id.clone();
@@ -520,10 +467,7 @@ pub fn estimate_for_comparison(
 
 /// Verifies the integrity of the audit chain.
 pub fn verify_audit(state: &AppState) -> IpcResult<IntegrityReportDto> {
-    let ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
+    let ledger = lock(&state.ledger, "ledger")?;
     let report = ledger.verify_chain().map_err(AppError::from)?;
     debug!(
         valid = report.valid,
@@ -543,17 +487,10 @@ pub fn list_audit_entries(
 ) -> IpcResult<Vec<AuditEntrySummaryDto>> {
     let limit = limit.min(1000) as usize;
     let offset = offset as usize;
-    let ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
     // The ledger's public API does not (yet) offer a paginated read, so
     // we export NDJSON in memory and slice it. Acceptable at the expected
     // volume (audit < 10⁵ entries). To be factored out in C10 if needed.
-    let mut buf: Vec<u8> = Vec::new();
-    ledger.export_ndjson(&mut buf).map_err(AppError::from)?;
-    drop(ledger);
-    let text = String::from_utf8(buf).map_err(|e| AppError::Internal(e.to_string()))?;
+    let text = export_ledger_text(state)?;
     let mut out: Vec<AuditEntrySummaryDto> = Vec::with_capacity(limit);
     for (i, line) in text.lines().enumerate() {
         if i < offset {
@@ -584,7 +521,7 @@ pub fn get_datacenter_detail(id: &str, state: &AppState) -> IpcResult<Datacenter
         IpcError::new("not_found", format!("datacenter '{id}' inconnu"))
             .with_details(serde_json::json!({ "id": id }))
     })?;
-    let (co2, energy, water) = compute_baseline_for_dc(dc, state).map_err(IpcError::from)?;
+    let (co2, energy, water) = compute_baseline_for_dc(dc, state)?;
     Ok(DatacenterDetailDto {
         id: dc.id.clone(),
         name: dc.name.clone(),
@@ -731,35 +668,19 @@ pub fn export_csrd_report(
     state: &AppState,
 ) -> IpcResult<CsrdReportResultDto> {
     // 1. Parse the ISO 8601 dates.
-    let period_start = chrono::DateTime::parse_from_rfc3339(&req.period_start)
-        .map_err(|e| {
-            IpcError::from(AppError::InvalidRequest(format!(
-                "period_start invalide (attendu RFC 3339) : {e}"
-            )))
-        })?
-        .with_timezone(&Utc);
-    let period_end = chrono::DateTime::parse_from_rfc3339(&req.period_end)
-        .map_err(|e| {
-            IpcError::from(AppError::InvalidRequest(format!(
-                "period_end invalide (attendu RFC 3339) : {e}"
-            )))
-        })?
-        .with_timezone(&Utc);
-    if period_end <= period_start {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "period_end doit être strictement après period_start".into(),
-        )));
-    }
+    let period_start = parse_rfc3339(&req.period_start, "period_start")?;
+    let period_end = parse_rfc3339(&req.period_end, "period_end")?;
+    project_store::validate_period(period_start, period_end)?;
     if req.organization_name.trim().is_empty() {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "organization_name ne doit pas être vide".into(),
-        )));
+        return Err(IpcError::invalid_request(
+            "organization_name ne doit pas être vide",
+        ));
     }
     if !matches!(req.locale.as_str(), "fr" | "en") {
-        return Err(IpcError::from(AppError::InvalidRequest(format!(
+        return Err(IpcError::invalid_request(format!(
             "locale '{}' non supportée (fr|en)",
             req.locale
-        ))));
+        )));
     }
 
     // 2. Read every audit ledger entry.
@@ -769,8 +690,8 @@ pub fn export_csrd_report(
     let export_req = sobria_export::ReportRequest {
         period_start,
         period_end,
-        organization_name: req.organization_name.clone(),
-        locale: req.locale.clone(),
+        organization_name: req.organization_name,
+        locale: req.locale,
         app_version: APP_VERSION.into(),
         estimator_seed: state.estimator.seed(),
         estimator_n: state.estimator.n(),
@@ -817,10 +738,10 @@ pub fn export_csrd_report(
 
 /// Builds the dashboard summary for the given period.
 pub fn get_dashboard_summary(period_str: &str, state: &AppState) -> IpcResult<DashboardSummaryDto> {
-    let period = dashboard::DashboardPeriod::parse(period_str).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
+    let period = DashboardPeriod::parse(period_str).ok_or_else(|| {
+        IpcError::invalid_request(format!(
             "period '{period_str}' inconnue (attendu: today | last_7_days | this_month | last_month | this_year)"
-        )))
+        ))
     })?;
     let entries = read_all_audit_entries(state)?;
     let summary = dashboard::aggregate(&entries, period, Utc::now());
@@ -829,23 +750,17 @@ pub fn get_dashboard_summary(period_str: &str, state: &AppState) -> IpcResult<Da
 
 /// Lists all personal goals (M25).
 pub fn list_personal_goals(state: &AppState) -> IpcResult<Vec<PersonalGoalDto>> {
-    let store = state
-        .goals
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
-    let goals = store.list_all().map_err(IpcError::from)?;
-    Ok(goals.into_iter().map(goal_to_dto).collect())
+    let store = lock(&state.goals, "goals")?;
+    let goals = store.list_all()?;
+    Ok(goals.into_iter().map(Into::into).collect())
 }
 
 /// UPSERTs a personal goal.
 pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()> {
-    let goal = dto_to_goal(&dto)?;
-    goal.validate().map_err(IpcError::from)?;
-    let mut store = state
-        .goals
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
-    store.upsert(&goal).map_err(IpcError::from)?;
+    let goal = dto_to_goal(dto)?;
+    goal.validate()?;
+    let mut store = lock(&state.goals, "goals")?;
+    store.upsert(&goal)?;
     info!(
         indicator = goal.indicator.as_str(),
         period = goal.period.as_str(),
@@ -857,40 +772,35 @@ pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()
 
 /// Deletes a goal (idempotent).
 pub fn delete_personal_goal(indicator: &str, period: &str, state: &AppState) -> IpcResult<()> {
-    let i = GoalIndicator::parse(indicator).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
-            "indicator '{indicator}' inconnu"
-        )))
-    })?;
-    let p = GoalPeriod::parse(period).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
-            "period '{period}' inconnue"
-        )))
-    })?;
-    let mut store = state
-        .goals
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("goals: {e}")))?;
-    store.delete(i, p).map_err(IpcError::from)?;
+    let (i, p) = parse_goal_key(indicator, period)?;
+    let mut store = lock(&state.goals, "goals")?;
+    store.delete(i, p)?;
     Ok(())
 }
 
 /// Budget status for each defined goal.
 pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
-    let goals = list_personal_goals(state)?;
+    let goals = lock(&state.goals, "goals")?.list_all()?;
     if goals.is_empty() {
         return Ok(vec![]);
     }
     let entries = read_all_audit_entries(state)?;
     let now = Utc::now();
+    let targets: Vec<(Indicator, DateTime<Utc>, DateTime<Utc>)> = goals
+        .iter()
+        .map(|g| {
+            let (start, end) = match g.period {
+                GoalPeriod::Daily => DashboardPeriod::Today,
+                GoalPeriod::Weekly => DashboardPeriod::Last7Days,
+                GoalPeriod::Monthly => DashboardPeriod::ThisMonth,
+            }
+            .window(now);
+            (g.indicator.indicator(), start, end)
+        })
+        .collect();
+    let sums = sum_indicators_in_windows(&entries, &targets);
     let mut out = Vec::with_capacity(goals.len());
-    for g in goals {
-        let (start, end) = match GoalPeriod::parse(&g.period).unwrap_or(GoalPeriod::Monthly) {
-            GoalPeriod::Daily => (dashboard::DashboardPeriod::Today.window(now).0, now),
-            GoalPeriod::Weekly => (now - chrono::Duration::days(7), now),
-            GoalPeriod::Monthly => (dashboard::DashboardPeriod::ThisMonth.window(now).0, now),
-        };
-        let agg = sum_indicator_in_window(&entries, &g.indicator, start, end);
+    for ((g, (_, start, end)), agg) in goals.into_iter().zip(targets).zip(sums) {
         let consumed_pct = if g.value_max > 0.0 {
             (agg / g.value_max) * 100.0
         } else {
@@ -903,85 +813,64 @@ pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
         } else {
             "ok"
         };
+        let remaining = g.value_max - agg;
         out.push(BudgetStatusDto {
-            goal: g,
+            goal: g.into(),
             current_value: agg,
             period_start: start.to_rfc3339(),
             period_end: end.to_rfc3339(),
             consumed_pct,
             status: status.into(),
-            remaining: 0.0, // set just below
+            remaining,
         });
-        // compute remaining AFTER the push to avoid the borrow; patch it in place
-        let last = out.last_mut().unwrap();
-        last.remaining = last.goal.value_max - last.current_value;
     }
     Ok(out)
 }
 
-fn goal_to_dto(g: PersonalGoal) -> PersonalGoalDto {
-    PersonalGoalDto {
-        indicator: g.indicator.as_str().into(),
-        period: g.period.as_str().into(),
-        value_max: g.value_max,
-        unit: g.unit,
-    }
+/// Parses a goal key (indicator first, then period).
+fn parse_goal_key(indicator: &str, period: &str) -> IpcResult<(GoalIndicator, GoalPeriod)> {
+    let i = GoalIndicator::parse(indicator)
+        .ok_or_else(|| IpcError::invalid_request(format!("indicator '{indicator}' inconnu")))?;
+    let p = GoalPeriod::parse(period)
+        .ok_or_else(|| IpcError::invalid_request(format!("period '{period}' inconnue")))?;
+    Ok((i, p))
 }
 
-fn dto_to_goal(dto: &PersonalGoalDto) -> IpcResult<PersonalGoal> {
-    let indicator = GoalIndicator::parse(&dto.indicator).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
-            "indicator '{}' inconnu",
-            dto.indicator
-        )))
-    })?;
-    let period = GoalPeriod::parse(&dto.period).ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(format!(
-            "period '{}' inconnue",
-            dto.period
-        )))
-    })?;
+fn dto_to_goal(dto: PersonalGoalDto) -> IpcResult<PersonalGoal> {
+    let (indicator, period) = parse_goal_key(&dto.indicator, &dto.period)?;
     Ok(PersonalGoal {
         indicator,
         period,
         value_max: dto.value_max,
-        unit: dto.unit.clone(),
+        unit: dto.unit,
     })
 }
 
-/// Sums an indicator over a given window. Indicator = "co2eq" | "energy" | "water".
-fn sum_indicator_in_window(
+/// Sums each target's indicator P50 over the entries inside its `[start, end)`
+/// window, in entry order; purged or unreadable entries are skipped.
+fn sum_indicators_in_windows(
     entries: &[sobria_audit::AuditEntry],
-    indicator: &str,
-    start: chrono::DateTime<Utc>,
-    end: chrono::DateTime<Utc>,
-) -> f64 {
-    let mut sum = 0.0;
+    targets: &[(Indicator, DateTime<Utc>, DateTime<Utc>)],
+) -> Vec<f64> {
+    let mut sums = vec![0.0; targets.len()];
     for entry in entries {
-        if entry.timestamp < start || entry.timestamp >= end {
+        let in_window = |start: DateTime<Utc>, end: DateTime<Utc>| {
+            entry.timestamp >= start && entry.timestamp < end
+        };
+        if entry.is_purged() || !targets.iter().any(|&(_, s, e)| in_window(s, e)) {
             continue;
         }
-        if entry.is_purged() {
-            continue;
-        }
-        let Ok(result) =
-            serde_json::from_str::<sobria_core::EstimationResult>(&entry.estimation_result_json)
+        let Ok(result) = serde_json::from_str::<EstimationResult>(&entry.estimation_result_json)
         else {
             continue;
         };
-        let target = match indicator {
-            "co2eq" => Indicator::Co2Eq,
-            "energy" => Indicator::Energy,
-            "water" => Indicator::Water,
-            _ => continue,
-        };
-        sum += result
-            .indicators
-            .iter()
-            .find(|i| i.indicator == target)
-            .map_or(0.0, |i| i.interval.p50);
+        for (sum, &(indicator, start, end)) in sums.iter_mut().zip(targets) {
+            if in_window(start, end) {
+                *sum += dashboard::indicator_p50(&result.indicators, indicator).unwrap_or(0.0);
+            }
+        }
     }
-    sum
+    sums
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -990,29 +879,55 @@ fn sum_indicator_in_window(
 
 fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
     match e {
-        batch::BatchError::FileNotFound(p) => IpcError::new(
-            "invalid_request",
-            format!("fichier introuvable : {}", p.display()),
-        ),
-        batch::BatchError::Format(m) => IpcError::new("invalid_request", m),
-        batch::BatchError::TooManyRows { got, max } => IpcError::new(
-            "invalid_request",
-            format!("trop de lignes : {got} (max {max})"),
-        ),
+        batch::BatchError::Format(m) => IpcError::invalid_request(m),
         batch::BatchError::TooManyRejections {
             rejected,
             total,
             limit_pct,
-        } => IpcError::new(
-            "invalid_request",
-            format!("{rejected}/{total} lignes rejetées (> {limit_pct}%) — vérifiez le format"),
-        ),
-        batch::BatchError::EmptyBatch => IpcError::new(
-            "invalid_request",
-            "le CSV ne contient aucune ligne de données",
-        ),
-        batch::BatchError::Csv(e) => IpcError::new("invalid_request", format!("csv : {e}")),
+        } => IpcError::invalid_request(format!(
+            "{rejected}/{total} lignes rejetées (> {limit_pct}%) — vérifiez le format"
+        )),
+        batch::BatchError::EmptyBatch => {
+            IpcError::invalid_request("le CSV ne contient aucune ligne de données")
+        },
         batch::BatchError::Io(e) => IpcError::new("io_error", e.to_string()),
+        // FileNotFound, TooManyRows, Csv: the IPC text is the Display text.
+        other => IpcError::invalid_request(other.to_string()),
+    }
+}
+
+/// Totals, mean, min and max of the batch rows' p50 values.
+#[allow(clippy::cast_precision_loss)] // batch ≤ 1000 rows, fine for f64
+fn batch_aggregate(output_rows: &[batch::BatchOutputRow]) -> BatchAggregateDto {
+    if output_rows.is_empty() {
+        return BatchAggregateDto {
+            total_co2eq_g_p50: 0.0,
+            total_energy_wh_p50: 0.0,
+            total_water_l_p50: 0.0,
+            avg_co2eq_g_p50: 0.0,
+            min_co2eq_g_p50: 0.0,
+            max_co2eq_g_p50: 0.0,
+        };
+    }
+    let total_co2: f64 = output_rows.iter().map(|r| r.co2eq_p50_g).sum();
+    let total_energy: f64 = output_rows.iter().map(|r| r.energy_wh_p50).sum();
+    let total_water: f64 = output_rows.iter().map(|r| r.water_l_p50).sum();
+    let n = output_rows.len() as f64;
+    let min_co2 = output_rows
+        .iter()
+        .map(|r| r.co2eq_p50_g)
+        .fold(f64::INFINITY, f64::min);
+    let max_co2 = output_rows
+        .iter()
+        .map(|r| r.co2eq_p50_g)
+        .fold(f64::NEG_INFINITY, f64::max);
+    BatchAggregateDto {
+        total_co2eq_g_p50: total_co2,
+        total_energy_wh_p50: total_energy,
+        total_water_l_p50: total_water,
+        avg_co2eq_g_p50: total_co2 / n,
+        min_co2eq_g_p50: min_co2,
+        max_co2eq_g_p50: max_co2,
     }
 }
 
@@ -1027,6 +942,8 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
     let mut rejected: u32 = 0;
     let mut first_audit_id: i64 = i64::MAX;
     let mut last_audit_id: i64 = 0;
+    // Read once: the loop only writes the last-used datacenter preference.
+    let user_method = user_default_method(state);
 
     for (idx, row) in rows.into_iter().enumerate() {
         let est_req = EstimationRequestDto {
@@ -1034,7 +951,7 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
             tokens_in: row.tokens_in,
             tokens_out_estimated: row.tokens_out,
             datacenter_id: row.datacenter_id.clone(),
-            method: None,
+            method: Some(user_method),
             modalities: None,
             overhead: None,
         };
@@ -1069,46 +986,14 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
 
     batch::check_rejection_ratio(rejected as usize, total_input).map_err(batch_error_to_ipc)?;
 
-    // Aggregation
-    let aggregate = if output_rows.is_empty() {
-        BatchAggregateDto {
-            total_co2eq_g_p50: 0.0,
-            total_energy_wh_p50: 0.0,
-            total_water_l_p50: 0.0,
-            avg_co2eq_g_p50: 0.0,
-            min_co2eq_g_p50: 0.0,
-            max_co2eq_g_p50: 0.0,
-        }
-    } else {
-        let total_co2: f64 = output_rows.iter().map(|r| r.co2eq_p50_g).sum();
-        let total_energy: f64 = output_rows.iter().map(|r| r.energy_wh_p50).sum();
-        let total_water: f64 = output_rows.iter().map(|r| r.water_l_p50).sum();
-        let n = output_rows.len() as f64;
-        let min_co2 = output_rows
-            .iter()
-            .map(|r| r.co2eq_p50_g)
-            .fold(f64::INFINITY, f64::min);
-        let max_co2 = output_rows
-            .iter()
-            .map(|r| r.co2eq_p50_g)
-            .fold(f64::NEG_INFINITY, f64::max);
-        BatchAggregateDto {
-            total_co2eq_g_p50: total_co2,
-            total_energy_wh_p50: total_energy,
-            total_water_l_p50: total_water,
-            avg_co2eq_g_p50: total_co2 / n,
-            min_co2eq_g_p50: min_co2,
-            max_co2eq_g_p50: max_co2,
-        }
-    };
-
+    let aggregate = batch_aggregate(&output_rows);
     let by_model = aggregate_by_model(&output_rows);
 
     // Optional export
-    let output_path = if let Some(out) = req.output_csv_path.as_ref() {
-        let path = std::path::PathBuf::from(out);
+    let output_path = if let Some(out) = req.output_csv_path {
+        let path = std::path::PathBuf::from(&out);
         batch::export_results_csv(&path, &output_rows).map_err(batch_error_to_ipc)?;
-        Some(out.clone())
+        Some(out)
     } else {
         None
     };
@@ -1131,12 +1016,14 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
     })
 }
 
+/// Indicator of the DTO with the given string id, if present.
+fn find_indicator_dto<'a>(dto: &'a EstimationResultDto, id: &str) -> Option<&'a IndicatorDto> {
+    dto.indicators.iter().find(|i| i.indicator == id)
+}
+
 /// Extracts (P5, P50, P95) of an indicator from the DTO (by its string id).
 fn pick_indicator_dto(dto: &EstimationResultDto, id: &str) -> (f64, f64, f64) {
-    dto.indicators
-        .iter()
-        .find(|i| i.indicator == id)
-        .map_or((0.0, 0.0, 0.0), |i| (i.p5, i.p50, i.p95))
+    find_indicator_dto(dto, id).map_or((0.0, 0.0, 0.0), |i| (i.p5, i.p50, i.p95))
 }
 
 fn aggregate_by_model(rows: &[batch::BatchOutputRow]) -> Vec<BatchModelAggregateDto> {
@@ -1170,90 +1057,57 @@ fn aggregate_by_model(rows: &[batch::BatchOutputRow]) -> Vec<BatchModelAggregate
 
 /// Lists all saved projects (descending ID order).
 pub fn list_projects(state: &AppState) -> IpcResult<Vec<ProjectDto>> {
-    let store = state
-        .projects
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-    let projects = store.list_all().map_err(IpcError::from)?;
-    Ok(projects.into_iter().map(project_to_dto).collect())
+    let store = lock(&state.projects, "projects")?;
+    let projects = store.list_all()?;
+    Ok(projects.into_iter().map(Into::into).collect())
 }
 
 /// Fetches a project by its ID.
 pub fn get_project(id: i64, state: &AppState) -> IpcResult<ProjectDto> {
-    let store = state
-        .projects
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-    let p = store
-        .get(id)
-        .map_err(IpcError::from)?
-        .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))?;
-    Ok(project_to_dto(p))
+    Ok(load_project(id, state)?.into())
 }
 
 /// Creates a new project and returns its persisted version.
 pub fn create_project(req: CreateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
     let period_start = parse_rfc3339(&req.period_start, "period_start")?;
     let period_end = parse_rfc3339(&req.period_end, "period_end")?;
-    let mut store = state
-        .projects
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-    let p = store
-        .create(NewProject {
-            name: req.name,
-            description: req.description,
-            period_start,
-            period_end,
-            tags: req.tags,
-        })
-        .map_err(IpcError::from)?;
+    let mut store = lock(&state.projects, "projects")?;
+    let p = store.create(NewProject {
+        name: req.name,
+        description: req.description,
+        period_start,
+        period_end,
+        tags: req.tags,
+    })?;
     info!(id = p.id, name = %p.name, "project: created");
-    Ok(project_to_dto(p))
+    Ok(p.into())
 }
 
 /// Updates an existing project (optional fields; dates cannot be changed).
 pub fn update_project(id: i64, req: UpdateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
-    let mut store = state
-        .projects
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-    let p = store
-        .update(
-            id,
-            ProjectUpdate {
-                name: req.name,
-                description: req.description,
-                tags: req.tags,
-            },
-        )
-        .map_err(IpcError::from)?;
-    Ok(project_to_dto(p))
+    let mut store = lock(&state.projects, "projects")?;
+    let p = store.update(
+        id,
+        ProjectUpdate {
+            name: req.name,
+            description: req.description,
+            tags: req.tags,
+        },
+    )?;
+    Ok(p.into())
 }
 
 /// Deletes a project (idempotent).
 pub fn delete_project(id: i64, state: &AppState) -> IpcResult<()> {
-    let mut store = state
-        .projects
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-    store.delete(id).map_err(IpcError::from)?;
+    let mut store = lock(&state.projects, "projects")?;
+    store.delete(id)?;
     Ok(())
 }
 
 /// Generates the Gebru JSON-LD datasheet for an existing project.
 pub fn generate_project_datasheet(id: i64, state: &AppState) -> IpcResult<DatasheetDto> {
     // 1. Fetch the project.
-    let project = {
-        let store = state
-            .projects
-            .lock()
-            .map_err(|e| AppError::Poisoned(format!("projects: {e}")))?;
-        store
-            .get(id)
-            .map_err(IpcError::from)?
-            .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))?
-    };
+    let project = load_project(id, state)?;
 
     // 2. Keep the ledger entries that fall in the period.
     let all_entries = read_all_audit_entries(state)?;
@@ -1283,47 +1137,42 @@ pub fn generate_project_datasheet(id: i64, state: &AppState) -> IpcResult<Datash
     );
 
     Ok(DatasheetDto {
-        project: project_to_dto(project),
+        project: project.into(),
         jsonld: artifact.jsonld,
         composition: CompositionDto::from(&artifact.composition),
         sha256: artifact.sha256,
     })
 }
 
-fn project_to_dto(p: Project) -> ProjectDto {
-    ProjectDto {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        period_start: p.period_start.to_rfc3339(),
-        period_end: p.period_end.to_rfc3339(),
-        tags: p.tags,
-        created_at: p.created_at.to_rfc3339(),
-        updated_at: p.updated_at.to_rfc3339(),
-    }
+/// Fetches a project, or `not_found` if the id is unknown.
+fn load_project(id: i64, state: &AppState) -> IpcResult<Project> {
+    let store = lock(&state.projects, "projects")?;
+    store
+        .get(id)?
+        .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))
 }
 
-fn parse_rfc3339(s: &str, field: &str) -> IpcResult<chrono::DateTime<Utc>> {
-    chrono::DateTime::parse_from_rfc3339(s)
+fn parse_rfc3339(s: &str, field: &str) -> IpcResult<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
         .map(|d| d.with_timezone(&Utc))
         .map_err(|e| {
-            IpcError::from(AppError::InvalidRequest(format!(
-                "{field} invalide (attendu RFC 3339) : {e}"
-            )))
+            IpcError::invalid_request(format!("{field} invalide (attendu RFC 3339) : {e}"))
         })
+}
+
+/// Locks the ledger and exports it as NDJSON text.
+fn export_ledger_text(state: &AppState) -> IpcResult<String> {
+    let ledger = lock(&state.ledger, "ledger")?;
+    let mut buf: Vec<u8> = Vec::new();
+    ledger.export_ndjson(&mut buf).map_err(AppError::from)?;
+    drop(ledger);
+    String::from_utf8(buf).map_err(|e| IpcError::from(AppError::Internal(e.to_string())))
 }
 
 /// Reads every ledger entry into memory (NDJSON export + parse).
 /// Fine at the v1.0 volume (<10⁵ entries).
 fn read_all_audit_entries(state: &AppState) -> IpcResult<Vec<sobria_audit::AuditEntry>> {
-    let ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    let mut buf: Vec<u8> = Vec::new();
-    ledger.export_ndjson(&mut buf).map_err(AppError::from)?;
-    drop(ledger);
-    let text = String::from_utf8(buf).map_err(|e| AppError::Internal(e.to_string()))?;
+    let text = export_ledger_text(state)?;
     let mut out: Vec<sobria_audit::AuditEntry> = Vec::new();
     for line in text.lines() {
         if line.trim().is_empty() {
@@ -1386,12 +1235,8 @@ fn compute_baseline_for_dc(
     Ok((co2, energy, water))
 }
 
-fn pick_p50(result: &sobria_core::EstimationResult, ind: Indicator) -> f64 {
-    result
-        .indicators
-        .iter()
-        .find(|i| i.indicator == ind)
-        .map_or(0.0, |i| i.interval.p50)
+fn pick_p50(result: &EstimationResult, ind: Indicator) -> f64 {
+    dashboard::indicator_p50(&result.indicators, ind).unwrap_or(0.0)
 }
 
 /// Upper bound on the number of models allowed in a benchmark.
@@ -1409,22 +1254,20 @@ pub fn benchmark_models(
 ) -> IpcResult<BenchmarkResultDto> {
     // 1. Validations.
     if req.model_ids.is_empty() {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "model_ids vide".into(),
-        )));
+        return Err(IpcError::invalid_request("model_ids vide"));
     }
     if req.model_ids.len() > MAX_BENCHMARK_MODELS {
-        return Err(IpcError::from(AppError::InvalidRequest(format!(
+        return Err(IpcError::invalid_request(format!(
             "trop de modèles : {} (max {MAX_BENCHMARK_MODELS})",
             req.model_ids.len()
-        ))));
+        )));
     }
     let mut seen = std::collections::HashSet::new();
     for m in &req.model_ids {
-        if !seen.insert(m.clone()) {
-            return Err(IpcError::from(AppError::InvalidRequest(format!(
+        if !seen.insert(m.as_str()) {
+            return Err(IpcError::invalid_request(format!(
                 "model_id '{m}' en doublon"
-            ))));
+            )));
         }
     }
     let mut unknown: Vec<&str> = Vec::new();
@@ -1445,13 +1288,7 @@ pub fn benchmark_models(
     // 2. guarantees that ALL models use the **same** methodology
     //    even if the user changes their preferences during the run
     //    (race-condition mitigation: a benchmark must be consistent).
-    let user_method = state
-        .preferences
-        .lock()
-        .ok()
-        .and_then(|store| store.read_all().ok())
-        .and_then(|p| p.default_method)
-        .unwrap_or_else(sobria_core::EmpreinteMethod::default_method);
+    let user_method = user_default_method(state);
 
     let mut tmp: Vec<(BenchmarkOutcomeDto, f64, f64, f64)> =
         Vec::with_capacity(req.model_ids.len());
@@ -1477,18 +1314,8 @@ pub fn benchmark_models(
             display_name: preset.display_name.into(),
             provider: preset.provider.into(),
             family: preset.family.into(),
-            openness: match preset.openness {
-                sobria_estimator::Openness::Open => "open",
-                sobria_estimator::Openness::OpenWeights => "open_weights",
-                sobria_estimator::Openness::Closed => "closed",
-            }
-            .into(),
-            calibration: match preset.calibration {
-                sobria_estimator::CalibrationStatus::Validated => "validated",
-                sobria_estimator::CalibrationStatus::Indicative => "indicative",
-                sobria_estimator::CalibrationStatus::Extrapolated => "extrapolated",
-            }
-            .into(),
+            openness: openness_str(preset.openness).into(),
+            calibration: calibration_str(preset.calibration).into(),
             result: result_dto,
             rank_co2eq: 0, // assigned below
             rank_energy: 0,
@@ -1498,36 +1325,21 @@ pub fn benchmark_models(
     }
 
     // 3. Ascending rankings (rank 1 = best = lowest P50).
-    let ranking_co2 = rank_ascending(&tmp, |v| v.1);
-    let ranking_energy = rank_ascending(&tmp, |v| v.2);
-    let ranking_water = rank_ascending(&tmp, |v| v.3);
-    let rank_map_co2 = build_rank_map(&ranking_co2);
-    let rank_map_energy = build_rank_map(&ranking_energy);
-    let rank_map_water = build_rank_map(&ranking_water);
+    let (ranking_co2, rank_co2) = rank_ascending(&tmp, |v| v.1);
+    let (ranking_energy, rank_energy) = rank_ascending(&tmp, |v| v.2);
+    let (ranking_water, rank_water) = rank_ascending(&tmp, |v| v.3);
 
-    let mut outcomes: Vec<BenchmarkOutcomeDto> = tmp
+    // `tmp` is already in the user's requested order (useful for the UI).
+    let outcomes: Vec<BenchmarkOutcomeDto> = tmp
         .into_iter()
-        .map(|(mut o, _, _, _)| {
-            o.rank_co2eq = rank_map_co2.get(o.model_id.as_str()).copied().unwrap_or(0);
-            o.rank_energy = rank_map_energy
-                .get(o.model_id.as_str())
-                .copied()
-                .unwrap_or(0);
-            o.rank_water = rank_map_water
-                .get(o.model_id.as_str())
-                .copied()
-                .unwrap_or(0);
+        .enumerate()
+        .map(|(i, (mut o, _, _, _))| {
+            o.rank_co2eq = rank_co2[i];
+            o.rank_energy = rank_energy[i];
+            o.rank_water = rank_water[i];
             o
         })
         .collect();
-    // Keep the user's requested order in `outcomes` (useful for the UI).
-    let order: Vec<String> = req.model_ids.clone();
-    outcomes.sort_by_key(|o| {
-        order
-            .iter()
-            .position(|m| m == &o.model_id)
-            .unwrap_or(usize::MAX)
-    });
 
     info!(
         models = req.model_ids.len(),
@@ -1546,13 +1358,15 @@ pub fn benchmark_models(
 }
 
 fn pick_p50_from_dto(dto: &EstimationResultDto, indicator_id: &str) -> f64 {
-    dto.indicators
-        .iter()
-        .find(|i| i.indicator == indicator_id)
-        .map_or(f64::NAN, |i| i.p50)
+    find_indicator_dto(dto, indicator_id).map_or(f64::NAN, |i| i.p50)
 }
 
-fn rank_ascending<F>(items: &[(BenchmarkOutcomeDto, f64, f64, f64)], key: F) -> Vec<String>
+/// Model ids sorted by ascending `key` (stable, incomparable values tie),
+/// and the 1-based rank of each item at its index in `items`.
+fn rank_ascending<F>(
+    items: &[(BenchmarkOutcomeDto, f64, f64, f64)],
+    key: F,
+) -> (Vec<String>, Vec<u32>)
 where
     F: Fn(&(BenchmarkOutcomeDto, f64, f64, f64)) -> f64,
 {
@@ -1562,22 +1376,16 @@ where
             .partial_cmp(&key(&items[*b]))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    indices
+    let mut ranks = vec![0; items.len()];
+    for (pos, &i) in indices.iter().enumerate() {
+        // Bounded by MAX_BENCHMARK_MODELS (= 20) → safe cast.
+        ranks[i] = u32::try_from(pos).unwrap_or(u32::MAX).saturating_add(1);
+    }
+    let ids = indices
         .into_iter()
         .map(|i| items[i].0.model_id.clone())
-        .collect()
-}
-
-fn build_rank_map(ranking: &[String]) -> std::collections::HashMap<String, u32> {
-    ranking
-        .iter()
-        .enumerate()
-        .map(|(i, m)| {
-            // Bounded by MAX_BENCHMARK_MODELS (= 20) → safe cast.
-            let rank = u32::try_from(i).unwrap_or(u32::MAX).saturating_add(1);
-            (m.clone(), rank)
-        })
-        .collect()
+        .collect();
+    (ids, ranks)
 }
 
 /// Runs a 12-month forecast (M16 / C15) with a P5/P50/P95
@@ -1592,11 +1400,7 @@ pub fn forecast_yearly_budget(
     req: YearlyForecastRequestDto,
     state: &AppState,
 ) -> IpcResult<YearlyForecastResultDto> {
-    if find_preset(&req.baseline.model_id).is_none() {
-        return Err(IpcError::from(AppError::UnknownModel(
-            req.baseline.model_id.clone(),
-        )));
-    }
+    ensure_known_model(&req.baseline.model_id)?;
     let core_req = req.into_core(Utc::now());
     // The forecaster honours the user's default methodology.
     let engine = sobria_estimator::engine_for(user_default_method(state));
@@ -1607,18 +1411,12 @@ pub fn forecast_yearly_budget(
     // EstimationResult (with bins) to log.
     // forecast_yearly() could have returned it, but we keep the API
     // simple; the cost is low (1 extra Monte-Carlo run).
-    let params = sobria_estimator::EstimationParams::for_model(&core_req.baseline.model_id)
-        .map_err(AppError::from)?;
+    let params =
+        EstimationParams::for_model(&core_req.baseline.model_id).map_err(AppError::from)?;
     let baseline_full = engine
         .estimate(&core_req.baseline, &params)
         .map_err(AppError::from)?;
-    let mut ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    let entry = ledger.append(&baseline_full).map_err(AppError::from)?;
-    let audit_id = entry.id;
-    drop(ledger);
+    let audit_id = append_to_ledger(state, &baseline_full)?;
 
     info!(
         baseline_model = %core_req.baseline.model_id,
@@ -1643,11 +1441,7 @@ pub fn simulate_scenarios(
     req: SimulationRequestDto,
     state: &AppState,
 ) -> IpcResult<SimulationResultDto> {
-    if find_preset(&req.baseline.model_id).is_none() {
-        return Err(IpcError::from(AppError::UnknownModel(
-            req.baseline.model_id.clone(),
-        )));
-    }
+    ensure_known_model(&req.baseline.model_id)?;
     // C25-A8 — Honours the baseline's `datacenter_id` by overriding
     // PUE/IF/WUE in the params before handing over to the estimator. The
     // signature of `sobria_estimator::simulate` now takes `baseline_params`
@@ -1661,13 +1455,7 @@ pub fn simulate_scenarios(
         sobria_estimator::simulate(engine.as_ref(), &sim_core, &params).map_err(AppError::from)?;
 
     // Log ONLY the baseline (the scenarios are exploratory).
-    let mut ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    let entry = ledger.append(&result.baseline).map_err(AppError::from)?;
-    let audit_id = entry.id;
-    drop(ledger);
+    let audit_id = append_to_ledger(state, &result.baseline)?;
 
     info!(
         baseline_model = %result.baseline.request.model_id,
@@ -1681,12 +1469,14 @@ pub fn simulate_scenarios(
 
 /// Exports the ledger as NDJSON to `path`. Returns the number of lines.
 pub fn export_audit_ndjson(path: &std::path::Path, state: &AppState) -> IpcResult<usize> {
-    let ledger = state
-        .ledger
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    let mut file = std::fs::File::create(path).map_err(AppError::from)?;
+    use std::io::{BufWriter, Write};
+
+    let ledger = lock(&state.ledger, "ledger")?;
+    let mut file = BufWriter::new(std::fs::File::create(path).map_err(AppError::from)?);
     let n = ledger.export_ndjson(&mut file).map_err(AppError::from)?;
+    // Mapped like a write error inside `export_ndjson`.
+    file.flush()
+        .map_err(|e| AppError::Audit(sobria_audit::AuditError::Io(e)))?;
     info!(path = %path.display(), lines = n, "audit: export NDJSON");
     Ok(n)
 }
@@ -1698,11 +1488,8 @@ pub fn export_audit_ndjson(path: &std::path::Path, state: &AppState) -> IpcResul
 /// Fetches the user preferences. Merges the persisted values
 /// with the defaults (`AppPreferencesDto::defaults()`).
 pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
-    let store = state
-        .preferences
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
-    let stored = store.read_all().map_err(IpcError::from)?;
+    let store = lock(&state.preferences, "preferences")?;
+    let stored = store.read_all()?;
     drop(store);
     let defaults = AppPreferencesDto::defaults();
     Ok(AppPreferencesDto {
@@ -1750,11 +1537,8 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         default_datacenter_id: None,
     };
 
-    let mut store = state
-        .preferences
-        .lock()
-        .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
-    store.write_all(&stored).map_err(IpcError::from)?;
+    let mut store = lock(&state.preferences, "preferences")?;
+    store.write_all(&stored)?;
     // C25: the `AppPreferencesDto` DTO allows `default_datacenter_id = None`
     // to clear the key explicitly. Since `write_all` is SKIP-on-None for every
     // non-`persona` `Option` field (see the `write_all` doc), a `write_all`
@@ -1768,9 +1552,7 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
     // the user stake (prefilling a picker) does not justify the complexity
     // of a "full-replacement" parameter on `write_all`. To revisit if a
     // class of operations that need atomicity appears.
-    store
-        .set_default_datacenter_id(prefs.default_datacenter_id.as_deref())
-        .map_err(IpcError::from)?;
+    store.set_default_datacenter_id(prefs.default_datacenter_id.as_deref())?;
     info!(
         persona = ?stored.persona,
         onboarded = ?stored.onboarded,
@@ -1783,25 +1565,25 @@ fn validate_lang(lang: &str) -> IpcResult<()> {
     if lang == "fr" || lang == "en" {
         Ok(())
     } else {
-        Err(IpcError::from(AppError::InvalidRequest(format!(
+        Err(IpcError::invalid_request(format!(
             "lang '{lang}' inconnue, attendu 'fr' ou 'en'"
-        ))))
+        )))
     }
 }
 
 fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
     if onboarded && modules.is_empty() {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "un utilisateur onboardé doit conserver au moins un module".into(),
-        )));
+        return Err(IpcError::invalid_request(
+            "un utilisateur onboardé doit conserver au moins un module",
+        ));
     }
     // Duplicates: a module may appear only once.
     let mut seen = std::collections::HashSet::new();
     for m in modules {
         if !seen.insert(*m) {
-            return Err(IpcError::from(AppError::InvalidRequest(format!(
+            return Err(IpcError::invalid_request(format!(
                 "module {m:?} en doublon dans enabled_modules"
-            ))));
+            )));
         }
     }
     Ok(())
@@ -1817,38 +1599,25 @@ fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
 /// The UI shows these 6 digits; the user types them into the extension,
 /// which sends them through the bridge, and the desktop app then calls
 /// `verify_pairing_code` to finish.
-pub fn regenerate_pairing_code(state: &AppState) -> IpcResult<crate::dto::PairingCodeDto> {
+pub fn regenerate_pairing_code(state: &AppState) -> IpcResult<PairingCodeDto> {
     let code = crate::pairing::PendingCode::new();
-    let now = Utc::now();
-    let seconds_remaining = (code.expires_at - now).num_seconds().max(0);
-    let dto = crate::dto::PairingCodeDto {
-        code: code.code.clone(),
-        expires_at: code.expires_at.to_rfc3339(),
-        seconds_remaining,
-    };
-    *state
-        .pending_code
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))? = Some(code);
-    info!(seconds_remaining, "pairing: nouveau code généré");
+    let dto = PairingCodeDto::from_pending(&code, Utc::now());
+    *lock_bare(&state.pending_code)? = Some(code);
+    info!(
+        seconds_remaining = dto.seconds_remaining,
+        "pairing: nouveau code généré"
+    );
     Ok(dto)
 }
 
 /// Current status of the code (or `None` if no code is pending or it has expired).
-pub fn get_pairing_code_status(state: &AppState) -> IpcResult<Option<crate::dto::PairingCodeDto>> {
-    let guard = state
-        .pending_code
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+pub fn get_pairing_code_status(state: &AppState) -> IpcResult<Option<PairingCodeDto>> {
+    let guard = lock_bare(&state.pending_code)?;
     let now = Utc::now();
     Ok(guard
         .as_ref()
         .filter(|c| c.is_valid(now))
-        .map(|c| crate::dto::PairingCodeDto {
-            code: c.code.clone(),
-            expires_at: c.expires_at.to_rfc3339(),
-            seconds_remaining: (c.expires_at - now).num_seconds().max(0),
-        }))
+        .map(|c| PairingCodeDto::from_pending(c, now)))
 }
 
 /// Validates a code typed into the extension: if OK, generates the secret,
@@ -1860,23 +1629,16 @@ pub fn verify_pairing_code(
     fingerprint: &str,
 ) -> IpcResult<crate::dto::PairingSecretDto> {
     if fingerprint.trim().is_empty() {
-        return Err(IpcError::from(AppError::InvalidRequest(
-            "fingerprint vide".into(),
-        )));
+        return Err(IpcError::invalid_request("fingerprint vide"));
     }
     let now = Utc::now();
-    let mut guard = state
-        .pending_code
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let mut guard = lock_bare(&state.pending_code)?;
     let pending = guard.as_ref().ok_or_else(|| {
-        IpcError::from(AppError::InvalidRequest(
-            "aucun code de pairing en attente — régénère un code".into(),
-        ))
+        IpcError::invalid_request("aucun code de pairing en attente — régénère un code")
     })?;
     crate::pairing::verify_code(pending, code, now).map_err(|e| match e {
         crate::pairing::PairingError::Malformed => {
-            IpcError::from(AppError::InvalidRequest("code à 6 chiffres requis".into()))
+            IpcError::invalid_request("code à 6 chiffres requis")
         },
         crate::pairing::PairingError::InvalidCode => {
             IpcError::new("invalid_pairing_code", "code invalide ou expiré")
@@ -1884,10 +1646,7 @@ pub fn verify_pairing_code(
     })?;
     // Code OK: generate the secret and persist it.
     let secret = crate::pairing::PairingSecret::new();
-    let store = state
-        .extension_store
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let store = lock_bare(&state.extension_store)?;
     let pairing_id = store
         .record_pairing(fingerprint, &secret)
         .map_err(AppError::from)?;
@@ -1902,20 +1661,14 @@ pub fn verify_pairing_code(
 
 /// Lists the pairings (revoked ones included, for audit).
 pub fn list_pairings(state: &AppState) -> IpcResult<Vec<crate::dto::PairingDto>> {
-    let store = state
-        .extension_store
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let store = lock_bare(&state.extension_store)?;
     let rows = store.list_pairings().map_err(AppError::from)?;
     Ok(rows.iter().map(Into::into).collect())
 }
 
 /// Marks a pairing as revoked (the row stays, for audit).
 pub fn revoke_pairing(state: &AppState, id: &str) -> IpcResult<()> {
-    let store = state
-        .extension_store
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let store = lock_bare(&state.extension_store)?;
     store.revoke_pairing(id).map_err(AppError::from)?;
     info!(%id, "pairing: révoqué");
     Ok(())
@@ -1927,10 +1680,7 @@ pub fn list_extension_events(
     limit: u32,
     offset: u32,
 ) -> IpcResult<Vec<crate::dto::ExtensionEventDto>> {
-    let store = state
-        .extension_store
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let store = lock_bare(&state.extension_store)?;
     let rows = store
         .list_events(limit as usize, offset as usize)
         .map_err(AppError::from)?;
@@ -1942,10 +1692,7 @@ pub fn list_extension_events(
 pub fn drain_extension_spool(state: &AppState) -> IpcResult<usize> {
     let spool_path =
         sobria_bridge::spool_path().map_err(|e| AppError::Internal(format!("{e:#}")))?;
-    let store = state
-        .extension_store
-        .lock()
-        .map_err(|e| AppError::Poisoned(e.to_string()))?;
+    let store = lock_bare(&state.extension_store)?;
     let n = crate::extension_store::drain_spool(&store, &spool_path).map_err(AppError::from)?;
     if n > 0 {
         info!(count = n, "extension: spool drainé");
