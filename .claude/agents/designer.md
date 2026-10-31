@@ -17,7 +17,7 @@ Design V7, Website and research.
 ## Never does
 
 - Invent a screen that is not in the routes.
-- Common bans: merge (Thibault reviews and merges PRs); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
+- Common bans: merge (a reviewer agent merges after its `/code-review`); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
 
 ## Model
 
