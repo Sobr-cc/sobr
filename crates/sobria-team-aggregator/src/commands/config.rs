@@ -8,12 +8,9 @@ use anyhow::{bail, Result};
 use chrono::Utc;
 
 use crate::config::DataPaths;
+use crate::error::AggregatorResult;
 use crate::policy::{self, Attestation, VisibilityPolicy};
 use crate::storage::Storage;
-
-/// CLI name of the policy key (handled separately: non-integer value,
-/// attestation required for `identified` — ADR-0016).
-pub const POLICY_KEY_NAME: &str = "visibility_policy";
 
 /// Reads the effective policy and its attestation, if any.
 pub fn get_policy(paths: &DataPaths) -> Result<(&'static str, Option<Attestation>)> {
@@ -65,6 +62,17 @@ pub struct RuntimeKey {
     pub description: &'static str,
 }
 
+impl RuntimeKey {
+    /// Stored integer value, else the default, never below the floor.
+    pub fn effective(&self, storage: &Storage) -> AggregatorResult<i64> {
+        Ok(storage
+            .get_config(self.key)?
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(self.default)
+            .max(self.floor))
+    }
+}
+
 /// k-anonymity threshold of the team analytics (ADR-0015 §2).
 pub const K_ANONYMITY_MIN: RuntimeKey = RuntimeKey {
     key: "k_anonymity_min",
@@ -104,11 +112,7 @@ fn find_key(key: &str) -> Result<&'static RuntimeKey> {
 pub fn get(paths: &DataPaths, key: &str) -> Result<i64> {
     let spec = find_key(key)?;
     let storage = Storage::open(&paths.db())?;
-    let value = storage
-        .get_config(key)?
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(spec.default);
-    Ok(value.max(spec.floor))
+    Ok(spec.effective(&storage)?)
 }
 
 /// Writes a key after validation (integer ≥ floor).

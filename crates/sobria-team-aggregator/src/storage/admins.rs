@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::AggregatorResult;
-use crate::storage::parse_ts;
+use crate::storage::{get_count, parse_ts};
 
 /// Admin DTO as stored in the database.
 #[derive(Debug, Clone)]
@@ -34,8 +34,8 @@ pub fn insert(
 
 /// Total number of admins.
 pub fn count(conn: &Connection) -> AggregatorResult<u32> {
-    let n: i64 = conn.query_row("SELECT COUNT(*) FROM admins", [], |row| row.get(0))?;
-    Ok(n.max(0) as u32)
+    let n = conn.query_row("SELECT COUNT(*) FROM admins", [], |row| get_count(row, 0))?;
+    Ok(n as u32)
 }
 
 /// Looks up an admin by username.

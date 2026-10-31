@@ -61,15 +61,8 @@ pub fn run(
     storage.set_config(CFG_SCHEMA_VERSION, &schema::SCHEMA_VERSION.to_string())?;
 
     // 3. Self-signed certificate (SANs: localhost, 127.0.0.1, ::1, OS hostname)
-    let hostname = hostname::get()
-        .ok()
-        .and_then(|os| os.into_string().ok())
-        .filter(|s| !s.is_empty());
-    let sans = vec![
-        "localhost".to_string(),
-        "127.0.0.1".to_string(),
-        "::1".to_string(),
-    ];
+    let hostname = tls::os_hostname();
+    let sans = tls::DEFAULT_SANS.map(String::from);
     let bundle = tls::generate_self_signed(&sans, hostname.as_deref())
         .context("generate self-signed cert")?;
     tls::write_cert_files(&paths.cert(), &paths.key(), &bundle)

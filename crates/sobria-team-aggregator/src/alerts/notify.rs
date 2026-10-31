@@ -50,9 +50,25 @@ pub struct NotifyOutcome {
     pub error: Option<String>,
 }
 
+impl NotifyOutcome {
+    fn success() -> Self {
+        Self {
+            ok: true,
+            error: None,
+        }
+    }
+
+    fn failure(msg: String) -> Self {
+        Self {
+            ok: false,
+            error: Some(msg),
+        }
+    }
+}
+
 /// Notifies an alert event. Never panics — every network /
 /// SMTP error is captured in `NotifyOutcome`.
-pub async fn notify(event: &AlertEvent, smtp_config: Option<SmtpConfig>) -> NotifyOutcome {
+pub async fn notify(event: &AlertEvent, smtp_config: Option<&SmtpConfig>) -> NotifyOutcome {
     let kind = event.threshold.notify_kind;
     let target = event.threshold.notify_target.as_deref();
 
@@ -85,47 +101,28 @@ pub async fn notify(event: &AlertEvent, smtp_config: Option<SmtpConfig>) -> Noti
                     "SMTP non configuré (smtp_url manquant) — fallback log_only",
                 );
             };
-            send_email(&smtp, to, event, &payload).await
+            send_email(smtp, to, &payload).await
         },
         NotifyKind::LogOnly => log_fallback(event, "log_only"),
     }
 }
 
-async fn send_webhook<P: Serialize + ?Sized>(url: &str, payload: &P) -> NotifyOutcome {
+async fn send_webhook(url: &str, payload: &WebhookPayload<'_>) -> NotifyOutcome {
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(WEBHOOK_TIMEOUT_SECS))
         .build()
     {
         Ok(c) => c,
-        Err(e) => {
-            return NotifyOutcome {
-                ok: false,
-                error: Some(format!("client reqwest: {e}")),
-            };
-        },
+        Err(e) => return NotifyOutcome::failure(format!("client reqwest: {e}")),
     };
     match client.post(url).json(payload).send().await {
-        Ok(resp) if resp.status().is_success() => NotifyOutcome {
-            ok: true,
-            error: None,
-        },
-        Ok(resp) => NotifyOutcome {
-            ok: false,
-            error: Some(format!("HTTP {}", resp.status())),
-        },
-        Err(e) => NotifyOutcome {
-            ok: false,
-            error: Some(format!("transport: {e}")),
-        },
+        Ok(resp) if resp.status().is_success() => NotifyOutcome::success(),
+        Ok(resp) => NotifyOutcome::failure(format!("HTTP {}", resp.status())),
+        Err(e) => NotifyOutcome::failure(format!("transport: {e}")),
     }
 }
 
-async fn send_email(
-    smtp: &SmtpConfig,
-    to: &str,
-    event: &AlertEvent,
-    payload: &WebhookPayload<'_>,
-) -> NotifyOutcome {
+async fn send_email(smtp: &SmtpConfig, to: &str, payload: &WebhookPayload<'_>) -> NotifyOutcome {
     let body = format!(
         "Seuil d'alerte Sobr.ia dépassé.\n\n\
          Threshold : {threshold_id}\n\
@@ -147,21 +144,11 @@ async fn send_email(
 
     let from = match smtp.from.parse() {
         Ok(addr) => addr,
-        Err(e) => {
-            return NotifyOutcome {
-                ok: false,
-                error: Some(format!("smtp_from invalide: {e}")),
-            };
-        },
+        Err(e) => return NotifyOutcome::failure(format!("smtp_from invalide: {e}")),
     };
     let to_addr = match to.parse() {
         Ok(addr) => addr,
-        Err(e) => {
-            return NotifyOutcome {
-                ok: false,
-                error: Some(format!("destinataire email invalide: {e}")),
-            };
-        },
+        Err(e) => return NotifyOutcome::failure(format!("destinataire email invalide: {e}")),
     };
     let msg = match Message::builder()
         .from(from)
@@ -174,35 +161,16 @@ async fn send_email(
         .body(body)
     {
         Ok(m) => m,
-        Err(e) => {
-            return NotifyOutcome {
-                ok: false,
-                error: Some(format!("compose: {e}")),
-            };
-        },
+        Err(e) => return NotifyOutcome::failure(format!("compose: {e}")),
     };
 
     let transport = match build_smtp_transport(smtp) {
         Ok(t) => t,
-        Err(e) => {
-            return NotifyOutcome {
-                ok: false,
-                error: Some(e),
-            };
-        },
+        Err(e) => return NotifyOutcome::failure(e),
     };
     match transport.send(msg).await {
-        Ok(_) => {
-            let _ = event; // event is part of the API but not logged again on success
-            NotifyOutcome {
-                ok: true,
-                error: None,
-            }
-        },
-        Err(e) => NotifyOutcome {
-            ok: false,
-            error: Some(format!("SMTP: {e}")),
-        },
+        Ok(_) => NotifyOutcome::success(),
+        Err(e) => NotifyOutcome::failure(format!("SMTP: {e}")),
     }
 }
 
@@ -272,10 +240,7 @@ fn log_fallback(event: &AlertEvent, reason: &str) -> NotifyOutcome {
         reason = reason,
         "alerte de seuil déclenchée"
     );
-    NotifyOutcome {
-        ok: true,
-        error: None,
-    }
+    NotifyOutcome::success()
 }
 
 #[cfg(test)]

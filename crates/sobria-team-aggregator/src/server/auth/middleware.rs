@@ -31,7 +31,7 @@ impl FromRequestParts<ServerState> for AuthenticatedUser {
         parts: &mut Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, state).await?;
+        let claims = extract_claims(parts, state)?;
         if claims.role != Role::User {
             return Err(ApiError::Forbidden);
         }
@@ -46,7 +46,7 @@ impl FromRequestParts<ServerState> for AuthenticatedAdmin {
         parts: &mut Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, state).await?;
+        let claims = extract_claims(parts, state)?;
         if claims.role != Role::Admin {
             return Err(ApiError::Forbidden);
         }
@@ -54,7 +54,7 @@ impl FromRequestParts<ServerState> for AuthenticatedAdmin {
     }
 }
 
-async fn extract_claims(parts: &Parts, state: &ServerState) -> Result<Claims, ApiError> {
+fn extract_claims(parts: &Parts, state: &ServerState) -> Result<Claims, ApiError> {
     let header = parts
         .headers
         .get("authorization")

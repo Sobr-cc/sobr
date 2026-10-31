@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use crate::alerts::periods::AlertPeriod;
-use crate::error::AggregatorResult;
+use crate::error::{AggregatorError, AggregatorResult};
 use crate::storage::parse_ts;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,25 +90,23 @@ pub fn insert_threshold(conn: &Connection, t: &NewThreshold<'_>) -> AggregatorRe
     // Scope/target consistency guard.
     match (t.scope, t.target_id) {
         (AlertScope::User, None) => {
-            return Err(crate::error::AggregatorError::Internal(
+            return Err(AggregatorError::Internal(
                 "scope=user requiert target_id".into(),
             ));
         },
         (AlertScope::Team, Some(_)) => {
-            return Err(crate::error::AggregatorError::Internal(
+            return Err(AggregatorError::Internal(
                 "scope=team interdit target_id".into(),
             ));
         },
         _ => {},
     }
     if !t.gco2eq_max.is_finite() || t.gco2eq_max <= 0.0 {
-        return Err(crate::error::AggregatorError::Internal(
-            "gco2eq_max doit être > 0".into(),
-        ));
+        return Err(AggregatorError::Internal("gco2eq_max doit être > 0".into()));
     }
     if matches!(t.notify_kind, NotifyKind::Webhook | NotifyKind::Email) && t.notify_target.is_none()
     {
-        return Err(crate::error::AggregatorError::Internal(
+        return Err(AggregatorError::Internal(
             "notify_kind webhook|email requiert notify_target".into(),
         ));
     }
@@ -160,6 +158,21 @@ pub fn list_active_thresholds(
     )?;
     let rows = stmt.query_map(params![user_id], row_to_threshold)?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// Looks up one threshold (active or disabled) by id.
+pub fn find_threshold(conn: &Connection, id: &str) -> AggregatorResult<Option<Threshold>> {
+    let row = conn
+        .query_row(
+            "SELECT id, scope, target_id, period, gco2eq_max, notify_kind, notify_target,
+                    created_by_admin_id, created_at, disabled_at
+             FROM alert_thresholds
+             WHERE id = ?1",
+            params![id],
+            row_to_threshold,
+        )
+        .optional()?;
+    Ok(row)
 }
 
 /// Lists every threshold (active AND disabled) for the admin dashboard.
@@ -259,16 +272,13 @@ pub fn observed_gco2eq_user(
     period_start: DateTime<Utc>,
     period_end: DateTime<Utc>,
 ) -> AggregatorResult<f64> {
-    let v: Option<f64> = conn
-        .query_row(
-            "SELECT COALESCE(SUM(gco2eq_p50), 0.0)
-             FROM estimations
-             WHERE user_id = ?1 AND ts BETWEEN ?2 AND ?3",
-            params![user_id, period_start.to_rfc3339(), period_end.to_rfc3339()],
-            |row| row.get::<_, f64>(0),
-        )
-        .optional()?;
-    Ok(v.unwrap_or(0.0))
+    Ok(conn.query_row(
+        "SELECT COALESCE(SUM(gco2eq_p50), 0.0)
+         FROM estimations
+         WHERE user_id = ?1 AND ts BETWEEN ?2 AND ?3",
+        params![user_id, period_start.to_rfc3339(), period_end.to_rfc3339()],
+        |row| row.get::<_, f64>(0),
+    )?)
 }
 
 /// Computes the observed `gco2eq_p50` for the WHOLE team over a window.
@@ -277,16 +287,13 @@ pub fn observed_gco2eq_team(
     period_start: DateTime<Utc>,
     period_end: DateTime<Utc>,
 ) -> AggregatorResult<f64> {
-    let v: Option<f64> = conn
-        .query_row(
-            "SELECT COALESCE(SUM(gco2eq_p50), 0.0)
-             FROM estimations
-             WHERE ts BETWEEN ?1 AND ?2",
-            params![period_start.to_rfc3339(), period_end.to_rfc3339()],
-            |row| row.get::<_, f64>(0),
-        )
-        .optional()?;
-    Ok(v.unwrap_or(0.0))
+    Ok(conn.query_row(
+        "SELECT COALESCE(SUM(gco2eq_p50), 0.0)
+         FROM estimations
+         WHERE ts BETWEEN ?1 AND ?2",
+        params![period_start.to_rfc3339(), period_end.to_rfc3339()],
+        |row| row.get::<_, f64>(0),
+    )?)
 }
 
 fn invalid_text(col: usize, message: String) -> rusqlite::Error {

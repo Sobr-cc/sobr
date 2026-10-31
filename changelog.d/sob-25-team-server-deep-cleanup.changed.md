@@ -8,7 +8,9 @@ sobria-team-aggregator Deep cleanup (2026-10-31, SOB-25)
   - one 12-digit enrollment code generator, which replaces 2 copies;
   - named runtime keys (`k_anonymity_min`, `retention_days`), read by the
     analytics and the retention purge;
-  - `EmpreinteMethod` instead of hand-matched method strings.
+  - `EmpreinteMethod` instead of hand-matched method strings;
+  - one storage lock helper, one access and refresh token issuer, one
+    enrollment code batch, and shared row mappers in the storage layer.
 - **Removed:** dead code, and the unused direct `tokio-rustls` dependency
   (TLS features unchanged).
 - **Docs:**
@@ -20,5 +22,7 @@ sobria-team-aggregator Deep cleanup (2026-10-31, SOB-25)
 - **Filed instead of fixed:**
   - SOB-250 (flaky webhook alert test);
   - SOB-252 (API types the app re-declares);
+  - SOB-255 (less work under the global lock), SOB-256 (export aliases and
+    the stored payload), SOB-257 (alert targets and token subjects as enums);
   - SOB-114 to SOB-117 and SOB-229 to SOB-235 (behavior changes from the
     audit).

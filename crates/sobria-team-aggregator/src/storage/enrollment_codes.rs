@@ -15,8 +15,10 @@
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
+use ulid::Ulid;
 
 use crate::crypto::password::{self, verify_password};
+use crate::crypto::secret::enrollment_code;
 use crate::error::AggregatorResult;
 use crate::storage::parse_ts;
 
@@ -33,8 +35,7 @@ pub struct EnrollmentCodeRow {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-/// Plain code + metadata returned by
-/// [`create_batch`](crate::commands::code::create_batch) (show it to the admin ONCE).
+/// Plain code + metadata returned by [`create_batch`] (show it to the admin ONCE).
 #[derive(Debug, Clone)]
 pub struct CreatedCode {
     pub id: String,
@@ -65,6 +66,28 @@ pub fn insert(
         ],
     )?;
     Ok(())
+}
+
+/// Generates and inserts `count` codes in order, stopping at the first failure.
+pub fn create_batch(
+    conn: &Connection,
+    count: u32,
+    created_by: &str,
+    now: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+) -> AggregatorResult<Vec<CreatedCode>> {
+    let mut out = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        let id = Ulid::new().to_string();
+        let code = enrollment_code();
+        insert(conn, &id, &code, created_by, now, expires_at)?;
+        out.push(CreatedCode {
+            id,
+            code,
+            expires_at,
+        });
+    }
+    Ok(out)
 }
 
 /// Walks every active code and returns the one matching `candidate`.

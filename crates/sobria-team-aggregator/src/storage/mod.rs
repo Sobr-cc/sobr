@@ -32,6 +32,11 @@ pub(crate) fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
         })
 }
 
+/// Reads an integer aggregate column as `u64`, clamping negatives to 0.
+pub(crate) fn get_count(row: &rusqlite::Row<'_>, idx: usize) -> rusqlite::Result<u64> {
+    Ok(row.get::<_, i64>(idx)?.max(0) as u64)
+}
+
 /// Single-connection SQLite facade (see the module doc).
 pub struct Storage {
     conn: Connection,

@@ -45,15 +45,11 @@ pub fn build_team_provo(
         .iter()
         .enumerate()
         .map(|(i, (uid, (fp, name)))| {
-            let display = if anonymize {
-                format!("Employé #{}", i + 1)
+            let (display, label) = if anonymize {
+                let alias = format!("Employé #{}", i + 1);
+                (alias.clone(), alias)
             } else {
-                name.unwrap_or(*fp).to_string()
-            };
-            let label = if anonymize {
-                format!("Employé #{}", i + 1)
-            } else {
-                format!("Employé {fp}")
+                (name.unwrap_or(*fp).to_string(), format!("Employé {fp}"))
             };
             json!({
                 "@id": format!("sobria-team:user-{uid}"),

@@ -15,6 +15,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AggregatorResult;
+use crate::storage::get_count;
 
 /// Time bucket (series for the charts).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -91,8 +92,8 @@ pub fn project_breakdown(
         .query_map(params![from.to_rfc3339(), to.to_rfc3339()], |row| {
             Ok(ProjectBreakdown {
                 project: row.get(0)?,
-                contributors: row.get::<_, i64>(1)?.max(0) as u64,
-                count: row.get::<_, i64>(2)?.max(0) as u64,
+                contributors: get_count(row, 1)?,
+                count: get_count(row, 2)?,
                 gco2eq_g: row.get(3)?,
                 energy_wh: row.get(4)?,
                 water_ml: row.get(5)?,
@@ -152,17 +153,22 @@ pub fn top_users_all(
          LIMIT ?3",
     )?;
     let rows = stmt
-        .query_map(params![from.to_rfc3339(), to.to_rfc3339(), n], |row| {
-            Ok(UserTop {
-                user_id: row.get(0)?,
-                fingerprint: row.get(1)?,
-                display_name: row.get(2)?,
-                count: row.get::<_, i64>(3)?.max(0) as u64,
-                gco2eq_g: row.get(4)?,
-            })
-        })?
+        .query_map(
+            params![from.to_rfc3339(), to.to_rfc3339(), n],
+            user_top_from_row,
+        )?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
+}
+
+fn user_top_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UserTop> {
+    Ok(UserTop {
+        user_id: row.get(0)?,
+        fingerprint: row.get(1)?,
+        display_name: row.get(2)?,
+        count: get_count(row, 3)?,
+        gco2eq_g: row.get(4)?,
+    })
 }
 
 /// Breakdown by methodology (AFNOR vs EcoLogits).
@@ -183,6 +189,27 @@ pub enum GroupBy {
 }
 
 impl GroupBy {
+    /// Parses the `group_by` query value (`day`, `week` or `month`).
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "day" => Some(GroupBy::Day),
+            "week" => Some(GroupBy::Week),
+            "month" => Some(GroupBy::Month),
+            _ => None,
+        }
+    }
+
+    /// Inverse of [`GroupBy::parse`].
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GroupBy::Day => "day",
+            GroupBy::Week => "week",
+            GroupBy::Month => "month",
+        }
+    }
+
     fn strftime(self) -> &'static str {
         match self {
             GroupBy::Day => "%Y-%m-%d",
@@ -222,9 +249,9 @@ pub fn time_buckets(
         |row| {
             Ok(TimeBucket {
                 bucket: row.get(0)?,
-                count: row.get::<_, i64>(1)?.max(0) as u64,
-                tokens_in: row.get::<_, i64>(2)?.max(0) as u64,
-                tokens_out: row.get::<_, i64>(3)?.max(0) as u64,
+                count: get_count(row, 1)?,
+                tokens_in: get_count(row, 2)?,
+                tokens_out: get_count(row, 3)?,
                 gco2eq_g: row.get(4)?,
                 water_ml: row.get(5)?,
                 energy_wh: row.get(6)?,
@@ -260,9 +287,9 @@ pub fn top_models(
         |row| {
             Ok(ModelTop {
                 model_id: row.get(0)?,
-                count: row.get::<_, i64>(1)?.max(0) as u64,
-                tokens_in: row.get::<_, i64>(2)?.max(0) as u64,
-                tokens_out: row.get::<_, i64>(3)?.max(0) as u64,
+                count: get_count(row, 1)?,
+                tokens_in: get_count(row, 2)?,
+                tokens_out: get_count(row, 3)?,
                 gco2eq_g: row.get(4)?,
             })
         },
@@ -279,12 +306,11 @@ pub fn active_user_count(
     from: DateTime<Utc>,
     to: DateTime<Utc>,
 ) -> AggregatorResult<u64> {
-    let n: i64 = conn.query_row(
+    Ok(conn.query_row(
         "SELECT COUNT(DISTINCT user_id) FROM estimations WHERE ts BETWEEN ?1 AND ?2",
         params![from.to_rfc3339(), to.to_rfc3339()],
-        |r| r.get(0),
-    )?;
-    Ok(n.max(0) as u64)
+        |r| get_count(r, 0),
+    )?)
 }
 
 /// "Participants" ranking per ADR-0015 §3: only employees with identified
@@ -323,15 +349,10 @@ pub fn top_users_shared(
          LIMIT ?3",
     )?;
     let identified = stmt
-        .query_map(params![from.to_rfc3339(), to.to_rfc3339(), n], |row| {
-            Ok(UserTop {
-                user_id: row.get(0)?,
-                fingerprint: row.get(1)?,
-                display_name: row.get(2)?,
-                count: row.get::<_, i64>(3)?.max(0) as u64,
-                gco2eq_g: row.get(4)?,
-            })
-        })?
+        .query_map(
+            params![from.to_rfc3339(), to.to_rfc3339(), n],
+            user_top_from_row,
+        )?
         .collect::<Result<Vec<_>, _>>()?;
 
     let (anonymous_users, anonymous_count, anonymous_gco2eq_g) = conn.query_row(
@@ -342,13 +363,7 @@ pub fn top_users_shared(
          JOIN users u ON u.id = e.user_id
          WHERE e.ts BETWEEN ?1 AND ?2 AND u.share_identified = 0",
         params![from.to_rfc3339(), to.to_rfc3339()],
-        |r| {
-            Ok((
-                r.get::<_, i64>(0)?.max(0) as u64,
-                r.get::<_, i64>(1)?.max(0) as u64,
-                r.get::<_, f64>(2)?,
-            ))
-        },
+        |r| Ok((get_count(r, 0)?, get_count(r, 1)?, r.get::<_, f64>(2)?)),
     )?;
 
     Ok(TopUsersShared {
@@ -381,7 +396,7 @@ pub fn method_breakdown(
         |row| {
             Ok(MethodBreakdown {
                 method: row.get(0)?,
-                count: row.get::<_, i64>(1)?.max(0) as u64,
+                count: get_count(row, 1)?,
                 gco2eq_g: row.get(2)?,
             })
         },

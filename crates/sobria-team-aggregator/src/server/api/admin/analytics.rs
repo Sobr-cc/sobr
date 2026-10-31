@@ -19,10 +19,10 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use super::parse_date_or;
+use super::parse_window;
 use crate::commands::config::K_ANONYMITY_MIN;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
@@ -72,7 +72,7 @@ pub struct KAnonymity {
 pub struct AnalyticsResponse {
     pub from: String,
     pub to: String,
-    pub group_by: String,
+    pub group_by: &'static str,
     /// Effective visibility policy (ADR-0016) — shown by the UI.
     pub policy: &'static str,
     pub k_anonymity: KAnonymity,
@@ -91,21 +91,14 @@ pub async fn handle(
     Query(q): Query<AnalyticsQuery>,
 ) -> ApiResult<Json<AnalyticsResponse>> {
     let now = Utc::now();
-    let from = parse_date_or(q.from.as_deref(), now - Duration::days(30))?;
-    let to = parse_date_or(q.to.as_deref(), now)?;
+    let (from, to) = parse_window(q.from.as_deref(), q.to.as_deref(), now)?;
     if from >= to {
         return Err(ApiError::BadRequest("from doit être < to".into()));
     }
-    let group_by = match q.group_by.as_deref().unwrap_or("day") {
-        "day" => GroupBy::Day,
-        "week" => GroupBy::Week,
-        "month" => GroupBy::Month,
-        other => {
-            return Err(ApiError::BadRequest(format!(
-                "group_by inconnu: {other} (day|week|month)"
-            )))
-        },
-    };
+    let raw_group_by = q.group_by.as_deref().unwrap_or("day");
+    let group_by = GroupBy::parse(raw_group_by).ok_or_else(|| {
+        ApiError::BadRequest(format!("group_by inconnu: {raw_group_by} (day|week|month)"))
+    })?;
     let top_n = q.top.unwrap_or(10).clamp(1, 100);
 
     let storage = state.lock_storage()?;
@@ -123,11 +116,9 @@ pub async fn handle(
     let active_users = analytics::active_user_count(conn, from, to)?;
     // In `identified` mode, k-anonymity does not apply (individual data
     // is visible by organization policy).
-    let blocked = pol != VisibilityPolicy::Identified && active_users < u64::from(k_required);
-    let project_k = match pol {
-        VisibilityPolicy::Identified => None,
-        _ => Some(k_required),
-    };
+    let k_applies = pol != VisibilityPolicy::Identified;
+    let blocked = k_applies && active_users < u64::from(k_required);
+    let project_k = k_applies.then_some(k_required);
 
     let (series, top_models, top_users, projects, method_breakdown) = if blocked {
         (
@@ -143,21 +134,17 @@ pub async fn handle(
             // everyone is aggregated in the anonymous block.
             VisibilityPolicy::Anonymous => {
                 let mut t = analytics::top_users_shared(conn, from, to, top_n)?;
-                if !t.identified.is_empty() {
-                    for u in t.identified.drain(..) {
-                        t.anonymous_users += 1;
-                        t.anonymous_count += u.count;
-                        t.anonymous_gco2eq_g += u.gco2eq_g;
-                    }
+                for u in t.identified.drain(..) {
+                    t.anonymous_users += 1;
+                    t.anonymous_count += u.count;
+                    t.anonymous_gco2eq_g += u.gco2eq_g;
                 }
                 t
             },
             VisibilityPolicy::OptIn => analytics::top_users_shared(conn, from, to, top_n)?,
             VisibilityPolicy::Identified => TopUsersShared {
                 identified: analytics::top_users_all(conn, from, to, top_n)?,
-                anonymous_users: 0,
-                anonymous_count: 0,
-                anonymous_gco2eq_g: 0.0,
+                ..Default::default()
             },
         };
         (
@@ -172,7 +159,7 @@ pub async fn handle(
     Ok(Json(AnalyticsResponse {
         from: from.to_rfc3339(),
         to: to.to_rfc3339(),
-        group_by: q.group_by.unwrap_or_else(|| "day".to_string()),
+        group_by: group_by.as_str(),
         policy: pol.as_str(),
         k_anonymity: KAnonymity {
             required: k_required,

@@ -33,13 +33,11 @@ pub fn build_csv(rows: &[EstimationRow], anonymize: bool) -> AggregatorResult<Ve
 
     for r in rows {
         let (fp_label, name_label) = if anonymize {
-            let alias = if let Some(existing) = user_aliases.get(r.user_id.as_str()) {
-                existing.clone()
-            } else {
-                let new_alias = format!("Employé #{}", user_aliases.len() + 1);
-                user_aliases.insert(r.user_id.as_str(), new_alias.clone());
-                new_alias
-            };
+            let next = user_aliases.len() + 1;
+            let alias = user_aliases
+                .entry(r.user_id.as_str())
+                .or_insert_with(|| format!("Employé #{next}"))
+                .clone();
             (alias, String::new())
         } else {
             (
@@ -65,17 +63,13 @@ pub fn build_csv(rows: &[EstimationRow], anonymize: bool) -> AggregatorResult<Ve
         .map_err(map_err)?;
     }
 
-    wtr.flush().map_err(map_io)?;
+    wtr.flush()?;
     wtr.into_inner()
         .map_err(|e| AggregatorError::Io(e.into_error()))
 }
 
 fn map_err(e: csv::Error) -> AggregatorError {
     AggregatorError::Config(format!("csv: {e}"))
-}
-
-fn map_io(e: std::io::Error) -> AggregatorError {
-    AggregatorError::Io(e)
 }
 
 #[cfg(test)]

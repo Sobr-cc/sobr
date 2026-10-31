@@ -102,19 +102,19 @@ fn estimation_result_from_row(row: &EstimationRow) -> EstimationResult {
             IndicatorValue {
                 indicator: Indicator::Co2Eq,
                 interval: co2_interval,
-                unit: "gCO2eq".to_string(),
+                unit: Indicator::Co2Eq.default_unit().to_string(),
                 bins: None,
             },
             IndicatorValue {
                 indicator: Indicator::Energy,
                 interval: energy_interval,
-                unit: "Wh".to_string(),
+                unit: Indicator::Energy.default_unit().to_string(),
                 bins: None,
             },
             IndicatorValue {
                 indicator: Indicator::Water,
                 interval: water_interval,
-                unit: "L".to_string(),
+                unit: Indicator::Water.default_unit().to_string(),
                 bins: None,
             },
         ],

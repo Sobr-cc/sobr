@@ -8,10 +8,8 @@
 
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use ulid::Ulid;
 
 use crate::config::DataPaths;
-use crate::crypto::secret::enrollment_code;
 use crate::storage::{admins, enrollment_codes, Storage};
 
 /// Newly created codes (clear text + metadata).
@@ -38,19 +36,8 @@ pub fn create_batch(
     let now = Utc::now();
     let expires_at = now + Duration::days(ttl_days);
 
-    let mut out = Vec::with_capacity(count as usize);
-    for _ in 0..count {
-        let id = Ulid::new().to_string();
-        let code = enrollment_code();
-        enrollment_codes::insert(storage.connection(), &id, &code, &admin.id, now, expires_at)
-            .context("insert enrollment code")?;
-        out.push(CreatedCode {
-            id,
-            code,
-            expires_at,
-        });
-    }
-    Ok(out)
+    enrollment_codes::create_batch(storage.connection(), count, &admin.id, now, expires_at)
+        .context("insert enrollment code")
 }
 
 /// Lists the codes (admin view).

@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use sobria_core::EmpreinteMethod;
 use ulid::Ulid;
 
-use crate::alerts::{self, store::mark_trigger_notified};
+use crate::alerts::{self, store::mark_trigger_notified, NotifyKind};
 use crate::server::auth::middleware::AuthenticatedUser;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
@@ -84,7 +84,6 @@ pub async fn handle(
     }
 
     let now = Utc::now();
-    let storage = state.lock_storage()?;
 
     // Keep the full payload for audit + reproducibility.
     let raw = serde_json::to_string(&serde_json::json!({
@@ -131,6 +130,8 @@ pub async fn handle(
         raw_payload_json: &raw,
         received_at: now,
     };
+
+    let storage = state.lock_storage()?;
     estimations::insert(storage.connection(), &new_estimation)?;
     let _ = users::touch_last_seen(storage.connection(), &user.claims.sub, now);
 
@@ -138,20 +139,26 @@ pub async fn handle(
     // (team thresholds included). Detected events are inserted in the database
     // under the lock; the async notification then runs outside the lock.
     let events = alerts::check_thresholds_for_user(storage.connection(), &user.claims.sub, now)
-        .map_err(|e| {
+        .unwrap_or_else(|e| {
             tracing::warn!(error = %e, "alerts: check échoué — ack quand même");
-            e
-        })
-        .unwrap_or_default();
-    // Snapshot the SMTP config before dropping the lock.
-    let smtp_cfg = alerts::notify::read_smtp_config(&storage);
+            Vec::new()
+        });
+    // Snapshot the SMTP config before dropping the lock (email events only).
+    let smtp_cfg = if events
+        .iter()
+        .any(|ev| ev.threshold.notify_kind == NotifyKind::Email)
+    {
+        alerts::notify::read_smtp_config(&storage)
+    } else {
+        None
+    };
     drop(storage);
 
     if !events.is_empty() {
         let state_for_persist = state.clone();
         tokio::spawn(async move {
             for ev in events {
-                let outcome = alerts::notify::notify(&ev, smtp_cfg.clone()).await;
+                let outcome = alerts::notify::notify(&ev, smtp_cfg.as_ref()).await;
                 let Ok(s) = state_for_persist.storage.lock() else {
                     continue;
                 };

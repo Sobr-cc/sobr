@@ -12,6 +12,18 @@ use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, SanType};
 
 use crate::error::{AggregatorError, AggregatorResult};
 
+/// SANs of the generated certificates, before the OS hostname.
+pub const DEFAULT_SANS: [&str; 3] = ["localhost", "127.0.0.1", "::1"];
+
+/// OS hostname, if readable and non-empty.
+#[must_use]
+pub fn os_hostname() -> Option<String> {
+    hostname::get()
+        .ok()
+        .and_then(|os| os.into_string().ok())
+        .filter(|s| !s.is_empty())
+}
+
 /// PEM bundle of a self-signed certificate.
 #[derive(Debug)]
 pub struct GeneratedCert {
@@ -132,15 +144,8 @@ pub fn regen_self_signed(cert_path: &Path, key_path: &Path) -> AggregatorResult<
     fs::rename(cert_path, &cert_backup)?;
     fs::rename(key_path, &key_backup)?;
 
-    let hostname = hostname::get()
-        .ok()
-        .and_then(|os| os.into_string().ok())
-        .filter(|s| !s.is_empty());
-    let sans = vec![
-        "localhost".to_string(),
-        "127.0.0.1".to_string(),
-        "::1".to_string(),
-    ];
+    let hostname = os_hostname();
+    let sans = DEFAULT_SANS.map(String::from);
     let bundle = generate_self_signed(&sans, hostname.as_deref())?;
     write_cert_files(cert_path, key_path, &bundle)?;
     let fp = cert_fingerprint_sha256(&bundle.cert_pem);

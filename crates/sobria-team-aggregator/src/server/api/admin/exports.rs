@@ -10,10 +10,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use serde::Deserialize;
 
-use super::parse_date_or;
+use super::parse_window;
 use crate::exports::{csrd, csv as team_csv, prov_o, ExportRequest};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -36,9 +36,7 @@ pub struct ExportInput {
 
 impl ExportInput {
     fn resolve(self) -> ApiResult<ExportRequest> {
-        let now = Utc::now();
-        let from = parse_date_or(self.from.as_deref(), now - Duration::days(30))?;
-        let to = parse_date_or(self.to.as_deref(), now)?;
+        let (from, to) = parse_window(self.from.as_deref(), self.to.as_deref(), Utc::now())?;
         if from >= to {
             return Err(ApiError::BadRequest("from doit être < to".into()));
         }
@@ -57,7 +55,7 @@ pub async fn handle_csrd(
     Json(input): Json<ExportInput>,
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
-    let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
+    let org = org_name(&req);
     let rows = rows_in_window(&state, &req)?;
     let artifacts = csrd::build_report(&rows, &org, req.from, req.to)?;
 
@@ -75,24 +73,20 @@ pub async fn handle_provo(
     Json(input): Json<ExportInput>,
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
-    let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
+    let org = org_name(&req);
     let rows = rows_in_window(&state, &req)?;
     let v = prov_o::build_team_provo(&rows, &org, req.from, req.to, req.anonymize);
     let bytes = serde_json::to_vec_pretty(&v)
         .map_err(|e| ApiError::InternalMsg(format!("provo serialise: {e}")))?;
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/ld+json")
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"sobria-team-prov-{}-to-{}.jsonld\"",
-                req.from.format("%Y%m%d"),
-                req.to.format("%Y%m%d")
-            ),
-        )
-        .body(Body::from(bytes))
-        .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))
+    attachment(
+        "application/ld+json",
+        &format!(
+            "sobria-team-prov-{}-to-{}.jsonld",
+            req.from.format("%Y%m%d"),
+            req.to.format("%Y%m%d")
+        ),
+        bytes,
+    )
 }
 
 pub async fn handle_csv(
@@ -103,16 +97,30 @@ pub async fn handle_csv(
     let req = input.resolve()?;
     let rows = rows_in_window(&state, &req)?;
     let bytes = team_csv::build_csv(&rows, req.anonymize)?;
+    attachment(
+        "text/csv; charset=utf-8",
+        &format!(
+            "sobria-team-{}-to-{}.csv",
+            req.from.format("%Y%m%d"),
+            req.to.format("%Y%m%d")
+        ),
+        bytes,
+    )
+}
+
+/// Organization name of the CSRD and PROV-O exports.
+fn org_name(req: &ExportRequest) -> String {
+    req.entity_name.clone().unwrap_or_else(|| "Équipe".into())
+}
+
+/// 200 response serving `bytes` as the attachment `filename`.
+fn attachment(content_type: &'static str, filename: &str, bytes: Vec<u8>) -> ApiResult<Response> {
     Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
+        .header(header::CONTENT_TYPE, content_type)
         .header(
             header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"sobria-team-{}-to-{}.csv\"",
-                req.from.format("%Y%m%d"),
-                req.to.format("%Y%m%d")
-            ),
+            format!("attachment; filename=\"{filename}\""),
         )
         .body(Body::from(bytes))
         .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))

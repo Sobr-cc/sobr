@@ -9,7 +9,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AggregatorResult;
-use crate::storage::parse_ts;
+use crate::storage::{get_count, parse_ts};
 
 /// A typed estimation to insert.
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ pub struct NewEstimation<'a> {
 }
 
 /// Usage totals of a user ("Mon usage perso" cards + /me/usage).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct UsageTotals {
     pub count: u64,
     pub tokens_in: u64,
@@ -44,16 +44,17 @@ pub struct UsageTotals {
     pub energy_wh: f64,
 }
 
-impl Default for UsageTotals {
-    fn default() -> Self {
-        Self {
-            count: 0,
-            tokens_in: 0,
-            tokens_out: 0,
-            gco2eq_p50_g: 0.0,
-            water_ml: 0.0,
-            energy_wh: 0.0,
-        }
+impl UsageTotals {
+    /// Reads count, tokens in/out, gCO₂eq, water and energy from `first` onward.
+    pub(crate) fn from_row(row: &rusqlite::Row<'_>, first: usize) -> rusqlite::Result<Self> {
+        Ok(Self {
+            count: get_count(row, first)?,
+            tokens_in: get_count(row, first + 1)?,
+            tokens_out: get_count(row, first + 2)?,
+            gco2eq_p50_g: row.get(first + 3)?,
+            water_ml: row.get(first + 4)?,
+            energy_wh: row.get(first + 5)?,
+        })
     }
 }
 
@@ -135,8 +136,8 @@ pub fn list_for_window(
             ts,
             method: row.get(5)?,
             model_id: row.get(6)?,
-            tokens_in: row.get::<_, i64>(7)?.max(0) as u32,
-            tokens_out: row.get::<_, i64>(8)?.max(0) as u32,
+            tokens_in: get_count(row, 7)? as u32,
+            tokens_out: get_count(row, 8)? as u32,
             gco2eq_p50: row.get(9)?,
             gco2eq_p5: row.get(10)?,
             gco2eq_p95: row.get(11)?,
@@ -160,8 +161,7 @@ pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorR
 
 /// Totals for a user (all time).
 pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<UsageTotals> {
-    let mut totals = UsageTotals::default();
-    conn.query_row(
+    Ok(conn.query_row(
         "SELECT COUNT(*),
                 COALESCE(SUM(tokens_in), 0),
                 COALESCE(SUM(tokens_out), 0),
@@ -170,17 +170,8 @@ pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<Usa
                 COALESCE(SUM(energy_wh), 0.0)
          FROM estimations WHERE user_id = ?1",
         params![user_id],
-        |row| {
-            totals.count = row.get::<_, i64>(0)?.max(0) as u64;
-            totals.tokens_in = row.get::<_, i64>(1)?.max(0) as u64;
-            totals.tokens_out = row.get::<_, i64>(2)?.max(0) as u64;
-            totals.gco2eq_p50_g = row.get::<_, f64>(3)?;
-            totals.water_ml = row.get::<_, f64>(4)?;
-            totals.energy_wh = row.get::<_, f64>(5)?;
-            Ok(())
-        },
-    )?;
-    Ok(totals)
+        |row| UsageTotals::from_row(row, 0),
+    )?)
 }
 
 #[cfg(test)]

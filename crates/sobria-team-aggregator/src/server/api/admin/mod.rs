@@ -11,7 +11,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
@@ -24,6 +24,17 @@ fn parse_date_or(raw: Option<&str>, default: DateTime<Utc>) -> ApiResult<DateTim
             .map(|d| d.with_timezone(&Utc))
             .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
     }
+}
+
+/// Parses the `from`/`to` window; defaults to the 30 days up to `now`.
+fn parse_window(
+    from: Option<&str>,
+    to: Option<&str>,
+    now: DateTime<Utc>,
+) -> ApiResult<(DateTime<Utc>, DateTime<Utc>)> {
+    let from = parse_date_or(from, now - Duration::days(30))?;
+    let to = parse_date_or(to, now)?;
+    Ok((from, to))
 }
 
 /// Sub-router mounted under `/admin` by [`crate::server::api::router`].

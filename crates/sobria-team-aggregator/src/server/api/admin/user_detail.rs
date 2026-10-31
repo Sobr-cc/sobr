@@ -10,10 +10,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use super::parse_date_or;
+use super::parse_window;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -56,9 +56,7 @@ pub async fn handle(
     Path(user_id): Path<String>,
     Query(q): Query<DetailQuery>,
 ) -> ApiResult<Json<UserDetailResponse>> {
-    let now = Utc::now();
-    let from = parse_date_or(q.from.as_deref(), now - Duration::days(30))?;
-    let to = parse_date_or(q.to.as_deref(), now)?;
+    let (from, to) = parse_window(q.from.as_deref(), q.to.as_deref(), Utc::now())?;
 
     let storage = state.lock_storage()?;
     let conn = storage.connection();

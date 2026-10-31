@@ -44,10 +44,10 @@ pub enum ApiError {
 impl ApiError {
     fn status(&self) -> StatusCode {
         match self {
-            ApiError::InvalidCredentials | ApiError::InvalidEnrollmentCode => {
-                StatusCode::UNAUTHORIZED
-            },
-            ApiError::InvalidToken | ApiError::MissingAuth => StatusCode::UNAUTHORIZED,
+            ApiError::InvalidCredentials
+            | ApiError::InvalidEnrollmentCode
+            | ApiError::InvalidToken
+            | ApiError::MissingAuth => StatusCode::UNAUTHORIZED,
             ApiError::Forbidden => StatusCode::FORBIDDEN,
             ApiError::FingerprintAlreadyEnrolled => StatusCode::CONFLICT,
             ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
@@ -80,7 +80,7 @@ impl IntoResponse for ApiError {
         let status = self.status();
         let code = self.code();
         let msg = self.to_string();
-        if matches!(self, ApiError::Internal(_) | ApiError::InternalMsg(_)) {
+        if status.is_server_error() {
             tracing::error!(error = %msg, code, "API internal error");
         } else {
             tracing::debug!(error = %msg, code, "API client error");

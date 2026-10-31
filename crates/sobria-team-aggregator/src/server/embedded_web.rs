@@ -11,10 +11,12 @@
 //! If the bundle was not built (`web-team/build/index.html` missing),
 //! the handler returns an explanatory message instead of a silent 404.
 
+use std::borrow::Cow;
+
 use axum::{
     body::Body,
     http::{header, StatusCode, Uri},
-    response::{IntoResponse, Response},
+    response::{Html, IntoResponse, Response},
 };
 use rust_embed::RustEmbed;
 
@@ -54,7 +56,7 @@ pub async fn handler(uri: Uri) -> Response {
 
 fn serve_or_fallback(path: &str) -> Response {
     match WebAssets::get(path) {
-        Some(file) => respond_with_file(path, file.data.into_owned()),
+        Some(file) => respond_with_file(path, file.data),
         None => {
             if path.contains('.') {
                 // Path looks like an asset → do not mask it as a 200.
@@ -62,7 +64,7 @@ fn serve_or_fallback(path: &str) -> Response {
             } else {
                 // SPA fallback.
                 match WebAssets::get("index.html") {
-                    Some(idx) => respond_with_file("index.html", idx.data.into_owned()),
+                    Some(idx) => respond_with_file("index.html", idx.data),
                     None => bundle_missing_response(),
                 }
             }
@@ -70,7 +72,7 @@ fn serve_or_fallback(path: &str) -> Response {
     }
 }
 
-fn respond_with_file(path: &str, bytes: Vec<u8>) -> Response {
+fn respond_with_file(path: &str, bytes: Cow<'static, [u8]>) -> Response {
     let mime = mime_guess::from_path(path).first_or_octet_stream();
     let cache = if path.contains("_app/immutable/") {
         // SvelteKit emits content-hashed files under _app/immutable/,
@@ -99,9 +101,5 @@ code{background:#131815;padding:2px 6px;border-radius:4px;color:#c5f04a}</style>
 <p>puis rebuildez le binaire <code>cargo build -p sobria-team-aggregator</code>.</p>
 <p>L'API REST <code>/api/v1/*</code> reste fonctionnelle.</p>
 </body></html>"#;
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(Body::from(html))
-        .expect("response build")
+    Html(html).into_response()
 }

@@ -20,6 +20,7 @@ pub mod store;
 pub use checker::{check_thresholds_for_user, AlertEvent};
 pub use periods::{period_bounds, AlertPeriod};
 pub use store::{
-    delete_threshold, insert_threshold, list_active_thresholds, list_thresholds_admin,
-    list_triggers_admin, AlertScope, NewThreshold, NotifyKind, Threshold, TriggerRow,
+    delete_threshold, find_threshold, insert_threshold, list_active_thresholds,
+    list_thresholds_admin, list_triggers_admin, AlertScope, NewThreshold, NotifyKind, Threshold,
+    TriggerRow,
 };

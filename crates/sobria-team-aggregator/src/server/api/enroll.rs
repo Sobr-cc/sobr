@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::crypto::password;
-use crate::server::auth::{
-    jwt::{self, Role},
-    refresh,
-};
+use crate::server::auth::{issue_session, jwt::Role};
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
 use crate::storage::{enrollment_codes, users};
@@ -42,7 +39,7 @@ pub async fn handle(
             "code doit être 12 chiffres ASCII".into(),
         ));
     }
-    if req.password.len() < 8 {
+    if req.password.len() < password::MIN_PASSWORD_LEN {
         return Err(ApiError::BadRequest(
             "password ≥ 8 caractères requis".into(),
         ));
@@ -84,15 +81,13 @@ pub async fn handle(
     }
 
     // 5. issue access + refresh tokens
-    let access_token = jwt::issue(&state.jwt_signing_key, &user_id, Role::User, now)?;
-    let access_expires_at = (now + jwt::ACCESS_TTL).to_rfc3339();
-    let issued = refresh::issue(&storage, Some(&user_id), None, now)?;
+    let tokens = issue_session(&state.jwt_signing_key, &storage, Role::User, &user_id, now)?;
 
     Ok(Json(EnrollResponse {
         user_id,
-        access_token,
-        refresh_token: issued.combined,
-        access_expires_at,
-        refresh_expires_at: issued.expires_at.to_rfc3339(),
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        access_expires_at: tokens.access_expires_at,
+        refresh_expires_at: tokens.refresh_expires_at,
     }))
 }

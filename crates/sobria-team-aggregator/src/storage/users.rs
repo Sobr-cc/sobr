@@ -134,14 +134,7 @@ fn list_all_with_totals_inner(
         let created_at_s: String = row.get(4)?;
         let last_seen_s: Option<String> = row.get(5)?;
         let share_identified: bool = row.get::<_, i64>(6)? != 0;
-        let totals = UsageTotals {
-            count: row.get::<_, i64>(7)?.max(0) as u64,
-            tokens_in: row.get::<_, i64>(8)?.max(0) as u64,
-            tokens_out: row.get::<_, i64>(9)?.max(0) as u64,
-            gco2eq_p50_g: row.get(10)?,
-            water_ml: row.get(11)?,
-            energy_wh: row.get(12)?,
-        };
+        let totals = UsageTotals::from_row(row, 7)?;
         Ok(UserWithTotals {
             id: row.get(0)?,
             fingerprint: row.get(1)?,

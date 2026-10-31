@@ -10,14 +10,16 @@ use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 
 use crate::config::DataPaths;
 use crate::server::{build_router, tls as server_tls, ServerState};
 use crate::storage::Storage;
 
-/// Checks that init has run, then builds the shared state and the TLS config.
-fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
+/// Checks that init has run, loads the TLS config, starts the retention task
+/// and builds the router.
+fn prepare(paths: &DataPaths) -> Result<(Router, RustlsConfig)> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     let jwt_signing_key = storage
         .get_config(crate::commands::init::CFG_JWT_SIGNING_KEY)
@@ -29,19 +31,18 @@ fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
             )
         })?;
 
-    let server_config = server_tls::load_server_config_arc(&paths.cert(), &paths.key())
-        .context("charger cert TLS")?;
-    let tls = RustlsConfig::from_config(Arc::clone(&server_config));
+    let server_config =
+        server_tls::load_server_config(&paths.cert(), &paths.key()).context("charger cert TLS")?;
+    let tls = RustlsConfig::from_config(Arc::new(server_config));
 
     let state = ServerState::new(storage, jwt_signing_key);
-    Ok((state, tls))
+    spawn_retention_task(state.clone());
+    Ok((build_router(state), tls))
 }
 
 /// Starts the server bound to `bind:port` (blocks until interrupted).
 pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
-    let (state, tls) = prepare(paths)?;
-    spawn_retention_task(state.clone());
-    let app = build_router(state);
+    let (app, tls) = prepare(paths)?;
     let addr: SocketAddr = format!("{bind}:{port}")
         .parse()
         .with_context(|| format!("addr invalide: {bind}:{port}"))?;
@@ -56,9 +57,7 @@ pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
 
 /// Test variant: uses an already bound listener (any port).
 pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Result<()> {
-    let (state, tls) = prepare(paths)?;
-    spawn_retention_task(state.clone());
-    let app = build_router(state);
+    let (app, tls) = prepare(paths)?;
 
     // axum_server expects a non-blocking `std::net::TcpListener`.
     listener
@@ -108,11 +107,7 @@ fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i6
         .storage
         .lock()
         .map_err(|_| anyhow::anyhow!("storage mutex poisoned"))?;
-    let days = storage
-        .get_config(RETENTION_DAYS.key)?
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(RETENTION_DAYS.default)
-        .max(RETENTION_DAYS.floor);
+    let days = RETENTION_DAYS.effective(&storage)?;
     let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
     let purged = crate::storage::estimations::purge_older_than(storage.connection(), cutoff)?;
     Ok((days, purged))

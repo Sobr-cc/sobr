@@ -10,9 +10,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 
-use crate::crypto::secret::enrollment_code;
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
@@ -65,25 +63,21 @@ pub async fn handle_create(
     let now = Utc::now();
     let expires_at = now + Duration::days(req.ttl_days);
 
-    let mut out = Vec::with_capacity(req.count as usize);
-    for _ in 0..req.count {
-        let id = Ulid::new().to_string();
-        let code = enrollment_code();
-        enrollment_codes::insert(
-            storage.connection(),
-            &id,
-            &code,
-            &admin.claims.sub,
-            now,
-            expires_at,
-        )?;
-        out.push(CreatedCode {
-            id,
-            code,
-            expires_at: expires_at.to_rfc3339(),
-        });
-    }
-    Ok(Json(CreateCodesResponse { codes: out }))
+    let codes = enrollment_codes::create_batch(
+        storage.connection(),
+        req.count,
+        &admin.claims.sub,
+        now,
+        expires_at,
+    )?
+    .into_iter()
+    .map(|c| CreatedCode {
+        id: c.id,
+        code: c.code,
+        expires_at: c.expires_at.to_rfc3339(),
+    })
+    .collect();
+    Ok(Json(CreateCodesResponse { codes }))
 }
 
 #[derive(Debug, Serialize)]

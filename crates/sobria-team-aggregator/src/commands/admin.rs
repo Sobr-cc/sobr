@@ -55,7 +55,7 @@ pub fn reset_password(
     username: &str,
     new_password: &str,
 ) -> Result<ResetOutcome> {
-    if new_password.len() < 8 {
+    if new_password.len() < password::MIN_PASSWORD_LEN {
         anyhow::bail!("le mot de passe doit faire au moins 8 caractères");
     }
     let storage = Storage::open(&paths.db())?;

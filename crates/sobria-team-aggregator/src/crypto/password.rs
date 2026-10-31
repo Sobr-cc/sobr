@@ -14,6 +14,9 @@ use argon2::{
 
 use crate::error::{AggregatorError, AggregatorResult};
 
+/// Minimum length of a user or admin password.
+pub const MIN_PASSWORD_LEN: usize = 8;
+
 /// Argon2id hash (PHC string) of a password.
 pub fn hash_password(password: &str) -> AggregatorResult<String> {
     let salt = SaltString::generate(&mut OsRng);

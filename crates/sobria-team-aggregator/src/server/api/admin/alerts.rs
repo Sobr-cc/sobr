@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::alerts::{
-    delete_threshold, insert_threshold, list_thresholds_admin, list_triggers_admin, AlertPeriod,
-    AlertScope, NewThreshold, NotifyKind, Threshold, TriggerRow,
+    delete_threshold, find_threshold, insert_threshold, list_thresholds_admin, list_triggers_admin,
+    AlertPeriod, AlertScope, NewThreshold, NotifyKind, Threshold, TriggerRow,
 };
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -83,9 +83,7 @@ pub async fn handle_create(
             created_at: now,
         },
     )?;
-    let threshold = list_thresholds_admin(storage.connection())?
-        .into_iter()
-        .find(|t| t.id == id)
+    let threshold = find_threshold(storage.connection(), &id)?
         .ok_or_else(|| ApiError::InternalMsg("seuil créé introuvable".into()))?;
     Ok(Json(CreatedAlertResponse { id, threshold }))
 }

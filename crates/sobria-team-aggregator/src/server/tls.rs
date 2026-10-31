@@ -8,7 +8,6 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::Once;
 
 use rustls::ServerConfig;
@@ -56,12 +55,4 @@ pub fn load_server_config(cert_path: &Path, key_path: &Path) -> AggregatorResult
         .map_err(|e| AggregatorError::Tls(format!("ServerConfig: {e}")))?;
 
     Ok(config)
-}
-
-/// Variant ready to plug into `axum_server::tls_rustls::RustlsConfig`.
-pub fn load_server_config_arc(
-    cert_path: &Path,
-    key_path: &Path,
-) -> AggregatorResult<Arc<ServerConfig>> {
-    Ok(Arc::new(load_server_config(cert_path, key_path)?))
 }
