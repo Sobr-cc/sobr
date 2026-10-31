@@ -12,8 +12,9 @@ Characterization tests of the report, PROV-O document and datasheet of sobria-ex
   options (seed 42, N = 10,000, the crate version), `dateModified` inside the
   hashed JSON-LD, a character outside WinAnsi printed as `?` (SOB-241), and a
   malformed payload (the report fails, the datasheet skips the entry).
-- Pinned quirks are named `quirk`. New: the report states "Rapport conforme
-  AFNOR SPEC 2314" and a fixed methodology block whatever the ledger used
-  (Triage issue in the PR). The other audit findings are left to SOB-23.
+- Pinned quirks are named `quirk`. The report states "Rapport conforme AFNOR
+  SPEC 2314" and a fixed methodology block whatever the ledger used (SOB-124);
+  a character outside WinAnsi prints as `?` (SOB-241). The other audit
+  findings are left to SOB-23.
 - Not covered: the fake `team-shim-{id}` entries fed by the team server
   (SOB-25), and the look of the PDF (no rendering check).
