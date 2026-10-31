@@ -23,9 +23,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - A correction by the person belongs to the session and survives every
     change of winner. 16 shared test cases, 3 worked examples, 9 build issues
     (38 points), marking those that wait for a Deep cleanup.
-  - Two points wait for Thibault (SOB-195): how billing enters the totals,
-    and where OpenTelemetry enters. A third question, what local context the
-    device keeps for rules, is SOB-198.
+  - Thibault took the recommendation on both open points (SOB-195): the
+    billed figure is shown beside the total, and the desktop app receives
+    OpenTelemetry on the same machine. What local context the device keeps for
+    rules is a separate question (SOB-198).
 - **ADR-0022, Amendment 1**: closes the references that left these points to
   SOB-146, and adds one item to its upload contract (a session merge).
 - Corrects one sentence of the ADR-0023 entry (SOB-144).

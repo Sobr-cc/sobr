@@ -1,7 +1,7 @@
 # ADR-0025 — Session identity and duplicates across sources
 
-- **Status**: Proposed (2026-10-31). Two points wait for Thibault's answers
-  (SOB-195); the rest rests on the recommendations below. Merging the PR is
+- **Status**: Proposed (2026-10-31). Thibault answered the two open points on
+  2026-10-31 (SOB-195) and took the recommendation of each. Merging the PR is
   his approval.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
@@ -26,21 +26,25 @@
 > survives every change of winner. The merge runs on the device; the server
 > receives the winning report of each session.
 
-## Points to decide
+## Points decided
 
-Thibault answers these two points in the Decision issue SOB-195. Each rests
-on the matching section, which compares the options with their cost, effort
-and risk.
+Thibault answered these two points on October 31 in the Decision issue
+SOB-195, and took the recommendation of each. Each rests on the matching
+section, which compares the options with their cost, effort and risk.
 
-1. **How billing enters the totals** (section 6). Recommended: show the
-   billed figure beside the total Sobr saw; change no session and no total.
-2. **Where OpenTelemetry enters** (section 8). Recommended: a receiver in the
-   desktop app on the same machine, so the merge happens on the device. This
+1. **How billing enters the totals** (section 6). The billed figure is shown
+   beside the total Sobr saw, with the gap and the ratio; no session and no
+   total changes. Chosen. Alternatives: a signed entry that makes the total
+   equal the bill; or the bill replacing the total, with the sessions scaled.
+2. **Where OpenTelemetry enters** (section 8). The desktop app receives it on
+   the same machine, so the merge stays on the device. Chosen. Alternatives:
+   the organization's collector forwarding to the server with Claude Code's
+   session ID in the upload; or the same with a keyed hash of that ID. This
    changes the recommendation of the capture note (section 3, option 2).
 
-The other choices are mine to recommend and are justified where they are made.
-Whatever Thibault answers, the identity rule of section 3 and the tests of
-section 11 stay.
+The other choices are the CTO's recommendation, justified where they are made.
+The identity rule of section 3 and the tests of section 11 do not depend on
+these two answers.
 
 ## Context and problem statement
 
@@ -316,7 +320,7 @@ OpenTelemetry follows from this:
 The capture note (SOB-145, section 3) recommended a collector for
 organizations. Under A it becomes a way to deliver the export settings, not a
 path to the server. SOB-166, which researches the collector, is reframed
-accordingly if Thibault takes A.
+accordingly (SOB-195).
 
 ### 9. Corrections by the person, and merges
 
@@ -503,8 +507,8 @@ and the transcript use different IDs (case II). She works on Monday.
 - The organization view has two figures to read.
 - The server and the device both run the precedence function. The crate holds
   one implementation and the same published cases.
-- SOB-166 and part of the capture note (section 3, option 2) are reframed if
-  Thibault takes option A for OpenTelemetry.
+- SOB-166 is reframed, and the capture note (section 3, option 2) is updated
+  by build issue 9, because OpenTelemetry enters through the app.
 
 **Neutral:**
 
@@ -524,12 +528,12 @@ The numbers refer to the issues of ADR-0022.
 | 1 | Add source references, the report identity, completeness, the precedence function, the merge and the published cases to the model crate, with property tests | Model crate | 5 | ADR-0022 issue 1 |
 | 2 | Turn the Claude Code transcript import into cumulative reports with subagent folding, and pin the resumed-session case | Import crate, desktop backend | 5 | #1; SOB-161; **SOB-26** |
 | 3 | Make the status line and hooks report context and the live view only, with the two references of step 3 | Plugin (`claude-code` repo) | 3 | #1; SOB-164 |
-| 4 | Receive OpenTelemetry in the desktop app (local endpoint, allow-list, increments turned into totals), check with a real run whether a subagent's requests carry the parent's ID, and ship the export settings | Desktop backend, plugin | 5 | #1; the answer to point 2; SOB-166 reframed; **SOB-26** |
+| 4 | Receive OpenTelemetry in the desktop app (local endpoint, allow-list, increments turned into totals), check with a real run whether a subagent's requests carry the parent's ID, and ship the export settings | Desktop backend, plugin | 5 | #1; SOB-166 (reframed); **SOB-26** |
 | 5 | Make the extension send one report per conversation and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 6 | Keep winning reports and their history on the server, apply the precedence on upload, and accept a session merge | Server | 5 | #1; ADR-0022 issues 6 and 7; **SOB-25** |
 | 7 | Apply rules again when a session gains context, and merge two sessions with the person's attachment winning | Model crate, desktop backend | 3 | #1; ADR-0022 issue 5; **SOB-26** |
-| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap | Server, integrations | 8 | The answer to point 1; ADR-0022 issue 6; **SOB-25** |
-| 9 | Update the capture note with the result of SOB-163 and this ADR | Docs | 1 | SOB-163 |
+| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap | Server, integrations | 8 | ADR-0022 issue 6; **SOB-25** |
+| 9 | Update the capture note with the result of SOB-163 and this ADR (OpenTelemetry through the app, section 3 option 2) | Docs | 1 | SOB-163 |
 
 ## Links
 
