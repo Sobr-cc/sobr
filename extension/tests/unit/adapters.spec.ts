@@ -88,6 +88,8 @@ type Adapter = {
    * its composer and send button, and the model it shows must be recognized.
    */
   fixture: { file: string; presetId: string };
+  /** A send button that carries only its main attribute (the recorded page has several). */
+  mainSendButton: () => HTMLElement;
   supported: { label: string; presetId: string; displayName: string };
 };
 
@@ -165,6 +167,7 @@ const ADAPTERS: Adapter[] = [
       ['GPT-5.5 Pro Extended', 'gpt-5-5-pro']
     ],
     fixture: { file: 'chatgpt-2026-05.html', presetId: 'gpt-4o' },
+    mainSendButton: () => el('button', { 'data-testid': 'send-button' }),
     supported: { label: 'ChatGPT 4o', presetId: 'gpt-4o', displayName: 'GPT-4o' }
   },
   {
@@ -223,6 +226,7 @@ const ADAPTERS: Adapter[] = [
       ['Claude Opus 4.8 Extended', 'claude-opus-4-8']
     ],
     fixture: { file: 'claude-2026-05.html', presetId: 'claude-3-5-sonnet' },
+    mainSendButton: () => el('button', { 'aria-label': 'Send Message' }),
     supported: {
       label: 'Claude Sonnet 4.6',
       presetId: 'claude-sonnet-4-6',
@@ -268,6 +272,7 @@ const ADAPTERS: Adapter[] = [
       ['Mistral Large 2 (new)', 'mistral-large-3']
     ],
     fixture: { file: 'le-chat-2026-05.html', presetId: 'mistral-large-2' },
+    mainSendButton: () => el('button', { type: 'submit' }),
     supported: {
       label: 'Mistral Large 3',
       presetId: 'mistral-large-3',
@@ -329,6 +334,12 @@ describe.each(ADAPTERS)('$name adapter', (adapter) => {
     it('shows a model that the adapter recognizes', () => {
       expect(detector.extractModelId()).toBe(adapter.fixture.presetId);
     });
+  });
+
+  it('finds a send button that carries only its main attribute', () => {
+    const button = adapter.mainSendButton();
+    document.body.append(button);
+    expect(document.querySelector(detector.selectorSendButton)).toBe(button);
   });
 
   describe.runIf(adapter.host === 'chatgpt')('model from the URL', () => {
