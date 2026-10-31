@@ -110,7 +110,7 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 - **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
 - **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (set by Thibault on October 31, SOB-213). The 64 to 80 GB of §8 do not fit.
 - **One failure domain** until §7's second one exists.
-- **Tunnels are dialed out from the cluster side** (A4).
+- **Tunnels are dialed out from the host side** by the router VM (A4).
 - **Open facts** that Thibault still has to confirm are listed in SOB-181 (private), among them the third place for the small key machine of §6 and for a third copy of the backups.
 
 ### A2. The ten points against the facts
@@ -121,11 +121,11 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
 | 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
 | 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
-| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels are dialed out from the cluster, so no inbound port is needed. The original text of §4 and of the Consequences about the other site is superseded by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels are dialed out from the host side, so no inbound port is needed. The original text of §4 and of the Consequences about the other site is superseded by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. Plain HTTP carries no handshake: the relay reads only the Host header of port 80 and answers a redirect to HTTPS for the host names it knows (the 301 from the old host included), refuses any other, and forwards no plain HTTP. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
 | 6 Layout of the services | Yes | None |
 | 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network or to the other project's machines. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
 | 8 The cloud opens after its protections | Yes | None |
-| 9 Four backup layers | Yes, with one change | Backups live off the host: layers 1 and 2, plus a copy in a third place, which stays open until that place is known. Layer 3 (VM rollback) is replaced by a rebuild from code with the data back from layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
+| 9 Four backup layers | Yes, with one change | Backups live off the host: layers 1 and 2, plus a copy in a third place, which stays open until that place is known and which, like the other layers, expires within 30 days (§6), the erasure log covering it. Layer 3 (VM rollback) is replaced by a rebuild from code with the data back from layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
 | 10 Disk keys from a key server | Yes | The third place is still open (A1) |
 
 ### A3. Sizing under the cap
@@ -142,7 +142,7 @@ The managed cloud does not open on this cap: §6 already makes its opening depen
 
 ### A4. The mesh port and the front-end link
 
-KubeSpan is not needed on a single host: an inbound port matters only for a future second site (§7), and whether KubeSpan accepts another port is not stated on the pages read, so it is a fact to verify before that site depends on it. The tunnel between the front server and the cluster is dialed out from the host side by the router VM, with a keepalive, so it needs no inbound port.
+KubeSpan is not needed on a single host: an inbound port matters only for a future second site (§7), and whether KubeSpan accepts another port is not stated on the pages read, so it is a fact to verify before that site depends on it. The tunnel between the front server and the cluster is dialed out from the host side by the router VM, with a keepalive, so it needs no inbound port. Issue 2 (network, certificates, the front-end link) builds the router VM that A3 sizes.
 
 ### A5. The rule of portability (SOB-211)
 
@@ -150,7 +150,7 @@ Nothing of Sobr may depend on this particular host. The rule has five parts, eac
 
 | # | Rule | Check |
 |--|--|--|
-| P1 | All infrastructure is in code | A rebuild from the repo on an empty host reproduces the platform (the full rebuild test of §6) |
+| P1 | All infrastructure that Sobr owns is in code; the host prerequisites (the Sobr pool and bridge, created once by Thibault) are listed in the host file (P5) | A rebuild from the repo and the host file on an empty host reproduces the platform (the full rebuild test of §6) |
 | P2 | No address, host name, VMID or storage ID is written by hand outside the code | A check in `infra` fails on one outside the host file |
 | P3 | Backups restore on another machine and are kept off the host | The monthly restore into a spare environment elsewhere than the host, and the rebuild on a second machine before launch |
 | P4 | No feature that only this box offers | A review refuses it |
@@ -341,7 +341,7 @@ mature, and can replace Kourier later.
 
 ### 3. Storage
 
-> Amendment 1 (2026-10-31): the token that powers a VM off is limited to Sobr's own VMs (A2, point 3).
+> Amendment 1 (2026-10-31): the token that powers a VM off is limited to Sobr's own VMs (A2, point 3). On one node (A3) there is no other worker: recovery is a restart of the node, or a rebuild from code plus a restore from layers 1 and 2, and the planned moves of the server wait for a second node.
 
 **Local volumes.** Each node's volumes sit on its own virtual disk, given
 out by a local-path provisioner. SQLite with WAL wants a local disk, and
@@ -382,7 +382,7 @@ replica before confirming it, so replicas belong on one local network.
 
 ### 4. Network, entry point, certificates and exposure
 
-> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, and the tunnel is dialed out from the cluster (A2, point 5, and A4).
+> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, and the tunnel is dialed out from the host side (A2, point 5, and A4).
 
 **Cilium** is the network of the cluster:
 
@@ -500,7 +500,7 @@ The repos are public, so pull requests from forks never run on them
 
 ### 6. Customer data: availability, backups, encryption and the GDPR
 
-> Amendment 1 (2026-10-31): layer 3 is replaced (A2, point 9), and the accepted risks are in A6.
+> Amendment 1 (2026-10-31): layer 3 is replaced and the third copy expires within 30 days (A2, point 9); the first successful P3 restore (A5) joins the conditions for opening the cloud; the accepted risks are in A6.
 
 **Availability.** One machine is one failure domain: power, the internet
 line, a disk or the motherboard.
@@ -763,7 +763,7 @@ smaller machine, the CI runners are the part to cut first.
 
 ## Issues to create
 
-> Amendment 1 (2026-10-31): issue 4 builds Sobr's backup layers off the host (A2, point 9), not on the host's backup server; issue 8 (CI runner VMs) waits for a cap that allows it; issues 1 and 8 follow the host contract, and a host-level change needs Thibault's go.
+> Amendment 1 (2026-10-31): issue 4 builds Sobr's backup layers off the host (A2, point 9), not on the host's backup server; issue 15 (fencing) waits for a second node; issue 8 (CI runner VMs) waits for a cap that allows it; issues 1 and 8 follow the host contract, and a host-level change needs Thibault's go.
 
 The orchestrator creates these issues once this ADR is accepted.
 
