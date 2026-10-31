@@ -31,7 +31,7 @@
 2. A public justification: this section and the CHANGELOG entry. The README is unchanged for now (see below).
 3. 30 days' notice for managed users: nobody uses the managed cloud yet, so nobody is notified. The notice applies to any later change of these conditions.
 
-The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. SOB-87 chose amendment by PR; SOB-127 updates the README.
+The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. SOB-87 chose amendment by PR, and `docs/adr/README.md` now says so (SOB-127).
 
 **Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here. Amendment 3 (SOB-103) aligns, or keeps with a reason, the README, the diagram label, the pairing row and the phasing; Amendment 2 (SOB-154) settles the price and the conflict with ADR-0013.
 
@@ -61,7 +61,7 @@ The Révision section asks for a separate "ADR-0014-amendement" document. This a
 
 **Not covered here.** The "Principe" bullet and the "Modèle technique" diagram still call the managed offer "payant". With Amendments 1 and 2 the managed cloud has a free personal space and a paid offer for organizations. SOB-103 owns these passages. Settled by Amendment 3.
 
-**Issues.** SOB-154, SOB-136 (the answer), SOB-35 (Amendment 1), SOB-34 (ADR-0013 Amendment 1), SOB-87 (amendment by PR).
+**Issues.** SOB-154, SOB-136 (the answer), SOB-177 (wording), SOB-35 (Amendment 1), SOB-34 (ADR-0013 Amendment 1), SOB-87 (amendment by PR).
 
 ## Amendment 3 — Phasing and feature table aligned with October 30 (2026-10-31)
 
