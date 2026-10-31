@@ -1,8 +1,8 @@
-//! Primitives cryptographiques du `sobria-team-aggregator`.
+//! Cryptographic primitives of the `sobria-team-aggregator`.
 //!
-//! - [`password`] : Argon2id PHC (passwords admin + futurs users).
-//! - [`secret`]   : OS RNG → hex (JWT signing key, futurs refresh tokens).
-//! - [`tls`]      : génération de cert auto-signé via `rcgen` (backend ring).
+//! - [`password`]: Argon2id PHC hashes (passwords, enrollment codes, refresh tokens).
+//! - [`secret`]: OS RNG secrets (JWT signing key, enrollment codes).
+//! - [`tls`]: self-signed certificate through `rcgen` (ring backend).
 
 pub mod password;
 pub mod secret;

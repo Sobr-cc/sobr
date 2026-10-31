@@ -1,11 +1,11 @@
-//! Hash + vérification de mots de passe (Argon2id PHC).
+//! Password hashing + verification (Argon2id PHC).
 //!
-//! On reprend exactement le pattern de `sobria-app::pairing` : paramètres
-//! par défaut d'`argon2 = 0.5` (OWASP : m=19456, t=2, p=1), sel généré par
-//! l'OS RNG, hash retourné en PHC string auto-portante. Aucune dépendance
-//! à OpenSSL.
+//! Follows the exact pattern of `sobria-app::pairing`: default parameters
+//! of `argon2 = 0.5` (OWASP: m=19456, t=2, p=1), salt from the OS RNG,
+//! hash returned as a self-contained PHC string. No dependency on
+//! OpenSSL.
 //!
-//! Voir <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id>.
+//! See <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id>.
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -14,7 +14,10 @@ use argon2::{
 
 use crate::error::{AggregatorError, AggregatorResult};
 
-/// Hash Argon2id (PHC string) d'un mot de passe.
+/// Minimum length of a user or admin password.
+pub const MIN_PASSWORD_LEN: usize = 8;
+
+/// Argon2id hash (PHC string) of a password.
 pub fn hash_password(password: &str) -> AggregatorResult<String> {
     let salt = SaltString::generate(&mut OsRng);
     let phc = Argon2::default()
@@ -24,10 +27,10 @@ pub fn hash_password(password: &str) -> AggregatorResult<String> {
     Ok(phc)
 }
 
-/// `true` si `candidate` correspond à `stored_phc`.
+/// `true` if `candidate` matches `stored_phc`.
 ///
-/// Renvoie `false` si la PHC est malformée — pas d'erreur explicite pour
-/// éviter d'exposer la cause d'un échec d'auth.
+/// Returns `false` if the PHC is malformed — no explicit error, so the
+/// cause of an auth failure is not exposed.
 #[must_use]
 pub fn verify_password(stored_phc: &str, candidate: &str) -> bool {
     let Ok(parsed) = PasswordHash::new(stored_phc) else {

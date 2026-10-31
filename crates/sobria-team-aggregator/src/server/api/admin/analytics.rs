@@ -1,27 +1,29 @@
 //! GET /api/v1/admin/analytics?from&to&group_by=day|week|month
 //!
-//! Retourne 4 sections agrégées sur la fenêtre `[from, to]` :
-//! - `series`           : bucketing temporel selon `group_by` (défaut `day`).
-//! - `top_models`       : top 10 modèles par gCO₂eq décroissant.
-//! - `top_users`        : participants en partage opt-in + agrégat anonyme
-//!   (ADR-0015 §3 — plus jamais de classement nominatif par défaut).
+//! Returns 4 aggregated sections over the `[from, to]` window:
+//! - `series`           : time bucketing by `group_by` (default `day`).
+//! - `top_models`       : top 10 models by descending gCO₂eq.
+//! - `top_users`        : opt-in sharing participants + anonymous aggregate
+//!   (ADR-0015 §3 — never again a named ranking by default).
 //! - `method_breakdown` : afnor_sobria vs ecologits.
 //!
-//! **k-anonymat (ADR-0015 §2)** : si le nombre d'utilisateurs actifs dans
-//! la fenêtre est inférieur à `k = max(3, config.k_anonymity_min)` (défaut
-//! 5), les sections sont vides et `k_anonymity.blocked = true` — un agrégat
-//! de très petite équipe revient à des données individuelles.
+//! **k-anonymity (ADR-0015 §2)**: if the number of active users in
+//! the window is below `k = max(3, config.k_anonymity_min)` (default
+//! 5), the sections are empty and `k_anonymity.blocked = true` — an aggregate
+//! of a very small team amounts to individual data.
 //!
-//! Le paramètre `dim` (`user|model|method`) du brief reste accepté mais
-//! ignoré en C28.3 — on renvoie tout ce qui peut servir au dashboard.
+//! The `dim` parameter (`user|model|method`) is accepted and ignored: every
+//! section is returned.
 
 use axum::{
     extract::{Query, State},
     Json,
 };
-use chrono::{DateTime, Duration, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use super::parse_window;
+use crate::config::K_ANONYMITY_MIN;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -30,39 +32,39 @@ use crate::storage::analytics::{
     self, GroupBy, MethodBreakdown, ModelTop, ProjectBreakdown, TimeBucket, TopUsersShared,
 };
 
-/// Seuil k par défaut si `config.k_anonymity_min` est absent/illisible.
-const K_DEFAULT: u32 = 5;
-/// Plancher dur : aucune configuration ne peut descendre sous ce k.
-const K_FLOOR: u32 = 3;
+/// Default k threshold if `config.k_anonymity_min` is missing/unreadable.
+const K_DEFAULT: u32 = K_ANONYMITY_MIN.default as u32;
+/// Hard floor: no configuration can go below this k.
+const K_FLOOR: u32 = K_ANONYMITY_MIN.floor as u32;
 
 #[derive(Debug, Deserialize)]
 pub struct AnalyticsQuery {
-    /// RFC3339 ; par défaut : `now - 30 jours`.
+    /// RFC3339; default: `now - 30 days`.
     #[serde(default)]
     pub from: Option<String>,
-    /// RFC3339 ; par défaut : `now`.
+    /// RFC3339; default: `now`.
     #[serde(default)]
     pub to: Option<String>,
-    /// `day` (défaut) | `week` | `month`.
+    /// `day` (default) | `week` | `month`.
     #[serde(default)]
     pub group_by: Option<String>,
-    /// `user | model | method` — accepté mais ignoré en C28.3.
+    /// `user | model | method`, accepted and ignored.
     #[allow(dead_code)]
     #[serde(default)]
     pub dim: Option<String>,
-    /// Top N (défaut : 10, max 100).
+    /// Top N (default: 10, max 100).
     #[serde(default)]
     pub top: Option<u32>,
 }
 
-/// État du contrôle k-anonymat joint à chaque réponse (l'UI explique).
+/// k-anonymity check status attached to every response (the UI explains it).
 #[derive(Debug, Serialize)]
 pub struct KAnonymity {
-    /// Seuil appliqué (`max(K_FLOOR, config)`).
+    /// Applied threshold (`max(K_FLOOR, config)`).
     pub required: u32,
-    /// Utilisateurs actifs distincts dans la fenêtre.
+    /// Distinct active users in the window.
     pub active_users: u64,
-    /// `true` → sections vides, agrégats refusés.
+    /// `true` → empty sections, aggregates refused.
     pub blocked: bool,
 }
 
@@ -70,15 +72,15 @@ pub struct KAnonymity {
 pub struct AnalyticsResponse {
     pub from: String,
     pub to: String,
-    pub group_by: String,
-    /// Politique de visibilité effective (ADR-0016) — l'UI l'affiche.
+    pub group_by: &'static str,
+    /// Effective visibility policy (ADR-0016) — shown by the UI.
     pub policy: &'static str,
     pub k_anonymity: KAnonymity,
     pub series: Vec<TimeBucket>,
     pub top_models: Vec<ModelTop>,
     pub top_users: TopUsersShared,
-    /// Agrégats par projet (C44) — repli « autres projets » sous k
-    /// en modes anonymous/opt_in.
+    /// Per-project aggregates — folded into "other projects" below k
+    /// in anonymous/opt_in modes.
     pub projects: Vec<ProjectBreakdown>,
     pub method_breakdown: Vec<MethodBreakdown>,
 }
@@ -89,46 +91,34 @@ pub async fn handle(
     Query(q): Query<AnalyticsQuery>,
 ) -> ApiResult<Json<AnalyticsResponse>> {
     let now = Utc::now();
-    let from = parse_or_default(q.from.as_deref(), || now - Duration::days(30))?;
-    let to = parse_or_default(q.to.as_deref(), || now)?;
+    let (from, to) = parse_window(q.from.as_deref(), q.to.as_deref(), now)?;
     if from >= to {
         return Err(ApiError::BadRequest("from doit être < to".into()));
     }
-    let group_by = match q.group_by.as_deref().unwrap_or("day") {
-        "day" => GroupBy::Day,
-        "week" => GroupBy::Week,
-        "month" => GroupBy::Month,
-        other => {
-            return Err(ApiError::BadRequest(format!(
-                "group_by inconnu: {other} (day|week|month)"
-            )))
-        },
-    };
+    let raw_group_by = q.group_by.as_deref().unwrap_or("day");
+    let group_by = GroupBy::parse(raw_group_by).ok_or_else(|| {
+        ApiError::BadRequest(format!("group_by inconnu: {raw_group_by} (day|week|month)"))
+    })?;
     let top_n = q.top.unwrap_or(10).clamp(1, 100);
 
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     let conn = storage.connection();
 
-    // ── Politique de visibilité (ADR-0016) puis garde k (ADR-0015 §2). ──
+    // ── Visibility policy (ADR-0016) then k guard (ADR-0015 §2). ──
     let pol = policy::load(&storage);
     let k_required = storage
-        .get_config("k_anonymity_min")
+        .get_config(K_ANONYMITY_MIN.key)
         .ok()
         .flatten()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(K_DEFAULT)
         .max(K_FLOOR);
     let active_users = analytics::active_user_count(conn, from, to)?;
-    // En mode `identified`, le k-anonymat est sans objet (les données
-    // individuelles sont visibles par politique d'organisation).
-    let blocked = pol != VisibilityPolicy::Identified && active_users < u64::from(k_required);
-    let project_k = match pol {
-        VisibilityPolicy::Identified => None,
-        _ => Some(k_required),
-    };
+    // In `identified` mode, k-anonymity does not apply (individual data
+    // is visible by organization policy).
+    let k_applies = pol != VisibilityPolicy::Identified;
+    let blocked = k_applies && active_users < u64::from(k_required);
+    let project_k = k_applies.then_some(k_required);
 
     let (series, top_models, top_users, projects, method_breakdown) = if blocked {
         (
@@ -140,25 +130,21 @@ pub async fn handle(
         )
     } else {
         let top_users = match pol {
-            // Anonyme strict : aucune identification, même volontaire —
-            // tout le monde est agrégé dans le bloc anonyme.
+            // Strict anonymous: no identification, even voluntary —
+            // everyone is aggregated in the anonymous block.
             VisibilityPolicy::Anonymous => {
                 let mut t = analytics::top_users_shared(conn, from, to, top_n)?;
-                if !t.identified.is_empty() {
-                    for u in t.identified.drain(..) {
-                        t.anonymous_users += 1;
-                        t.anonymous_count += u.count;
-                        t.anonymous_gco2eq_g += u.gco2eq_g;
-                    }
+                for u in t.identified.drain(..) {
+                    t.anonymous_users += 1;
+                    t.anonymous_count += u.count;
+                    t.anonymous_gco2eq_g += u.gco2eq_g;
                 }
                 t
             },
             VisibilityPolicy::OptIn => analytics::top_users_shared(conn, from, to, top_n)?,
             VisibilityPolicy::Identified => TopUsersShared {
                 identified: analytics::top_users_all(conn, from, to, top_n)?,
-                anonymous_users: 0,
-                anonymous_count: 0,
-                anonymous_gco2eq_g: 0.0,
+                ..Default::default()
             },
         };
         (
@@ -173,7 +159,7 @@ pub async fn handle(
     Ok(Json(AnalyticsResponse {
         from: from.to_rfc3339(),
         to: to.to_rfc3339(),
-        group_by: q.group_by.unwrap_or_else(|| "day".to_string()),
+        group_by: group_by.as_str(),
         policy: pol.as_str(),
         k_anonymity: KAnonymity {
             required: k_required,
@@ -186,16 +172,4 @@ pub async fn handle(
         projects,
         method_breakdown,
     }))
-}
-
-fn parse_or_default<F: FnOnce() -> DateTime<Utc>>(
-    raw: Option<&str>,
-    default_fn: F,
-) -> Result<DateTime<Utc>, ApiError> {
-    match raw {
-        None | Some("") => Ok(default_fn()),
-        Some(s) => DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
-    }
 }

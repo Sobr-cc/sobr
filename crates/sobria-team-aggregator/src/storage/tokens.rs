@@ -1,26 +1,27 @@
-//! Helpers SQL pour la table `tokens` (refresh tokens auth — admin OU user).
+//! SQL helpers for the `tokens` table (auth refresh tokens, admin OR user).
 //!
-//! ## Format selector + verifier
+//! ## Selector + verifier format
 //!
-//! Un refresh token exposé au client est une chaîne `<token_id>.<secret>` :
+//! A refresh token given to the client is a `<token_id>.<secret>` string:
 //!
-//! - `token_id` (ULID) est l'`id` du row, exposé en clair → permet une
-//!   lookup O(1) par index PRIMARY KEY.
-//! - `secret` (UUID v4 hex 32 chars) est hashé Argon2id et stocké dans
+//! - `token_id` (ULID) is the row `id`, sent in clear → allows an O(1)
+//!   lookup through the PRIMARY KEY index.
+//! - `secret` (UUID v4, 32 hex chars) is hashed with Argon2id and stored in
 //!   `refresh_token_hash`.
 //!
-//! La verif est donc O(1) : on cherche le row par `token_id`, puis
-//! `argon2_verify(stored_hash, candidate_secret)`. Aucune itération.
-//! Le `CHECK ((user_id IS NULL) <> (admin_id IS NULL))` au niveau SQL
-//! garantit l'XOR rôle.
+//! Verification is therefore O(1): find the row by `token_id`, then
+//! `argon2_verify(stored_hash, candidate_secret)`. No iteration.
+//! The SQL-level `CHECK ((user_id IS NULL) <> (admin_id IS NULL))`
+//! enforces the role XOR.
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::crypto::password;
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
-/// Vue d'un refresh token en base.
+/// A stored refresh token.
 #[derive(Debug, Clone)]
 pub struct TokenRow {
     pub id: String,
@@ -33,15 +34,15 @@ pub struct TokenRow {
 }
 
 impl TokenRow {
-    /// `true` si le token est utilisable (non révoqué, non expiré).
+    /// `true` if the token is usable (not revoked, not expired).
     pub fn is_active(&self, now: DateTime<Utc>) -> bool {
         self.revoked_at.is_none() && self.expires_at > now
     }
 }
 
-/// Insère un refresh token (hash Argon2id pré-calculé) pour un user OU admin.
+/// Inserts a refresh token (precomputed Argon2id hash) for a user OR admin.
 ///
-/// `user_id` et `admin_id` doivent être en XOR — le CHECK SQL le garantit.
+/// `user_id` and `admin_id` must be XOR: the SQL CHECK enforces it.
 pub fn insert(
     conn: &Connection,
     id: &str,
@@ -67,7 +68,7 @@ pub fn insert(
     Ok(())
 }
 
-/// Cherche un token par id (selector).
+/// Looks up a token by id (selector).
 pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<TokenRow>> {
     let row = conn
         .query_row(
@@ -81,7 +82,7 @@ pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<TokenR
     Ok(row)
 }
 
-/// Révoque un token (rotation auto à chaque /refresh).
+/// Revokes a token (automatic rotation on every /refresh).
 pub fn revoke(conn: &Connection, id: &str, now: DateTime<Utc>) -> AggregatorResult<bool> {
     let n = conn.execute(
         "UPDATE tokens SET revoked_at = ?1 WHERE id = ?2 AND revoked_at IS NULL",
@@ -90,9 +91,9 @@ pub fn revoke(conn: &Connection, id: &str, now: DateTime<Utc>) -> AggregatorResu
     Ok(n == 1)
 }
 
-/// Révoque TOUS les tokens actifs d'un admin (utilisé par `admin
-/// reset-password` C29.2). Retourne le nombre de tokens effectivement
-/// révoqués (les déjà-révoqués/expirés sont laissés).
+/// Revokes ALL active tokens of an admin (used by `admin
+/// reset-password`). Returns the number of tokens actually revoked
+/// (already revoked or expired ones are left alone).
 pub fn revoke_all_for_admin(
     conn: &Connection,
     admin_id: &str,
@@ -107,10 +108,10 @@ pub fn revoke_all_for_admin(
     Ok(n)
 }
 
-/// Vérifie un refresh token au format `<id>.<secret>`. Retourne le row si OK
-/// (encore actif + verif Argon2id OK), `None` sinon.
+/// Checks a refresh token in `<id>.<secret>` format. Returns the row if valid
+/// (still active + Argon2id check passes), `None` otherwise.
 ///
-/// L'appelant est responsable de la rotation (révoquer ce row + émettre un nouveau).
+/// The caller handles rotation (revoke this row + issue a new one).
 pub fn verify_refresh_token(
     conn: &Connection,
     refresh_token: &str,
@@ -146,14 +147,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<TokenRow> {
     })
 }
 
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,26 +165,26 @@ mod tests {
         let exp = now + Duration::days(7);
         insert(s.connection(), token_id, Some("u-1"), None, &hash, now, exp).unwrap();
 
-        // Bon token → trouve.
+        // Right token → found.
         let combined = format!("{token_id}.{secret}");
         let row = verify_refresh_token(s.connection(), &combined, now)
             .unwrap()
             .expect("doit matcher");
         assert_eq!(row.user_id.as_deref(), Some("u-1"));
 
-        // Mauvais secret → None.
+        // Wrong secret → None.
         let wrong = format!("{token_id}.wrong");
         assert!(verify_refresh_token(s.connection(), &wrong, now)
             .unwrap()
             .is_none());
 
-        // ID inconnu → None.
+        // Unknown ID → None.
         let unknown = format!("not-a-real-id.{secret}");
         assert!(verify_refresh_token(s.connection(), &unknown, now)
             .unwrap()
             .is_none());
 
-        // Token sans `.` → None.
+        // Token without `.` → None.
         assert!(verify_refresh_token(s.connection(), "garbage", now)
             .unwrap()
             .is_none());

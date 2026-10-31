@@ -1,17 +1,14 @@
-//! POST /api/v1/refresh — rotation d'un refresh token.
+//! POST /api/v1/refresh — refresh token rotation.
 //!
-//! Pattern : vérifie l'ancien token (selector+verifier), révoque-le, émet un
-//! nouveau couple access+refresh. Le client doit remplacer ses deux tokens
-//! après chaque appel.
+//! Pattern: verify the old token (selector+verifier), revoke it, issue a
+//! new access+refresh pair. The client must replace both tokens
+//! after each call.
 
 use axum::{extract::State, Json};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::server::auth::{
-    jwt::{self, Role},
-    refresh as refresh_issuer,
-};
+use crate::server::auth::{issue_session, jwt::Role};
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
 use crate::storage::tokens;
@@ -35,40 +32,27 @@ pub async fn handle(
     Json(req): Json<RefreshRequest>,
 ) -> ApiResult<Json<RefreshResponse>> {
     let now = Utc::now();
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
 
     let row = tokens::verify_refresh_token(storage.connection(), &req.refresh_token, now)?
         .ok_or(ApiError::InvalidToken)?;
 
-    // Rotation : l'ancien est révoqué AVANT d'émettre le nouveau.
+    // Rotation: the old one is revoked BEFORE issuing the new one.
     tokens::revoke(storage.connection(), &row.id, now)?;
 
-    let (role, sub, role_label) = match (row.user_id.as_deref(), row.admin_id.as_deref()) {
-        (Some(uid), None) => (Role::User, uid.to_string(), "user"),
-        (None, Some(aid)) => (Role::Admin, aid.to_string(), "admin"),
+    let (role, sub) = match (row.user_id.as_deref(), row.admin_id.as_deref()) {
+        (Some(uid), None) => (Role::User, uid),
+        (None, Some(aid)) => (Role::Admin, aid),
         _ => return Err(ApiError::InvalidToken),
     };
 
-    let access_token = jwt::issue(&state.jwt_signing_key, &sub, role, now)?;
-    let issued = refresh_issuer::issue(
-        &storage,
-        if role == Role::User { Some(&sub) } else { None },
-        if role == Role::Admin {
-            Some(&sub)
-        } else {
-            None
-        },
-        now,
-    )?;
+    let tokens = issue_session(&state.jwt_signing_key, &storage, role, sub, now)?;
 
     Ok(Json(RefreshResponse {
-        access_token,
-        refresh_token: issued.combined,
-        role: role_label,
-        access_expires_at: (now + jwt::ACCESS_TTL).to_rfc3339(),
-        refresh_expires_at: issued.expires_at.to_rfc3339(),
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        role: role.as_str(),
+        access_expires_at: tokens.access_expires_at,
+        refresh_expires_at: tokens.refresh_expires_at,
     }))
 }

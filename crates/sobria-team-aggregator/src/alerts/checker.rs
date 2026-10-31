@@ -1,12 +1,12 @@
-//! Logique de vérification des seuils après chaque estimation insérée.
+//! Threshold check logic run after each inserted estimation.
 //!
-//! Appelée par `server::api::estimations::handle` (sous le lock SQLite) :
+//! Called by `server::api::estimations::handle` (under the SQLite lock):
 //!
-//! 1. Liste les seuils actifs applicables à `user_id` (incluant team).
-//! 2. Pour chacun, calcule la consommation observée sur la période courante.
-//! 3. Si dépassement et aucun trigger pour cette période → insère un trigger.
-//! 4. Retourne la liste des [`AlertEvent`] à notifier (la notification
-//!    elle-même est async et tourne en dehors du lock SQLite).
+//! 1. Lists the active thresholds that apply to `user_id` (team included).
+//! 2. For each one, computes the observed usage over the current period.
+//! 3. If exceeded and no trigger exists for this period → inserts a trigger.
+//! 4. Returns the list of [`AlertEvent`] to notify (the notification
+//!    itself is async and runs outside the SQLite lock).
 
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
@@ -19,7 +19,7 @@ use crate::alerts::store::{
 };
 use crate::error::AggregatorResult;
 
-/// Un seuil déclenché, prêt à être notifié.
+/// A triggered threshold, ready to be notified.
 #[derive(Debug, Clone)]
 pub struct AlertEvent {
     pub trigger_id: String,
@@ -29,11 +29,11 @@ pub struct AlertEvent {
     pub observed_gco2eq: f64,
 }
 
-/// Vérifie tous les seuils applicables à `user_id` à l'instant `now`.
+/// Checks every threshold that applies to `user_id` at time `now`.
 ///
-/// Retourne les [`AlertEvent`] créés (un par seuil dépassé pour la première
-/// fois dans sa période). Les seuils déjà déclenchés sur la même période
-/// sont silencieusement ignorés (UNIQUE sur `(threshold_id, period_start)`).
+/// Returns the created [`AlertEvent`]s (one per threshold exceeded for the first
+/// time in its period). Thresholds already triggered in the same period
+/// are silently skipped (UNIQUE on `(threshold_id, period_start)`).
 pub fn check_thresholds_for_user(
     conn: &Connection,
     user_id: &str,
@@ -150,7 +150,7 @@ mod tests {
             },
         )
         .unwrap();
-        // 3 estimations à 2g chacune → 6g > 5g
+        // 3 estimations at 2g each → 6g > 5g
         for _ in 0..3 {
             add_estimation(&s, "u-1", 2.0, now);
         }
@@ -183,7 +183,7 @@ mod tests {
         }
         let first = check_thresholds_for_user(s.connection(), "u-1", now).unwrap();
         assert_eq!(first.len(), 1);
-        // Re-check → 0 nouvel event.
+        // Re-check → 0 new events.
         add_estimation(&s, "u-1", 2.0, now);
         let second = check_thresholds_for_user(s.connection(), "u-1", now).unwrap();
         assert!(second.is_empty());

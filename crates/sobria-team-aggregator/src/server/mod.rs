@@ -1,8 +1,5 @@
-//! Couche serveur HTTP du `sobria-team-aggregator`.
-//!
-//! C28.2 : routeur axum avec `/health` + `/api/v1/{enroll,login,refresh,
-//! estimations,me/usage}`. Les routes admin (`/api/v1/admin/*`) arrivent
-//! en C28.3, le dashboard statique en C28.4.
+//! HTTP layer of the `sobria-team-aggregator`: the axum router with
+//! `/health`, the `/api/v1` user and admin routes, and the embedded dashboard.
 
 pub mod api;
 pub mod auth;
@@ -11,23 +8,22 @@ pub mod error;
 pub mod routes;
 pub mod tls;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use axum::http::{header, Method};
 use axum::Router;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
+use crate::server::error::{ApiError, ApiResult};
 use crate::storage::Storage;
 
-/// État partagé entre handlers. La `Storage` est encapsulée dans un
-/// `Mutex` parce que `rusqlite::Connection` n'est pas `Sync`. Pour les
-/// charges C28.2 (faible concurrence) ce n'est pas un goulot — on passera
-/// à un pool en C28.4 si les benchs le demandent.
+/// State shared by the handlers. `Storage` sits behind a `Mutex` because
+/// `rusqlite::Connection` is not `Sync`, so every request takes this one lock.
 #[derive(Clone)]
 pub struct ServerState {
     pub storage: Arc<Mutex<Storage>>,
-    /// Clé HS256 (hex, lue de `config.jwt_signing_key` à `serve` startup).
+    /// HS256 key (hex, read from `config.jwt_signing_key` at `serve` startup).
     pub jwt_signing_key: Arc<String>,
 }
 
@@ -38,15 +34,22 @@ impl ServerState {
             jwt_signing_key: Arc::new(jwt_signing_key),
         }
     }
+
+    /// Locks the storage; a poisoned lock is an internal error.
+    pub fn lock_storage(&self) -> ApiResult<MutexGuard<'_, Storage>> {
+        self.storage
+            .lock()
+            .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))
+    }
 }
 
-/// Construit l'application axum (routes + middleware tracing).
+/// Builds the axum application (routes + tracing middleware).
 ///
-/// Ordre de matching axum :
-/// 1. `/health` (routes statiques)
-/// 2. `/api/v1/*` (API REST)
+/// axum matching order:
+/// 1. `/health` (static routes)
+/// 2. `/api/v1/*` (REST API)
 /// 3. `/` → index.html
-/// 4. catch-all → static asset OU SPA fallback vers index.html
+/// 4. catch-all → static asset OR SPA fallback to index.html
 pub fn build_router(state: ServerState) -> Router {
     use axum::routing::get;
     Router::new()
@@ -59,12 +62,12 @@ pub fn build_router(state: ServerState) -> Router {
         .layer(extension_cors())
 }
 
-/// CORS pour le service worker de l'extension (MV3) : son `fetch` part
-/// d'une origine `chrome-extension://…` / `moz-extension://…` hors
-/// `host_permissions`, donc sans ces en-têtes Chrome bloque la réponse et
-/// l'envoi best-effort échoue en silence (extension/src/lib/team-client.ts).
-/// L'API est protégée par jeton Bearer (jamais de cookies) : on ne reflète
-/// que les schémas d'extensions navigateur, aucun site web n'est autorisé.
+/// CORS for the extension's (MV3) service worker: its `fetch` comes from a
+/// `chrome-extension://…` / `moz-extension://…` origin outside
+/// `host_permissions`, so without these headers Chrome blocks the response and
+/// the best-effort send fails silently (extension/src/lib/team-client.ts).
+/// The API is protected by a Bearer token (never cookies): we only reflect
+/// browser extension schemes, no website is allowed.
 fn extension_cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::predicate(|origin, _| {

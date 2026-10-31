@@ -1,5 +1,5 @@
-//! Flow d'intégration C28.5 : admin login → enroll user → estimations
-//! → POST /admin/exports/{csrd|prov-o|csv} → vérifie contenu+headers.
+//! C28.5 integration flow: admin login → enroll user → estimations
+//! → POST /admin/exports/{csrd|prov-o|csv} → checks content+headers.
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -78,7 +78,7 @@ impl ExportsFixture {
         let code_alice = codes[0]["code"].as_str().unwrap().to_string();
         let code_bob = codes[1]["code"].as_str().unwrap().to_string();
 
-        // 3. Enroll 2 users + soumets estimations
+        // 3. Enroll 2 users + submit estimations
         for (code, fp, name, datapoints) in [
             (code_alice, "chrome-mac-alice", "Alice", vec![0.4, 0.3]),
             (code_bob, "firefox-linux-bob", "Bob", vec![0.5]),
@@ -265,7 +265,7 @@ async fn admin_csv_export_returns_rows() {
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 4, "header + 3 estimations");
     assert!(lines[0].starts_with("ts,"));
-    // Au moins une ligne mentionne Alice (non anonymisé).
+    // At least one row mentions Alice (not anonymized).
     assert!(text.contains("Alice"));
 }
 
