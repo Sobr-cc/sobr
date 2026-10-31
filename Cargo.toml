@@ -118,5 +118,12 @@ strip = true
 
 [profile.dev]
 opt-level = 0
-debug = true
+# Line tables keep file:line in backtraces at a fraction of full debug info's disk cost (SOB-106).
+debug = "line-tables-only"
 incremental = true
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"

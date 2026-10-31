@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — smaller debug builds (2026-10-31, SOB-106)
+
+- **Cargo profiles**: `dev` and `test` keep line tables only for workspace
+  crates, and dependencies build without debug info. Backtraces still show
+  file and line. A clean `cargo test --workspace --no-run` on Windows drops
+  from 27.8 GB to 8.1 GB of `target/` (873 s to 631 s); a clean
+  `cargo test -p sobria-estimator --no-run` from 374 MB to 263 MB.
+
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
 - **`sobria-import`**: removed the empty skeleton crate (one constant, no
