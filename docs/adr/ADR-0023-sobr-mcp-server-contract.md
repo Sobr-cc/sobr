@@ -279,15 +279,17 @@ Today the mapping is: in the personal space the person holds every
 permission that applies there (`usage.read.self`, `sessions.*.self`,
 `estimates.record`, the project, task, budget and suggestion permissions,
 `audit.read.self`, `reference.read`). In an organization space, `user` holds
-`usage.read.self`, `sessions.*.self`, `audit.read.self`, `reference.read`
-and `policy.read`, and `admin` holds the organization ones. The server has no project
+`usage.read.self`, `sessions.*.self`, `audit.read.self` and `policy.read`;
+`admin` holds the organization ones and `policy.read`, and no `.self`
+permission, because an admin has no usage of their own on the server
+(ADR-0021). The server has no project
 entities, tasks or budgets yet (only a free-text project label on
 estimations); who holds `projects.*`, `tasks.*` and `budget.*` there comes
 from the data model and roles work. Two consequences:
 
 - An admin has no usage of their own on the server (ADR-0021: `/me/usage`
-  answers 403), so `get_usage` with scope `self` answers `permission_denied`
-  for an admin until the data model ADR (SOB-143) says otherwise.
+  answers 403), so `get_usage` with scope `self`, `list_sessions` and `get_session`
+  answer `permission_denied` for an admin until the data model ADR (SOB-143) says otherwise.
 - `manager` and custom roles do not exist yet (ADR-0021, point 4). The
   tools below name permissions; the roles project decides who holds them.
 
@@ -339,16 +341,18 @@ that holds more permissions than their own.
   bounded (names 120 characters, descriptions 2,000), ids opaque strings.
 - **Errors** are tool errors with a stable `code`: `permission_denied`,
   `not_found`, `policy_blocked`, `scope_missing`, `grant_expired`,
-  `rate_limited`, `invalid_input`. A pending action is a normal result, not
-  an error (decision 8). Protocol errors stay for
+  `rate_limited`, `proposal_rejected`, `too_many_pending`, `invalid_input`. A
+  pending action is a normal result, not an error (decision 8). Protocol errors stay for
   malformed requests.
-- **Annotations**: `readOnlyHint: true` on class 0; `destructiveHint: false`
-  on class 1 and `true` on class 2; `idempotentHint` where true;
+- **Annotations**: `readOnlyHint: true` on class 0; `destructiveHint: true`
+  on class 2 and on the class 1 tools that overwrite (`update_project`,
+  `update_task`, `classify_session`, `set_budget`, `dismiss_suggestion`),
+  `false` on the additive ones; `idempotentHint` where true;
   `openWorldHint: true` only for a tool that sends mail. They are hints for
   the client; Sobr does not rely on them.
 - **Short descriptions** (200 characters at most), because every tool costs
   context in every request. The list a server returns is cut to the grant
-  and the person: an organization member with `read` sees about 10 of the 45 tools today,
+  and the person: an organization member with `read` sees about 8 of the 47 tools today,
   more once projects, tasks and budgets exist on the server.
 - **Rate limit per grant** (the specification requires it of servers; none
   was found in the Sobr server). Writes have a lower limit than reads. Both doors apply it (issues 6 and
@@ -366,7 +370,7 @@ that holds more permissions than their own.
 
 | Choice | Option | Cost and effort | Risk |
 |--------|--------|-----------------|------|
-| Granularity | One tool per question or action (recommended) | 45 definitions in all, though a client lists only what its grant allows | None for rights: class, annotations and permission are set per tool |
+| Granularity | One tool per question or action (recommended) | 47 definitions in all, though a client lists only what its grant allows | None for rights: class, annotations and permission are set per tool |
 | Granularity | A few tools with an `action` argument | Fewer definitions, less context | A read tool can hide a write; the class, the hints and the permission cannot be set per case, and a client prompt cannot tell the cases apart |
 | Surface | Tools only (recommended) | Lowest; every client supports tools | The model must call a tool to read; nothing to browse |
 | Surface | Tools and resources | Resources suit browsing, such as a usage summary by URI | Client support varies; a second path to the same rights check |
@@ -383,7 +387,7 @@ means personal and organization spaces; "org" the organization only.
 |------|--------|---------|------------|-------|
 | `get_context` | — | space (kind, name), person, role, permissions, grant (id, scopes, expiry), visibility level, `contract_version` | any valid grant | both |
 | `get_usage` | `scope` (`self`, `project`, `task`), `id`, `period`, `group_by` (`day`, `model`, `project`, `task`, `source`) | totals and groups with P5–P95 and `method`; sessions count; budget status when set | `usage.read.self`; `usage.read.project` for a project or task of the organization | both |
-| `get_organization_usage` | `period`, `group_by` (`day`, `project`, `model`, `source`, `person`) | aggregates. k applies to every group returned: a group under k active people is merged into `other`, and if `other` is still under k it is dropped together with the grand total. Under k people overall the sections are empty and `k_anonymity.blocked` is true (ADR-0015). `person` is honored only where the policy allows it | `usage.read.org` | org |
+| `get_organization_usage` | `period` (7 days at least), `group_by` (`day`, `project`, `model`, `source`, `person`) | aggregates. k applies to every group returned: a group under k active people is merged into `other`, and if `other` is still under k it is dropped together with the grand total. Under k people overall the sections are empty and `k_anonymity.blocked` is true (ADR-0015). `person` is honored only where the policy allows it | `usage.read.org` | org |
 | `list_sessions` | `period`, `source`, `project_id`, `task_id`, `classified`, `cursor`, `limit` | the caller's own sessions: id, start, source, model, links, energy and emissions with intervals. No text | `sessions.read.self` | both |
 | `get_session` | `id` | figures per source merged (value, P5–P95, method), links, sources | `sessions.read.self` | both |
 | `list_projects` | `status`, `cursor`, `limit` | id, name, description, member count, budget status | `projects.read` | both |
@@ -397,21 +401,27 @@ means personal and organization spaces; "org" the organization only.
 | `get_visibility_policy` | — | policy, `k_anonymity_min`, research sharing (Z10), attestation date, last change | `policy.read` (any member, as screen M3) | org |
 | `list_alerts` | `include_triggers`, `cursor`, `limit` | thresholds (scope, metric, value, channel, enabled) and, on request, their history | `alerts.read` | org |
 | `get_audit_log` | `period`, `actor_id`, `tool`, `outcome`, `cursor`, `limit` | entries of decision 8. `audit.read.self` returns the caller's own entries; `audit.read.org` adds the organization's administration entries (invitations, roles, budgets, policy, alerts, exports, pending actions), never another person's session or estimate edits | `audit.read.self`, `audit.read.org` | both |
-| `verify_audit_chain` | — | `ok`, entries checked, first bad entry | `audit.read.*` | both |
+| `verify_audit_chain` | — | `ok`, entries checked, first bad entry | `audit.read.org` in an organization, `audit.read.self` in the personal space | both |
 | `get_pending_action` | `id` | state, summary, expiry, result | the person who holds the grant | both |
 | `list_pending_actions` | `state`, `cursor`, `limit` | the grant's own pending actions: id, tool, summary, state, expiry | the person who holds the grant | both |
-| `list_models` | `family`, `cursor`, `limit` | id, vendor, size class, methodology ids | `reference.read` | both |
-| `get_model` | `id` | parameters, sources, methodologies | `reference.read` | both |
-| `estimate` | `model_ids` (1 to 5), `input_tokens`, `output_tokens`, `method`, `region` | per model: energy, emissions, water with P5–P95, hypotheses, seed; ranked when there are several. Not written to the ledger | `reference.read` | both |
+| `list_models` | `family`, `cursor`, `limit` | id, vendor, size class, methodology ids | `reference.read` | personal |
+| `get_model` | `id` | parameters, sources, methodologies | `reference.read` | personal |
+| `estimate` | `model_ids` (1 to 5), `input_tokens`, `output_tokens`, `method`, `region` | per model: energy, emissions, water with P5–P95, hypotheses, seed; ranked when there are several. Not written to the ledger | `reference.read` | personal |
 
-Reference data for territories (data centers, industrial sites, flows) follows
-the same pattern and is listed in its build issue.
+The reference tools (`list_models`, `get_model`, `estimate`) serve the
+personal space only: on a server they need the estimator and the territory
+data, which SOB-95 decides (ADR-0021, point 3). Reference data for
+territories (data centers, industrial sites, flows) follows the same
+pattern and is listed in its build issue.
 
 Two limits are on purpose. `list_sessions` and `get_session` return only the
-caller's own sessions, even for an admin: another person's sessions are
+caller's own sessions, and an admin has none on the server: another person's sessions are
 per-person data and stay behind the policy. And `get_organization_usage`
 with `group_by: person` and `list_members` are the only org reads of
-per-person data; both are audited (decision 8).
+per-person data; both are audited (decision 8). Applying k to each group does
+not stop differencing across overlapping queries, and the screens share this
+limit; a minimum period of 7 days limits it, and query budgets are left to
+the visibility policy work.
 
 ### 7. Write tools (C3) and the actions kept out
 
@@ -423,7 +433,7 @@ returns a pending action (decision 8).
 | `classify_session` | 1 | `session_id`, `project_id`, `task_id` (null = personal) | the session | `sessions.classify.self` | both |
 | `create_classification_rule` | 1 | `match` (source, model, repository), `project_id`, `task_id` | rule id | `sessions.classify.self` | both |
 | `apply_rule_to_history` | 2 | `rule_id` | pending action (then the count of sessions changed) | `sessions.classify.self` | both |
-| `record_estimate` | 1 | the `estimate` inputs, `project_id`, `task_id` | the figures of `estimate` and the ledger entry id. Append-only, loses nothing | `estimates.record` | both |
+| `record_estimate` | 1 | the `estimate` inputs, `project_id`, `task_id` | the figures of `estimate` and the ledger entry id. Append-only, loses nothing | `estimates.record` | personal |
 | `create_project` | 1 | `name`, `description`, `tags` | project | `projects.write` | both |
 | `update_project` | 1 | `id`, `name`, `description`, `tags` | project; the old values go to the audit entry | `projects.write` | both |
 | `delete_project` | 2 | `id` | pending action. Today a hard delete; its sessions become unclassified | `projects.write` | both |
@@ -440,14 +450,14 @@ returns a pending action (decision 8).
 | `revoke_invitation` | 2 | `id` | pending action (the old code is not restored) | `members.invite` | org |
 | `set_member_role` | 2 | `member_id`, `role_id` | pending action; guards of decision 4 | `roles.assign` | org |
 | `remove_member` | 2 | `member_id` | pending action; names and detail are deleted, usage is anonymized, grants are revoked and pending actions cancelled | `members.remove` | org |
-| `manage_role` | 2 | `op` (`create`, `update`, `delete`), role definition | pending action | `roles.manage` | org |
-| `restrict_visibility_policy` | 2 | `policy` (`anonymous` or `opt_in`); the use case rejects any target that is not stricter than the current policy | pending action | `policy.set` | org |
+| `create_role` | 2 | `name`, `permissions` | pending action; no role may hold more than the caller | `roles.manage` | org |
+| `update_role` | 2 | `id`, `name`, `permissions` | pending action; same guard | `roles.manage` | org |
+| `delete_role` | 2 | `id` | pending action; members of the role fall back to the default role | `roles.manage` | org |
+| `restrict_visibility_policy` | 2 | `policy` (`anonymous` or `opt_in`); the use case rejects any target that is not stricter than the current policy (the same policy answers `invalid_input`) | pending action | `policy.set` | org |
 | `create_export` | 2 | `format` (`csrd`, `prov-o`, `csv`), `period` | pending action, then a download link the person opens; the file never passes through the model. Always anonymized | `exports.create` | org |
 
-`manage_role` has an `op` argument but is one class (2) for all three
-operations, so it respects the rule "class by tool". Several tools wait on
-features that do not exist yet: `remove_member` and `manage_role` on the
-Organization and identity project, `apply_suggestion` and `list_suggestions`
+Several tools wait on features that do not exist yet: `remove_member` and
+the three role tools on the Organization and identity project, `apply_suggestion` and `list_suggestions`
 on B1, `create_export` on SOB-114. The registry lists a tool only when its
 use case exists. Usage that crosses a budget threshold mails people as it
 does in the interface: that mail is the product's behavior, not an effect of
@@ -459,8 +469,9 @@ marked 2. The reasons: it deletes data that is not recorded (`delete_project`,
 (`invite_members`, `create_export`, `create_alert`, `disable_alert`,
 `set_shared_budget`); it cannot be put back as it was
 (`revoke_invitation`, `apply_suggestion`, `apply_rule_to_history`); or it
-changes who can see or do what (`set_member_role`, `manage_role`,
-`restrict_visibility_policy`), since data seen cannot be unseen.
+changes who can see or do what (`set_member_role`, `create_role`,
+`update_role`, `delete_role`, and `restrict_visibility_policy`, which only
+tightens but cannot be undone through the MCP).
 
 **Class 3, never exposed:**
 
@@ -522,9 +533,10 @@ Claude ── get_pending_action ──▶ result
   an expiry (24 hours). The same call with the same arguments while one is
   pending returns the same pending action. If the state has changed at
   approval time, nothing runs: the action becomes `stale` and the model must
-  propose again. A rejected proposal blocks the same proposal for 24 hours
-  (an expired one does not), and a grant holds at most 10 open pending
-  actions; both answer `rate_limited`.
+  propose again. The permission check, the state check and the execution run
+  in one transaction. A rejected proposal blocks the same proposal for 24 hours
+  (an expired one does not) and answers `proposal_rejected`; a grant holds
+  at most 10 open pending actions and answers `too_many_pending`.
 - **Approval is a first-party Sobr action** by the same person: a dialog in
   the app (personal space, where guest mode has no account and the person is
   at the machine), the app or the web page (organization space), under a
@@ -575,14 +587,16 @@ An entry holds: `id`, `time`, `space`, `actor` (a `person_ref`), `via` (`mcp`,
 `app`, `web`, `cli`), `grant_id`, `client_name` (as the client declares it,
 untrusted), `tool`, `class`, `target` (type and id), `state_before` and
 `state_after` for class 1 (the changed fields in full, within the input
-limits; never prompt text), `args_digest`, `pending_id`, `outcome`
+limits; never prompt text), `args_digest` (keyed in an organization),
+`pending_id`, `outcome`
 (`proposed`, `approved`, `rejected`, `expired`, `cancelled`, `stale`,
 `executed`, `failed`), `approver` (a `person_ref`) and
 `approved_via`, plus `prev_sig` and `sig`. It never holds prompt text, a
 secret, a person's name or a conversation. A `person_ref` is a random reference kept in its own table. When a member
 leaves, that row is deleted: the entries stay in the chain, which is never
 rewritten, but no longer point to anyone. Leaving also revokes the member's
-grants and cancels their pending actions.
+grants and cancels their pending actions. Emails are never stored:
+`invite_members` records their count and the invitation ids.
 
 What is logged: every class 1 and class 2 write; every step of a pending
 action; and the reads that return per-person data (`get_organization_usage`
@@ -613,7 +627,7 @@ approval.
 | 7 | Organization read tools (C2) | `role:rust` | 5 | **SOB-25**, SOB-114, SOB-115, 2, 4, 9, data model (SOB-143) |
 | 8 | Generic audit events in `sobria-audit`: versioned entry, old entries untouched, one-transaction append | `role:rust` | 5 | **SOB-22** |
 | 9 | Organization audit log: table, keyed chain, read API for Z11 | `role:rust` | 5 | **SOB-25**, 8 |
-| 10 | Pending actions: store, state machine, expiry, approve and reject | `role:rust` | 5 | **SOB-25**, **SOB-26**, 8, 9 |
+| 10 | Pending actions: store, state machine, expiry, approve and reject, with `get_pending_action` and `list_pending_actions` | `role:rust` | 5 | **SOB-25**, **SOB-26**, 8, 9 |
 | 11 | Extract the app's use cases from `logic.rs` into a layer callable without Tauri | `role:rust` | 8 | **SOB-26**, SOB-19 (estimator), SOB-20 (referentiel), SOB-22 (audit) |
 | 12 | Local grants: store and commands for A5 and C1 | `role:rust` | 3 | **SOB-26**, 3 |
 | 13 | stdio door `sobr-mcp` binary for the personal space, with the per-grant rate limit | `role:rust` | 5 | 2, 11, 12 |
@@ -623,7 +637,7 @@ approval.
 | 17 | Screens A5, C1 and C4 (grants and approval) in the single app, on desktop and web | `role:frontend` | 8 | **SOB-27**, **SOB-30**, SOB-42 (single app on the web), 5, 12, 10, 22 |
 | 18 | Administration tools: invitations, roles, remove member, visibility, alerts, exports | `role:rust` | 5 | Organization and identity project, SOB-114, SOB-115, 16 |
 | 19 | OAuth 2.1 in the Sobr server, when an interactive client needs it (metadata, PKCE, resource indicators, consent, refresh, revoke) | `role:rust` | 8 | **SOB-25**, 5, 17 |
-| 20 | Shared conformance harness: no prompt text or secret in any result, hostile text in fields, rights narrowing, expired and revoked grants (each tool issue adds its own parity test) | `role:qa` | 3 | 2 |
+| 20 | Shared conformance harness: no prompt text or secret in any result, hostile text in fields, rights narrowing, expired and revoked grants (each tool issue adds its own parity test) | `role:qa` | 3 | 2, 3 |
 | 21 | User documentation: connect Claude Code, scopes, allow rules, headless runs | `role:docs` | 2 | 13, 6 |
 | 22 | Update the design of C1 to C4 and A5 for the Sobr side of approval (SOB-58 holds the screens) | `role:designer` | not counted | this ADR |
 
@@ -661,7 +675,8 @@ extension project; they join issues 14 and 15 when those exist.
 - **Residual risk.** A model steered by hostile text can still run class 1
   tools within its grant, and on the personal space a model with a shell can
   bypass Sobr. The `read` default, the full old values in the audit entry
-  and a lower write limit reduce it.
+  and a lower write limit reduce it. Aggregates asked over overlapping periods
+  can still be differenced; the 7-day minimum limits it.
 
 **Neutral**
 

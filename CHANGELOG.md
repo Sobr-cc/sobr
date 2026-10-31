@@ -17,7 +17,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - Access comes from a grant made in Sobr (`read`, `write`, `act`), first as
     a scoped token, later through OAuth 2.1. Rights are looked up on every
     call, and a grant only narrows them.
-  - 22 read tools (C2) and 23 write tools (C3) are listed with inputs,
+  - 22 read tools (C2) and 25 write tools (C3) are listed with inputs,
     outputs and permissions. Irreversible tools return a pending action that
     the person approves in Sobr, so a client without a screen works. A few
     actions never go through the MCP.
