@@ -7,14 +7,12 @@ use std::path::Path;
 
 use chrono::Utc;
 use rusqlite::{params, Connection};
-use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
 /// Indicator a goal applies to.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GoalIndicator {
     Co2Eq,
     Energy,
@@ -41,20 +39,25 @@ impl GoalIndicator {
         }
     }
 
+    /// Matching `sobria_core` indicator.
+    #[must_use]
+    pub fn indicator(self) -> sobria_core::Indicator {
+        match self {
+            Self::Co2Eq => sobria_core::Indicator::Co2Eq,
+            Self::Energy => sobria_core::Indicator::Energy,
+            Self::Water => sobria_core::Indicator::Water,
+        }
+    }
+
     /// Expected unit (keeps indicator ↔ unit consistent).
     #[must_use]
     pub fn expected_unit(self) -> &'static str {
-        match self {
-            Self::Co2Eq => "gCO2eq",
-            Self::Energy => "Wh",
-            Self::Water => "L",
-        }
+        self.indicator().default_unit()
     }
 }
 
 /// Period a goal applies to.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GoalPeriod {
     Daily,
     Weekly,
@@ -83,7 +86,7 @@ impl GoalPeriod {
 }
 
 /// Persisted personal goal.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PersonalGoal {
     pub indicator: GoalIndicator,
     pub period: GoalPeriod,
@@ -121,10 +124,9 @@ impl PersonalGoalsStore {
     /// Opens the given database and creates the `personal_goals` table if needed.
     /// Uses the same `referentiel.sqlite` database as `PreferencesStore`.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS personal_goals (
                 indicator   TEXT NOT NULL,
                 period      TEXT NOT NULL,
@@ -152,21 +154,20 @@ impl PersonalGoalsStore {
             let unit: String = row.get(3)?;
             Ok((indicator, period, value_max, unit))
         })?;
-        let mut out = Vec::new();
-        for r in rows {
+        rows.map(|r| -> Result<PersonalGoal, AppError> {
             let (i, p, v, u) = r?;
             let indicator = GoalIndicator::parse(&i)
                 .ok_or_else(|| AppError::Internal(format!("indicator '{i}' inconnu en base")))?;
             let period = GoalPeriod::parse(&p)
                 .ok_or_else(|| AppError::Internal(format!("period '{p}' inconnue en base")))?;
-            out.push(PersonalGoal {
+            Ok(PersonalGoal {
                 indicator,
                 period,
                 value_max: v,
                 unit: u,
-            });
-        }
-        Ok(out)
+            })
+        })
+        .collect()
     }
 
     /// Upserts a goal (PK = `(indicator, period)`).

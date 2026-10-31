@@ -20,6 +20,7 @@ pub mod batch;
 pub mod bridge_install;
 pub mod bridge_server;
 pub mod dashboard;
+mod db;
 pub mod dto;
 pub mod error;
 pub mod extension_store;

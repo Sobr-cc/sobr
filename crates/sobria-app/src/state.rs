@@ -74,7 +74,6 @@ impl AppState {
         let team_settings = TeamSettingsStore::open(&referentiel_path)
             .map_err(|e| AppError::Internal(format!("team_settings: {e}")))?;
 
-        let estimator = MonteCarloEngine::default();
         Ok(Self {
             data_root,
             audit_path,
@@ -83,7 +82,7 @@ impl AppState {
             preferences: Mutex::new(preferences),
             goals: Mutex::new(goals),
             projects: Mutex::new(projects),
-            estimator,
+            estimator: MonteCarloEngine::default(),
             pending_code: Mutex::new(None),
             extension_store: Mutex::new(extension_store),
             team_settings: Mutex::new(team_settings),

@@ -23,7 +23,9 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+
+use crate::db;
 
 const SCHEMA: &str = r"
 CREATE TABLE IF NOT EXISTS team_settings (
@@ -44,7 +46,7 @@ pub const KEY_LAST_SEEN_AT: &str = "last_seen_at";
 pub const KEY_ESTIMATIONS_SENT: &str = "estimations_sent";
 
 /// Where estimates are sent.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TeamMode {
     #[default]
@@ -98,7 +100,8 @@ pub struct TeamSettingsStore {
 
 impl TeamSettingsStore {
     pub fn open(path: &Path) -> Result<Self> {
-        let conn = Connection::open(path).with_context(|| format!("open {}", path.display()))?;
+        let conn =
+            db::open_referentiel(path).with_context(|| format!("open {}", path.display()))?;
         conn.execute_batch(SCHEMA)
             .context("install team_settings schema")?;
         Ok(Self { conn })
@@ -113,27 +116,35 @@ impl TeamSettingsStore {
     pub fn get(&self, key: &str) -> Result<Option<String>> {
         Ok(self
             .conn
-            .query_row(
-                "SELECT value FROM team_settings WHERE key = ?1",
-                params![key],
-                |row| row.get::<_, String>(0),
-            )
+            .prepare_cached("SELECT value FROM team_settings WHERE key = ?1")?
+            .query_row(params![key], |row| row.get::<_, String>(0))
             .optional()?)
     }
 
     pub fn set(&self, key: &str, value: &str) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO team_settings (key, value) VALUES (?1, ?2)
+        self.conn
+            .prepare_cached(
+                "INSERT INTO team_settings (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![key, value],
-        )?;
+            )?
+            .execute(params![key, value])?;
         Ok(())
     }
 
     pub fn delete(&self, key: &str) -> Result<()> {
         self.conn
-            .execute("DELETE FROM team_settings WHERE key = ?1", params![key])?;
+            .prepare_cached("DELETE FROM team_settings WHERE key = ?1")?
+            .execute(params![key])?;
         Ok(())
+    }
+
+    /// Stored `estimations_sent` counter, `0` if missing or unparsable.
+    fn estimations_sent(&self) -> Result<u32> {
+        Ok(self
+            .get(KEY_ESTIMATIONS_SENT)?
+            .as_deref()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0))
     }
 
     /// Full snapshot (used by the `team_status` IPC).
@@ -143,17 +154,13 @@ impl TeamSettingsStore {
         let access = self.get(KEY_ACCESS_TOKEN)?;
         let fingerprint = self.get(KEY_FINGERPRINT)?;
         let enrolled_at = self.get(KEY_ENROLLED_AT)?;
-        let mode = TeamMode::parse(self.get(KEY_MODE)?.as_deref().unwrap_or("local"));
+        let mode = TeamMode::parse(self.get(KEY_MODE)?.as_deref().unwrap_or_default());
         let accept_invalid_certs = self
             .get(KEY_ACCEPT_INVALID_CERTS)?
             .as_deref()
             .is_some_and(|v| v == "1");
         let last_seen_at = self.get(KEY_LAST_SEEN_AT)?;
-        let estimations_sent = self
-            .get(KEY_ESTIMATIONS_SENT)?
-            .as_deref()
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
+        let estimations_sent = self.estimations_sent()?;
         Ok(TeamStatus {
             enrolled: access.is_some(),
             url,
@@ -175,12 +182,7 @@ impl TeamSettingsStore {
     /// Increments `estimations_sent` (counter stored as a decimal string).
     /// Resets to `1` if the value is missing or cannot be parsed.
     pub fn increment_estimations_sent(&self) -> Result<u32> {
-        let current = self
-            .get(KEY_ESTIMATIONS_SENT)?
-            .as_deref()
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(0);
-        let next = current.saturating_add(1);
+        let next = self.estimations_sent()?.saturating_add(1);
         self.set(KEY_ESTIMATIONS_SENT, &next.to_string())?;
         Ok(next)
     }

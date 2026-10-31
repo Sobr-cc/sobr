@@ -90,9 +90,9 @@ impl From<anyhow::Error> for AppError {
 
 impl From<AppError> for IpcError {
     fn from(e: AppError) -> Self {
-        let (code, message) = match &e {
+        let (code, message) = match e {
             AppError::UnknownModel(id) => ("unknown_model", format!("model_id '{id}' inconnu")),
-            AppError::InvalidRequest(m) => ("invalid_request", m.clone()),
+            AppError::InvalidRequest(m) => ("invalid_request", m),
             AppError::Estimator(_) => ("estimator_error", e.to_string()),
             AppError::Audit(_) => ("audit_error", e.to_string()),
             AppError::Core(_) => ("core_error", e.to_string()),

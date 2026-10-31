@@ -20,10 +20,11 @@ use std::path::Path;
 
 use chrono::Utc;
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::{de::DeserializeOwned, Serialize};
 use sobria_core::{EmpreinteMethod, ModuleId, Persona};
 use tracing::info;
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
 /// Key of the `app_preferences` table that stores the current persona.
 pub const KEY_PERSONA: &str = "persona";
@@ -78,10 +79,9 @@ impl PreferencesStore {
     /// Opens (or creates) the `referentiel.sqlite` database and creates the
     /// `app_preferences` table if it does not exist.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS app_preferences (
                 key         TEXT PRIMARY KEY,
                 value       TEXT NOT NULL,
@@ -95,30 +95,12 @@ impl PreferencesStore {
 
     /// Reads every reserved key (one query per key).
     pub fn read_all(&self) -> Result<StoredPreferences, AppError> {
-        let persona = self
-            .read_raw(KEY_PERSONA)?
-            .map(|v| serde_json::from_str::<Persona>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let enabled_modules = self
-            .read_raw(KEY_ENABLED_MODULES)?
-            .map(|v| serde_json::from_str::<Vec<ModuleId>>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let onboarded = self
-            .read_raw(KEY_ONBOARDED)?
-            .map(|v| matches!(v.as_str(), "true"));
+        let persona = self.read_json::<Persona>(KEY_PERSONA)?;
+        let enabled_modules = self.read_json::<Vec<ModuleId>>(KEY_ENABLED_MODULES)?;
+        let onboarded = self.read_raw(KEY_ONBOARDED)?.map(|v| v == "true");
         let lang = self.read_raw(KEY_LANG)?;
-        let default_method = self
-            .read_raw(KEY_DEFAULT_METHOD)?
-            .map(|v| serde_json::from_str::<EmpreinteMethod>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
-        let also_show_methods = self
-            .read_raw(KEY_ALSO_SHOW_METHODS)?
-            .map(|v| serde_json::from_str::<Vec<EmpreinteMethod>>(&v))
-            .transpose()
-            .map_err(AppError::from)?;
+        let default_method = self.read_json::<EmpreinteMethod>(KEY_DEFAULT_METHOD)?;
+        let also_show_methods = self.read_json::<Vec<EmpreinteMethod>>(KEY_ALSO_SHOW_METHODS)?;
         let default_datacenter_id = self.read_raw(KEY_DEFAULT_DATACENTER)?;
         Ok(StoredPreferences {
             persona,
@@ -144,17 +126,13 @@ impl PreferencesStore {
 
         // persona: null → DELETE, otherwise JSON UPSERT.
         match &prefs.persona {
-            Some(p) => {
-                let v = serde_json::to_string(p)?;
-                upsert(&tx, KEY_PERSONA, &v, &now)?;
-            },
+            Some(p) => upsert_json(&tx, KEY_PERSONA, p, &now)?,
             None => delete(&tx, KEY_PERSONA)?,
         }
 
         // enabled_modules
         if let Some(modules) = &prefs.enabled_modules {
-            let v = serde_json::to_string(modules)?;
-            upsert(&tx, KEY_ENABLED_MODULES, &v, &now)?;
+            upsert_json(&tx, KEY_ENABLED_MODULES, modules, &now)?;
         }
 
         // onboarded
@@ -170,14 +148,12 @@ impl PreferencesStore {
 
         // default_method (C24)
         if let Some(method) = &prefs.default_method {
-            let v = serde_json::to_string(method)?;
-            upsert(&tx, KEY_DEFAULT_METHOD, &v, &now)?;
+            upsert_json(&tx, KEY_DEFAULT_METHOD, method, &now)?;
         }
 
         // also_show_methods (C24)
         if let Some(methods) = &prefs.also_show_methods {
-            let v = serde_json::to_string(methods)?;
-            upsert(&tx, KEY_ALSO_SHOW_METHODS, &v, &now)?;
+            upsert_json(&tx, KEY_ALSO_SHOW_METHODS, methods, &now)?;
         }
 
         // default_datacenter_id (C25)
@@ -192,56 +168,55 @@ impl PreferencesStore {
     fn read_raw(&self, key: &str) -> Result<Option<String>, AppError> {
         let v: Option<String> = self
             .conn
-            .query_row(
-                "SELECT value FROM app_preferences WHERE key = ?1",
-                params![key],
-                |r| r.get(0),
-            )
+            .prepare_cached("SELECT value FROM app_preferences WHERE key = ?1")?
+            .query_row(params![key], |r| r.get(0))
             .optional()?;
         Ok(v)
     }
 
-    fn write_raw(&mut self, key: &str, value: &str) -> Result<(), AppError> {
-        let now = Utc::now().to_rfc3339();
-        let tx = self.conn.transaction()?;
-        upsert(&tx, key, value, &now)?;
-        tx.commit()?;
-        Ok(())
-    }
-
-    fn delete_raw(&mut self, key: &str) -> Result<(), AppError> {
-        let tx = self.conn.transaction()?;
-        delete(&tx, key)?;
-        tx.commit()?;
-        Ok(())
+    fn read_json<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>, AppError> {
+        Ok(self
+            .read_raw(key)?
+            .map(|v| serde_json::from_str::<T>(&v))
+            .transpose()?)
     }
 
     /// Persists the default datacenter id (C25). `None` clears the key.
     pub fn set_default_datacenter_id(&mut self, id: Option<&str>) -> Result<(), AppError> {
         match id {
-            Some(v) => self.write_raw(KEY_DEFAULT_DATACENTER, v),
-            None => self.delete_raw(KEY_DEFAULT_DATACENTER),
+            Some(v) => upsert(
+                &self.conn,
+                KEY_DEFAULT_DATACENTER,
+                v,
+                &Utc::now().to_rfc3339(),
+            ),
+            None => delete(&self.conn, KEY_DEFAULT_DATACENTER),
         }
     }
 }
 
-fn upsert(
-    tx: &rusqlite::Transaction<'_>,
-    key: &str,
-    value: &str,
-    now: &str,
-) -> Result<(), AppError> {
-    tx.execute(
+fn upsert(conn: &Connection, key: &str, value: &str, now: &str) -> Result<(), AppError> {
+    conn.prepare_cached(
         "INSERT INTO app_preferences (key, value, updated_at) \
          VALUES (?1, ?2, ?3) \
          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-        params![key, value, now],
-    )?;
+    )?
+    .execute(params![key, value, now])?;
     Ok(())
 }
 
-fn delete(tx: &rusqlite::Transaction<'_>, key: &str) -> Result<(), AppError> {
-    tx.execute("DELETE FROM app_preferences WHERE key = ?1", params![key])?;
+fn upsert_json<T: Serialize>(
+    conn: &Connection,
+    key: &str,
+    value: &T,
+    now: &str,
+) -> Result<(), AppError> {
+    upsert(conn, key, &serde_json::to_string(value)?, now)
+}
+
+fn delete(conn: &Connection, key: &str) -> Result<(), AppError> {
+    conn.prepare_cached("DELETE FROM app_preferences WHERE key = ?1")?
+        .execute(params![key])?;
     Ok(())
 }
 

@@ -11,10 +11,9 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
-use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::error::AppError;
+use crate::{db, error::AppError};
 
 /// Max length of `name`.
 pub const PROJECT_NAME_MAX: usize = 200;
@@ -25,7 +24,10 @@ pub const PROJECT_TAGS_MAX: usize = 10;
 /// Max length of a tag.
 pub const PROJECT_TAG_MAX: usize = 50;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+const SELECT_PROJECTS: &str = "SELECT id, name, description, period_start, period_end, tags, \
+                               created_at, updated_at FROM projects";
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Project {
     pub id: i64,
     pub name: String,
@@ -37,7 +39,7 @@ pub struct Project {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct NewProject {
     pub name: String,
     pub description: String,
@@ -60,10 +62,9 @@ pub struct ProjectStore {
 impl ProjectStore {
     /// Opens the given database and creates the `projects` table if needed.
     pub fn open(path: &Path) -> Result<Self, AppError> {
-        let conn = Connection::open(path)?;
+        let conn = db::open_referentiel(path)?;
         conn.execute_batch(
             r"
-            PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS projects (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
                 name            TEXT NOT NULL,
@@ -83,24 +84,24 @@ impl ProjectStore {
     }
 
     pub fn list_all(&self) -> Result<Vec<Project>, AppError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, period_start, period_end, tags, created_at, updated_at \
-             FROM projects ORDER BY id DESC",
-        )?;
-        let rows = stmt.query_map([], row_to_project)?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
+        let mut stmt = self
+            .conn
+            .prepare_cached(&format!("{SELECT_PROJECTS} ORDER BY id DESC"))?;
+        let projects = stmt
+            .query_map([], row_to_project)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(projects)
     }
 
     pub fn get(&self, id: i64) -> Result<Option<Project>, AppError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, period_start, period_end, tags, created_at, updated_at \
-             FROM projects WHERE id = ?1",
-        )?;
-        let p = stmt.query_row(params![id], row_to_project).optional()?;
+        let p = self
+            .conn
+            .query_row(
+                &format!("{SELECT_PROJECTS} WHERE id = ?1"),
+                params![id],
+                row_to_project,
+            )
+            .optional()?;
         Ok(p)
     }
 
@@ -260,29 +261,17 @@ fn row_to_project(row: &rusqlite::Row<'_>) -> rusqlite::Result<Project> {
     let tags_str: String = row.get(5)?;
     let created_at_str: String = row.get(6)?;
     let updated_at_str: String = row.get(7)?;
-    let parse_dt = |s: String, col: usize| -> rusqlite::Result<DateTime<Utc>> {
-        DateTime::parse_from_rfc3339(&s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    col,
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })
-    };
-    let tags: Vec<String> = serde_json::from_str(&tags_str).map_err(|e| {
-        rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(e))
-    })?;
+    let tags: Vec<String> =
+        serde_json::from_str(&tags_str).map_err(|e| db::conversion_failure(5, e))?;
     Ok(Project {
         id,
         name,
         description,
-        period_start: parse_dt(period_start_str, 3)?,
-        period_end: parse_dt(period_end_str, 4)?,
+        period_start: db::parse_rfc3339_col(&period_start_str, 3)?,
+        period_end: db::parse_rfc3339_col(&period_end_str, 4)?,
         tags,
-        created_at: parse_dt(created_at_str, 6)?,
-        updated_at: parse_dt(updated_at_str, 7)?,
+        created_at: db::parse_rfc3339_col(&created_at_str, 6)?,
+        updated_at: db::parse_rfc3339_col(&updated_at_str, 7)?,
     })
 }
 
