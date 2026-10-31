@@ -109,9 +109,9 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 
 - **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
 - **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (SOB-213 and the draft of the host contract). The 64 to 80 GB of §8 do not fit.
-- **No redundancy is assumed** for the host's disk or its power, and no spare machine until §7's second failure domain exists.
-- **The public address is shared and not fixed,** and only some ports can be forwarded at home. The default KubeSpan port is outside them (A4).
-- **Open facts** that Thibault still has to confirm (SOB-181): upload speed, a spare disk, backup power, and a third place for the small key machine of §6. ECC memory has been checked and is absent.
+- **One failure domain** until §7's second one exists.
+- **Reachability from outside is limited at the host,** so the default mesh port may not be reachable (A4).
+- **Open facts** that Thibault still has to confirm are listed in SOB-181 (private).
 
 ### A2. The ten points against the facts
 
@@ -121,16 +121,16 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
 | 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
 | 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
-| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys at home. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from home, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
 | 6 Layout of the services | Yes | None |
 | 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
-| 8 The cloud opens after its protections | Yes | "A UPS covers short power cuts" is not assumed. The risk is in A6 |
+| 8 The cloud opens after its protections | Yes | The assumption about power in the availability text is not relied on. The risk is in A6 |
 | 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (rollback copies on another disk) is replaced by a copy in a third place. A restore test somewhere other than the host proves portability (A5, P3) |
 | 10 Disk keys from a key server | Yes | The third place is still open (A1) |
 
 ### A3. Sizing under the cap
 
-§8 adds up to 28 vCPU and 64 to 80 GB, plus mirrored disks ("Hypervisor and ZFS cache" and "1 TB of mirrored disk" no longer apply). Under the cap of 10 GB, 4 vCPU and 200 GB:
+§8 adds up to 28 vCPU and 64 to 80 GB, and its disk and memory lines no longer apply. Under the cap of 10 GB, 4 vCPU and 200 GB:
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -142,10 +142,10 @@ The managed cloud does not open on this cap: §6 already makes its opening depen
 
 ### A4. The mesh port and the front-end link
 
-§1 uses Talos KubeSpan only for a machine at another site, and §4 forwards Sobr's traffic over WireGuard from the front server to the cluster. The default KubeSpan port, UDP 51820, is outside the ports that can be forwarded at home.
+§1 uses Talos KubeSpan only for a machine at another site, and §4 forwards Sobr's traffic over WireGuard from the front server to the cluster. The default KubeSpan port, UDP 51820, may not be reachable from outside the host's network.
 
-- **The front-end link needs no inbound port at home.** The router VM dials out to the front server, which listens on a public port of its own, with a keepalive. WireGuard carries traffic both ways once the tunnel is up.
-- **KubeSpan between sites** may need an inbound port at home. Whether KubeSpan accepts another port is not stated on the pages read; it is a fact to verify before a second site (§7) depends on it. IPv6, available at home, is a third path to test.
+- **The front-end link needs no inbound port on the host side.** The router VM dials out to the front server, which listens on a public port of its own, with a keepalive. WireGuard carries traffic both ways once the tunnel is up.
+- **KubeSpan between sites** may need an inbound port on the host side. Whether KubeSpan accepts another port is not stated on the pages read; it is a fact to verify before a second site (§7) depends on it. IPv6 is a third path to test.
 
 ### A5. The rule of portability (SOB-211)
 
@@ -163,9 +163,9 @@ Nothing of Sobr may depend on this particular host. The rule has five parts, eac
 
 Thibault accepted the host's risks on October 31 (SOB-211, private). The design draws these consequences:
 
-- **One failure domain** until §7's second one exists, and no redundancy of the host's disk or power is assumed.
-- **After a power cut,** the nodes need the key server and the line to unlock their disks on restart, and the key machine's own disk needs a typed passphrase (§6). A long outage while Thibault is away leaves the lab down. The offline copies of the keys (§6) and a runbook (ADR-0026 issue 10) are the break-glass path. §6 lists the conditions for opening the cloud: this risk joins them, for Thibault to accept again at launch.
-- **The line's terms of use** are an accepted risk recorded in SOB-211, until a business line exists.
+- **One failure domain** until §7's second one exists.
+- **After a restart of the host,** the nodes need the key server and the network to unlock their disks, and the key machine's own disk needs a typed passphrase (§6). A long outage while Thibault is away leaves the lab down. The offline copies of the keys (§6) and a runbook (ADR-0026 issue 10) are the break-glass path. §6 lists the conditions for opening the cloud: this risk joins them, for Thibault to accept again at launch.
+- **The other accepted risks** of the host are recorded in SOB-211 (private).
 
 ### A7. Who approves
 
@@ -175,7 +175,7 @@ The sentence of the Context that says deployments follow Thibault's approval fro
 
 ## Context and problem statement
 
-> Amendment 1 (2026-10-31): the host is shared with another project's production, it is not an Ubuntu machine with nginx, the address is shared and not fixed (A1), and the sentence on approvals is replaced (A7).
+> Amendment 1 (2026-10-31): the host is shared with another project's production, and the sentence on approvals is replaced (A7).
 
 
 On October 30 Thibault decided that his dedicated Proxmox server hosts every
@@ -246,7 +246,7 @@ figures; the sizing in §8 does. §9 lists what Thibault should confirm.
 
 ### 1. Kubernetes distribution, and how a machine joins
 
-> Amendment 1 (2026-10-31): the default KubeSpan port, UDP 51820, is outside the ports that can be forwarded at home (A4), and the first cluster is one small node (A3).
+> Amendment 1 (2026-10-31): the default KubeSpan port may not be reachable from outside (A4), and the first cluster is one small node (A3).
 
 **Talos Linux in Proxmox VMs.** Talos is a Linux built only to run
 Kubernetes:
@@ -506,7 +506,7 @@ The repos are public, so pull requests from forks never run on them
 
 ### 6. Customer data: availability, backups, encryption and the GDPR
 
-> Amendment 1 (2026-10-31): no backup power is assumed, and layer 3 is replaced (A2, points 8 and 9, and A6).
+> Amendment 1 (2026-10-31): the assumption about power is not relied on, and layer 3 is replaced (A2, points 8 and 9, and A6).
 
 **Availability.** One machine is one failure domain: power, the internet
 line, a disk or the motherboard.
@@ -653,7 +653,7 @@ These are legal documents, so they are human-only work (issue 9).
 
 ### 7. What a second failure domain needs
 
-> Amendment 1 (2026-10-31): a KubeSpan link to the home site may need a port that cannot be forwarded there (A4).
+> Amendment 1 (2026-10-31): a KubeSpan link to the first site may need a port that is not reachable there (A4).
 
 **Setup:** a Proxmox install, VMs created from the infrastructure code, and
 Talos configurations applied.
@@ -710,7 +710,7 @@ smaller machine, the CI runners are the part to cut first.
 
 ### 9. Facts for Thibault to confirm
 
-> Amendment 1 (2026-10-31): A1 answers most of these; upload speed, a spare disk, backup power and the third place stay open.
+> Amendment 1 (2026-10-31): A1 answers most of these; the rest stay open (SOB-181, private).
 
 - **Hardware:** CPU (cores), memory, disks (type, size, mirror or ZFS), and
   a spare disk for backups.
@@ -725,7 +725,7 @@ smaller machine, the CI runners are the part to cut first.
 
 ## Consequences
 
-> Amendment 1 (2026-10-31): the other site is a container that a replacement will change, and the host's risks are in A6.
+> Amendment 1 (2026-10-31): the other site will change with the shared front end (A2, point 5), and the host's risks are in A6.
 
 **Positive:**
 

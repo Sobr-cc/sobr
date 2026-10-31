@@ -18,9 +18,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     GitHub's runners until the cap rises.
   - The EU front server is shared as a layer-4 relay on the host name, with no TLS
     termination and its own tunnel, keys and routes per project; tunnels start from
-    home. Backup layer 3 on the host's own backup server is replaced by a copy in a
-    third place. "A UPS covers power cuts" is no longer assumed, and the nodes need the
-    key server and the line to restart.
+    the host side. Backup layer 3 on the host's own backup server is replaced by a copy in a
+    third place, and the nodes need the key server and the network to restart.
   - The portability rule of SOB-211 becomes five numbered rules with their checks.
     ADR-0024 stays Proposed until the open facts are confirmed.
 
