@@ -5922,7 +5922,6 @@ dependencies = [
  "sobria-estimator",
  "sobria-export",
  "sobria-geoloc",
- "sobria-import",
  "sobria-referentiel",
  "tauri",
  "tauri-build",
@@ -6015,20 +6014,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "sobria-import"
-version = "0.9.0"
-dependencies = [
- "anyhow",
- "proptest",
- "serde",
- "serde_json",
- "sobria-core",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]

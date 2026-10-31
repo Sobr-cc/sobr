@@ -25,7 +25,6 @@ sobria-referentiel = { path = "../sobria-referentiel" }
 sobria-estimator = { path = "../sobria-estimator" }
 sobria-audit = { path = "../sobria-audit" }
 sobria-geoloc = { path = "../sobria-geoloc" }
-sobria-import = { path = "../sobria-import" }
 sobria-export = { path = "../sobria-export" }
 # C27 patch v0.6.0 — socket forward bridge ↔ app : on partage les types
 # `BridgeRequest`/`BridgeResponse` et `default_socket_path()` avec le bridge.
