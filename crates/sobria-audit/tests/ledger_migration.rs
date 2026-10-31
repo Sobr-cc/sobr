@@ -1,12 +1,17 @@
-//! Characterization of the audit ledger v1 -> v2 migration (SOB-160).
+//! Characterization of the audit ledger v1 -> v2 migration (SOB-160, SOB-179).
 //!
 //! `fixtures/ledger-v1.sqlite` is a ledger as written before the `method` column existed;
 //! `fixtures/make_ledger_v1.py` rebuilds it. Tests work on a copy: opening migrates the file.
 
 use std::path::{Path, PathBuf};
 
+use chrono::Utc;
 use rusqlite::{Connection, Row};
 use sobria_audit::{AuditEntry, AuditLedger};
+use sobria_core::{
+    ContextOverhead, EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
+    IndicatorValue, UncertaintyInterval,
+};
 
 const ENTRIES: usize = 4;
 const V1_COLUMNS: [&str; 6] = [
@@ -158,4 +163,68 @@ fn reopening_a_migrated_ledger_changes_nothing() {
     assert_eq!(entries(&path), migrated_entries);
     assert_eq!(methods(&path), ["afnor_sobria"; ENTRIES]);
     assert_chain_intact(&ledger);
+}
+
+fn ecologits_result() -> EstimationResult {
+    EstimationResult {
+        method: EmpreinteMethod::EcoLogits,
+        request: EstimationRequest {
+            model_id: "gpt-4o-mini".into(),
+            tokens_in: 100,
+            tokens_out_estimated: 500,
+            datacenter_id: None,
+            timestamp: Utc::now(),
+            modalities: Vec::new(),
+            overhead: ContextOverhead::default(),
+        },
+        indicators: vec![IndicatorValue {
+            indicator: Indicator::Co2Eq,
+            interval: UncertaintyInterval::new(1.0, 2.0, 3.0).unwrap(),
+            unit: "gCO2eq".into(),
+            bins: None,
+        }],
+        equivalents: vec![],
+        hypotheses: vec![Hypothesis {
+            key: "x".into(),
+            value: serde_json::json!(1.0),
+            source: "test".into(),
+        }],
+        computed_at: Utc::now(),
+        seed: 42,
+    }
+}
+
+#[test]
+fn appending_to_a_migrated_ledger_continues_the_ids_and_the_chain() {
+    let (_dir, path) = legacy_copy();
+    let before = entries(&path);
+    let mut ledger = AuditLedger::open(&path).unwrap();
+    let result = ecologits_result();
+
+    let appended = ledger.append(&result).unwrap();
+
+    assert_eq!(appended.id, 5);
+    assert_eq!(appended.prev_sig, before[3].4);
+    assert_eq!(appended.sig, appended.compute_sig());
+    assert_eq!(
+        appended.estimation_result_json,
+        serde_json::to_string(&result).unwrap()
+    );
+    assert_eq!(appended.purged_at, None);
+    let mut expected_methods = vec!["afnor_sobria"; ENTRIES];
+    expected_methods.push("ecologits");
+    assert_eq!(methods(&path), expected_methods);
+    let after = entries(&path);
+    assert_eq!(after[..ENTRIES], before[..]);
+    assert_eq!(after.len(), ENTRIES + 1);
+    assert_eq!(after[ENTRIES].0, 5);
+    assert_eq!(after[ENTRIES].3, before[3].4);
+    assert_eq!(after[ENTRIES].4, appended.sig);
+    assert_eq!(ledger.len().unwrap(), ENTRIES + 1);
+    let report = ledger.verify_chain().unwrap();
+    assert!(report.valid, "{}", report.message);
+    assert_eq!(report.total_entries, ENTRIES + 1);
+    assert_eq!(report.first_invalid_id, None);
+    let ids: Vec<i64> = exported(&ledger).iter().map(|e| e.id).collect();
+    assert_eq!(ids, [1, 2, 3, 4, 5]);
 }
