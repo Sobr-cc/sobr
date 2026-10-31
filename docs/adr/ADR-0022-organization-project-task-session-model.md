@@ -1,6 +1,7 @@
 # ADR-0022 — Organization, project, task and session model
 
-- **Status**: Proposed (becomes Accepted when Thibault approves the PR)
+- **Status**: Accepted (2026-10-31). Thibault took every recommendation in
+  SOB-151, and option 1 of SOB-148 for the project-level k rule.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-143)
@@ -24,32 +25,32 @@
 > time. The server refuses any other field. Session history starts fresh.
 > SOB-136 decides whether a personal space syncs between machines.
 
-## Points to decide
+## Points decided
 
-Seven questions for Thibault, also listed in the Decision issue SOB-151,
-where he answers them. Each recommendation rests on the matching part of the
-Decision section, which compares the options with their cost, effort and
-risk. The ADR stays Proposed until the answers are recorded here.
+Thibault answered these seven points on October 31 in the Decision issue
+SOB-151. He took every recommendation: 1A, 2A, 3A, 4A, 5A, 6A and 7A. Each
+choice rests on the matching part of the Decision section, which compares
+the options with their cost, effort and risk.
 
 1. **A session's space is set by the account used, then can only move down**
    (§3). A person with one space has nothing to choose. A person can
    withdraw one of their sessions from an organization to their personal
    space, and the organization sees only a monthly count. Nothing ever
-   moves up. Recommended. Alternatives: no move at all, so a misfiled
+   moves up. Chosen. Alternatives: no move at all, so a misfiled
    session stays with the organization for 24 months; or free moves both
    ways.
 2. **Only the person attaches their own sessions** (§5). Whoever may edit a
    project links it to repos and trackers, which the members' devices use
-   to classify. Nobody sees another person's single sessions. Recommended,
+   to classify. Nobody sees another person's single sessions. Chosen,
    because ADR-0015 rule 4 forbids any view of others finer than the day.
    Alternative: let some roles edit members' sessions, which needs an
    amendment of ADR-0015 and a separate opt-in from each member.
-3. **A task always belongs to one project** (§4). Recommended: yes, so task
+3. **A task always belongs to one project** (§4). Chosen, so task
    totals add up to project totals. Alternative: tasks outside any project.
-4. **Solo mode is one hidden project** (§7). Recommended: yes, so switching
+4. **Solo mode is one hidden project** (§7). Chosen, so switching
    it on or off moves nothing. Alternative: no project at all in solo mode.
 5. **One database per space, and one member ID per space** (§2).
-   Recommended: yes, on the device and on the server, so no query on use
+   Chosen, on the device and on the server, so no query on use
    data can join a personal space to an organization. Alternative: one
    shared database with a space column on every row.
 6. **One upload contract for every client** (§10). The app, the extension
@@ -58,12 +59,12 @@ risk. The ADR stays Proposed until the answers are recorded here.
    calendar day in the space's time zone. Uploads and tracker lookups leave
    in one batch a day, so their timing reveals no hour either. Every client
    applies the space rule of §3, and the extension sends each estimate to
-   one place only. Recommended. Alternatives: exact times on the server;
+   one place only. Chosen. Alternatives: exact times on the server;
    uploads as soon as a session ends; whole records stripped on the server.
 7. **Everything starts fresh** (§11). The new model starts empty on the
    device and on the server. The old stores stay as they are, readable and
    exportable, and app preferences and pairings stay where they are.
-   Recommended, because nothing has been published (ADR-0020), so
+   Chosen, because nothing has been published (ADR-0020), so
    conversion code would serve only test data. Alternatives: carry over
    settings and consent, or migrate every old estimate.
 
@@ -539,10 +540,11 @@ others see: dashboards, exports, alerts and the API.
   task" each have at least k contributors. Empty groups are left out of
   this check. Otherwise the project shows its total only. Merging only the
   small tasks would let anyone subtract them from the total.
-- At project level, ADR-0016's rule stands as written: projects with fewer
-  than k contributors merge into "other projects". The same subtraction
-  risk exists there; tightening it is a change to ADR-0016 and has its own
-  issue (SOB-148).
+- At project level, the same rule applies, as Thibault chose on October 31
+  (SOB-148, option 1). A space's breakdown by project appears only when
+  every project shown, "other projects" and "no project" each have at least
+  k contributors; otherwise only the organization total shows. SOB-153
+  amends ADR-0016 to match.
 - In practice, under the default policy, per-task totals show only on large
   projects. Each person always sees their own per-task totals.
 
@@ -560,9 +562,8 @@ others see: dashboards, exports, alerts and the API.
     the same condition at task level; otherwise it keeps its total only;
   - empty groups are left out of the check.
 
-  Nothing kept can then be subtracted down to one person. At this point the
-  rule is stricter than ADR-0016 for projects; the same change for live
-  views is SOB-148;
+  Nothing kept can then be subtracted down to one person. This is the same
+  rule as the live views above;
 - when a member leaves, their name and their session detail are deleted
   after they can export them. Their work use goes into totals built the
   same way;
@@ -682,7 +683,8 @@ it to a Linear project and to the GitHub repo `acme/checkout`.
 - Home starts empty after the change, while the journal keeps the old
   estimates.
 - Nobody but the person fixes a member's attachments; project links help.
-- Per-task totals are hidden on small projects under the default policy.
+- Under the default policy, breakdowns by project are hidden in small
+  organizations, and by task in small projects.
 - Comparing two periods can still hint at one person's change on a project,
   as with ADR-0016's project totals today.
 - Until the Organization and identity project brings real identities, each
@@ -716,7 +718,7 @@ P1, P2, A7) wait for Design V7 and are not listed.
 | 3 | Create projects and tasks by hand and attach sessions to them in the personal space | Model crate, desktop backend | 5 | #1; **SOB-26** |
 | 4 | Turn solo mode on and off for a space | Model crate, desktop backend | 2 | #3; **SOB-26** |
 | 5 | Apply attachment rules from corrections to past sessions | Model crate, desktop backend | 3 | #3; **SOB-26** |
-| 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables under the day and k rules | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115 |
+| 6 | Move the organization server to the space model, with dashboards, exports, alerts and `/me/usage` on the new tables, under the day rule and the all-groups k rule at project and task level (§10, SOB-148) | Server | 8 | #1; **Deep cleanup SOB-25** (team server); builds on SOB-114 and SOB-115; ADR-0016 amended by SOB-153 |
 | 7 | Serve projects, tasks, project links and daily totals with the visibility and k rules, and accept session uploads under the contract | Server | 5 | #6; **SOB-25** |
 | 8 | Upload organization sessions from the desktop app and queue attachment changes offline | Desktop backend | 5 | #2, #7; **SOB-26**; related to SOB-110 and SOB-132 |
 | 9 | Make the extension apply the space rule and send each estimate to one place under the contract, and retire `both` mode | Browser extension, bridge, desktop backend | 5 | #7; **Deep cleanup SOB-31** (extension), **SOB-24** (bridge), **SOB-26**; related to SOB-118 |
@@ -737,5 +739,6 @@ P1, P2, A7) wait for Design V7 and are not listed.
   ADR-0014 (Amendment 1), ADR-0015, ADR-0016, ADR-0019, ADR-0020, ADR-0021
 - SOB-136 (personal space sync and price), SOB-146 (session identity and
   duplicates), SOB-114, SOB-115 and SOB-118 (today's export, alert and
-  double-counting gaps), SOB-148 (ADR-0016 groups and subtraction), SOB-142
+  double-counting gaps), SOB-151 (the seven answers), SOB-148 (the
+  project-level k rule, option 1) and SOB-153 (its ADR-0016 amendment), SOB-142
   (documents first)

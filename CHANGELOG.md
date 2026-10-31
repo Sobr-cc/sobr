@@ -9,7 +9,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — ADR-0022, organization, project, task and session model (2026-10-31, SOB-143)
 
-- **ADR-0022** (Proposed): every use of an AI tool is a session that belongs
+- **ADR-0022** (Accepted 2026-10-31; Thibault took every recommendation in
+  SOB-151): every use of an AI tool is a session that belongs
   to one person and, once known, one space: personal or organization. A
   project and a task are optional, a task belongs to one project, and an
   unclassified session waits in "to classify".
@@ -26,8 +27,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     only the day, and the server refuses any other field.
   - Everything starts fresh: nothing is converted, and the old stores stay
     readable and exportable. The ADR lists fourteen issues to create and
-    the Deep cleanups they wait for, and SOB-148 asks whether ADR-0016's
-    project groups need the same k rule.
+    the Deep cleanups they wait for.
+  - Breakdowns by project and by task appear only when every group shown,
+    the remainder included, has k contributors (SOB-148, option 1); SOB-153
+    amends ADR-0016 to match.
   - Whether a personal space syncs between machines stays with SOB-136;
     session identity across sources stays with SOB-146.
 

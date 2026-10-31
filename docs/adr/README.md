@@ -19,7 +19,7 @@ Les ADR documentent les décisions structurantes du projet. Chaque ADR :
 | [ADR-0008](./ADR-0008-observable-plot.md) | Observable Plot + D3 pour la dataviz | Accepted |
 | [ADR-0009](./ADR-0009-medallion-architecture.md) | Architecture médaillon Copper/Silver/Gold automatique | Accepted |
 | [ADR-0021](./ADR-0021-single-app-desktop-and-web.md) | One Svelte app, shipped on desktop and on the web (amends rule 2 of ADR-0017) | Proposed |
-| [ADR-0022](./ADR-0022-organization-project-task-session-model.md) | Organization, project, task and session model | Proposed |
+| [ADR-0022](./ADR-0022-organization-project-task-session-model.md) | Organization, project, task and session model | Accepted |
 
 ## Format à respecter
 
