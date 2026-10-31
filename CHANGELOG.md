@@ -7,6 +7,20 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — One golden-file comparator for the estimator and team server tests (2026-10-31, SOB-150)
+
+- **Tests** (`sobria-estimator`, `sobria-team-aggregator`): the two copies of
+  the golden-file comparator are now one file, `test-support/golden.rs`,
+  included by both crates with `#[path]`. No new crate and no new dependency.
+  Tolerance (1e-9), update mode and the CI guard are unchanged. The team server
+  tests now get the estimator's `Goldens` collector and its layout for rewritten
+  files (arrays of numbers on one line, which its committed files already
+  have: an update run on them rewrites nothing). Two differences remain for
+  them: a `computed_at` field would be masked, and a difference in an array of
+  integers is reported on one summary line (pass or fail is the same). The
+  comparator's messages are in English. The estimator keeps the comparator's
+  unit tests in `tests/characterization/golden.rs`.
+
 ### Fixed — deterministic wrong-code pairing test (2026-10-31, SOB-92)
 
 - **`sobria-app`** (`bridge_server.rs`, test module):
