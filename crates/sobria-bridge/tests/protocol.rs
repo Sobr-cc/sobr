@@ -1,34 +1,31 @@
 //! Native Messaging length-prefixed JSON round trip, and the append-only spool
 //! with rotation.
 
+mod common;
+
 use std::io::Cursor;
 
+use common::{frame, parse_frames};
 use serde_json::json;
-use sobria_bridge::{handle_request, read_message, write_message, BridgeRequest, BridgeResponse};
-
-fn encode_request_str(json: &str) -> Vec<u8> {
-    let mut buf = Vec::new();
-    let bytes = json.as_bytes();
-    let len = u32::try_from(bytes.len()).unwrap();
-    buf.extend_from_slice(&len.to_le_bytes());
-    buf.extend_from_slice(bytes);
-    buf
-}
+use sobria_bridge::{
+    append_to_spool_at, handle_request, read_message, write_message, BridgeRequest, BridgeResponse,
+    SPOOL_MAX_BYTES,
+};
 
 #[test]
 fn read_ping_request() {
     let req_json = r#"{"type":"ping","reqId":"a1"}"#;
-    let buf = encode_request_str(req_json);
+    let buf = frame(req_json.as_bytes());
     let mut cursor = Cursor::new(buf);
     let req = read_message(&mut cursor).unwrap().unwrap();
-    matches!(req, BridgeRequest::Ping { .. });
+    assert!(matches!(req, BridgeRequest::Ping { .. }));
     assert_eq!(req.req_id(), "a1");
 }
 
 #[test]
 fn read_estimate_request() {
     let req_json = r#"{"type":"estimate","reqId":"e1","secret":"s","payload":{"k":42}}"#;
-    let buf = encode_request_str(req_json);
+    let buf = frame(req_json.as_bytes());
     let mut cursor = Cursor::new(buf);
     let req = read_message(&mut cursor).unwrap().unwrap();
     match req {
@@ -57,10 +54,7 @@ fn ping_handle_writes_pong() {
     let resp = handle_request(BridgeRequest::Ping { req_id: "x".into() });
     let mut buf: Vec<u8> = Vec::new();
     write_message(&mut buf, &resp).unwrap();
-    assert_eq!(buf.len(), 4 + (buf.len() - 4));
-    let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
-    let payload = &buf[4..4 + len];
-    let parsed: serde_json::Value = serde_json::from_slice(payload).unwrap();
+    let [parsed] = parse_frames(&buf).try_into().expect("one frame");
     assert_eq!(parsed["reqId"], "x");
     assert_eq!(parsed["ok"], true);
     assert_eq!(parsed["pong"], true);
@@ -82,18 +76,8 @@ fn estimate_handle_writes_to_spool() {
     // to the real spool.
     let temp = tempfile::tempdir().unwrap();
     let spool = temp.path().join("incoming.jsonl");
-    sobria_bridge::append_to_spool_at(
-        &spool,
-        &json!({"foo": "bar", "n": 1}),
-        sobria_bridge::SPOOL_MAX_BYTES,
-    )
-    .unwrap();
-    sobria_bridge::append_to_spool_at(
-        &spool,
-        &json!({"foo": "baz", "n": 2}),
-        sobria_bridge::SPOOL_MAX_BYTES,
-    )
-    .unwrap();
+    append_to_spool_at(&spool, &json!({"foo": "bar", "n": 1}), SPOOL_MAX_BYTES).unwrap();
+    append_to_spool_at(&spool, &json!({"foo": "baz", "n": 2}), SPOOL_MAX_BYTES).unwrap();
     let content = std::fs::read_to_string(&spool).unwrap();
     let lines: Vec<&str> = content.lines().collect();
     assert_eq!(lines.len(), 2);
@@ -106,8 +90,8 @@ fn append_to_spool_rotates_at_threshold() {
     let temp = tempfile::tempdir().unwrap();
     let spool = temp.path().join("incoming.jsonl");
     // The first write (~8 bytes) exceeds the 5-byte threshold, so the second rotates.
-    sobria_bridge::append_to_spool_at(&spool, &json!({"a": 1}), 5).unwrap();
-    sobria_bridge::append_to_spool_at(&spool, &json!({"b": 2}), 5).unwrap();
+    append_to_spool_at(&spool, &json!({"a": 1}), 5).unwrap();
+    append_to_spool_at(&spool, &json!({"b": 2}), 5).unwrap();
     let bak = spool.with_extension("jsonl.bak");
     assert!(bak.exists(), ".bak must exist after rotation");
     let content = std::fs::read_to_string(&spool).unwrap();
