@@ -1,6 +1,6 @@
-# Claude Code transcripts: the keys Sobr needs (WIP, SOB-161)
+# Claude Code transcripts: the keys Sobr needs (SOB-161)
 
-> **Status**: work in progress, not reviewed. Findings made on 2026-10-31 with Claude Code **2.1.314** (the installed version); the files surveyed were written by several versions, among them 2.1.270, 2.1.310 and 2.1.314. The format is internal to Claude Code and changes between versions ([Manage sessions](https://code.claude.com/docs/en/sessions#where-transcripts-are-stored)), so every key below must be pinned by golden files and read with the fail-closed reader of `CLAUDE-CODE-USAGE-CAPTURE.md` (section 1).
+> **Status**: proposal for review. Findings made on 2026-10-31 with Claude Code **2.1.314** (the installed version); the files surveyed were written by several versions, among them 2.1.270, 2.1.310 and 2.1.314. The format is internal to Claude Code and changes between versions ([Manage sessions](https://code.claude.com/docs/en/sessions#where-transcripts-are-stored)), so every key below must be pinned by golden files and read with the fail-closed reader of `CLAUDE-CODE-USAGE-CAPTURE.md` (section 1).
 > **Method**: a script read 40 session files and 70 subagent files (of 40 and 718 on disk, about 84,000 lines) and printed only key names, value types and, for a short allow-list (model, token counts, timestamps, IDs, version), example values. No text value was printed or copied. Counts below come from that run.
 
 ## Where the files are
@@ -11,7 +11,7 @@
 
 ## Line types seen (`type`)
 
-`assistant`, `user`, `attachment`, `system`, metadata lines (`ai-title`, `last-prompt`, `mode`, `permission-mode`, `agent-setting`, `pr-link`, `queue-operation`, `tools-used`), request records (`api-request`, `api-request-shape`, `api-request-blob`), and `cost-state`, `file-history-snapshot`, `file-history-delta`, `relocated`, `frame-link`, `bridge-session`. Only `assistant` lines carry per-call usage. **Not surveyed yet**: the keys of `user` and `attachment` lines, and the exact content of `api-request` lines.
+`assistant`, `user`, `attachment`, `system`, metadata lines (`ai-title`, `last-prompt`, `mode`, `permission-mode`, `agent-setting`, `pr-link`, `queue-operation`, `tools-used`), request records (`api-request`, `api-request-shape`, `api-request-blob`), and `cost-state`, `file-history-snapshot`, `file-history-delta`, `relocated`, `frame-link`, `bridge-session`. Only `assistant` lines carry per-call usage. The request records (`api-request`) hold the request parameters (`params.model`, `params.max_tokens`, `params.thinking`, `querySource`, hashes) but **no usage and no cost**, so they cannot double count; `querySource` is `sdk` on all 14,331 of them. `user` lines carry the prompt or the tool results, and `attachment` lines carry context (including a `context.userEmail`, `context.gitStatus` and file contents): a reader never opens either.
 
 ## Keys of an `assistant` line
 
@@ -43,12 +43,14 @@
 - `assistant` lines: `message.content[]` items of type `text` (`text`), `thinking` (`thinking`, `signature`), `tool_use` (`input.*`, `name`, `id`, `caller`).
 - `tool_result` items: `content`, `tool_use_id`, `is_error`.
 - Line types that are text by themselves: `last-prompt` (`lastPrompt`), `ai-title` (`aiTitle`), `queue-operation` (`content`), `system` (`commandRun.*`).
+- `user` lines also carry `toolUseResult` (the payload of a tool), `origin.*` (a message handed over by another session, with a `body`), `serverClassifierContext.*` (a working directory and git state) and, after a compaction, the summary text (`isCompactSummary: true`).
+- `attachment` lines: `attachment.context.userEmail`, `attachment.context.gitStatus`, `attachment.files[].content` and `.path`, `attachment.content`, and more. Skip the whole line type.
 - Dictionaries with free keys: `wireToolInputs.<toolu id>.*` (the inputs of tool calls, including prompts, commands and paths) and `wireIngestContext.<toolu id>.cwd`.
-- `api-request` lines (`params.*`, bodies) and `file-history-*` lines can hold file content and paths.
+- `api-request-blob` lines hold messages of a request, and `file-history-*` lines can hold file content and paths.
 
 ## One message on several lines
 
-Of 10,130 assistant message IDs in the sample, **7,920 appear on 2 to 32 lines** (one line per content block of the same API response), and the `usage` is **identical on every line of the same ID** (7,920 of 7,920). A reader that adds the usage of every line counts such a call two to three times. Dedupe by `message.id` inside a file and keep one `usage`. No `message.id` was found in two different files, and none is shared between a subagent file and its parent (0 of 10,826).
+Of 10,130 assistant message IDs in the sample, **7,920 appear on 2 to 32 lines** (one line per content block of the same API response), and the `usage` is **identical on every line of the same ID** (7,920 of 7,920). A reader that adds the usage of every line counts such a call two to three times. Dedupe by `message.id` inside a file and keep one `usage`. Across all 40 main files (13,521 `msg_` IDs) no `message.id` is in two files, so a resumed session does not copy messages on this machine; and none is shared between a subagent file and its parent (0 of 10,826). A compaction adds one `system` line with `compactMetadata` and one `user` summary line (`isCompactSummary`, text, skipped) and does not repeat earlier messages (30 of each in the 40 files). The evidence for resumed sessions is limited to the files on this machine; the reader should still keep one measurement per `message.id` and per session.
 
 ## Subagents
 
@@ -58,8 +60,18 @@ A subagent writes its own file with its own calls; its messages do not appear in
 
 Cumulative per session: `modelUsage.<model>.{inputTokens, outputTokens, cacheReadInputTokens, cacheCreationInputTokens, cacheCreationEphemeral5mInputTokens, cacheCreationEphemeral1hInputTokens, thinkingTokens, webSearchRequests, costUSD}`, plus `totalCostUSD`, `totalAPIDuration`, `startTime`, `sessionId`. Compared with the deduplicated sums (main file plus subagents) on 12 sessions: the cache counts match in 11 of 12; one session with 14 subagent messages matches on all four counts; in most others `inputTokens` and `outputTokens` of `cost-state` are larger by about 1,200 and a few hundred, so it also counts requests that have no `assistant` line. **To check**: what those extra requests are, and whether `cost-state` is written at every exit.
 
-## Left to do
+## Synthetic samples
 
-- Survey the keys of `user`, `attachment` and `api-request` lines.
-- Look at a resumed session and a compacted session (`system` lines with `compactMetadata`) for repeated messages across files.
-- Write the synthetic sample files (same shapes, made-up text) and check that every key above appears in one.
+`docs/sources/samples/claude-code/` holds three files with the shapes above and made-up values only (no real prompt, path, name, email, URL or ID; IDs are `00000000-0000-4000-8000-...` and `msg_DEMO...`):
+
+- `session-main.jsonl` (17 lines): a prompt, one API response written on three lines with the same `message.id` and `usage` (thinking, text, tool use), a tool result, a second response, an `attachment` line, the metadata lines, a compaction pair, a `<synthetic>` error message, an `api-request` and a `cost-state` line.
+- `subagent-agent-demo01.jsonl` (3 lines): a subagent (`isSidechain: true`, an `agentId`, the `sessionId` of the main sample) with one response on two lines.
+- `session-unknown-shapes.jsonl` (4 lines): a line type that does not exist, a `usage` where a count is a string, an `assistant` line without `usage`, and one without `model`. They are invented to test that the reader fails closed.
+
+A script checked that every line is valid JSON, that each of the 34 keys named in the tables above appears in a sample, and that no real name, email, URL or non-made-up ID is in them.
+
+## Open points
+
+- What the extra requests counted by `cost-state` are (no `assistant` line, `querySource` is always `sdk`), and whether `cost-state` is written at every exit.
+- Whether keys differ between Claude Code versions: the survey mixed versions 2.1.270 to 2.1.314 and did not compare them. The golden files must be refreshed for each version Sobr supports.
+- Resumed sessions: the evidence comes from one machine and shows no copied message.
