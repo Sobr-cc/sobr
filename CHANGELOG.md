@@ -7,6 +7,27 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — ADR-0025, session identity and duplicates across sources (2026-10-31, SOB-146)
+
+- **ADR-0025** (Proposed): a session has one random Sobr ID and, on the
+  device only, the references that each source gives it. Two reports are one
+  session only when a reference proves it, whether or not Claude Code uses one
+  session ID in all its sources (to be confirmed by SOB-163).
+  - A source's report for a session and a day replaces its own previous
+    report. The numbers come whole from the most precise source that has
+    numbers (OpenTelemetry, transcript, extension). A better report arriving
+    later replaces the numbers and the older one stays in the history.
+  - Billing names no session, so it never changes a session or a total: its
+    figure is shown beside the total Sobr saw, with the gap.
+  - A correction by the person belongs to the session and survives every
+    change of winner. 14 shared test cases, 3 worked examples, 9 build issues
+    (38 points), marking those that wait for a Deep cleanup.
+  - Two points wait for Thibault (SOB-195): how billing enters the totals,
+    and where OpenTelemetry enters.
+- **ADR-0022, Amendment 1**: closes the references that left these points to
+  SOB-146, and adds one item to its upload contract (a session merge).
+- Corrects one sentence of the ADR-0023 entry (SOB-144).
+
 ### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
 
 - **`docs/adr/`**: both ADR files and their rows in the index say Accepted
@@ -16,8 +37,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **ADR-0023** (Accepted): Claude reads and acts on Sobr through MCP tools,
   within the rights of the person who connected it. Thibault answered its
-  eight points on 2026-10-31 (SOB-152): every recommendation. It becomes
-  ADR-0019 and ADR-0022 are merged, so it is Accepted.
+  eight points on 2026-10-31 (SOB-152): every recommendation. It is
+  Accepted because ADR-0019 and ADR-0022 are merged.
   - Two front doors share one contract and one repo (`sobr`): a stdio server
     for the personal space and a Streamable HTTP route in the Sobr server for
     an organization. One connection serves one space.
