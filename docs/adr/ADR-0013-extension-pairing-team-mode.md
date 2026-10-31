@@ -15,7 +15,7 @@
 - The amendment is written in place because SOB-34 asks for it, although
   `docs/adr/README.md` says an Accepted ADR is changed by a new one.
   SOB-87 decides between the two forms; this section can move unchanged
-  into a new ADR. SOB-87 has since chosen amendment by PR.
+  into a new ADR. SOB-87 has since chosen amendment by PR; SOB-127 updates the README.
 - It is in English under the October 30 language rule.
 
 **What changes.** Stage 1, steps 1 to 3: the person no longer types a 6-digit
@@ -318,7 +318,7 @@ Flux :
 
 ### Ce qu'on ne fera PAS
 
-> Amendment 2 (2026-10-31): the second and last lines do not apply to the personal space. Organizations keep them.
+> Amendment 2 (2026-10-31): the second and last lines do not apply to the personal space. Organizations keep them. The first line is read with ADR-0014: a closed, central SaaS stays rejected, and the same open-source binary hosted by Sobr is allowed.
 
 - Pas de cloud Sobr.ia centralisé (SaaS).
 - Pas de comptes utilisateurs hébergés par nous.

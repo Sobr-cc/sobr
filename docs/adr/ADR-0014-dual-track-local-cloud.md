@@ -30,7 +30,7 @@
 2. A public justification: this section and the CHANGELOG entry. The README is unchanged for now (see below).
 3. 30 days' notice for managed users: nobody uses the managed cloud yet, so nobody is notified. The notice applies to any later change of these conditions.
 
-The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged. SOB-87 has since chosen amendment by PR.
+The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged. SOB-87 has since chosen amendment by PR; SOB-127 updates the README.
 
 **Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here.
 
@@ -47,7 +47,7 @@ The Révision section asks for a separate "ADR-0014-amendement" document. This a
 
 **What changes.**
 
-1. **The personal space is free.** On the Sobr server, the personal space of an individual (a person using Sobr for themselves, without a seat in an organization) has no price: no 30-day trial and no per-seat charge. The trial and the per-seat price of Amendment 1 (condition 5) apply to organizations on the managed cloud only. Local and self-hosted stay free, and guest mode stays the default (condition 1).
+1. **The personal space is free.** On the Sobr server, the personal space of an individual (a person using Sobr for themselves, without a seat in an organization) has no price: no 30-day trial and no per-seat charge. The trial and the per-seat price of Amendment 1 (condition 5) apply to organizations on the managed cloud only. Local and self-hosted stay free, and guest mode stays the default (condition 1). A person who joins an organization takes a seat there, paid by the organization; the personal space stays free, and it never goes up to the organization (screen A7).
 2. **The conflict with ADR-0013 is settled.** ADR-0013 Amendment 2 makes the personal space an explicit exception to its two lines on hosted accounts and multi-device sync. Organizations keep the rule, read as ADR-0013 Amendment 2 reads it: the organization server run by the organization itself, while the managed cloud stays as this ADR chose it. The Validation line "Cohérence ADR-0013" holds again.
 
 **What does not change.** Conditions 2, 3 and 4 apply to the personal space as in Amendment 1. The payment card of SOB-105 belongs to the organizations' trial; the decision asks nothing of the personal space.
@@ -219,7 +219,7 @@ Le compromis qui préserve les principes et étend le marché. Choisi.
 
 ## Validation
 
-> Amendment 2 (2026-10-31): the line "Cohérence ADR-0013" holds again; see ADR-0013 Amendment 2.
+> Amendment 2 (2026-10-31): for the personal space the line "Cohérence ADR-0013" holds again; see ADR-0013 Amendment 2. The managed cloud for organizations is unchanged: it is the open-source binary hosted by Sobr, as this section already says.
 
 - Cohérence CLAUDE.md §7 ✓ — local par défaut, cloud opt-in explicite.
 - Cohérence ADR-0013 ✓ — l'Alt 2 reste rejetée (cloud propriétaire fermé). L'Alt 3 (cloud open-source) est un raffinement, pas une contradiction.
