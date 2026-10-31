@@ -92,6 +92,11 @@ impl Server {
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let base = format!("https://{}", listener.local_addr().expect("addr"));
+        let client = reqwest::ClientBuilder::new()
+            .danger_accept_invalid_certs(true)
+            .timeout(Duration::from_secs(20))
+            .build()
+            .expect("client");
         let served = paths.clone();
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
@@ -101,23 +106,11 @@ impl Server {
         runtime.spawn(async move {
             let _ = serve::run_with_listener(listener, &served).await;
         });
-        let client = reqwest::ClientBuilder::new()
-            .danger_accept_invalid_certs(true)
-            .timeout(Duration::from_secs(20))
-            .build()
-            .expect("client");
 
-        let mut ready = false;
-        for _ in 0..50 {
-            let health = client.get(format!("{base}/health")).send().await;
-            if health.is_ok_and(|r| r.status().is_success()) {
-                ready = true;
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-        assert!(ready, "the server never answered /health");
-        Self {
+        // The runtime is owned by `Server` from here on, so that a failed
+        // boot below still goes through `Drop` instead of dropping the runtime
+        // inside the async test (which panics).
+        let server = Self {
             _dir: dir,
             paths,
             base,
@@ -125,7 +118,22 @@ impl Server {
             runtime: Some(runtime),
             log: Mutex::new(Vec::new()),
             placeholders: Mutex::new(HashMap::new()),
+        };
+        let mut ready = false;
+        for _ in 0..50 {
+            let health = server
+                .client
+                .get(format!("{}/health", server.base))
+                .send()
+                .await;
+            if health.is_ok_and(|r| r.status().is_success()) {
+                ready = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
+        assert!(ready, "the server never answered /health");
+        server
     }
 
     /// A direct handle on the database (to seed data or change the config).
