@@ -27,6 +27,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     health check, a rate limit, and a stop switch that depends on no session.
   - The ADR names the risk that remains: a session holding both tokens could
     approve its own change.
+  - The approval covers only what belongs to Sobr (SOB-212): the Sobr VMs and
+    containers and Kubernetes inside them. Changes to the shared host, to
+    BrilliantStudio and to the game VM need Thibault's explicit go, and the
+    Proxmox token of the script is limited to a Sobr pool.
+  - Nothing of Sobr may depend on this particular host (SOB-211): host values are
+    variables per host, backups restore elsewhere. A host contract (SOB-213,
+    SOB-217) says who owns what on the host. CI runners have no route to the
+    management network.
   - 10 build issues (40 points), marking those that wait for a Deep cleanup.
 
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
