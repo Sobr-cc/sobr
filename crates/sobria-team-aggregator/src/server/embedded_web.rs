@@ -34,6 +34,11 @@ use rust_embed::RustEmbed;
 #[include = "*.woff2"]
 struct WebAssets;
 
+/// Whether this binary embeds the web-team bundle (its `index.html`).
+pub fn bundle_embedded() -> bool {
+    WebAssets::get("index.html").is_some()
+}
+
 /// Handler de la racine `/`.
 pub async fn index() -> Response {
     serve_or_fallback("index.html")

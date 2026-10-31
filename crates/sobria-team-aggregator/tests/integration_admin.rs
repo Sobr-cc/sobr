@@ -542,6 +542,43 @@ async fn admin_user_detail_route_respects_visibility_policy() {
     assert_eq!(body["totals"]["count"], 1);
     assert_eq!(body["top_models"][0]["model_id"], "llama-3-1-70b");
 
+    // Without `from`/`to`, the last 30 days: a recent estimation counts, the May one does not.
+    let recent = fx
+        .client
+        .post(format!("{}/api/v1/estimations", fx.base_url))
+        .bearer_auth(&alice_access)
+        .json(&json!({
+            "estimate": {
+                "method": "afnor_sobria",
+                "modelId": "llama-3-1-70b",
+                "tokensIn": 100,
+                "tokensOut": 200,
+                "gco2eq": 0.4,
+                "waterMl": 0.5,
+                "energyWh": 0.2
+            },
+            "ts": chrono::Utc::now().to_rfc3339()
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(recent.status(), 200);
+    let default_window: serde_json::Value = fx
+        .client
+        .get(format!(
+            "{}/api/v1/admin/users/{}/analytics",
+            fx.base_url, alice_id
+        ))
+        .bearer_auth(&fx.admin_access)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(default_window["totals"]["count"], 2);
+    assert_eq!(default_window["top_models"][0]["count"], 1);
+
     // anonymous → 403 même avec consentement individuel.
     set_policy("anonymous");
     let anon = fx
