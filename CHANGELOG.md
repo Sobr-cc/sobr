@@ -14,6 +14,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   announced with the V1 launch, and the README changes then. The card for the
   organizations' trial is kept (SOB-105). Numbered after Amendment 2
   (SOB-154).
+
 ### Changed — Free personal space (2026-10-31, SOB-154)
 
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
