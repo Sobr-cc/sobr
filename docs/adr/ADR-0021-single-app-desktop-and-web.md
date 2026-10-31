@@ -335,6 +335,11 @@ The text above stays as written; the changes below apply on top of it.
      * `/estimer` is ADR-0027 point 5: in the web context, `/` keeps the
        redirect by role of §4.
      * `/datasheets` and `/journal` stay on desktop.
+     * `/datacenters` and `/territoire` show no map in the web context.
+       Their Leaflet maps load CARTO tiles, which `img-src 'self' data:`
+       blocks, and allowing them would send the person's IP address and
+       map area to CARTO. The tables, figures and the Sankey stay
+       (ADR-0027 §2).
 2. **Point 3.** The Understand section moves to the web through ADR-0027.
    The four reasons listed there are answered:
    * the prompt leaves the URL (SOB-247);

@@ -240,8 +240,10 @@ measured on this module.
     in libraries.
     * With `getrandom` 0.2 (what `rand` 0.8 uses today), the feature is
       `js`.
-    * If `rand` moves to 0.3 or later, the feature becomes `wasm_js`. Some
-      early 0.3 releases also need the `getrandom_backend="wasm_js"` cfg.
+    * If `rand` moves to 0.9 or later (`getrandom` 0.3), the feature
+      becomes `wasm_js`. Some early `getrandom` 0.3 releases also need the
+      `getrandom_backend="wasm_js"` cfg. `Cargo.lock` already holds `rand`
+      0.9 and `getrandom` 0.3 for other crates.
     * None of our other crates enables it.
 
 ### 2. One function, JSON in and out
@@ -270,6 +272,16 @@ measured on this module.
 `get_industrial_site_fr` (`main.rs:629`) is registered but no page calls it,
 so it is not listed.
 
+**No map in the web context.** `/datacenters` and `/territoire` show
+Leaflet maps that load CARTO tiles (`DatacenterMap.svelte:147`,
+`TerritoireMap.svelte:120`).
+
+* The web CSP (`img-src 'self' data:`, ADR-0021 §3) blocks those tiles.
+* Widening it would send the person's IP address and map area to CARTO.
+
+So in the web context these two pages show their tables, figures and the
+Sankey, with no map. Self-hosted tiles would be a separate decision.
+
 ### 3. Build
 
 * **The script.** `scripts/build-wasm.sh`:
@@ -280,29 +292,42 @@ so it is not listed.
      `strip`, `panic = "abort"`);
   3. `wasm-bindgen --target web --out-dir web/src/lib/wasm/pkg`;
   4. print the raw and gzipped sizes.
-* **Ignore lists.** `web/src/lib/wasm/pkg/` goes in `.gitignore`, in the
-  ESLint ignores (`web/eslint.config.js`) and in `web/.prettierignore`, as
-  the demo fixtures already are.
+* **Ignore lists.** `web/src/lib/wasm/pkg/` goes in all three lists:
+  `.gitignore`, the ESLint ignores (`web/eslint.config.js`) and
+  `web/.prettierignore`.
 * **The toolchain.** `rust-toolchain.toml` already lists the
   `wasm32-unknown-unknown` target. A Docker stage that does not copy it
   adds the target itself.
 * **Local use.** Run the script once before working on the web context
   (`VITE_SOBR_RUNTIME=server`). Other front-end work does not need it.
-* **CI, so that what is tested and measured is what ships:**
-  * **A first job, "WASM — build + parity".** It installs
-    `wasm-bindgen-cli` at the `Cargo.lock` version (`cargo install
-    --locked`, cached by version), runs the script and the parity test
-    (§7), and uploads the generated files.
-  * **Every job that builds `web/` for something shipped or measured**
-    downloads those files before `vite build`:
-    * in `ci.yml`, "web — lint + check + build", "web — Playwright",
-      "Frugality — binary sizes" and the reusable `app-build.yml` (the
-      desktop app, whose Tauri `beforeBuildCommand` runs `vite build`);
-    * for releases, `app-release.yml` (through `app-build.yml`),
-      `team-aggregator-release.yml` and `team-docker.yml`. Their web stage
-      moves from `web-team/` to `web/` with SOB-109.
-  * **A release build fails** when `build/_app/immutable/assets/` holds no
-    `.wasm`.
+* **CI and releases, so that what is tested and measured is what ships:**
+  * **A reusable workflow, `wasm-build.yml`** (`workflow_call`).
+    * It installs `wasm-bindgen-cli` at the `Cargo.lock` version (`cargo
+      install --locked`, cached by version).
+    * It runs the script and the parity test (§7), and uploads the
+      generated files as an artifact of the calling run.
+    * An artifact is reachable only from the run that uploaded it, so every
+      workflow that builds `web/` calls `wasm-build.yml` first, and its web
+      jobs download the files before `vite build`.
+  * **`ci.yml`** calls it first. "web — lint + check + build",
+    "web — Playwright", "Frugality — binary sizes" and the desktop build (the
+    reusable `app-build.yml`, whose Tauri `beforeBuildCommand` runs `vite
+    build`) download from that same run.
+  * **`app-release.yml`** calls it before `app-build.yml`, and
+    **`team-aggregator-release.yml`** calls it before its web build. Their web
+    stage moves from `web-team/` to `web/` with SOB-109.
+  * **The Docker image** (`team-docker.yml`, `deploy/team/Dockerfile`) cannot
+    take a run artifact: its web stage builds inside Docker, and its
+    `Dockerfile.dockerignore` keeps `web/` outside the build context.
+    * So the Dockerfile gets a `wasm-builder` stage (`rust:1-slim`, the
+      `wasm32-unknown-unknown` target, `wasm-bindgen-cli` at the
+      `Cargo.lock` version), which runs `scripts/build-wasm.sh`.
+    * The web stage copies the generated files from it before `vite build`.
+    * SOB-109 makes this change, when it moves the image from `web-team/`
+      to `web/`.
+  * **Every release build fails** when `build/_app/immutable/assets/` holds
+    no `.wasm`: `app-build.yml` on a tag, `team-aggregator-release.yml`, and
+    the Docker web stage.
 * **`scripts/build-all.sh`.** Its last step,
   `cargo build … -p sobria-core || echo "⚠ Wasm build non disponible"`, is
   a placeholder. SOB-264 replaces it with `build-wasm.sh`, run before the
@@ -337,9 +362,17 @@ so it is not listed.
 
 * **The thread.** The module runs on the main thread.
 * **A panic.** The release profile has `panic = "abort"`, so a panic in the
-  module is a WebAssembly trap, outside the `{"err"}` contract. The loader
-  catches it, returns `{"code": "internal"}`, and loads a new instance
-  before the next call.
+  module is a WebAssembly trap, outside the `{"err"}` contract.
+  * After a trap, the instance is in an unknown state, and the
+    `wasm-bindgen` glue keeps that same instance in a module variable:
+    calling its init again returns it unchanged.
+  * So the loader catches the trap and marks the module broken. That call,
+    and every later one, returns `{"code": "internal"}`.
+  * The page then asks the person to reload it. The reload creates a fresh
+    instance.
+  * A panic is a bug, so this path should be rare. If it is not, running
+    the module in a Web Worker that is replaced after a trap is the next
+    step (below).
 * **A Web Worker** is added only if a measurement on a slow laptop shows a
   freeze. It is then a same-origin file, never `blob:` or `data:`. The
   server sends the CSP of §6 on its response too: a worker follows the CSP
