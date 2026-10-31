@@ -7,6 +7,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0013 and ADR-0014 wording after the free personal space (2026-10-31, SOB-177)
+
+- **ADR-0013, Amendment 2**: the Validation note now reads "pas de cloud
+  central" like the note under "Ce qu'on ne fera PAS" (no closed, central
+  SaaS), so exactly two lines are excepted everywhere. The note quotes those
+  two lines. The managed-cloud paragraph records Thibault's answer (SOB-165,
+  option 1: keep the reading). The SOB-87 sentences of both ADRs read in one
+  tense.
+
 ### Fixed — deterministic wrong-code pairing test (2026-10-31, SOB-92)
 
 - **`sobria-app`** (`bridge_server.rs`, test module):
@@ -97,11 +106,11 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
   is free for individuals; the 30-day trial and the per-seat price apply to
   organizations only. It settles the two open points of Amendment 1: the price
-  and the conflict with ADR-0013.
+  and the conflict with ADR-0013. Limits on the free space and the date of sync
+  between machines are not decided here.
 - **ADR-0013, Amendment 2** (Accepted): the personal space is an explicit
   exception to "no hosted accounts" and "no multi-device sync"; organizations
-  keep the rule. Thibault's answer: SOB-136. Limits on the free space and the
-  date of sync between machines are not decided here.
+  keep the rule. Thibault's answer: SOB-136.
 
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 

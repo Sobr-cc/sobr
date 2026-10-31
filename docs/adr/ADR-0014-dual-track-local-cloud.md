@@ -31,7 +31,7 @@
 2. A public justification: this section and the CHANGELOG entry. The README is unchanged for now (see below).
 3. 30 days' notice for managed users: nobody uses the managed cloud yet, so nobody is notified. The notice applies to any later change of these conditions.
 
-The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. If SOB-87 decides to supersede instead, the section moves into a new ADR unchanged. SOB-87 has since chosen amendment by PR; SOB-127 updates the README.
+The Révision section asks for a separate "ADR-0014-amendement" document. This amendment is a section of this file, as SOB-35 asks. SOB-87 chose amendment by PR; SOB-127 updates the README.
 
 **Not covered here.** These passages still describe the previous plan or an open point. They need their own decision, and are not edited here. Amendment 3 (SOB-103) aligns, or keeps with a reason, the README, the diagram label, the pairing row and the phasing; Amendment 2 (SOB-154) settles the price and the conflict with ADR-0013.
 

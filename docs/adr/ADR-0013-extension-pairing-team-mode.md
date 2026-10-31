@@ -14,8 +14,7 @@
   amendment replaces.
 - The amendment is written in place because SOB-34 asks for it, although
   `docs/adr/README.md` says an Accepted ADR is changed by a new one.
-  SOB-87 decides between the two forms; this section can move unchanged
-  into a new ADR. SOB-87 has since chosen amendment by PR; SOB-127 updates the README.
+  SOB-87 chose amendment by PR; SOB-127 updates the README.
 - It is in English under the October 30 language rule.
 
 **What changes.** Stage 1, steps 1 to 3: the person no longer types a 6-digit
@@ -248,7 +247,7 @@ A person can have a personal space on the Sobr server (ADR-0014 Amendment 1): a 
 
 **When and why.** ADR-0014 Amendment 1 (October 30) allowed a personal space that these two lines forbid, while ADR-0014 still said "Cohérence ADR-0013". Thibault answered SOB-136 on October 31 with the recommended option A: amend ADR-0013 by PR, make the personal space an explicit exception, and let organizations keep the rule.
 
-**Not covered here.** Organizations on the managed cloud: Sobr hosts their server (ADR-0014, May 2026, which chose that offer and kept alternative 2 rejected). The answer says organizations keep the rule. This amendment reads the rule as describing the organization server run by the organization, and leaves the managed cloud to ADR-0014. If Thibault wants the two lines reworded for managed organizations, that is a new decision.
+**Not covered here.** Organizations on the managed cloud: Sobr hosts their server (ADR-0014, May 2026, which chose that offer and kept alternative 2 rejected). The answer says organizations keep the rule. This amendment reads the rule as describing the organization server run by the organization, and leaves the managed cloud to ADR-0014. Thibault confirmed this reading on October 31 (SOB-165, option 1), so the two lines are not reworded for managed organizations.
 
 **Issues.** SOB-154, SOB-136 (the answer), SOB-35 (ADR-0014 Amendment 1), SOB-34 (Amendment 1 of this ADR), SOB-87 (amendment by PR).
 
@@ -318,7 +317,7 @@ Flux :
 
 ### Ce qu'on ne fera PAS
 
-> Amendment 2 (2026-10-31): the second and last lines do not apply to the personal space. Organizations keep them. The first line is read with ADR-0014: a closed, central SaaS stays rejected, and the same open-source binary hosted by Sobr is allowed.
+> Amendment 2 (2026-10-31): the lines "Pas de comptes utilisateurs hébergés par nous" and "Pas de mode synchro multi-postes du même utilisateur en v1" do not apply to the personal space. Organizations keep them. The line "Pas de cloud Sobr.ia centralisé (SaaS)" is read with ADR-0014: a closed, central SaaS stays rejected, and the same open-source binary hosted by Sobr is allowed.
 
 - Pas de cloud Sobr.ia centralisé (SaaS).
 - Pas de comptes utilisateurs hébergés par nous.
@@ -391,7 +390,7 @@ Plus simple mais aucune protection contre une extension malveillante installée 
 > Amendment 1 (2026-10-30): the explicit opt-in of stage 1 is now the one-time
 > "Connect my browsers" choice in the app.
 >
-> Amendment 2 (2026-10-31): "pas de cloud central" no longer holds without an exception: the personal space on the Sobr server is hosted by Sobr. It stays opt-in (guest mode is the default) and sends no prompt text (ADR-0014 conditions 1 and 3).
+> Amendment 2 (2026-10-31): "pas de cloud central" is read as in "Ce qu'on ne fera PAS": no closed, central SaaS. The personal space runs on the same open-source binary hosted by Sobr, stays opt-in (guest mode is the default) and sends no prompt text (ADR-0014 conditions 1 and 3).
 
 - Cohérence CLAUDE.md §7 ✓ (pas de cloud central, opt-in explicite à chaque étage).
 - Cohérence pitch data.gouv.fr ✓ (souveraineté, code ouvert, self-hosted).
