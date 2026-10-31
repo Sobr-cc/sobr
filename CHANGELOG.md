@@ -7,15 +7,26 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — One golden update run rewrites every file (2026-10-31, SOB-137)
+
+- **`sobria-estimator`** (characterization tests): with `SOBRIA_UPDATE_GOLDEN=1`,
+  a test that checks several golden files now rewrites all the changed ones in
+  one run, then fails once, listing them (new `Goldens` collector in
+  `tests/characterization/golden.rs`). Before, it stopped at the first
+  rewritten file. `assert_golden` is unchanged for single-file tests. Test
+  code only: the estimator and the golden values are untouched.
+
 ### Added — Official model sources per provider (2026-10-31, SOB-6)
 
 - **`docs/sources/CATALOGUE-SOURCES.md`**: new section listing, for the nine
   providers of the model referential, the official model list API, pricing
   page, terms on automated access, published context windows and retired
   models, and whether scraping would be needed. A Hugging Face section covers
-  the no-key source for the open-weight models (Llama, Qwen, Phi). Providers
-  without an official machine-readable source (Meta Llama, Microsoft) are
-  listed apart with a recommendation. No code and no model data changed.
+  the no-key source for the open-weight models of the referential (Llama, Phi,
+  Mistral, DeepSeek); the closed models need each provider's API key.
+  Providers without an official machine-readable source (Meta Llama,
+  Microsoft) are listed apart with a recommendation. No code and no model
+  data changed.
 
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 

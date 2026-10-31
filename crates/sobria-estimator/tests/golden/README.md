@@ -33,8 +33,10 @@ Remove-Item Env:SOBRIA_UPDATE_GOLDEN
 
 Un test qui réécrit un fichier **échoue exprès** (une variable restée
 exportée ne doit pas absorber une régression en silence) : relancer ensuite
-sans la variable pour vérifier. Si un test est renommé, supprimer à la main
-l'ancien fichier `.json`.
+sans la variable pour vérifier. Un seul passage réécrit tous les fichiers
+modifiés, à condition qu'un test qui vérifie plusieurs golden files partage un
+seul `Goldens` (voir `tests/characterization/golden.rs`). Si un test est
+renommé, supprimer à la main l'ancien fichier `.json`.
 
 Ces tests ne disent pas si les valeurs sont **justes** (voir le module
 `validation` de la crate), seulement qu'elles ne bougent pas.
@@ -71,7 +73,10 @@ Remove-Item Env:SOBRIA_UPDATE_GOLDEN
 
 A test that rewrites a file **fails on purpose** (a variable left exported
 must not silently absorb a regression): re-run without the variable to
-verify. If a test is renamed, delete the old `.json` file by hand.
+verify. One run rewrites every changed file, provided that a test that checks
+several golden files shares a single `Goldens` (see
+`tests/characterization/golden.rs`). If a test is renamed, delete the old
+`.json` file by hand.
 
 These tests do not tell whether the values are **right** (see the crate's
 `validation` module), only that they do not move.
