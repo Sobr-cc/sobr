@@ -1,49 +1,50 @@
-# Contribuer à Sobr.ia
+# Contributing to Sobr.ia
 
-Merci de l'intérêt que vous portez au projet. Sobr.ia est open-source (MIT, Etalab 2.0, CC-BY) et ouvert aux contributions.
-
----
-
-## Avant tout
-
-1. Lire [`README.md`](README.md), [`CLAUDE.md`](CLAUDE.md), et le [cahier des charges](docs/CAHIER-DES-CHARGES-v1.0.md).
-2. Identifier le sprint actif dans [`docs/ROADMAP.md`](docs/ROADMAP.md) et le brief associé.
-3. Respecter les [ADR](docs/adr/) — les décisions architecturales sont actées.
+Thank you for your interest in the project. Sobr.ia is open source (MIT, Etalab 2.0, CC-BY) and open to contributions.
 
 ---
 
-## Cycle de contribution
+## Before you start
 
-1. **Discuter d'abord** — ouvrir une issue GitHub pour décrire l'idée avant de coder.
-2. **Forker / brancher** — branche `feature/<scope>-<short-desc>` ou `fix/<short-desc>`
-   (mainteneurs : préfixer avec l'identifiant Linear, ex. `feature/sob-123-<short-desc>` — ADR-0018).
-3. **Coder en respectant** la [Definition of Done](CLAUDE.md#5-definition-of-done-dod).
-4. **Commits** au format Conventional Commits (voir CLAUDE.md §4.3).
-5. **Pull Request** — référencer l'issue + ADR concernés.
-6. **Revue** — au moins 1 mainteneur, CI verte, et discussion résolue.
+1. Read [`README.md`](README.md), [`CLAUDE.md`](CLAUDE.md) and the [specification](docs/CAHIER-DES-CHARGES-v1.0.md).
+2. Find the active sprint in [`docs/ROADMAP.md`](docs/ROADMAP.md) and its brief.
+3. Follow the [ADRs](docs/adr/): the architecture decisions are settled.
 
 ---
 
-## Standards techniques
+## Contribution cycle
 
-| Aspect | Outil | Cible |
-|--------|-------|-------|
-| Format Rust | `cargo fmt --all` | obligatoire |
-| Lint Rust | `cargo clippy --workspace --all-targets -- -D warnings` | obligatoire |
-| Couverture tests | `cargo tarpaulin --workspace` | ≥ 80 % |
-| Format TS | `prettier` | obligatoire |
-| Lint TS | `eslint` strict | obligatoire |
-| Audit sécurité | `cargo audit` + `cargo deny check` | 0 critical |
-| Accessibilité | `axe-core` via Playwright | RGAA AA |
+1. **Discuss first:** open a GitHub issue that describes the idea before you write code.
+2. **Fork or branch:** branch `feature/<scope>-<short-desc>` or `fix/<short-desc>`
+   (maintainers: prefix with the Linear issue, for example `feature/sob-123-<short-desc>`; ADR-0018).
+3. **Code** following the [Definition of Done](CLAUDE.md#5-definition-of-done-dod).
+4. **Changelog:** add one fragment file in [`changelog.d/`](changelog.d/README.md), named `<issue>-<slug>.<category>.md`. Do not edit `CHANGELOG.md`: the fragments are moved there at release.
+5. **Commits** in the Conventional Commits format (see CLAUDE.md §4.3).
+6. **Pull request:** reference the issue and the ADRs it touches.
+7. **Review:** at least one maintainer, green CI, and every discussion resolved.
+
+---
+
+## Technical standards
+
+| Aspect | Tool | Target |
+|--------|------|--------|
+| Rust format | `cargo fmt --all` | required |
+| Rust lint | `cargo clippy --workspace --all-targets -- -D warnings` | required |
+| Test coverage | `cargo tarpaulin --workspace` | ≥ 80 % |
+| TS format | `prettier` | required |
+| TS lint | strict `eslint` | required |
+| Security audit | `cargo audit` + `cargo deny check` | 0 critical |
+| Accessibility | `axe-core` through Playwright | RGAA AA |
 
 ---
 
 ## Developer Certificate of Origin (DCO)
 
-En ouvrant une PR, vous certifiez que vous avez le droit de soumettre la
-contribution et que vous acceptez le DCO ([texte officiel](https://developercertificate.org/)).
+By opening a PR, you certify that you have the right to submit the
+contribution and that you accept the DCO ([official text](https://developercertificate.org/)).
 
-Signer vos commits :
+Sign your commits:
 
 ```bash
 git commit -s -m "feat(estimator): add Monte-Carlo propagation"
@@ -51,32 +52,32 @@ git commit -s -m "feat(estimator): add Monte-Carlo propagation"
 
 ---
 
-## Méthodologie scientifique — règles strictes
+## Scientific method: strict rules
 
-Voir CLAUDE.md §6 et `docs/methodology/`.
+See CLAUDE.md §6 and `docs/methodology/`.
 
-- ✅ Toute formule de calcul est sourcée (commentaire avec DOI/URL).
-- ✅ Toute hypothèse a une distribution d'incertitude documentée.
-- ✅ Tout résultat affiche un intervalle P5-P95.
-- ✅ Reproductibilité par seed (`SOBRIA_SEED`, défaut 42).
-- ❌ Pas de chiffre "magique" sans citation.
+- ✅ Every formula is sourced (a comment with a DOI or URL).
+- ✅ Every assumption has a documented uncertainty distribution.
+- ✅ Every result shows a P5-P95 interval.
+- ✅ Reproducible with a seed (`SOBRIA_SEED`, 42 by default).
+- ❌ No "magic" number without a citation.
 
 ---
 
-## Architecture médaillon — règles non-négociables
+## Medallion architecture: non-negotiable rules
 
-Voir ADR-0009.
+See ADR-0009.
 
-- Toute donnée externe traverse Copper → Silver → Gold.
-- Une nouvelle source = un seul trait `DataLayer` implémenté.
-- Pas de transformation *ad hoc* hors du pipeline.
+- All external data goes through Copper → Silver → Gold.
+- A new source = one `DataLayer` trait to implement.
+- No *ad hoc* transformation outside the pipeline.
 
 ---
 
 ## Communication
 
-- **Issues** : pour les bugs, idées, questions.
-- **Discussions** : pour les sujets d'architecture.
-- **Email mainteneurs** : sécurité ou conflit (voir SECURITY.md).
+- **Issues:** for bugs, ideas and questions.
+- **Discussions:** for architecture topics.
+- **Maintainers' email:** for security or a conflict (see SECURITY.md).
 
-Tous les échanges suivent le [Code de conduite](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1).
+All exchanges follow the [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1).
