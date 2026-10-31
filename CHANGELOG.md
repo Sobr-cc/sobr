@@ -5,21 +5,24 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
-### Changed — sobria-estimator Deep cleanup (2026-10-31, SOB-19)
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
-- **`sobria-estimator`**, no output change (golden files, error texts and the
-  180 tests unchanged): one definition of the default PUE, WUE and
-  electricity mix; shared helpers for the indicators, equivalents,
-  hypotheses and indicator lookup of both engines; the two forecasts share
-  their checks and growth step (`forecast.rs`); the unit tests share one
-  request fixture. Wrong docs fixed (reproduction targets computed from the
-  presets, J written for kJ, "annual" fields, a missing attribution file,
-  `# Panics`), history comments removed, README rewritten.
-- Filed instead of fixed: SOB-209 (unsourced figures and claims), SOB-210
-  (estimator behaviors), SOB-227 (module structure), SOB-228 (logic the app
-  re-implements).
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
 
 ### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
 
