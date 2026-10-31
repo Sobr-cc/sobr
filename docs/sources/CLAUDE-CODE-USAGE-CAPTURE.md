@@ -31,17 +31,17 @@ This restates the upload contract of ADR-0022 for Claude Code sources; it adds n
 | Input, output and cache token totals | OpenTelemetry metrics, or the transcript read at the end of the session |
 | Cost estimate | status line, OpenTelemetry, or the transcript (an estimate at list price, not a bill) |
 | Energy, CO₂ and water with P5, P50, P95, method and version | computed by Sobr from the tokens and the model |
-| Folder, repo and branch of the session (device only, never uploaded) | the folder is the `cwd` value (hooks, status line, or the transcript's `cwd` key; never the transcript's project folder name, which loses characters); the branch is the transcript's `gitBranch` key; the repo is read on the device from the git remote of `cwd`. If `cwd` or the branch changes during a session, all the values are kept: the context of a session is the union of its reports (ADR-0025 section 7) |
+| Folder, repo and branch of the session (device only, never uploaded) | the folder is the `cwd` value (hooks, status line, or the transcript's `cwd` key; never the transcript's project folder name, which loses characters); the branch is the transcript's `gitBranch` key; the repo is read on the device, best effort, from the `origin` remote of `cwd` (none if there is no `origin`), and only a normalized `host/owner/repo` is kept: credentials, query strings and local paths are dropped, and the value read at import time can differ from the one at the time of the session. If `cwd` or the branch changes during a session, all the values are kept: the context of a session is the union of its reports (ADR-0025 section 7) |
 
 **Kept on the device, never uploaded**: the working folder, the repo and the branch of a session, for 24 months (SOB-198, stated in ADR-0025 section 7). Like clock times (ADR-0022 section 10), they never leave the device, and rules from corrections use them, also on past sessions (ADR-0022 section 6). The server never receives them: the upload contract carries only the project or task ID, never these values, so no sync of a personal space carries them either, and no log line holds them. A session seen only through OpenTelemetry has no folder, repo or branch, and a rule that needs them does not match it.
 
-**Never stored**: prompt or response text and anything derived from it (a title, a summary, a first message), tool inputs and outputs, the paths of the files a session reads or writes, command lines, conversation URLs, and clock times on the server (ADR-0022).
+**Never stored**: prompt or response text and anything derived from it (a title, a summary, a first message), tool inputs and outputs, any other path (the transcript path, the paths of the files a session reads or writes, the paths in the dictionaries with free keys), command lines, conversation URLs, and clock times on the server (ADR-0022). Of all the paths, only the session's working folder is kept, on the device.
 
 Each source also hands over fields that must be **dropped at the boundary**, before they reach any variable that outlives the call:
 
 - the hook fields `prompt`, `last_assistant_message`, `delta`, `tool_input`, `tool_response`;
 - the status line `session_name` (it can be a title generated from the first prompt), and the Agent SDK `firstPrompt` and `summary`;
-- every OpenTelemetry attribute outside the allow-list, such as `user.email`, `user.account_uuid`, `user.account_id`, `organization.id`, `user.id`, `prompt.id` and the file path attributes (the folder, repo and branch come from the hooks, the status line or the transcript, on the device);
+- every OpenTelemetry attribute outside the allow-list, such as `user.email`, `user.account_uuid`, `user.account_id`, `organization.id`, `user.id`, `prompt.id` and the file path attributes (the folder is the `cwd` value, the branch the `gitBranch` key and the repo the `origin` remote, all read on the device; see "What Sobr stores per session");
 - everything in a transcript line other than the few keys in the allow-list.
 
 ## 1. Local logs
@@ -163,7 +163,7 @@ ADR-0019 decision 4 (option 4a) puts the **log import in a crate of `sobr`**: it
 
 Each one is a Linear issue.
 
-1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID, and the working folder, repo and branch) from real sample files, and pin them with golden tests.
+1. **Research, SOB-161**: find the transcript keys Sobr needs (model, token counts, a time, the session ID, `cwd` and `gitBranch`) from real sample files, and pin them with golden tests. Done in the transcript keys note (SOB-161); the repo has no key and comes from the `origin` remote of `cwd`.
 2. **Research, SOB-163**: check on a real session whether the transcript session ID, `session_id` (hooks, status line) and `session.id` (OpenTelemetry) are one value; input for SOB-146.
 3. **Research, SOB-166**: build a collector configuration for the metrics-only path and check, with a real Claude Code run, the paths, the headers, the temporality and what happens when the receiver is down.
 
