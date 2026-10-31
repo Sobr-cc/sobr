@@ -1,0 +1,20 @@
+# Stand-in for the desktop app's local OpenTelemetry receiver, for tests (SOB-166).
+# Accepts OTLP metrics on the default ports and writes every request as one JSON line. Forwards nothing.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 127.0.0.1:4318
+      grpc:
+        endpoint: 127.0.0.1:4317
+
+exporters:
+  file:
+    path: ${env:SOBR_STUB_LOG:-stub-log.jsonl}
+    flush_interval: 1s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [file]
