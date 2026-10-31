@@ -1,8 +1,7 @@
 # ADR-0023 — The Sobr MCP server contract
 
-- **Status**: Proposed. Thibault answered the eight points on 2026-10-31
-  (SOB-152): every recommendation. It becomes Accepted once ADR-0022 (PR #18)
-  is merged (ADR-0019 is merged)
+- **Status**: Accepted (2026-10-31). Thibault answered the eight points
+  (SOB-152): every recommendation. ADR-0019 and ADR-0022 are merged
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (answers of 2026-10-31, recorded in SOB-152); CTO
   recommendation
@@ -10,8 +9,8 @@
 - **Settles**: the condition of ADR-0019, decision 4 (where the MCP server
   lives). ADR-0019 is merged (PR #2); if its decision 4 changes, this ADR is
   amended
-- **Depends on**: ADR-0022, the data model (SOB-143, PR #18, not merged yet),
-  for projects, tasks and sessions
+- **Depends on**: ADR-0022, the organization, project, task and session model
+  (SOB-143), for projects, tasks and sessions
 
 > **Summary.** Claude reads and acts on Sobr through MCP tools, within the
 > rights of the person who connected it. Two front doors share one contract:
@@ -106,8 +105,8 @@ recommended one, for points 1 to 7 and confirmed point 8.
 | 7. MCP library | A: a two-point spike before any choice |
 | 8. Prerequisite | Confirmed: SOB-114 and SOB-115 before the organization read tools and exports |
 
-The design does not change: the decisions below stand as written. What is
-left is the merge of ADR-0022 (PR #18), then the status.
+The design does not change: the decisions below stand as written. ADR-0019 and
+ADR-0022 are merged, so the status is Accepted.
 ## Context and problem statement
 
 ### What the design asks for
@@ -515,6 +514,7 @@ tightens but cannot be undone through the MCP).
 | Loosen the visibility policy (any step), and the works council attestation | More of people's data is exposed: a human decision with a legal statement (ADR-0016) |
 | Billing and payment; SSO, SCIM, mail and integration secrets | Money and secrets |
 | Delete the organization or an account | Out of proportion for a model call |
+| Withdraw a session from an organization to the personal space (ADR-0022, section 3) | It crosses two spaces, and one connection serves one space; the person does it in the app |
 | Webhook URLs and any other destination the model picks | Data would leave to a place the model chooses |
 | Commands that take a file path (`run_batch_from_csv`, `export_audit_ndjson`, `export_csrd_report`) | The model would choose where files are read or written |
 | `reload_referentiel` (runs `dvc pull`) | Network and disk write, and SOB-126 is open |
@@ -747,8 +747,8 @@ extension project; they join issues 14 and 15 when those exist.
 - ADR-0012 (audit ledger), ADR-0013 (bridge, pairing), ADR-0014 (personal
   space, single binary), ADR-0015 and ADR-0016 (privacy, visibility),
   ADR-0019 (repo split, PR #2, decision 4), ADR-0020 (rename; signed data is never rewritten),
-  ADR-0021 (single app, roles `user` and `admin`), ADR-0022 (data model,
-  PR #18)
+  ADR-0021 (single app, roles `user` and `admin`), ADR-0022 (organization,
+  project, task and session model)
 - MCP specification, revision 2026-07-28:
   [transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports),
   [Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http),
