@@ -16,6 +16,73 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   its three accepted messages (tightening it is SOB-157). No production code
   changed.
 
+### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
+
+- **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in
+  `sobr` covers `web/`, whose links to the methodology glossary and the team
+  server guide would break; `sobria-bridge` leaves the second docs step list.
+  The extension parity test uses the three EcoLogits cases with each case's
+  tolerance. `sobr` keeps a copy of `LICENSE-DATA` for the Etalab data of
+  `sobria-geoloc`. The site links to three technical pages have a stated
+  outcome. The second docs step is one issue per folder, plus the demo fixtures: 77 points.
+
+### Added — ADR-0022, organization, project, task and session model (2026-10-31, SOB-143)
+
+- **ADR-0022** (Accepted 2026-10-31; Thibault took every recommendation in
+  SOB-151): every use of an AI tool is a session that belongs
+  to one person and, once known, one space: personal or organization. A
+  project and a task are optional, a task belongs to one project, and an
+  unclassified session waits in "to classify".
+  - Projects and tasks are made by hand or linked to Linear, GitHub and
+    later trackers through one generic external link. Solo mode is one
+    hidden project.
+  - Only the person attaches their own sessions; project editors act
+    through project links, and others see daily totals, never single
+    sessions (ADR-0015). A session can be withdrawn from an organization to
+    the personal space, never the other way.
+  - One Rust crate holds the model for the desktop app and the server. Each
+    space has its own database and member IDs, with random UUIDs. Every
+    client uploads through one contract with no text and no clock time,
+    only the day, and the server refuses any other field.
+  - Everything starts fresh: nothing is converted, and the old stores stay
+    readable and exportable. The ADR lists fifteen issues to create and
+    the Deep cleanups they wait for.
+  - Breakdowns by project and by task appear only when every group shown,
+    the remainder included, has k contributors (SOB-148, option 1); SOB-153
+    amends ADR-0016 to match.
+  - A personal space can sync between machines through the Sobr server
+    (ADR-0013 and ADR-0014, Amendment 2). Session identity across sources
+    stays with SOB-146.
+
+### Changed — ADR README says an accepted ADR is amended in place (2026-10-31, SOB-127)
+
+- **`docs/adr/README.md`**: the "immutable once Accepted" rule is replaced by the
+  rule Thibault chose in SOB-87: an accepted ADR is amended in place, by a PR he
+  approves; `Supersedes` stays for a new ADR he explicitly asks for; an ADR with
+  its own revision section (ADR-0014) keeps its extra steps. The file is
+  translated to English (translate when touched, SOB-100); the ADR titles in the
+  index are left as they are.
+
+### Added — Claude Code usage capture note (2026-10-31, SOB-145)
+
+- **`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`**: proposal for measuring
+  Claude Code without storing prompts. It covers the local transcripts (an
+  undocumented, unstable format), the plugin (status line and hooks),
+  OpenTelemetry for organizations, double counting and where the import is
+  built (ADR-0019 decision 4), with an official source for each fact and a
+  list of what is stored per session. Thibault's answers to SOB-162 (read the
+  transcripts, with guard rails) and SOB-164 (one consent step enables the
+  status line) are recorded; the open follow-ups are SOB-161, 163 and 166.
+  No code changed.
+
+### Changed — ADR-0014 phasing and feature table aligned with October 30 (2026-10-31, SOB-103)
+
+- **ADR-0014, Amendment 3** (Accepted): the phasing follows the calendar of
+  October 30, the data.gouv.fr application is off (SOB-104), the cloud is
+  announced with the V1 launch, and the README changes then. The card for the
+  organizations' trial is kept (SOB-105). Numbered after Amendment 2
+  (SOB-154).
+
 ### Changed — Free personal space (2026-10-31, SOB-154)
 
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
