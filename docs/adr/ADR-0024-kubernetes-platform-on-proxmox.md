@@ -99,7 +99,7 @@ confirmed, in SOB-181.
 
 ## Amendment 1 — The shared host, a smaller starting cap and the portability rule (2026-10-31)
 
-**Status.** In force when the PR is merged (SOB-218, SOB-87: amendment by PR); where it conflicts with the original text, the amendment wins. The ADR itself stays Proposed until Thibault confirms the facts of A1 that are still open. The original text is kept, and a note under each heading marks what changes. The sections of this amendment are numbered A1 to A7, and "§" points to the sections of the original.
+**Status.** In force when the PR is merged (SOB-218, SOB-87: amendment by PR); where it conflicts with the original text, the amendment wins, and the issues are created from its notes and from A2 and A3, not from the original table of issues. Option A of A3 is the CTO's recommendation under the cap; Thibault's decisions are the cap, the shared front end and the rules P1 to P5. The ADR itself stays Proposed until Thibault confirms the facts of A1 that are still open. The original text is kept, and a note under each heading marks what changes. The sections of this amendment are numbered A1 to A7, and "§" points to the sections of the original.
 
 **Why.** This ADR was written before the survey of the host (SOB-181). The host is shared with another project's production, and Thibault decided that Sobr may run everything on it with one rule, portability (SOB-211). He set the scope of Claude's approvals (SOB-212), the split with BrilliantStudio's repo and the shared front end (SOB-213), and a starting cap for Sobr. The layout of the host, its ranges, limits and rules are in the host contract, which is private because it describes a private host. ADR-0026 holds how Sobr deploys.
 
@@ -108,10 +108,10 @@ confirmed, in SOB-181.
 The details of the host are in the private contract and in SOB-181. This ADR keeps what its decisions need:
 
 - **The host is shared** with another project's production, which has priority. Host-level changes need Thibault's explicit go.
-- **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (SOB-213 and the draft of the host contract). The 64 to 80 GB of §8 do not fit.
+- **Sobr's starting cap** is 10 GB of memory, 4 vCPU and 200 GB of disk, in total (set by Thibault on October 31, SOB-213). The 64 to 80 GB of §8 do not fit.
 - **One failure domain** until §7's second one exists.
 - **Reachability from outside is limited at the host,** so the default mesh port may not be reachable (A4).
-- **Open facts** that Thibault still has to confirm are listed in SOB-181 (private).
+- **Open facts** that Thibault still has to confirm are listed in SOB-181 (private), among them the third place for the small key machine of §6 and for a third copy of the backups.
 
 ### A2. The ten points against the facts
 
@@ -121,11 +121,11 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 | 2 Knative | Yes | Its memory cost (a few hundred MB) matters under the cap |
 | 3 Local volumes | Yes | The token that powers a VM off (§3) is limited to Sobr's VMs |
 | 4 Network, Cilium, certificates | Yes | The nodes sit on a Sobr bridge created once by Thibault (host contract) |
-| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
+| 5 Entry through an EU front server | Yes, and it is shared | One small EU server is a layer-4 relay on the TLS host name (SNI), with no TLS termination: each project keeps its certificates and keys on its side. Each project has its own tunnel, keys and routes, and an unknown host name is refused. The tunnels start from the host side, so no new port is opened. The text "the other site keeps the home address and its nginx" is out of date: the other site's front end is replaced by the shared relay. PROXY protocol v2 keeps the client's real address, abuse limits move to the gateway behind the relay, and a client with no host name in its handshake is refused. A routing change goes through a PR read by both projects and validated by Thibault; if that is not accepted, there are two front ends (SOB-213) |
 | 6 Layout of the services | Yes | None |
-| 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
+| 7 CI runners | Yes, but not yet | The design holds: isolated throwaway VMs with no route to the management network or to the other project's machines. The cap leaves no room for one, so CI stays on GitHub's runners until the cap rises or a second machine exists (SOB-75) |
 | 8 The cloud opens after its protections | Yes | The assumption about power in the availability text is not relied on. The risk is in A6 |
-| 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (rollback copies on another disk) is replaced by a copy in a third place. A restore test somewhere other than the host proves portability (A5, P3) |
+| 9 Four backup layers | Yes, layer 3 changes | Layers 1 and 2 are off the machine and hold. The host's own backup server is not a Sobr layer, so layer 3 (VM rollback by the backup server) goes: a bad node upgrade is rolled back by rebuilding the node from code (§1), with the data back from layers 1 and 2. A copy in a third place is a further layer, open until the third place is known. The erasure log (§6) is replayed after any restore of layers 1 and 2. A restore test somewhere other than the host proves portability (A5, P3) |
 | 10 Disk keys from a key server | Yes | The third place is still open (A1) |
 
 ### A3. Sizing under the cap
@@ -134,7 +134,7 @@ The details of the host are in the private contract and in SOB-181. This ADR kee
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — One small Talos node that holds the control plane and the workloads (8 GB, 3 vCPU, about 150 GB), plus the router VM (2 GB, 1 vCPU); monitoring kept to metrics with a short retention (recommended)** | No high availability and no second worker: an upgrade of the node stops the lab for its duration | Small | Medium: it fits the cap exactly, with no room for growth or for CI. It is a lab, not the managed cloud |
+| **A — One small Talos node that holds the control plane and the workloads (7 GB, 3 vCPU, about 150 GB), plus the router VM (1 GB, 1 vCPU) and 2 GB kept unallocated for the hypervisor's overhead and for the memory spike of an upgrade; monitoring kept to metrics with a short retention (recommended)** | No high availability and no second worker: an upgrade of the node stops the lab for its duration | Small | Medium: it fits the cap with only the reserve left, and none for growth or CI; a single control plane that runs out of memory takes the whole lab down. The first load test decides whether it holds. It is a lab, not the managed cloud |
 | B — Three very small nodes (about 3 GB each) and the router | A three-member etcd | Medium | 3 GB cannot hold a control plane, Cilium and Knative together; the overhead of three nodes eats the cap for no gain on one machine |
 | C — Keep §8 and raise the cap first | Memory to buy or a second machine | Small | The launch waits |
 
@@ -159,6 +159,8 @@ Nothing of Sobr may depend on this particular host. The rule has five parts, eac
 | P4 | No feature that only this box offers | A review refuses it |
 | P5 | Host-specific values are variables in one file per host | `infra` plans against a second host file without error |
 
+P1, P2 and P5 are automatic checks; P4 is a review. P3's monthly restore needs capacity elsewhere than the host, which the cap does not provide: until that exists the check cannot run, and its first successful run becomes a condition for opening the cloud (§6).
+
 ### A6. Risks accepted until the host improves
 
 Thibault accepted the host's risks on October 31 (SOB-211, private). The design draws these consequences:
@@ -176,7 +178,6 @@ The sentence of the Context that says deployments follow Thibault's approval fro
 ## Context and problem statement
 
 > Amendment 1 (2026-10-31): the host is shared with another project's production, and the sentence on approvals is replaced (A7).
-
 
 On October 30 Thibault decided that his dedicated Proxmox server hosts every
 Sobr service: CI builds, the organization server, the app on the web, the
@@ -388,7 +389,7 @@ replica before confirming it, so replicas belong on one local network.
 
 ### 4. Network, entry point, certificates and exposure
 
-> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, the other site is a container to be replaced, and the tunnel is dialed out from home (A2, point 5, and A4).
+> Amendment 1 (2026-10-31): the front server is shared by the two projects as a layer-4 relay, the other site's front end is replaced by it, and the tunnel is dialed out from the host side (A2, point 5, and A4).
 
 **Cilium** is the network of the cluster:
 
@@ -769,7 +770,7 @@ smaller machine, the CI runners are the part to cut first.
 
 ## Issues to create
 
-> Amendment 1 (2026-10-31): issue 4 builds Sobr's backup layers off the host (A2, point 9), not on the host's backup server; issue 8 (CI runner VMs) waits for a cap that allows it; issues 1 and 8 follow the host contract, and a host-level change needs Thibault's go; issue 11 adds a second disk to the purchases to consider.
+> Amendment 1 (2026-10-31): issue 4 builds Sobr's backup layers off the host (A2, point 9), not on the host's backup server; issue 8 (CI runner VMs) waits for a cap that allows it; issues 1 and 8 follow the host contract, and a host-level change needs Thibault's go.
 
 The orchestrator creates these issues once this ADR is accepted.
 
