@@ -79,17 +79,28 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y patchelf
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2" --locked
-
+      # Also installs the Tauri CLI: @tauri-apps/cli ships prebuilt binaries,
+      # pinned by web/package-lock.json (compiling tauri-cli took ~6 min per runner).
       # tauri.conf.json beforeBuildCommand builds the web frontend.
       - name: Install web dependencies
         working-directory: web
         run: npm ci
 
+      - name: Check the Tauri CLI matches the tauri crate
+        shell: bash
+        run: |
+          cli=$(node -p "require('./web/node_modules/@tauri-apps/cli/package.json').version")
+          crate=$(awk '/^name = "tauri"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)
+          echo "Tauri CLI $cli, tauri crate $crate"
+          if [ "${cli%.*}" != "${crate%.*}" ]; then
+            echo "::error::Pin @tauri-apps/cli in web/package.json to the minor version of the tauri crate in Cargo.lock."
+            exit 1
+          fi
+
       - name: Tauri build
         working-directory: crates/sobria-app
-        run: cargo tauri build ${{ matrix.tauri-args }}
+        shell: bash
+        run: '"$GITHUB_WORKSPACE/web/node_modules/.bin/tauri" build ${{ matrix.tauri-args }}'
 
       - name: Check the Intel binary architecture
         if: matrix.label == 'macos-x86_64'

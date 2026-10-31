@@ -217,8 +217,30 @@ jobs:
           done
           echo "✅ All sizes are within budget."
 
+  app-paths:
+    name: Desktop app — changed paths
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The pull request checkout is a merge commit: its first parent is the base.
+      - id: diff
+        shell: bash
+        run: |
+          git diff --name-only HEAD^1 HEAD > changed.txt
+          if grep -qE '^(crates/|web/|Cargo\.(toml|lock)$|rust-toolchain\.toml$|\.github/workflows/(app-build|ci)\.yml$|\.github/actions/)' changed.txt; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No app path changed: the desktop build is skipped."
+          fi
+
   app-build:
     name: Desktop app — unsigned build
-    needs: [rust-fmt-clippy, web-lint-build]
-    if: github.event_name == 'pull_request' && github.base_ref == 'main' && !github.event.pull_request.draft
+    needs: [rust-fmt-clippy, web-lint-build, app-paths]
+    if: needs.app-paths.outputs.changed == 'true'
     uses: ./.github/workflows/app-build.yml
