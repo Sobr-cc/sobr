@@ -7,6 +7,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
+
+- **`sobria-team-aggregator`** (tests only):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window.
+  `embedded_dashboard_is_served` skips with a clear message when built
+  without `web-team/build`, as in the Rust CI jobs. No production code
+  changed.
+
 ### Changed — Free personal space (2026-10-31, SOB-154)
 
 - **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server

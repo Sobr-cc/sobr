@@ -7,6 +7,8 @@
 //! - GET /_app/version.json → 200 application/json (asset SvelteKit embedded).
 //! - GET /health → 200 application/json (API toujours OK).
 //! - GET /style.css.does-not-exist → 404 (path avec extension non trouvé).
+//!
+//! Skipped when the binary was built without `web-team/build` (Rust-only CI).
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -14,11 +16,21 @@ use std::time::Duration;
 use sobria_team_aggregator::{
     commands::{init, serve},
     config::DataPaths,
+    server::embedded_web,
 };
 use tempfile::tempdir;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn embedded_dashboard_is_served() {
+    // `debug-embed` bakes web-team/build in at compile time, so ask the binary, not the disk.
+    let probe = embedded_web::handler("/index.html".parse().unwrap()).await;
+    if probe.status() == axum::http::StatusCode::NOT_FOUND {
+        eprintln!(
+            "skipped: built without web-team/build; run `cd web-team && npm ci && npm run build`, then rebuild"
+        );
+        return;
+    }
+
     let dir = tempdir().expect("tempdir");
     let paths = DataPaths::new(dir.path());
     init::run(&paths, "admin", "admin-pw-not-secret", false).expect("init");
