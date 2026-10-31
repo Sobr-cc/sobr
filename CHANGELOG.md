@@ -7,6 +7,26 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Characterization tests of the app's team logic and bridge socket (2026-10-31, SOB-188)
+
+- **`sobria-app`**: 38 tests record what the code does today. 31 call the
+  eight `team_*` commands of `main.rs` (status, URL, mode, certificates, ping,
+  enroll, logout, push of an estimation) against a local stub HTTP server;
+  7 start the real bridge server and talk to it through a real Unix socket or
+  Windows named pipe (valid and refused requests, a connection that breaks the
+  protocol, several clients). They are `#[cfg(test)]` modules of `main.rs`:
+  a test executable that links Tauri does not start on Windows outside the
+  binary target (`STATUS_ENTRYPOINT_NOT_FOUND`).
+- **Test hooks, no behavior change**: `bridge_server::serve` runs the server
+  on an explicit endpoint and `run` calls it; the server functions are generic
+  over the Tauri runtime, so a test can use a mock app; `tauri`'s empty `test`
+  feature is enabled in the dev-dependencies.
+- The header of `tests/bridge_server.rs` said that a Windows test and a
+  `SOBRIA_BRIDGE_SOCKET` variable existed; neither does. It now says what the
+  file does.
+- Pinned quirks: the new token pair is lost when the retry after a refresh
+  fails, and `team_set_url("https://")` is stored as `https:`.
+
 ### Changed — ADR-0020 and ADR-0021 marked Accepted (2026-10-31, SOB-111)
 
 - **`docs/adr/`**: both ADR files and their rows in the index say Accepted
