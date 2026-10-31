@@ -5,15 +5,54 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
-### Added — Append after the audit ledger migration (2026-10-31, SOB-179)
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
-- **`sobria-audit`**: `tests/ledger_migration.rs` appends an entry to a migrated
-  copy of the v1 fixture and pins that the new entry gets id 5, chains on the
-  signature of entry 4, stores the `method` of the appended result (not the
-  migration default), leaves the four historical rows unchanged, and that the
-  chain verifies with five entries. No production code changed.
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
+
+### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
+
+- **`sobria-bridge`**, no behavior change (same replies, error texts and spool
+  lines; same tests): one `MAX_MESSAGE_BYTES` constant and one frame writer
+  for the stdio replies and the forward to the app, each frame and spool line
+  sent in a single write, `unsafe` code denied, `append_to_spool` private.
+  Doc comments that were wrong are fixed (the local channel is not restricted
+  to the user, SOB-107; no forward timeout on Windows, SOB-96; `short_hash`,
+  SOB-81). The README is rewritten, and the unused
+  `manifest/com.sobria.bridge.json.tmpl` is removed (the scripts use
+  `manifest.template.json`). Test helpers are shared through `tests/common`.
+- Audit findings that change behavior are filed: SOB-190 (fallback after the
+  app received the request, exit on a bad message) and SOB-193 (estimate
+  mapping in the app).
+
+### Added — Characterization tests of the browser extension (2026-10-31, SOB-158)
+
+- **`extension`**: Vitest tests in `tests/unit/` record what the code does
+  today, without changing it: the service worker (every message, local
+  storage, forwarding to the native bridge and to the team server), native
+  messaging, the team client (token refresh on 401, errors), team storage
+  (including the browser fingerprint) and storage; the three site adapters,
+  driven through their own `extractModelId` and `onSubmit` so the real alias
+  tables and selectors are used; and a comparison of the 34 presets with the
+  Rust registry (read from the estimator's `model_registry.json`). Line
+  coverage goes from 40 % to 74 % and function coverage from 53 % to 88 %.
+  Quirks found are pinned and filed: SOB-171 (four preset labels differ from
+  the Rust registry) and SOB-176 (labels resolved to the wrong model); the
+  double counting is SOB-118.
 
 ### Removed — unused `duckdb` dependency (2026-10-31, SOB-168)
 
