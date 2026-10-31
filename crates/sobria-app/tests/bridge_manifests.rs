@@ -1,14 +1,14 @@
-//! Tests d'intégration de l'auto-install des manifests Native Messaging
-//! (patch C27 v0.6.0). Voir `docs/archive/chantiers/C27-PATCH-v0.6.0.md` §"Patch 1".
+//! Integration tests of the Native Messaging manifest auto-install.
+//! See `docs/archive/chantiers/C27-PATCH-v0.6.0.md` §"Patch 1".
 //!
-//! Couvre :
-//!   - install Chrome macOS → fichier écrit + JSON valide
-//!   - install Firefox Linux → chemin `~/.mozilla/native-messaging-hosts/`
-//!   - install + uninstall idempotent
-//!   - détection : un faux dossier config est listé
+//! Covers:
+//!   - Chrome install on macOS → file written + valid JSON
+//!   - Firefox install on Linux → path `~/.mozilla/native-messaging-hosts/`
+//!   - idempotent install + uninstall
+//!   - detection: a fake config folder is listed
 //!
-//! Les tests Windows registre HKCU sont hors périmètre (effet de bord
-//! système) — la fonction `windows_registry_key` est unit-testée dans
+//! Windows HKCU registry tests are out of scope (system side
+//! effect); `windows_registry_key` is unit-tested in
 //! `bridge_install.rs`.
 
 use std::{fs, path::Path};
@@ -84,7 +84,7 @@ fn install_then_uninstall_is_idempotent() {
     assert!(path.exists());
     uninstall_native_manifest_at(&path).unwrap();
     assert!(!path.exists());
-    // Double uninstall : pas d'erreur.
+    // Double uninstall: no error.
     uninstall_native_manifest_at(&path).unwrap();
 }
 
@@ -92,7 +92,7 @@ fn install_then_uninstall_is_idempotent() {
 fn detection_lists_browser_with_fake_config_dir() {
     let tmp = TempDir::new().unwrap();
     let home = tmp.path();
-    // Simule Brave installé sur Linux.
+    // Simulates Brave installed on Linux.
     fs::create_dir_all(home.join(".config/BraveSoftware/Brave-Browser")).unwrap();
     let detected = detect_browsers_in(HostOs::Linux, home, None, None);
     assert!(detected.contains(&BrowserKind::Brave));
@@ -101,10 +101,10 @@ fn detection_lists_browser_with_fake_config_dir() {
 
 #[test]
 fn install_writes_to_six_browsers_in_one_pass() {
-    // Validation DoD : "les manifests sont écrits aux 6+ emplacements possibles
-    // (selon browsers détectés)". On simule l'install dans 5 browsers (l'app
-    // gère 5 browsers max) à la suite et on vérifie qu'aucun ne pollue les
-    // autres.
+    // DoD check: "the manifests are written to the 6+ possible locations
+    // (depending on the detected browsers)". Simulates the install in 5
+    // browsers in a row (the app handles at most 5 browsers) and checks that
+    // none pollutes the others.
     let tmp = TempDir::new().unwrap();
     let home = tmp.path();
     for browser in BrowserKind::ALL {
@@ -122,7 +122,7 @@ fn install_writes_to_six_browsers_in_one_pass() {
             browser.display_name()
         );
     }
-    // Compte les fichiers créés : doit être 5 (un par browser, paths distincts).
+    // Counts the created files: must be 5 (one per browser, distinct paths).
     let mut count = 0;
     for entry in walkdir(home) {
         if entry.file_name().to_string_lossy() == "com.sobria.bridge.json" {
@@ -166,7 +166,7 @@ fn build_manifest_chrome_extension_id_is_quoted_in_chrome_origin() {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-/// Mini-walker récursif local pour éviter une dépendance walkdir.
+/// Small local recursive walker, to avoid a walkdir dependency.
 fn walkdir(root: &Path) -> Vec<std::fs::DirEntry> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];

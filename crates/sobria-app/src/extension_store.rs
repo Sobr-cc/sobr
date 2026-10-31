@@ -1,23 +1,23 @@
-//! Sobr.ia — persistance pairing extension + ingestion events (C27.5.c/d).
+//! Sobr.ia — extension pairing persistence + event ingestion.
 //!
-//! Deux tables SQLite (vivent dans `referentiel.sqlite`) :
+//! Two SQLite tables (stored in `referentiel.sqlite`):
 //!
 //! - `device_pairings(id, fingerprint, secret_hash, created_at,
 //!   last_seen_at, revoked_at)`
-//!   Identifiant unique par appariement extension ↔ app. Le `secret_hash`
-//!   est une **PHC string Argon2id** (cf. `crate::pairing`) qui embarque
-//!   sel + paramètres ; aucun secret en clair en DB. La colonne `salt_hex`
-//!   précédente a été supprimée par la migration v2 → v3 (patch C27 v0.6.0).
+//!   One unique ID per extension ↔ app pairing. `secret_hash`
+//!   is an **Argon2id PHC string** (see `crate::pairing`) that embeds
+//!   salt + params; no clear secret in the DB. The former `salt_hex`
+//!   column was dropped by the v2 → v3 migration.
 //!
 //! - `extension_events(id, pairing_id, ts, method, model_id, tokens_in,
 //!   tokens_out, gco2eq_p50, water_ml, energy_wh, raw_payload_json,
 //!   ingested_at)`
-//!   Une ligne par estimation remontée du bridge. Foreign key sur
-//!   `device_pairings.id` pour permettre la cascade de purge si l'utilisateur
-//!   dépare une extension.
+//!   One row per estimate sent up by the bridge, referencing
+//!   `device_pairings.id` (no cascade: unpairing only marks the pairing
+//!   revoked).
 //!
-//! La lecture du spool `~/.sobria/spool/incoming.jsonl` est intégrée dans
-//! `drain_spool` qui valide le secret puis insère dans `extension_events`.
+//! `drain_spool` reads the spool `~/.sobria/spool/incoming.jsonl` and inserts
+//! its events into `extension_events`.
 
 use std::path::Path;
 
@@ -29,11 +29,11 @@ use serde_json::Value;
 
 use crate::pairing::PairingSecret;
 
-/// Schéma DDL v3 (idempotent : `CREATE TABLE IF NOT EXISTS`).
+/// DDL schema v3 (idempotent: `CREATE TABLE IF NOT EXISTS`).
 ///
-/// Depuis le patch C27 v0.6.0, `secret_hash` est une PHC string Argon2id
-/// auto-portante : l'ancienne colonne `salt_hex` est supprimée par
-/// [`migrate_device_pairings_v3`] sur les bases existantes.
+/// `secret_hash` is a self-contained Argon2id PHC string: the old
+/// `salt_hex` column is dropped by [`migrate_device_pairings_v3`] on
+/// existing databases.
 const SCHEMA: &str = r"
 CREATE TABLE IF NOT EXISTS device_pairings (
     id           TEXT PRIMARY KEY,
@@ -65,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_extension_events_ts ON extension_events(ts);
 CREATE INDEX IF NOT EXISTS idx_extension_events_pairing ON extension_events(pairing_id);
 ";
 
-/// DTO exposé via IPC pour lister les extensions appariées.
+/// DTO exposed over IPC to list the paired extensions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairingRow {
     pub id: String,
@@ -75,7 +75,7 @@ pub struct PairingRow {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-/// DTO normalisé d'un évènement extension après ingestion.
+/// Normalized DTO of an extension event after ingestion.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensionEventRow {
     pub id: String,
@@ -91,13 +91,13 @@ pub struct ExtensionEventRow {
     pub ingested_at: DateTime<Utc>,
 }
 
-/// Store de pairings + events extension.
+/// Store of extension pairings + events.
 pub struct ExtensionStore {
     conn: Connection,
 }
 
 impl ExtensionStore {
-    /// Ouvre / crée les tables dans `referentiel.sqlite`.
+    /// Opens / creates the tables in `referentiel.sqlite`.
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open(path).with_context(|| format!("open {}", path.display()))?;
         conn.execute_batch(SCHEMA)
@@ -107,7 +107,7 @@ impl ExtensionStore {
         Ok(Self { conn })
     }
 
-    /// Construit un store en mémoire (utile pour les tests).
+    /// Builds an in-memory store (useful for tests).
     #[cfg(test)]
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
@@ -116,11 +116,11 @@ impl ExtensionStore {
         Ok(Self { conn })
     }
 
-    /// Enregistre un nouveau pairing.
+    /// Records a new pairing.
     ///
-    /// Si `fingerprint` existe déjà (UNIQUE), on remplace l'entrée (ré-appariement
-    /// après dépair). Retourne l'`id` (ULID) attribué. Le `secret_hash` est une
-    /// PHC string Argon2id qui embarque sel + paramètres.
+    /// If `fingerprint` already exists (UNIQUE), the entry is replaced (re-pairing
+    /// after an unpair). Returns the assigned `id` (ULID). `secret_hash` is an
+    /// Argon2id PHC string that embeds salt + params.
     pub fn record_pairing(&self, fingerprint: &str, secret: &PairingSecret) -> Result<String> {
         let id = ulid();
         let now = Utc::now().to_rfc3339();
@@ -138,7 +138,7 @@ impl ExtensionStore {
         Ok(id)
     }
 
-    /// Liste tous les pairings (révoqués inclus, classés par création).
+    /// Lists all pairings (revoked ones included, sorted by creation).
     pub fn list_pairings(&self) -> Result<Vec<PairingRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, fingerprint, created_at, last_seen_at, revoked_at
@@ -162,8 +162,8 @@ impl ExtensionStore {
         Ok(rows)
     }
 
-    /// Marque un pairing comme révoqué (n'efface pas la ligne — on garde
-    /// l'historique pour audit).
+    /// Marks a pairing as revoked (does not delete the row: the history is
+    /// kept for audit).
     pub fn revoke_pairing(&self, id: &str) -> Result<()> {
         let now = Utc::now().to_rfc3339();
         let affected = self.conn.execute(
@@ -176,10 +176,10 @@ impl ExtensionStore {
         Ok(())
     }
 
-    /// Vérifie qu'un secret en clair correspond à un pairing actif.
-    /// Retourne l'`id` du pairing matché, ou `None` si secret invalide /
-    /// pairing révoqué. Le hash stocké est une PHC string Argon2id ; la
-    /// migration v3 garantit qu'aucun hash SHA-256 legacy ne subsiste actif.
+    /// Checks that a clear secret matches an active pairing.
+    /// Returns the `id` of the matched pairing, or `None` if the secret is
+    /// invalid / the pairing is revoked. The stored hash is an Argon2id PHC
+    /// string; the v3 migration ensures no legacy SHA-256 hash stays active.
     pub fn verify_secret(&self, fingerprint: &str, candidate_hex: &str) -> Result<Option<String>> {
         let row = self.conn.query_row(
             "SELECT id, secret_hash FROM device_pairings
@@ -190,7 +190,7 @@ impl ExtensionStore {
         match row {
             Ok((id, hash)) => {
                 if PairingSecret::verify_against(&hash, candidate_hex) {
-                    // Met à jour `last_seen_at` (best-effort).
+                    // Updates `last_seen_at` (best-effort).
                     let now = Utc::now().to_rfc3339();
                     let _ = self.conn.execute(
                         "UPDATE device_pairings SET last_seen_at = ?1 WHERE id = ?2",
@@ -206,7 +206,7 @@ impl ExtensionStore {
         }
     }
 
-    /// Insère un évènement (déjà validé pour un pairing actif).
+    /// Inserts an event (already validated for an active pairing).
     pub fn record_event(&self, event: &ExtensionEventInput) -> Result<String> {
         let id = ulid();
         let ingested = Utc::now().to_rfc3339();
@@ -233,7 +233,7 @@ impl ExtensionStore {
         Ok(id)
     }
 
-    /// Liste les évènements (paginé : `limit` + `offset`).
+    /// Lists the events (paginated: `limit` + `offset`).
     pub fn list_events(&self, limit: usize, offset: usize) -> Result<Vec<ExtensionEventRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, pairing_id, ts, method, model_id, tokens_in, tokens_out,
@@ -269,7 +269,7 @@ impl ExtensionStore {
     }
 }
 
-/// Entrée à insérer dans `extension_events` après validation du secret.
+/// Entry to insert into `extension_events` once the secret is validated.
 #[derive(Debug, Clone)]
 pub struct ExtensionEventInput {
     pub pairing_id: String,
@@ -284,24 +284,18 @@ pub struct ExtensionEventInput {
     pub raw_payload_json: String,
 }
 
-/// Drain le spool fichier `incoming.jsonl` produit par `sobria-bridge`.
+/// Drains the spool file `incoming.jsonl` written by `sobria-bridge`.
 ///
-/// Pour chaque ligne JSON :
-///   - extrait le `fingerprint` (TODO : envoyer fingerprint dans le payload
-///     du bridge ; en attendant, on accepte tout pairing actif comme fallback
-///     POC)
-///   - vérifie le secret via `ExtensionStore::verify_secret`
-///   - insère dans `extension_events`
-///   - skip ligne sans crash si validation échoue (audit best-effort)
-///
-/// Tronque le spool atomiquement à la fin (rename → drop).
-/// Retourne le nombre d'évènements insérés.
+/// Renames the spool, reads it and deletes it, then for each JSON line
+/// credits the event to the first active pairing and inserts it into
+/// `extension_events`. Malformed lines and failed inserts are skipped. The
+/// secret is not checked yet (SOB-119). Returns the number of inserted events.
 pub fn drain_spool(store: &ExtensionStore, spool_path: &Path) -> Result<usize> {
     if !spool_path.exists() {
         return Ok(0);
     }
-    // Lit + renomme atomiquement pour éviter de perdre des écritures
-    // concurrentes du bridge pendant le drain.
+    // Reads + renames atomically to avoid losing concurrent bridge
+    // writes during the drain.
     let tmp = spool_path.with_extension("draining");
     std::fs::rename(spool_path, &tmp).with_context(|| {
         format!(
@@ -336,7 +330,7 @@ pub fn drain_spool(store: &ExtensionStore, spool_path: &Path) -> Result<usize> {
     Ok(inserted)
 }
 
-/// Format attendu d'une ligne du spool (cf. `sobria-bridge::handle_request`).
+/// Expected format of a spool line (see `sobria-bridge::handle_request`).
 #[derive(Debug, Deserialize)]
 struct SpoolEnvelope {
     secret_hash: Option<String>,
@@ -350,10 +344,8 @@ impl SpoolEnvelope {
         let Some(estimate) = payload.get("estimate") else {
             return Ok(None);
         };
-        // POC : sans fingerprint dans le payload, on accepte le premier
-        // pairing actif. C27.5 v0.7+ : enrichir le bridge pour pousser
-        // fingerprint + secret afin que `verify_secret` puisse filtrer
-        // précisément.
+        // The payload carries no fingerprint, so the first active pairing
+        // gets the event (SOB-119).
         let Some(pairing_id) = store.first_active_pairing()? else {
             return Ok(None);
         };
@@ -362,8 +354,8 @@ impl SpoolEnvelope {
             .as_deref()
             .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
-        // Marker pour audit : on note le secret_hash short reçu.
-        let _ = self.secret_hash; // évite warning unused
+        // The secret hash is read but not checked (SOB-119).
+        let _ = self.secret_hash;
         Ok(Some(ExtensionEventInput {
             pairing_id,
             ts,
@@ -409,9 +401,9 @@ impl SpoolEnvelope {
 }
 
 impl ExtensionStore {
-    /// Retourne l'`id` du premier pairing actif (révoqué exclu).
-    /// Utilisé par `drain_spool` quand on n'a pas encore le fingerprint
-    /// dans le payload du bridge (POC C27.5.d).
+    /// Returns the `id` of the first active pairing (revoked ones excluded),
+    /// which `drain_spool` credits while the payload has no fingerprint
+    /// (SOB-119).
     fn first_active_pairing(&self) -> Result<Option<String>> {
         let row = self.conn.query_row(
             "SELECT id FROM device_pairings WHERE revoked_at IS NULL
@@ -427,7 +419,7 @@ impl ExtensionStore {
     }
 }
 
-// ─── Helpers privés ──────────────────────────────────────────────────────────
+// ─── Private helpers ─────────────────────────────────────────────────────────
 
 fn parse_dt(s: &str) -> rusqlite::Result<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(s)
@@ -437,18 +429,18 @@ fn parse_dt(s: &str) -> rusqlite::Result<DateTime<Utc>> {
         })
 }
 
-/// Alphabet Crockford Base32 (spec ULID — pas de I, L, O, U).
+/// Crockford Base32 alphabet (ULID spec: no I, L, O, U).
 const CROCKFORD: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-/// Génère un ULID — 26 caractères, time-sortable, sans dépendance externe.
+/// Generates a ULID: 26 characters, time-sortable, no external dependency.
 ///
-/// Format conforme à <https://github.com/ulid/spec> :
-/// - 10 chars timestamp (48 bits ms depuis epoch, big-endian)
-/// - 16 chars random (80 bits, OS RNG via `rand::thread_rng`)
+/// Format follows <https://github.com/ulid/spec>:
+/// - 10 timestamp chars (48 bits of ms since epoch, big-endian)
+/// - 16 random chars (80 bits, OS RNG via `rand::thread_rng`)
 ///
-/// Avantage vs UUID v4 : ordre lexicographique = ordre chronologique,
-/// utile pour les `ORDER BY id` en SQL et les index B-tree (insertion
-/// monotone, pas de page splits).
+/// Advantage over UUID v4: lexicographic order = chronological order,
+/// useful for `ORDER BY id` in SQL and for B-tree indexes (monotonic
+/// inserts, no page splits).
 fn ulid() -> String {
     use rand::RngCore;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -457,8 +449,8 @@ fn ulid() -> String {
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_millis());
 
-    // 10 chars : 48 bits timestamp, packé 5 bits par char.
-    // 48 bits = 10×5 - 2, donc on a 2 bits de padding au sommet du 1er char.
+    // 10 chars: 48-bit timestamp, packed 5 bits per char.
+    // 48 bits = 10×5 - 2, so the 1st char has 2 padding bits at the top.
     let mut out = [0u8; 26];
     let mut t = ms;
     for i in (0..10).rev() {
@@ -466,11 +458,11 @@ fn ulid() -> String {
         t >>= 5;
     }
 
-    // 16 chars : 80 bits random.
+    // 16 chars: 80 random bits.
     let mut rand_bytes = [0u8; 10];
     rand::thread_rng().fill_bytes(&mut rand_bytes);
-    // On lit les 80 bits comme un grand entier 128-bit aligné à droite et
-    // on shift 5 par 5.
+    // Reads the 80 bits as a right-aligned 128-bit integer and
+    // shifts 5 bits at a time.
     let mut r: u128 = 0;
     for b in &rand_bytes {
         r = (r << 8) | u128::from(*b);
@@ -480,28 +472,28 @@ fn ulid() -> String {
         r >>= 5;
     }
 
-    // SAFETY : tous les bytes viennent de CROCKFORD (ASCII alphanumérique).
+    // SAFETY: all bytes come from CROCKFORD (alphanumeric ASCII).
     String::from_utf8(out.to_vec()).expect("ULID chars are ASCII by construction")
 }
 
-/// Migration v2 → v3 du schéma `device_pairings` (patch C27 v0.6.0).
+/// v2 → v3 migration of the `device_pairings` schema.
 ///
-/// Ancien schéma v2 : `(id, fingerprint, secret_hash[SHA-256 hex], salt_hex,
+/// Old v2 schema: `(id, fingerprint, secret_hash[SHA-256 hex], salt_hex,
 /// created_at, last_seen_at, revoked_at)`.
-/// Nouveau schéma v3 : idem **sans** `salt_hex` ; `secret_hash` est une PHC
-/// string Argon2id auto-portante.
+/// New v3 schema: same **without** `salt_hex`; `secret_hash` is a
+/// self-contained Argon2id PHC string.
 ///
-/// Stratégie sur base existante :
-/// 1. Détecter la présence de la colonne `salt_hex` via `PRAGMA table_info`.
-/// 2. Révoquer tous les pairings encore actifs dont `secret_hash` n'est PAS
-///    une PHC Argon2id (justifié : v0.6.0 vient de sortir, peu de pairings
-///    en prod ; obliger un re-pairing manuel est acceptable et préférable
-///    à garder un mécanisme de vérif duale fragile).
-/// 3. `ALTER TABLE ... DROP COLUMN salt_hex` (SQLite ≥ 3.35 — bundled via
+/// Strategy on an existing database:
+/// 1. Detect the `salt_hex` column via `PRAGMA table_info`.
+/// 2. Revoke every still-active pairing whose `secret_hash` is NOT
+///    an Argon2id PHC (rationale: v0.6.0 has just shipped, few pairings
+///    in prod; forcing a manual re-pairing is acceptable and better than
+///    keeping a fragile dual-check mechanism).
+/// 3. `ALTER TABLE ... DROP COLUMN salt_hex` (SQLite ≥ 3.35, bundled via
 ///    `rusqlite[bundled]`).
 ///
-/// Sur base v3 fraîche (créée par `SCHEMA` ci-dessus), la fonction est
-/// idempotente : pas de colonne `salt_hex`, donc rien à faire.
+/// On a fresh v3 database (created by `SCHEMA` above), the function is
+/// idempotent: no `salt_hex` column, so nothing to do.
 fn migrate_device_pairings_v3(conn: &Connection) -> Result<()> {
     let has_salt_hex = conn
         .prepare("PRAGMA table_info(device_pairings)")?
@@ -543,13 +535,13 @@ mod tests {
         let _ = store.list_events(10, 0).unwrap();
     }
 
-    /// Migration v2 → v3 : sur une base avec l'ancien schéma (colonne
-    /// `salt_hex`, secret_hash = SHA-256 hex), les pairings legacy doivent
-    /// être révoqués et la colonne supprimée.
+    /// v2 → v3 migration: on a database with the old schema (`salt_hex`
+    /// column, secret_hash = SHA-256 hex), the legacy pairings must be
+    /// revoked and the column dropped.
     #[test]
     fn migration_v2_to_v3_revokes_legacy_pairings_and_drops_salt_hex() {
         let conn = Connection::open_in_memory().unwrap();
-        // Recrée le schéma v2 à la main (sans appeler open()).
+        // Recreates the v2 schema by hand (without calling open()).
         conn.execute_batch(
             r"CREATE TABLE device_pairings (
                 id TEXT PRIMARY KEY,
@@ -563,7 +555,7 @@ mod tests {
             );",
         )
         .unwrap();
-        // 1 pairing legacy SHA-256 (64 hex), 1 déjà migré (PHC argon2id).
+        // 1 legacy SHA-256 pairing (64 hex), 1 already migrated (argon2id PHC).
         conn.execute(
             "INSERT INTO device_pairings(id, fingerprint, secret_hash, salt_hex, created_at)
              VALUES ('a', 'fp-legacy', ?1, 'deadbeef', '2026-05-01T00:00:00Z')",
@@ -581,7 +573,7 @@ mod tests {
 
         migrate_device_pairings_v3(&conn).unwrap();
 
-        // Colonne salt_hex supprimée.
+        // salt_hex column dropped.
         let cols: Vec<String> = conn
             .prepare("PRAGMA table_info(device_pairings)")
             .unwrap()
@@ -594,7 +586,7 @@ mod tests {
             "salt_hex must be dropped"
         );
 
-        // Le legacy est révoqué, le PHC reste actif.
+        // The legacy one is revoked, the PHC one stays active.
         let revoked_legacy: Option<String> = conn
             .query_row(
                 "SELECT revoked_at FROM device_pairings WHERE id = 'a'",
@@ -612,7 +604,7 @@ mod tests {
             .unwrap();
         assert!(revoked_phc.is_none(), "argon2id pairing must remain active");
 
-        // Idempotence : un second appel ne casse pas la base.
+        // Idempotence: a second call does not break the database.
         migrate_device_pairings_v3(&conn).unwrap();
     }
 
@@ -714,7 +706,7 @@ mod tests {
         let s = make_secret();
         store.record_pairing("fp1", &s).unwrap();
         let path = dir.path().join("incoming.jsonl");
-        // 2 lignes valides
+        // 2 valid lines
         let envelope = serde_json::json!({
             "secret_hash": "abcdef",
             "payload": {
@@ -766,7 +758,7 @@ mod tests {
     fn drain_spool_no_pairing_skips_all() {
         let dir = TempDir::new().unwrap();
         let store = ExtensionStore::open_in_memory().unwrap();
-        // Aucun pairing → first_active_pairing returns None.
+        // No pairing → first_active_pairing returns None.
         let path = dir.path().join("incoming.jsonl");
         let envelope = serde_json::json!({
             "payload": { "estimate": { "method": "x", "modelId": "y",
@@ -793,16 +785,16 @@ mod tests {
 
     #[test]
     fn ulid_is_unique_and_sortable() {
-        // 10 ULID consécutifs : tous différents ET ordre lex = ordre temporel.
+        // 10 consecutive ULIDs: all distinct AND lex order = time order.
         let mut ids: Vec<String> = Vec::with_capacity(10);
         for _ in 0..10 {
             ids.push(ulid());
-            // Petit sleep pour garantir un ms d'écart sur certains OS.
+            // Short sleep to guarantee a 1 ms gap on some OSes.
             std::thread::sleep(std::time::Duration::from_millis(2));
         }
         let unique: std::collections::HashSet<_> = ids.iter().collect();
         assert_eq!(unique.len(), 10, "10 ULID doivent être distincts");
-        // Le préfixe temporel (10 premiers chars) doit être croissant.
+        // The time prefix (first 10 chars) must be increasing.
         let prefixes: Vec<&str> = ids.iter().map(|s| &s[..10]).collect();
         let mut sorted = prefixes.clone();
         sorted.sort_unstable();

@@ -1,15 +1,15 @@
-//! Sobr.ia — auto-install des manifests Native Messaging (C27 patch v0.6.0).
+//! Sobr.ia — auto-install of the Native Messaging manifests.
 //!
-//! Remplace les scripts shell/PowerShell `crates/sobria-bridge/scripts/install-dev.*`
-//! pour l'utilisateur final : l'app Tauri écrit elle-même les fichiers
-//! `com.sobria.bridge.json` aux emplacements OS attendus par chaque
+//! Replaces the shell/PowerShell scripts `crates/sobria-bridge/scripts/install-dev.*`
+//! for the end user: the Tauri app itself writes the
+//! `com.sobria.bridge.json` files to the OS locations expected by each
 //! WebExtension (Chrome / Firefox / Edge / Brave / Chromium).
 //!
-//! ## Emplacements supportés
+//! ## Supported locations
 //!
 //! ### macOS — `~/Library/Application Support`
-//! | Browser   | Sous-dossier |
-//! |-----------|--------------|
+//! | Browser   | Subfolder |
+//! |-----------|-----------|
 //! | Chrome    | `Google/Chrome/NativeMessagingHosts` |
 //! | Firefox   | `Mozilla/NativeMessagingHosts` |
 //! | Edge      | `Microsoft Edge/NativeMessagingHosts` |
@@ -17,28 +17,29 @@
 //! | Chromium  | `Chromium/NativeMessagingHosts` |
 //!
 //! ### Linux
-//! | Browser   | Chemin |
-//! |-----------|--------|
+//! | Browser   | Path |
+//! |-----------|------|
 //! | Chrome    | `~/.config/google-chrome/NativeMessagingHosts` |
-//! | Firefox   | `~/.mozilla/native-messaging-hosts` *(hors `~/.config`)* |
+//! | Firefox   | `~/.mozilla/native-messaging-hosts` *(outside `~/.config`)* |
 //! | Edge      | `~/.config/microsoft-edge/NativeMessagingHosts` |
 //! | Brave     | `~/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts` |
 //! | Chromium  | `~/.config/chromium/NativeMessagingHosts` |
 //!
 //! ### Windows
-//! Le fichier manifest est écrit dans `%APPDATA%\Sobria\bridge\com.sobria.bridge.json`
-//! (chemin commun, non-browser-spécifique) et une clé `HKCU\Software\<Vendor>\<Browser>\NativeMessagingHosts\com.sobria.bridge`
-//! pointe dessus (valeur par défaut = chemin absolu du JSON). Implémentation
-//! via `reg.exe ADD` / `reg.exe DELETE` (binaire Windows standard, pas de
-//! crate `winreg` ajoutée — cf. anti-périmètre du patch).
+//! The manifest file is written to `%APPDATA%\Sobria\bridge\com.sobria.bridge.json`
+//! (a common path, not browser-specific) and a key
+//! `HKCU\Software\<Vendor>\<Browser>\NativeMessagingHosts\com.sobria.bridge`
+//! points to it (default value = absolute path of the JSON). Implemented
+//! with `reg.exe ADD` / `reg.exe DELETE` (standard Windows binary, no
+//! `winreg` crate added; see the patch's out-of-scope list).
 //!
-//! ## Sécurité
+//! ## Security
 //!
-//! - Les manifests sont écrits avec consentement utilisateur explicite
-//!   (dialog dédié dans `/parametres`).
-//! - Le `allowed_origins` (Chrome/Edge/Brave/Chromium) restreint le bridge
-//!   à un seul `extension_id`.
-//! - Le `allowed_extensions` (Firefox) restreint à `sobria@sobr.ia` (cf.
+//! - The manifests are written with explicit user consent
+//!   (dedicated dialog in `/parametres`).
+//! - `allowed_origins` (Chrome/Edge/Brave/Chromium) restricts the bridge
+//!   to a single `extension_id`.
+//! - `allowed_extensions` (Firefox) restricts it to `sobria@sobr.ia` (see
 //!   `extension/manifest.firefox.json`).
 
 use std::{
@@ -49,16 +50,17 @@ use std::{
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
-/// Nom du native host (cf. `chrome.runtime.connectNative("com.sobria.bridge")`).
+/// Native host name (see `chrome.runtime.connectNative("com.sobria.bridge")`).
 pub const NATIVE_HOST_NAME: &str = "com.sobria.bridge";
 
-/// Description embarquée dans le manifest JSON.
+/// Description embedded in the JSON manifest.
 pub const NATIVE_HOST_DESCRIPTION: &str = "Sobr.ia native messaging bridge";
 
-/// ID de l'add-on Firefox (cf. `extension/manifest.firefox.json` → `browser_specific_settings.gecko.id`).
+/// Firefox add-on ID (see `extension/manifest.firefox.json` →
+/// `browser_specific_settings.gecko.id`).
 pub const FIREFOX_EXTENSION_ID: &str = "sobria@sobr.ia";
 
-/// Navigateurs supportés par l'auto-install.
+/// Browsers supported by the auto-install.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BrowserKind {
@@ -70,7 +72,7 @@ pub enum BrowserKind {
 }
 
 impl BrowserKind {
-    /// Liste exhaustive des browsers gérés.
+    /// Full list of the supported browsers.
     pub const ALL: [BrowserKind; 5] = [
         Self::Chrome,
         Self::Firefox,
@@ -79,7 +81,7 @@ impl BrowserKind {
         Self::Chromium,
     ];
 
-    /// Identifiant stable kebab-case (logs, sérialisation).
+    /// Stable kebab-case identifier (logs, serialization).
     #[must_use]
     pub const fn id(self) -> &'static str {
         match self {
@@ -91,7 +93,7 @@ impl BrowserKind {
         }
     }
 
-    /// Nom lisible UI.
+    /// Human-readable UI name.
     #[must_use]
     pub const fn display_name(self) -> &'static str {
         match self {
@@ -103,17 +105,17 @@ impl BrowserKind {
         }
     }
 
-    /// `true` si ce browser utilise le format `allowed_extensions` (Firefox)
-    /// plutôt que `allowed_origins` (Chrome-family).
+    /// `true` if this browser uses the `allowed_extensions` format (Firefox)
+    /// rather than `allowed_origins` (Chrome family).
     #[must_use]
     pub const fn is_firefox(self) -> bool {
         matches!(self, Self::Firefox)
     }
 }
 
-/// OS hôte. Utilisé en interne pour rendre les fonctions testables sur
-/// n'importe quelle plateforme (le test passe l'OS désiré sans dépendre
-/// du runtime).
+/// Host OS. Used internally to make the functions testable on any
+/// platform (the test passes the wanted OS without depending on the
+/// runtime).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostOs {
     Macos,
@@ -122,7 +124,7 @@ pub enum HostOs {
 }
 
 impl HostOs {
-    /// OS courant (lu à la compilation via `target_os`).
+    /// Current OS (read at compile time via `target_os`).
     #[must_use]
     pub const fn current() -> Self {
         if cfg!(target_os = "macos") {
@@ -135,21 +137,21 @@ impl HostOs {
     }
 }
 
-/// Statut courant du bridge — surfacé par l'IPC `bridge_status` au frontend.
+/// Current bridge status, exposed to the frontend by the `bridge_status` IPC.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeStatus {
-    /// Chemin absolu du binaire `sobria-bridge` détecté à côté de l'app,
-    /// ou `None` si introuvable.
+    /// Absolute path of the `sobria-bridge` binary found next to the app,
+    /// or `None` if not found.
     pub bridge_path: Option<PathBuf>,
-    /// Browsers dont le manifest natif est déjà installé.
+    /// Browsers whose native manifest is already installed.
     pub installed: Vec<BrowserKind>,
-    /// Browsers détectés sur la machine (config dir présent).
+    /// Browsers detected on the machine (config dir present).
     pub detected: Vec<BrowserKind>,
 }
 
-/// Détecte les navigateurs présents en regardant l'existence de leur dossier
-/// de profils utilisateur. Indicatif — un browser sans config dir peut tout
-/// de même supporter le pairing si l'utilisateur le lance plus tard.
+/// Detects the installed browsers by checking that their user profile
+/// folder exists. Indicative only: a browser without a config dir can still
+/// support pairing if the user starts it later.
 #[must_use]
 pub fn detect_installed_browsers() -> Vec<BrowserKind> {
     let Some(home) = dirs::home_dir() else {
@@ -165,9 +167,9 @@ pub fn detect_installed_browsers() -> Vec<BrowserKind> {
     )
 }
 
-/// Variante testable : passe l'OS cible et les `home`/`appdata`/`localappdata`
-/// explicitement. Utile pour tester la résolution macOS depuis Linux/Windows
-/// avec un `tempdir` mocké.
+/// Testable variant: takes the target OS and `home`/`appdata`/`localappdata`
+/// explicitly. Useful to test the macOS resolution from Linux/Windows
+/// with a mocked `tempdir`.
 #[must_use]
 pub fn detect_browsers_in(
     os: HostOs,
@@ -181,8 +183,8 @@ pub fn detect_browsers_in(
         .collect()
 }
 
-/// Chemin attendu du dossier user-data du browser. `None` si la combinaison
-/// (OS, browser) n'est pas supportée ou si `appdata`/`local` manque.
+/// Expected path of the browser's user-data folder. `None` if the
+/// (OS, browser) pair is not supported or if `appdata`/`local` is missing.
 fn user_data_path(
     os: HostOs,
     browser: BrowserKind,
@@ -227,15 +229,15 @@ fn user_data_path(
     }
 }
 
-/// Chemin d'installation du manifest pour ce browser sur l'OS courant.
+/// Install path of the manifest for this browser on the current OS.
 pub fn manifest_install_path(browser: BrowserKind) -> Result<PathBuf> {
     let home = dirs::home_dir().context("home_dir introuvable")?;
     let appdata = dirs::config_dir();
     manifest_install_path_for(HostOs::current(), browser, &home, appdata.as_deref())
 }
 
-/// Variante testable : OS explicite. Sur Windows, `appdata` est requis et
-/// l'`appdata` passé est utilisé comme base de `Sobria/bridge/com.sobria.bridge.json`.
+/// Testable variant: explicit OS. On Windows, `appdata` is required and
+/// the given `appdata` is the base of `Sobria/bridge/com.sobria.bridge.json`.
 pub fn manifest_install_path_for(
     os: HostOs,
     browser: BrowserKind,
@@ -278,8 +280,8 @@ pub fn manifest_install_path_for(
         },
 
         // ── Windows ──────────────────────────────────────────────────────────
-        // Manifest commun à tous les browsers ; la clé registre HKCU par
-        // browser pointe dessus.
+        // One manifest for all browsers; the per-browser HKCU registry key
+        // points to it.
         (HostOs::Windows, _) => {
             let appdata = appdata.context("APPDATA introuvable")?;
             appdata.join(format!("Sobria/bridge/{NATIVE_HOST_NAME}.json"))
@@ -288,7 +290,7 @@ pub fn manifest_install_path_for(
     Ok(path)
 }
 
-/// Sur Windows : nom de la clé HKCU\Software\... à pointer vers le manifest.
+/// On Windows: name of the HKCU\Software\... key to point to the manifest.
 #[must_use]
 pub fn windows_registry_key(browser: BrowserKind) -> String {
     let base = match browser {
@@ -301,11 +303,11 @@ pub fn windows_registry_key(browser: BrowserKind) -> String {
     format!(r"{base}\{NATIVE_HOST_NAME}")
 }
 
-/// Génère le contenu JSON du manifest pour ce browser.
+/// Builds the JSON content of the manifest for this browser.
 ///
-/// - Chrome-family : `allowed_origins: ["chrome-extension://<extension_id>/"]`.
-/// - Firefox : `allowed_extensions: ["<FIREFOX_EXTENSION_ID>"]` (`extension_id`
-///   ignoré, l'ID du `gecko.id` est utilisé à la place).
+/// - Chrome family: `allowed_origins: ["chrome-extension://<extension_id>/"]`.
+/// - Firefox: `allowed_extensions: ["<FIREFOX_EXTENSION_ID>"]` (`extension_id`
+///   is ignored, the `gecko.id` ID is used instead).
 #[must_use]
 pub fn build_manifest_json(
     browser: BrowserKind,
@@ -333,10 +335,10 @@ pub fn build_manifest_json(
     base
 }
 
-/// Écrit le manifest natif à l'emplacement OS standard. Sur Windows, écrit
-/// aussi la clé registre HKCU pointant vers le fichier (`reg.exe ADD`).
+/// Writes the native manifest to the standard OS location. On Windows, also
+/// writes the HKCU registry key pointing to the file (`reg.exe ADD`).
 ///
-/// Retourne le chemin du fichier JSON écrit.
+/// Returns the path of the written JSON file.
 pub fn install_native_manifest(
     browser: BrowserKind,
     bridge_path: &Path,
@@ -351,9 +353,9 @@ pub fn install_native_manifest(
     Ok(path)
 }
 
-/// Variante testable : écrit le manifest à `path` sans toucher au registre
-/// Windows. Utilisée par les tests pour valider le contenu JSON sans effet
-/// de bord système.
+/// Testable variant: writes the manifest to `path` without touching the
+/// Windows registry. Used by the tests to check the JSON content without
+/// system side effects.
 pub fn install_native_manifest_at(
     browser: BrowserKind,
     bridge_path: &Path,
@@ -381,8 +383,8 @@ pub fn install_native_manifest_at(
     Ok(())
 }
 
-/// Désinstalle le manifest natif. Sur Windows, supprime aussi la clé HKCU
-/// (best-effort — pas d'erreur si la clé est absente).
+/// Uninstalls the native manifest. On Windows, also deletes the HKCU key
+/// (best-effort: no error if the key is missing).
 pub fn uninstall_native_manifest(browser: BrowserKind) -> Result<()> {
     let path = manifest_install_path(browser)?;
     uninstall_native_manifest_at(&path)?;
@@ -393,8 +395,8 @@ pub fn uninstall_native_manifest(browser: BrowserKind) -> Result<()> {
     Ok(())
 }
 
-/// Variante testable : supprime juste le fichier (idempotent — pas d'erreur
-/// s'il est absent).
+/// Testable variant: only deletes the file (idempotent: no error if it is
+/// missing).
 pub fn uninstall_native_manifest_at(path: &Path) -> Result<()> {
     if path.exists() {
         fs::remove_file(path).with_context(|| format!("rm {}", path.display()))?;
@@ -403,7 +405,7 @@ pub fn uninstall_native_manifest_at(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Statut global : binaire bridge, manifests installés, browsers détectés.
+/// Overall status: bridge binary, installed manifests, detected browsers.
 #[must_use]
 pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     let detected = detect_installed_browsers();
@@ -418,7 +420,7 @@ pub fn bridge_status(bridge_path: Option<PathBuf>) -> BridgeStatus {
     }
 }
 
-// ─── Helpers Windows (reg.exe) ───────────────────────────────────────────────
+// ─── Windows helpers (reg.exe) ───────────────────────────────────────────────
 
 #[cfg(target_os = "windows")]
 fn register_windows_native_host(browser: BrowserKind, manifest_path: &Path) -> Result<()> {
@@ -469,8 +471,8 @@ mod tests {
         assert!(!BrowserKind::Chrome.is_firefox());
     }
 
-    /// Normalise les séparateurs Windows (`\`) vers `/` pour les
-    /// assertions cross-platform.
+    /// Normalizes Windows separators (`\`) to `/` for cross-platform
+    /// assertions.
     fn norm(p: &Path) -> String {
         p.to_string_lossy().replace('\\', "/")
     }
@@ -497,8 +499,8 @@ mod tests {
 
     #[test]
     fn manifest_path_linux_firefox_uses_dot_mozilla() {
-        // Firefox sur Linux : `~/.mozilla/native-messaging-hosts/...`
-        // (PAS `~/.config/mozilla/...`).
+        // Firefox on Linux: `~/.mozilla/native-messaging-hosts/...`
+        // (NOT `~/.config/mozilla/...`).
         let home = Path::new("/home/test");
         let p = manifest_install_path_for(HostOs::Linux, BrowserKind::Firefox, home, None).unwrap();
         assert_eq!(
@@ -521,8 +523,8 @@ mod tests {
     fn manifest_path_windows_uses_common_appdata_path_for_all_browsers() {
         let home = Path::new("C:/Users/test");
         let appdata = Path::new("C:/Users/test/AppData/Roaming");
-        // Tous les browsers Windows pointent vers le même fichier — c'est
-        // la clé registre qui les distingue.
+        // All Windows browsers point to the same file; the registry key
+        // is what tells them apart.
         for b in BrowserKind::ALL {
             let p = manifest_install_path_for(HostOs::Windows, b, home, Some(appdata)).unwrap();
             assert!(
@@ -576,7 +578,7 @@ mod tests {
     #[test]
     fn build_manifest_json_firefox_has_allowed_extensions_fixed_id() {
         let bridge = Path::new("/usr/local/bin/sobria-bridge");
-        // L'extension_id passé est ignoré pour Firefox — on utilise le gecko.id stable.
+        // The given extension_id is ignored for Firefox: the stable gecko.id is used.
         let manifest = build_manifest_json(BrowserKind::Firefox, bridge, "ignored");
         assert_eq!(manifest["allowed_extensions"][0], FIREFOX_EXTENSION_ID);
         assert!(manifest.get("allowed_origins").is_none());
@@ -615,7 +617,7 @@ mod tests {
 
     #[test]
     fn install_native_manifest_at_allows_empty_extension_id_for_firefox() {
-        // Firefox ignore extension_id (utilise gecko.id stable).
+        // Firefox ignores extension_id (uses the stable gecko.id).
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("test.json");
         install_native_manifest_at(BrowserKind::Firefox, Path::new("/b"), "", &path).unwrap();
@@ -629,9 +631,9 @@ mod tests {
     fn uninstall_native_manifest_at_is_idempotent() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("ghost.json");
-        // Fichier absent : pas d'erreur.
+        // Missing file: no error.
         uninstall_native_manifest_at(&path).unwrap();
-        // Fichier présent : supprimé.
+        // Present file: deleted.
         fs::write(&path, "{}").unwrap();
         uninstall_native_manifest_at(&path).unwrap();
         assert!(!path.exists());
@@ -641,9 +643,9 @@ mod tests {
     fn detect_browsers_in_returns_only_those_with_user_data_dir() {
         let tmp = TempDir::new().unwrap();
         let home = tmp.path();
-        // Simule un Chrome installé sur Linux.
+        // Simulates a Chrome installed on Linux.
         fs::create_dir_all(home.join(".config/google-chrome")).unwrap();
-        // Et un Firefox.
+        // And a Firefox.
         fs::create_dir_all(home.join(".mozilla/firefox")).unwrap();
         let detected = detect_browsers_in(HostOs::Linux, home, None, None);
         assert!(detected.contains(&BrowserKind::Chrome));

@@ -1,29 +1,30 @@
-//! Socket server : reçoit les requêtes du `sobria-bridge` via socket Unix
-//! ou named pipe Windows, et les route vers la logique pairing / ingestion
-//! existante (patch C27 v0.6.0).
+//! Socket server: receives the requests of `sobria-bridge` over a Unix socket
+//! or a Windows named pipe, and routes them to the existing pairing /
+//! ingestion logic.
 //!
-//! ## Protocole
+//! ## Protocol
 //!
-//! Length-prefixed JSON (uint32 LE + JSON UTF-8), idem stdio bridge :
-//!   - Bridge envoie `sobria_bridge::BridgeRequest` ;
-//!   - App répond `sobria_bridge::BridgeResponse`.
+//! Length-prefixed JSON (uint32 LE + UTF-8 JSON), same as the stdio bridge:
+//!   - the bridge sends `sobria_bridge::BridgeRequest`;
+//!   - the app answers `sobria_bridge::BridgeResponse`.
 //!
-//! ## Fallback offline
+//! ## Offline fallback
 //!
-//! Si l'app n'est pas lancée quand l'extension envoie une estimation, le
-//! bridge écrit dans le spool fichier (`~/.sobria/spool/incoming.jsonl`).
-//! L'app continue de drainer le spool toutes les 5 s en parallèle (cf.
-//! `logic::drain_extension_spool`) pour récupérer les écritures offline.
+//! If the app is not running when the extension sends an estimate, the
+//! bridge writes to the spool file (`~/.sobria/spool/incoming.jsonl`).
+//! The app keeps draining the spool every 5 s in parallel (see
+//! `logic::drain_extension_spool`) to pick up the offline writes.
 //!
-//! ## Sécurité
+//! ## Security
 //!
-//! Le socket Unix est `bind`é sur un chemin local (`$XDG_RUNTIME_DIR` ou
-//! `/tmp`) et hérite des permissions du fs. Le named pipe Windows est
-//! créé via `ServerOptions` (HKCU scope par défaut). Pas de port réseau,
-//! pas d'authentification réseau — la sécurité repose sur l'OS.
+//! The Unix socket is bound to a local path (`$XDG_RUNTIME_DIR` or
+//! `/tmp`) and inherits the fs permissions. The Windows named pipe is
+//! created with `ServerOptions`; named pipes are global, not limited to the
+//! current user. No network port, no network authentication: security
+//! relies on the OS.
 //!
-//! Le secret est validé dans `dispatch_request` (Argon2id PHC) avant
-//! toute insertion d'évènement.
+//! The secret is checked in `dispatch_request` (Argon2id PHC) before
+//! any event is inserted.
 
 use anyhow::{Context, Result};
 use sobria_bridge::{BridgeRequest, BridgeResponse};
@@ -36,16 +37,14 @@ use crate::{
     state::AppState,
 };
 
-/// Limite haute de payload (1 MB) — mirroir de la limite côté bridge.
+/// Payload upper limit (1 MB), mirrors the limit on the bridge side.
 const MAX_PAYLOAD_BYTES: usize = 1024 * 1024;
 
-/// Démarre le serveur de socket / pipe. Boucle infinie : retourne `Err`
-/// uniquement si le bind initial échoue ; les erreurs par connexion sont
-/// logguées et ignorées.
+/// Starts the socket / pipe server. Infinite loop: returns `Err` only if
+/// the initial bind fails; per-connection errors are logged and ignored.
 ///
-/// Reçoit le `AppHandle` Tauri pour pouvoir résoudre `AppState` à chaque
-/// dispatch — évite la nécessité de wrapper `AppState` dans un `Arc` côté
-/// Tauri manage.
+/// Takes the Tauri `AppHandle` to resolve `AppState` on each dispatch, so
+/// `AppState` does not need an `Arc` wrapper in Tauri's managed state.
 pub async fn run(app_handle: AppHandle) -> Result<()> {
     serve(app_handle, &sobria_bridge::default_socket_path()).await
 }
@@ -74,8 +73,8 @@ pub async fn serve<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path)
 #[cfg(unix)]
 async fn run_unix<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Path) -> Result<()> {
     use tokio::net::UnixListener;
-    // Nettoie un éventuel résidu d'un précédent crash. `bind` échouerait
-    // sinon avec EADDRINUSE.
+    // Removes a leftover from a previous crash. Otherwise `bind` would
+    // fail with EADDRINUSE.
     let _ = std::fs::remove_file(path);
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -105,16 +104,16 @@ async fn run_windows<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Pat
     use tokio::net::windows::named_pipe::ServerOptions;
     let pipe_name = path.to_str().context("pipe path non-UTF-8")?.to_owned();
     tracing::info!(pipe = %pipe_name, "bridge_server: en écoute (Windows pipe)");
-    // Premier instance — `first_pipe_instance(true)` bloque les binds
-    // concurrents au même nom.
+    // First instance: `first_pipe_instance(true)` blocks concurrent binds
+    // to the same name.
     let mut server = ServerOptions::new()
         .first_pipe_instance(true)
         .create(&pipe_name)
         .with_context(|| format!("create named pipe {pipe_name}"))?;
     loop {
         server.connect().await.context("named pipe connect")?;
-        // Prépare la prochaine instance AVANT de spawn — la spec Win32
-        // exige qu'une nouvelle instance soit prête pour le client suivant.
+        // Prepares the next instance BEFORE spawning: Win32 requires a new
+        // instance to be ready for the next client.
         let next = ServerOptions::new()
             .create(&pipe_name)
             .context("named pipe next instance")?;
@@ -128,7 +127,7 @@ async fn run_windows<R: Runtime>(app_handle: AppHandle<R>, path: &std::path::Pat
     }
 }
 
-/// Lit une requête length-prefixed sur `stream`, dispatche, écrit la réponse.
+/// Reads a length-prefixed request from `stream`, dispatches it, writes the response.
 async fn handle_stream<S, R: Runtime>(mut stream: S, app_handle: &AppHandle<R>) -> Result<()>
 where
     S: AsyncReadExt + AsyncWriteExt + Unpin,
@@ -148,8 +147,8 @@ where
         .await
         .context("read request payload")?;
     let req: BridgeRequest = serde_json::from_slice(&payload).context("decode BridgeRequest")?;
-    // Tauri manage directement `AppState` (cf. main.rs) — `state.inner()`
-    // donne `&AppState`.
+    // Tauri manages `AppState` directly (see main.rs): `state.inner()`
+    // gives `&AppState`.
     let state = app_handle.state::<AppState>();
     let resp = dispatch_request(state.inner(), req);
     let bytes = serde_json::to_vec(&resp).context("encode BridgeResponse")?;
@@ -160,15 +159,15 @@ where
     Ok(())
 }
 
-/// Pure-logic dispatcher : aucune I/O. Testable en isolation.
+/// Pure-logic dispatcher: no I/O. Testable in isolation.
 ///
 /// - `Ping` → `{ pong: true }`.
-/// - `Pair { code }` → consomme `pending_code` via `verify_code`, génère
-///   un `PairingSecret`, persiste, retourne `secret` + `pairing_id`.
-/// - `Estimate { secret, payload }` → vérifie le secret (Argon2id) contre
-///   `device_pairings`, insère un `ExtensionEventInput`.
-/// - `Revoke { secret }` → trouve le pairing actif matchant le secret,
-///   le révoque.
+/// - `Pair { code }` → consumes `pending_code` via `verify_code`, generates
+///   a `PairingSecret`, persists it, returns `secret` + `pairing_id`.
+/// - `Estimate { secret, payload }` → checks the secret (Argon2id) against
+///   `device_pairings`, inserts an `ExtensionEventInput`.
+/// - `Revoke { secret }` → finds the active pairing matching the secret
+///   and revokes it.
 pub fn dispatch_request(state: &AppState, req: BridgeRequest) -> BridgeResponse {
     match req {
         BridgeRequest::Ping { req_id } => BridgeResponse {
@@ -190,9 +189,8 @@ pub fn dispatch_request(state: &AppState, req: BridgeRequest) -> BridgeResponse 
     }
 }
 
-/// Identifiant fingerprint synthétique côté app (le bridge ne le passe pas
-/// dans la requête en v0.6.0 — patch C27 v0.7+ pourra l'enrichir avec un
-/// ID par browser détecté côté extension).
+/// Synthetic fingerprint on the app side: the bridge request carries none, so
+/// every browser shares it (one pairing per browser is SOB-119).
 fn bridge_fingerprint() -> &'static str {
     "sobria-bridge-native-messaging"
 }
@@ -226,7 +224,7 @@ fn handle_pair(state: &AppState, req_id: &str, code: &str) -> BridgeResponse {
         Ok(id) => id,
         Err(e) => return BridgeResponse::err(req_id, format!("record pairing: {e}")),
     };
-    // Consomme le code (single-use).
+    // Consumes the code (single-use).
     *guard = None;
     tracing::info!(%pairing_id, "socket_server: pairing validé via bridge");
     BridgeResponse {
@@ -364,7 +362,7 @@ mod tests {
         code
     }
 
-    /// Message d'erreur d'un `Pair` qui doit être refusé.
+    /// Error message of a `Pair` that must be refused.
     #[track_caller]
     fn pair_error(state: &AppState, code: &str) -> String {
         let resp = dispatch_request(
@@ -409,7 +407,7 @@ mod tests {
     #[test]
     fn pair_with_valid_code_returns_secret_and_pairing_id() {
         let (_tmp, state) = fresh_state();
-        // Génère un code.
+        // Generates a code.
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         let resp = dispatch_request(
             &state,
@@ -437,8 +435,8 @@ mod tests {
         );
         assert!(first.ok, "got error: {:?}", first.error);
 
-        // Le code est consommé : un second Pair avec le même code ne trouve plus
-        // de code en attente (et non « code invalide »).
+        // The code is consumed: a second Pair with the same code finds no
+        // pending code (rather than "code invalide").
         assert_eq!(
             pair_error(&state, &dto.code),
             "aucun code de pairing en attente — génère-en un depuis Sobr.ia /parametres"
@@ -448,7 +446,7 @@ mod tests {
     #[test]
     fn pair_with_expired_pending_code_is_refused() {
         let (_tmp, state) = fresh_state();
-        // Le bon code, mais expiré : même message qu'un mauvais code.
+        // The right code, but expired: same message as a wrong code.
         let code = install_expired_code(&state);
         assert_eq!(pair_error(&state, &code), "code invalide ou expiré");
     }
@@ -457,8 +455,8 @@ mod tests {
     fn pair_with_malformed_code_gets_the_six_digits_message() {
         let (_tmp, state) = fresh_state();
         let _ = crate::logic::regenerate_pairing_code(&state).unwrap();
-        // Pas de trim ni de chiffres Unicode : espaces, retour à la ligne et
-        // chiffres pleine chasse sont refusés comme mal formés.
+        // No trimming and no Unicode digits: spaces, newlines and
+        // full-width digits are refused as malformed.
         for malformed in [
             "",
             "12345",
@@ -580,7 +578,7 @@ mod tests {
     #[test]
     fn estimate_with_valid_secret_records_event() {
         let (_tmp, state) = fresh_state();
-        // Pair pour obtenir un secret.
+        // Pair to get a secret.
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
         let pair_resp = dispatch_request(
             &state,
@@ -591,7 +589,7 @@ mod tests {
         );
         let secret = pair_resp.secret.unwrap();
 
-        // Maintenant Estimate.
+        // Now Estimate.
         let resp = dispatch_request(
             &state,
             BridgeRequest::Estimate {
@@ -612,7 +610,7 @@ mod tests {
         );
         assert!(resp.ok, "got error: {:?}", resp.error);
 
-        // Vérifie l'évènement persisté.
+        // Checks the persisted event.
         let store = state.extension_store.lock().unwrap();
         let events = store.list_events(10, 0).unwrap();
         assert_eq!(events.len(), 1);
@@ -642,7 +640,7 @@ mod tests {
         );
         assert!(revoke_resp.ok, "got error: {:?}", revoke_resp.error);
 
-        // Second revoke avec le même secret → ne doit plus matcher (révoqué).
+        // Second revoke with the same secret → must no longer match (revoked).
         let resp2 = dispatch_request(
             &state,
             BridgeRequest::Revoke {

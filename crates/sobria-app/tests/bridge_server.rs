@@ -51,20 +51,18 @@ mod unix {
         let state = Arc::new(AppState::init_in(tmp.path()).unwrap());
         let socket_path = tmp.path().join("sobria-bridge-test.sock");
 
-        // Pointe le bridge vers notre socket de test via la var d'env.
-        // Note: `default_socket_path` honore SOBRIA_BRIDGE_SOCKET — utile
-        // pour des tests bridge↔app full-stack, mais ici on bind direct.
+        // Sets SOBRIA_BRIDGE_SOCKET, which nothing reads today (see the module
+        // doc); the test binds the socket directly.
         std::env::set_var("SOBRIA_BRIDGE_SOCKET", &socket_path);
 
         let server_state = Arc::clone(&state);
         let path_clone = socket_path.clone();
         let server_handle = tokio::spawn(async move {
-            // Reproduit en interne ce que `bridge_server::run` ferait, mais
-            // sur un chemin explicite (le module run() utilise default_socket_path).
+            // Its own accept loop, not `bridge_server::serve` (see SOB-202).
             let _ = std::fs::remove_file(&path_clone);
             let listener = tokio::net::UnixListener::bind(&path_clone).unwrap();
             let (mut stream, _) = listener.accept().await.unwrap();
-            // Lit la requête, dispatch, écrit réponse.
+            // Reads the request, dispatches it, writes the response.
             let mut len_buf = [0u8; 4];
             stream.read_exact(&mut len_buf).await.unwrap();
             let len = u32::from_le_bytes(len_buf) as usize;
@@ -79,7 +77,7 @@ mod unix {
             stream.flush().await.unwrap();
         });
 
-        // Petit délai pour que le listener bind avant le client.
+        // Short delay so the listener binds before the client connects.
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let mut stream = UnixStream::connect(&socket_path).await.unwrap();
@@ -99,9 +97,9 @@ mod unix {
     }
 }
 
-/// Cross-platform : dispatch_request peut traiter un Ping sans I/O.
-/// Doublon léger avec les tests unit du module — utile ici pour valider
-/// que le module bridge_server est bien réexporté publiquement.
+/// Cross-platform: dispatch_request can handle a Ping without I/O.
+/// Slight overlap with the module's unit tests, useful here to check
+/// that the bridge_server module is publicly re-exported.
 #[test]
 fn dispatch_ping_returns_pong_via_public_api() {
     let tmp = tempfile::tempdir().unwrap();
