@@ -1,8 +1,8 @@
 # ADR-0025 — Session identity and duplicates across sources
 
-- **Status**: Proposed (2026-10-31). Thibault answered the two open points on
-  2026-10-31 (SOB-195) and took the recommendation of each. Merging the PR is
-  his approval.
+- **Status**: Accepted (2026-10-31). Thibault took the recommendation on the two
+  open points (SOB-195) and on the local context question (SOB-198). One point
+  stays open (point 3 below); build issue 8 waits for it.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-146)
@@ -42,10 +42,16 @@ section, which compares the options with their cost, effort and risk.
    the organization's collector forwarding to the server with Claude Code's
    session ID in the upload; or the same with a keyed hash of that ID. This
    changes the recommendation of the capture note (section 3, option 2).
+3. **Open: where an organization's billing credential lives** (section 6).
+   Recommended: on the Sobr server, opt-in per organization, with the
+   protections of section 6. Alternatives: on an admin's own app, which uploads
+   only the aggregated billed figure (no credential on the server, but the figure
+   appears only when an admin's app is open, and the upload contract gains an
+   item); or no billing in v1.
 
 The other choices are the CTO's recommendation, justified where they are made.
 The identity rule of section 3 and the tests of section 11 do not depend on
-these two answers.
+these answers.
 
 ## Context and problem statement
 
@@ -261,14 +267,41 @@ OpenTelemetry in case II is another.
 **Rule: a totals-only report never creates a session, never changes a session
 and never changes a total of sessions.** It is shown beside them, with the gap.
 
-For billing, the server fetches the hourly buckets with the organization's
-Admin credential (the Z2 connection), cuts them into the calendar day of the
+For billing, the server fetches the hourly buckets from the Usage and Cost
+Analytics API (beta; the legacy Usage and Cost API is the fallback) with the
+organization's Admin credential (the Z2 connection), cuts them into the calendar
+day of the
 space's time zone (ADR-0022 section 10), and stores one billed figure per
 space, model and day. A figure is provisional until `data_refreshed_at` is
 later than the end of that day. The organization view then shows three
 numbers for a day: what Sobr saw, what was billed, and the gap. When Sobr saw
 more than the bill, the gap is shown as a ratio ("estimates 8 % above the
 bill") and nothing is subtracted.
+
+**The billing credential is a risk.** Both APIs need an Admin credential: an
+Admin API key, an `org:admin` OAuth token, or a personal or service account key
+that is not scoped to a workspace. On the [Admin API page](https://platform.claude.com/docs/en/manage-claude/admin-api)
+the same credentials manage the members, workspaces, invites and API keys of the
+Console organization, and an `org:admin` token "grants access to the whole
+organization". The pages read document no read-only credential for a Console
+organization; a Claude Enterprise organization can use a key with the
+`read:analytics` scope for the Analytics API. So whoever holds a Console
+credential holds more power than reading usage needs, and a leak lets its holder
+manage the organization's members and keys. Wherever the credential lives, it
+follows these protections:
+
+- it is entered by an admin of the organization, who opts in; it is never shown
+  again;
+- it is encrypted at rest, with a key kept apart from it;
+- the code calls the usage and cost endpoints only, and no other Admin endpoint;
+- it is never logged, and a test checks that no log line holds it;
+- there is one credential per organization, never shared between spaces;
+- the admin can revoke it in Sobr and in the Console, and sets an expiry on the
+  key where the key type allows it (`expires_at`);
+- an Enterprise organization uses the `read:analytics` key instead;
+- each use leaves an entry in the audit log (ADR-0023).
+
+Where it lives, on the server or on an admin's own app, is point 3.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -480,8 +513,10 @@ day: billed 4,650,000.
 3. For Wednesday, `data_refreshed_at` is still before the end of the day. The
    billed figure is provisional and no gap is shown.
 
-**A late tie and a replay.** Erin finds, with Claude Code, that the status line
-and the transcript use different IDs (case II). She works on Monday.
+**A late tie and a replay.** Erin's status line reports `session_id` A while her
+transcript file is named B. Either the IDs differ across sources (case II) or a
+resumed session carries a new ID; SOB-163 tells which. In both a report ties
+them. She works on Monday.
 
 1. The transcript is imported first: session B is born with the reference "log
    B". She attaches B to the project "Checkout".
@@ -524,6 +559,10 @@ and the transcript use different IDs (case II). She works on Monday.
 - A past day's total can change when a better report arrives, and a record can
   move to the next day.
 - The organization view has two figures to read.
+- Billing needs an Admin credential that, for a Console organization, can do
+  more than read usage (section 6). The protections limit the harm, and point 3
+  decides where it lives. The Analytics API is in beta; the legacy API remains
+  the fallback.
 - The precedence function runs on the device only, and the server stores what
   it receives, so a wrong choice on the device reaches the totals. The
   published cases are the guard.
@@ -554,7 +593,7 @@ The numbers refer to the issues of ADR-0022.
 | 5 | Make the extension send one report per conversation and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 6 | Store the winning report of each session on the server with the replaced ones as history, and accept a session merge | Server | 5 | #1; ADR-0022 issues 6 and 7; **SOB-25** |
 | 7 | Apply rules again when a session gains context, and merge two sessions with the person's attachment winning | Model crate, desktop backend | 3 | #1; ADR-0022 issue 5; **SOB-26** |
-| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap | Server, integrations | 8 | ADR-0022 issue 6; **SOB-25** |
+| 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap, with the credential protections of section 6 | Server, integrations | 8 | The answer to point 3; ADR-0022 issue 6; **SOB-25** |
 | 9 | Update the capture note with the result of SOB-163 and this ADR (OpenTelemetry through the app, section 3 option 2) | Docs | 1 | SOB-163 |
 
 ## Links

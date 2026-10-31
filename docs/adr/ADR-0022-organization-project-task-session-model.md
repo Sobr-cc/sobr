@@ -5,7 +5,7 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-143)
-- **Amendment 1** (Proposed 2026-10-31, SOB-146): sessions and measurements, settled by ADR-0025. See the section below.
+- **Amendment 1** (Accepted 2026-10-31, SOB-146): sessions and measurements, settled by ADR-0025. See the section below.
 - **Related**: ADR-0003 (SQLite), ADR-0009 (medallion), ADR-0013 (pairing,
   team mode), ADR-0014 (cloud, personal space), ADR-0015 and ADR-0016
   (privacy, visibility), ADR-0019 (repos), ADR-0021 (one app)
@@ -73,7 +73,7 @@ the options with their cost, effort and risk.
 
 ## Amendment 1 — Sessions and measurements, settled by ADR-0025 (2026-10-31)
 
-**Status.** Proposed with ADR-0025 (SOB-146); in force when ADR-0025 is Accepted. Written in place by PR (SOB-87): the original text is kept, and notes mark the passages that change.
+**Status.** Accepted (2026-10-31) with ADR-0025 (SOB-146). Written in place by PR (SOB-87): the original text is kept, and notes mark the passages that change.
 
 **What changes.**
 

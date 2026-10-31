@@ -9,7 +9,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ### Added — ADR-0025, session identity and duplicates across sources (2026-10-31, SOB-146)
 
-- **ADR-0025** (Proposed): a session has one random Sobr ID and, on the
+- **ADR-0025** (Accepted): a session has one random Sobr ID and, on the
   device only, the references that each source gives it. Two reports are one
   session only when a reference proves it, whether or not Claude Code uses one
   session ID in all its sources (to be confirmed by SOB-163).
@@ -28,7 +28,10 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
     OpenTelemetry on the same machine. He also decided that the device keeps
     the folder, repo and branch of a session for 24 months, on the device only
     (SOB-198).
-- **ADR-0022, Amendment 1**: closes the references that left these points to
+  - The billing credential of an organization can do more than read usage, so
+    the ADR lists protections for it. Where it lives (server or admin's app) is
+    an open point, and build issue 8 waits for it.
+- **ADR-0022, Amendment 1** (Accepted): closes the references that left these points to
   SOB-146, and adds one item to its upload contract (a session merge).
 - Corrects one sentence of the ADR-0023 entry (SOB-144).
 
