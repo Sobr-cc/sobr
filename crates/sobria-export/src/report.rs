@@ -3,10 +3,11 @@
 //! Voir `docs/archive/chantiers/C14-rapport-csrd-agec.md` §1 pour la
 //! structure complète.
 
-use std::io::BufWriter;
-
 use chrono::{DateTime, Utc};
-use printpdf::{BuiltinFont, Mm, PdfDocument};
+use printpdf::{
+    BuiltinFont, Mm, OffsetDateTime, Op, PdfDocument, PdfFontHandle, PdfPage,
+    PdfParseErrorSeverity, PdfSaveOptions, Point, Pt, TextItem,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sobria_audit::AuditEntry;
@@ -120,25 +121,46 @@ pub fn generate_report(
 // PDF building (printpdf, A4 portrait)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Text operations of one page, with the call shape of the printpdf 0.7 layer.
+#[derive(Default)]
+struct TextPage {
+    ops: Vec<Op>,
+}
+
+impl TextPage {
+    fn use_text<S: Into<String>>(
+        &mut self,
+        text: S,
+        size: f32,
+        x: Mm,
+        y: Mm,
+        font: &PdfFontHandle,
+    ) {
+        self.ops.extend([
+            Op::StartTextSection,
+            Op::SetTextCursor {
+                pos: Point::new(x, y),
+            },
+            Op::SetFont {
+                font: font.clone(),
+                size: Pt(size),
+            },
+            Op::ShowText {
+                items: vec![TextItem::Text(text.into())],
+            },
+            Op::EndTextSection,
+        ]);
+    }
+}
+
 #[allow(clippy::too_many_lines)] // PDF rendering : flow linéaire mieux lu en bloc
 fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u8>> {
-    // A4 portrait : 210 × 297 mm.
-    let (doc, page1, layer1) = PdfDocument::new(
-        format!("Sobr.ia - {}", req.organization_name),
-        Mm(210.0),
-        Mm(297.0),
-        "page1",
-    );
-    let font_regular = doc
-        .add_builtin_font(BuiltinFont::HelveticaBold)
-        .map_err(|e| ExportError::Pdf(format!("font load: {e}")))?;
-    let font_body = doc
-        .add_builtin_font(BuiltinFont::Helvetica)
-        .map_err(|e| ExportError::Pdf(format!("font load: {e}")))?;
+    let font_regular = PdfFontHandle::Builtin(BuiltinFont::HelveticaBold);
+    let font_body = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
 
     // ── Page 1 : page de garde ────────────────────────────────────────
-    {
-        let layer = doc.get_page(page1).get_layer(layer1);
+    let cover_ops = {
+        let mut layer = TextPage::default();
         let mut y = 260.0;
         let title = "Empreinte environnementale IA générative".to_string();
         layer.use_text(title, 22.0, Mm(20.0), Mm(y), &font_regular);
@@ -152,7 +174,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         );
         y -= 7.0;
         let period_line = format!(
-            "Période : {} → {}",
+            "Période : {} – {}",
             req.period_start.format("%Y-%m-%d"),
             req.period_end.format("%Y-%m-%d")
         );
@@ -220,12 +242,12 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
             Mm(y),
             &font_body,
         );
-    }
+        layer.ops
+    };
 
     // ── Page 2 : Méthodologie + Audit + Signature ─────────────────────
-    let (page2, layer2) = doc.add_page(Mm(210.0), Mm(297.0), "page2");
-    {
-        let layer = doc.get_page(page2).get_layer(layer2);
+    let details_ops = {
+        let mut layer = TextPage::default();
         let mut y = 270.0;
         layer.use_text("Méthodologie", 16.0, Mm(20.0), Mm(y), &font_regular);
         y -= 8.0;
@@ -293,7 +315,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         y -= 8.0;
         layer.use_text(
             format!(
-                "Entrées d'audit couvertes : id {} → {}",
+                "Entrées d'audit couvertes : id {} – {}",
                 summary.first_audit_id, summary.last_audit_id
             ),
             10.0,
@@ -336,14 +358,36 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
             layer.use_text(line, 9.0, Mm(20.0), Mm(y), &font_body);
             y -= 5.0;
         }
-    }
+        layer.ops
+    };
 
-    let mut buf = BufWriter::new(Vec::new());
-    doc.save(&mut buf)
-        .map_err(|e| ExportError::Pdf(format!("save: {e}")))?;
-    let bytes = buf
-        .into_inner()
-        .map_err(|e| ExportError::Pdf(format!("buffer: {}", e.error())))?;
+    // A4 portrait : 210 × 297 mm.
+    let pages: Vec<PdfPage> = [cover_ops, details_ops]
+        .into_iter()
+        .map(|ops| PdfPage::new(Mm(210.0), Mm(297.0), ops))
+        .collect();
+    let mut doc = PdfDocument::new(&format!("Sobr.ia - {}", req.organization_name));
+    // printpdf 0.12 dates a document 1970-01-01 unless told otherwise.
+    let now = OffsetDateTime::now();
+    doc.metadata.info.creation_date = now;
+    doc.metadata.info.modification_date = now;
+    doc.metadata.info.metadata_date = now;
+    let mut warnings = Vec::new();
+    let bytes = doc
+        .with_pages(pages)
+        .save(&PdfSaveOptions::default(), &mut warnings);
+    // A save that drops content must not yield a compliance report.
+    let errors: Vec<&str> = warnings
+        .iter()
+        .filter(|w| w.severity == PdfParseErrorSeverity::Error)
+        .map(|w| w.msg.as_str())
+        .collect();
+    if !errors.is_empty() {
+        return Err(ExportError::Pdf(errors.join("; ")));
+    }
+    if !warnings.is_empty() {
+        debug!(?warnings, "printpdf save warnings");
+    }
     Ok(bytes)
 }
 
@@ -446,6 +490,42 @@ mod tests {
         assert_eq!(art.pdf_sha256.len(), 64);
         assert_eq!(art.summary.total_requests, 2);
         assert_eq!(art.audit_entries_count, 2);
+    }
+
+    #[test]
+    fn pdf_is_dated_today_not_the_unix_epoch() {
+        let req = sample_request();
+        let day = || Utc::now().format("%Y%m%d").to_string();
+        let before = day();
+        let art = generate_report(&req, &[make_entry(1, req.period_start, 1.0)]).unwrap();
+        let after = day();
+        let text = String::from_utf8_lossy(&art.pdf_bytes);
+        for key in ["/CreationDate", "/ModDate"] {
+            let at = text.find(key).unwrap_or_else(|| panic!("{key} present"));
+            let date: String = text[at + key.len()..]
+                .chars()
+                .skip_while(|c| *c != ':')
+                .skip(1)
+                .take(8)
+                .collect();
+            assert!(
+                date == before || date == after,
+                "{key} is {date}, not today ({before})"
+            );
+        }
+    }
+
+    #[test]
+    fn text_page_puts_each_line_in_its_own_text_section() {
+        let mut page = TextPage::default();
+        let font = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
+        page.use_text("a", 10.0, Mm(1.0), Mm(2.0), &font);
+        page.use_text("b", 10.0, Mm(1.0), Mm(3.0), &font);
+        assert_eq!(page.ops.len(), 10);
+        assert!(matches!(page.ops[0], Op::StartTextSection));
+        assert!(matches!(page.ops[4], Op::EndTextSection));
+        assert!(matches!(page.ops[5], Op::StartTextSection));
+        assert!(matches!(page.ops[9], Op::EndTextSection));
     }
 
     #[test]
