@@ -16,6 +16,17 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   workspace no longer built on Windows. Also drops `zip` 6
   (RUSTSEC-2026-0367, -0368, -0369) and 52 other locked packages.
 
+### Changed — Free personal space (2026-10-31, SOB-154)
+
+- **ADR-0014, Amendment 2** (Accepted): the personal space on the Sobr server
+  is free for individuals; the 30-day trial and the per-seat price apply to
+  organizations only. It settles the two open points of Amendment 1: the price
+  and the conflict with ADR-0013.
+- **ADR-0013, Amendment 2** (Accepted): the personal space is an explicit
+  exception to "no hosted accounts" and "no multi-device sync"; organizations
+  keep the rule. Thibault's answer: SOB-136. Limits on the free space and the
+  date of sync between machines are not decided here.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
