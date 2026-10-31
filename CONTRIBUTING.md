@@ -7,7 +7,7 @@ Thank you for your interest in the project. Sobr.ia is open source (MIT, Etalab 
 ## Before you start
 
 1. Read [`README.md`](README.md), [`CLAUDE.md`](CLAUDE.md) and the [specification](docs/CAHIER-DES-CHARGES-v1.0.md).
-2. Find the active sprint in [`docs/ROADMAP.md`](docs/ROADMAP.md) and its brief.
+2. Start from the Linear issue you work on (team `SOB`). Read a brief in `briefs/chantiers/` only when the issue links one.
 3. Follow the [ADRs](docs/adr/): the architecture decisions are settled.
 
 ---

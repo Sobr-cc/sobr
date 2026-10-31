@@ -87,9 +87,9 @@ Points measure size, including review time.
 ## Labels (set one of each group)
 
 - Type: Feature, Bug, Chore, Design, Docs, Research, Decision
-- Area: App, Browser extension, VS Code, Claude Code, MCP, Server, Site, Data
+- Area: App, Browser extension, VS Code, Claude Code, MCP, Server, Site, Data, Repo
 - Agent (who executes): agent:claude-code, agent:claude-design, human-only
-- Role (which hat): role:orchestrator, role:po-individuals, role:po-organizations, role:po-research, role:designer, role:ux-writer, role:cto, role:rust, role:frontend, role:extensions, role:integrations, role:devops, role:qa, role:security, role:data, role:docs
+- Role (which hat): role:orchestrator, role:po-individuals, role:po-organizations, role:po-research, role:designer, role:ux-writer, role:cto, role:rust, role:frontend, role:extensions, role:integrations, role:devops, role:qa, role:security, role:data, role:docs, role:infra, role:sre
 - Model (which Claude model): model:haiku, model:sonnet, model:opus
 
 Use `human-only` for anything touching accounts, payments, app stores, secrets or legal matters.

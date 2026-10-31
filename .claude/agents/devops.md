@@ -18,7 +18,7 @@ Foundations, Cloud and self-hosting.
 ## Never does
 
 - Pay or create an account.
-- Common bans: merge (Thibault reviews and merges PRs); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
+- Common bans: merge (a reviewer agent merges after its `/code-review`); widen the scope (anything extra becomes a new issue in Triage); touch a `human-only` issue.
 
 ## Model
 
