@@ -27,6 +27,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - 22 build issues (111 points), marking those that wait for a Deep cleanup.
   - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
 
+### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
+
+- **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in
+  `sobr` covers `web/`, whose links to the methodology glossary and the team
+  server guide would break; `sobria-bridge` leaves the second docs step list.
+  The extension parity test uses the three EcoLogits cases with each case's
+  tolerance. `sobr` keeps a copy of `LICENSE-DATA` for the Etalab data of
+  `sobria-geoloc`. The site links to three technical pages have a stated
+  outcome. The second docs step is one issue per folder, plus the demo fixtures: 77 points.
+
 ### Added — ADR-0022, organization, project, task and session model (2026-10-31, SOB-143)
 
 - **ADR-0022** (Accepted 2026-10-31; Thibault took every recommendation in
