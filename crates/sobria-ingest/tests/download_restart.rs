@@ -1,16 +1,20 @@
-//! Characterization tests of the downloader's timeout and retry (SOB-222).
+//! Characterization tests of the downloader's retry and of the timeout it relies
+//! on (SOB-222).
 //!
 //! The ComparIA files weigh 682 MB, 733 MB and 3.4 GB. The audit found that
-//! the 60 s timeout (`DEFAULT_TIMEOUT`) covers the whole body and that a retry
-//! of `fetch_to_file` starts again at byte 0. A hand-written local server plays
-//! a connection that stalls and one that drips, with a short timeout on the
-//! client. SOB-123 is the issue that fixes it.
+//! the timeout of `Downloader::new()` (`DEFAULT_TIMEOUT`, 60 s) covers the whole
+//! body and that a retry of `fetch_to_file` starts again at byte 0. A
+//! hand-written local server plays a connection that stalls and one that drips.
+//!
+//! Both tests build their own client with a short timeout, because the 60 s of
+//! `new()` would make them last a minute. The first one pins `fetch_to_file`
+//! itself (retry from byte 0, no Range header). The second one pins the
+//! `timeout()` setting of reqwest that `new()` applies, not `new()`: when
+//! SOB-123 changes the timeout of `new()`, it adds a test that goes through it.
 
 use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
-    },
+    collections::HashMap,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -37,8 +41,8 @@ struct Stub {
     url: String,
     /// The raw text of each request, lower-cased, in arrival order.
     requests: Arc<Mutex<Vec<String>>>,
-    /// Body bytes written by the [`Script::Drip`] connections.
-    dripped: Arc<AtomicUsize>,
+    /// Body bytes written so far, by connection number (0 is the first).
+    dripped: Arc<Mutex<HashMap<usize, usize>>>,
 }
 
 /// Starts a server where connection `i` follows `scripts[i]` (the last script
@@ -47,15 +51,23 @@ async fn start(scripts: Vec<Script>) -> Stub {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let url = format!("http://{}/file", listener.local_addr().expect("address"));
     let requests = Arc::new(Mutex::new(Vec::new()));
-    let dripped = Arc::new(AtomicUsize::new(0));
+    let dripped = Arc::new(Mutex::new(HashMap::new()));
     let (seen, sent) = (Arc::clone(&requests), Arc::clone(&dripped));
     let last = *scripts.last().expect("a script");
     let mut scripts = scripts.into_iter().chain(std::iter::repeat(last));
 
     tokio::spawn(async move {
+        let mut connection = 0;
         while let Ok((stream, _)) = listener.accept().await {
             let script = scripts.next().expect("an endless iterator");
-            tokio::spawn(serve(stream, script, Arc::clone(&seen), Arc::clone(&sent)));
+            tokio::spawn(serve(
+                stream,
+                script,
+                connection,
+                Arc::clone(&seen),
+                Arc::clone(&sent),
+            ));
+            connection += 1;
         }
     });
     Stub {
@@ -68,8 +80,9 @@ async fn start(scripts: Vec<Script>) -> Stub {
 async fn serve(
     mut stream: TcpStream,
     script: Script,
+    connection: usize,
     seen: Arc<Mutex<Vec<String>>>,
-    dripped: Arc<AtomicUsize>,
+    dripped: Arc<Mutex<HashMap<usize, usize>>>,
 ) {
     let mut request = Vec::new();
     let mut chunk = [0u8; 1024];
@@ -101,7 +114,7 @@ async fn serve(
                 if stream.write_all(&[*byte]).await.is_err() {
                     return;
                 }
-                dripped.fetch_add(1, Ordering::SeqCst);
+                *dripped.lock().expect("lock").entry(connection).or_default() += 1;
                 tokio::time::sleep(Duration::from_millis(200)).await;
             }
         },
@@ -144,7 +157,7 @@ async fn download_quirk_a_timeout_restarts_the_file_from_byte_zero_without_a_ran
 }
 
 #[tokio::test]
-async fn download_quirk_the_timeout_covers_the_whole_body_even_while_data_flows() {
+async fn download_quirk_the_reqwest_timeout_covers_the_whole_body_even_while_data_flows() {
     // 10 bytes at 200 ms each take 2 s; the client gives up after 0.5 s although
     // a byte arrives every 200 ms. A timeout on idle time would let it finish.
     let stub = start(vec![Script::Drip]).await;
@@ -160,10 +173,9 @@ async fn download_quirk_the_timeout_covers_the_whole_body_even_while_data_flows(
         matches!(&error, IngestError::Http(e) if e.is_timeout()),
         "{error:?}"
     );
-    assert!(
-        stub.dripped.load(Ordering::SeqCst) >= 2,
-        "bytes were arriving when the client gave up"
-    );
+    // Bytes were arriving on the first connection when the client gave up.
+    let first_connection = stub.dripped.lock().expect("lock").get(&0).copied();
+    assert!(first_connection >= Some(2), "{first_connection:?}");
     assert_eq!(
         stub.requests.lock().expect("lock").len(),
         2,

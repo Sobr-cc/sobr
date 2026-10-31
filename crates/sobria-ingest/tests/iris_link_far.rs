@@ -8,7 +8,8 @@ use serde_json::json;
 use sobria_geoloc::DatacenterRecord;
 use sobria_ingest::iris_link::build_links;
 
-/// One small IRIS square in Paris.
+/// One small IRIS square in Paris. A copy of the first feature of the Gold
+/// fixture on purpose: this test must not move when that fixture changes.
 const PARIS_IRIS: &str = r#"{"type":"FeatureCollection","features":[
 {"type":"Feature","properties":{"code_iris":"751010101"},"geometry":{"type":"Polygon","coordinates":[[[2.3472,48.8516],[2.3572,48.8516],[2.3572,48.8616],[2.3472,48.8616],[2.3472,48.8516]]]}}
 ]}"#;

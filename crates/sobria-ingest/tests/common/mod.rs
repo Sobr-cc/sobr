@@ -42,16 +42,13 @@ pub const COMPARIA_ROUTES: [(&str, &str, &str); 3] = [
 
 /// `(source, Silver entity, Copper file it comes from)`: every Silver file of
 /// the two sources.
-pub const SILVER: [(&str, &str, &str); 4] = [
-    (
-        "comparia",
-        "comparia_conversations",
-        "conversations.parquet",
-    ),
-    ("comparia", "comparia_votes", "votes.parquet"),
-    ("comparia", "comparia_reactions", "reactions.parquet"),
-    ("rte-iris", "rte_iris_consommation", "consommation_iris.csv"),
-];
+pub fn silver_files() -> Vec<(&'static str, &'static str, &'static str)> {
+    COMPARIA_ROUTES
+        .iter()
+        .map(|&(_, file, entity)| ("comparia", entity, file))
+        .chain([("rte-iris", "rte_iris_consommation", "consommation_iris.csv")])
+        .collect()
+}
 
 pub const CSV_RTE: &str = "code_iris,conso_elec_mwh,conso_gaz_mwh,nb_sites,annee
 751010101,12500.5,4200.0,3,2023
@@ -145,12 +142,19 @@ impl Upstream {
             .await;
     }
 
-    /// Number of requests received since the server started or was reset.
-    pub async fn request_count(&self) -> usize {
-        self.server
-            .received_requests()
-            .await
-            .map_or(0, |requests| requests.len())
+    /// Number of `GET`s that asked for a whole file since the server started or
+    /// was reset: a `HEAD`, a conditional request (`If-None-Match`,
+    /// `If-Modified-Since`) or a `Range` request does not count, so a download
+    /// that skips an unchanged file lowers it.
+    pub async fn full_downloads(&self) -> usize {
+        const PARTIAL: [&str; 3] = ["if-none-match", "if-modified-since", "range"];
+        self.server.received_requests().await.map_or(0, |requests| {
+            requests
+                .iter()
+                .filter(|r| r.method == wiremock::http::Method::GET)
+                .filter(|r| PARTIAL.iter().all(|h| !r.headers.contains_key(*h)))
+                .count()
+        })
     }
 
     fn downloader() -> Downloader {
@@ -187,6 +191,12 @@ impl Upstream {
     pub fn comparia_registry(&self) -> LayerRegistry {
         let mut registry = LayerRegistry::new();
         registry.register(Arc::new(self.comparia()));
+        registry
+    }
+
+    pub fn rte_registry(&self) -> LayerRegistry {
+        let mut registry = LayerRegistry::new();
+        registry.register(Arc::new(self.rte_iris()));
         registry
     }
 

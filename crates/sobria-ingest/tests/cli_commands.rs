@@ -20,7 +20,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use common::{count, gold_sqlite, only_snapshot, populate, populate_copper, silver_path, SILVER};
+use common::{
+    context, count, gold_sqlite, only_snapshot, populate, populate_copper, silver_files,
+    silver_path,
+};
 
 /// Longest a run may take. Past it, the proxy variables did not cut the network.
 const WATCHDOG: Duration = Duration::from_secs(120);
@@ -34,7 +37,9 @@ fn closed_local_address() -> String {
 }
 
 /// Runs `sobria-ingest <args>` with `data_root` as its data folder and no
-/// network.
+/// network. It blocks until the child exits, so the async tests below use a
+/// multi-threaded runtime: a server of the test that is still running keeps
+/// being served meanwhile.
 fn ingest(data_root: &Path, args: &[&str]) -> Output {
     let dead = closed_local_address();
     let mut command = Command::new(env!("CARGO_BIN_EXE_sobria-ingest"));
@@ -112,7 +117,7 @@ fn pipeline_run_with_an_unknown_source_is_refused_before_any_download() {
     assert!(err.contains("source inconnue: 'nope'"), "{err}");
     assert!(err.contains("comparia, rte-iris"), "{err}");
     assert!(
-        !tmp.path().join("copper").exists(),
+        !context(tmp.path()).copper_root("comparia").exists(),
         "nothing was downloaded"
     );
 }
@@ -127,7 +132,7 @@ fn validate_without_any_snapshot_says_so_and_succeeds() {
     assert!(text.contains("Aucun snapshot Copper trouvé sous"), "{text}");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn validate_accepts_untouched_snapshots() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_copper(tmp.path()).await;
@@ -138,7 +143,7 @@ async fn validate_accepts_untouched_snapshots() {
     assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn validate_reports_a_corrupted_copper_file() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_copper(tmp.path()).await;
@@ -158,20 +163,20 @@ async fn validate_reports_a_corrupted_copper_file() {
     assert!(err.contains("validate: 1 manifest(s) corrompu(s)"), "{err}");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn validate_quirk_only_rehashes_copper_so_broken_silver_and_missing_gold_pass() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate(tmp.path()).await;
     // `run_validate` checks nothing but the Copper manifests, although
     // `dvc.yaml` promises lineage, schema and row-count checks.
-    for (source, entity, _) in SILVER {
+    for (source, entity, _) in silver_files() {
         std::fs::write(
             silver_path(tmp.path(), source, entity),
             b"not a parquet file",
         )
         .expect("break silver");
     }
-    std::fs::remove_dir_all(tmp.path().join("gold")).expect("remove gold");
+    std::fs::remove_dir_all(context(tmp.path()).gold_root()).expect("remove gold");
 
     let out = ingest(tmp.path(), &["validate"]);
     assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
@@ -179,7 +184,7 @@ async fn validate_quirk_only_rehashes_copper_so_broken_silver_and_missing_gold_p
     assert!(text.contains("2 manifest(s) inspecté(s), 0 KO."), "{text}");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn silver_promotes_the_copper_on_disk_without_the_network() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_copper(tmp.path()).await;
@@ -189,7 +194,7 @@ async fn silver_promotes_the_copper_on_disk_without_the_network() {
     let text = stdout(&out);
     assert!(text.contains("[copper (réhydraté)] 2 OK, 0 KO"), "{text}");
     assert!(text.contains("[silver] 2 OK, 0 KO"), "{text}");
-    for (source, entity, _) in SILVER {
+    for (source, entity, _) in silver_files() {
         assert!(silver_path(tmp.path(), source, entity).exists(), "{entity}");
     }
 }
@@ -209,7 +214,7 @@ fn silver_without_any_copper_fails_and_points_to_the_copper_step() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn gold_quirk_runs_the_whole_pipeline_and_replaces_gold_when_every_download_fails() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate(tmp.path()).await;
@@ -231,7 +236,7 @@ async fn gold_quirk_runs_the_whole_pipeline_and_replaces_gold_when_every_downloa
     assert!(silver_path(tmp.path(), "comparia", "comparia_conversations").exists());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn pipeline_run_quirk_incremental_downloads_again_although_copper_is_on_disk() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_copper(tmp.path()).await;

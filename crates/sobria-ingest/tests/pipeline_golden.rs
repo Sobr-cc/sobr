@@ -14,9 +14,10 @@ use std::path::Path;
 
 use common::{
     context, count, gold_sqlite, golden::Goldens, only_snapshot, parquet_dump, populate,
-    populate_from, silver_path, sqlite_dump, Upstream, CSV_RTE, GEOJSON_EMPTY, GEOJSON_RTE, SILVER,
+    populate_from, silver_files, silver_path, sqlite_dump, Upstream, CSV_RTE, GEOJSON_EMPTY,
+    GEOJSON_RTE,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use sobria_ingest::{
     hash,
     layer::{CopperSnapshot, DataLayer},
@@ -28,14 +29,16 @@ async fn silver_files_of_both_sources_are_pinned() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_from(&Upstream::start_without_geometries().await, tmp.path()).await;
 
+    // `silver_rte_iris_consommation.json` also pins a quirk (SOB-254): `code_iris`
+    // is read as an integer (`i64`), so a code such as "010040101" would lose its
+    // leading zero. The fixture has no such code; `silver_quirk_a_code_iris_...`
+    // below shows it.
     let mut goldens = Goldens::new();
-    for (source, entity, copper_file) in SILVER {
+    for (source, entity, copper_file) in silver_files() {
         let mut dump = parquet_dump(&silver_path(tmp.path(), source, entity));
         // The hash is masked in the golden file, so check it here: it must be
         // the hash of the Copper file the rows come from.
-        let copper_hash = hash::sha256_file(&only_snapshot(tmp.path(), source).join(copper_file))
-            .await
-            .expect("hash the Copper file");
+        let copper_hash = copper_hash(tmp.path(), source, copper_file).await;
         let rows = dump["rows"].as_array().expect("rows");
         assert!(!rows.is_empty(), "{entity}: no row");
         for row in rows {
@@ -51,10 +54,90 @@ async fn silver_files_of_both_sources_are_pinned() {
     }
 }
 
+async fn copper_hash(data_root: &Path, source: &str, file: &str) -> String {
+    hash::sha256_file(&only_snapshot(data_root, source).join(file))
+        .await
+        .expect("hash the Copper file")
+}
+
+/// The hashes and sizes of the datasheet are masked in its golden file: check
+/// here that each one is that of the file it names.
+async fn assert_datasheet_hashes(datasheet: &Value, data_root: &Path) {
+    let files = silver_files();
+
+    // Each Copper file that fed a Silver entity is listed with its own hash.
+    let references = datasheet["sobria:copperReferences"]
+        .as_array()
+        .expect("copperReferences");
+    assert_eq!(references.len(), files.len());
+    for reference in references {
+        let source = reference["prov:wasAttributedTo"]
+            .as_str()
+            .expect("a source")
+            .trim_start_matches("sobria:source:");
+        let file = reference["schema:name"].as_str().expect("a file");
+        let expected = copper_hash(data_root, source, file).await;
+        assert_eq!(reference["schema:identifier"], expected, "{source}/{file}");
+        assert_eq!(reference["@id"], format!("sobria:copper:{expected}"));
+    }
+
+    // Each Silver entity points at the Copper file it was made from.
+    for entity in datasheet["prov:wasDerivedFrom"]
+        .as_array()
+        .expect("Silver entities")
+    {
+        let name = entity["schema:name"].as_str().expect("an entity");
+        let &(source, _, file) = files
+            .iter()
+            .find(|(_, e, _)| *e == name)
+            .expect("a known entity");
+        let expected = format!(
+            "sobria:copper:{}",
+            copper_hash(data_root, source, file).await
+        );
+        assert_eq!(entity["prov:wasDerivedFrom"], json!([expected]), "{name}");
+    }
+
+    // Each source cites a Copper file of its own.
+    for node in datasheet["schema:isBasedOn"].as_array().expect("sources") {
+        let id = node["@id"]
+            .as_str()
+            .expect("an id")
+            .trim_start_matches("sobria:source:");
+        let mut own = Vec::new();
+        for &(source, _, file) in files.iter().filter(|(s, _, _)| *s == id) {
+            own.push(copper_hash(data_root, source, file).await);
+        }
+        let cited = node["sobria:copperHash"].as_str().expect("a hash");
+        assert!(own.iter().any(|h| h == cited), "{id} cites {cited}");
+    }
+
+    // Each Gold file is cited with its own hash and size.
+    let gold = context(data_root).gold_root();
+    for artifact in datasheet["schema:distribution"]
+        .as_array()
+        .expect("distribution")
+    {
+        let name = artifact["schema:name"].as_str().expect("a name");
+        let path = gold.join(name);
+        let sha256 = hash::sha256_file(&path).await.expect("hash the Gold file");
+        assert_eq!(artifact["schema:sha256"], sha256, "{name}");
+        let size = std::fs::metadata(&path).expect("metadata").len();
+        assert_eq!(artifact["schema:contentSize"], size.to_string(), "{name}");
+    }
+}
+
 #[tokio::test]
 async fn gold_referentiel_and_datasheet_are_pinned() {
     let tmp = tempfile::tempdir().expect("tmp");
     populate_from(&Upstream::start_without_geometries().await, tmp.path()).await;
+
+    // Before the SQLite file is opened, so that its hash is the one of the Gold.
+    let text = std::fs::read_to_string(context(tmp.path()).gold_root().join("datasheet.jsonld"))
+        .expect("datasheet");
+    let mut datasheet: Value = serde_json::from_str(&text).expect("datasheet JSON");
+    assert_datasheet_hashes(&datasheet, tmp.path()).await;
+
     let conn = gold_sqlite(tmp.path());
 
     // The hashes are masked in the golden files, so check here that each
@@ -68,18 +151,13 @@ async fn gold_referentiel_and_datasheet_are_pinned() {
         .collect();
     assert_eq!(lineage.len(), 4);
     for (sha256, source, file) in lineage {
-        let actual = hash::sha256_file(&only_snapshot(tmp.path(), &source).join(&file))
-            .await
-            .expect("hash the Copper file");
+        let actual = copper_hash(tmp.path(), &source, &file).await;
         assert_eq!(sha256, actual, "{source}/{file}");
     }
 
     let mut goldens = Goldens::new();
     goldens.assert("gold_referentiel", &sqlite_dump(&conn, tmp.path()));
 
-    let text = std::fs::read_to_string(tmp.path().join("gold").join("datasheet.jsonld"))
-        .expect("datasheet");
-    let mut datasheet: Value = serde_json::from_str(&text).expect("datasheet JSON");
     common::mask_volatile(&mut datasheet, tmp.path());
     goldens.assert("gold_datasheet", &datasheet);
 }
@@ -268,8 +346,11 @@ async fn incremental_quirk_the_flag_does_not_prevent_a_second_download() {
     ctx.incremental = true;
     let registry = upstream.registry();
 
+    // Only whole-file GETs count: a conditional request answered "not modified",
+    // a Range request or a HEAD would not, so the second count stays at `first`
+    // once `--incremental` skips an unchanged file.
     registry.run_copper(&ctx).await;
-    let first = upstream.request_count().await;
+    let first = upstream.full_downloads().await;
     assert!(
         first >= 5,
         "3 ComparIA files, the RTE CSV and the RTE GeoJSON"
@@ -277,10 +358,36 @@ async fn incremental_quirk_the_flag_does_not_prevent_a_second_download() {
 
     registry.run_copper(&ctx).await;
     assert_eq!(
-        upstream.request_count().await,
+        upstream.full_downloads().await,
         2 * first,
-        "nothing changed upstream, and the same files are downloaded again"
+        "nothing changed upstream, and the same files are downloaded in full again"
     );
+}
+
+#[tokio::test]
+async fn silver_quirk_a_code_iris_with_a_leading_zero_is_read_as_an_integer() {
+    // SOB-254: the CSV reader infers the type of `code_iris`. A code made of
+    // digits becomes an `i64`, so "010040101" is stored as 10040101 and no longer
+    // matches the text `code_iris` of the GeoJSON or of `datacenter_iris_link`.
+    let tmp = tempfile::tempdir().expect("tmp");
+    let upstream = Upstream::start().await;
+    upstream
+        .replace_rte("code_iris,conso_elec_mwh\n010040101,1.5\n", GEOJSON_EMPTY)
+        .await;
+    let registry = upstream.rte_registry();
+    let ctx = context(tmp.path());
+
+    let copper = registry.run_copper(&ctx).await;
+    registry.run_silver(&ctx, &copper).await;
+
+    let dump = parquet_dump(&silver_path(
+        tmp.path(),
+        "rte-iris",
+        "rte_iris_consommation",
+    ));
+    assert_eq!(dump["columns"][0]["name"], "code_iris");
+    assert_eq!(dump["columns"][0]["dtype"], "i64");
+    assert_eq!(dump["rows"][0]["code_iris"], "10040101");
 }
 
 #[tokio::test]
