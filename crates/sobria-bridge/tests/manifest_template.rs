@@ -4,9 +4,6 @@
 //! that fill it. These tests pin the template shape and the placeholder names
 //! without running the scripts. Real browser installation (per-OS paths,
 //! Windows registry) lives in `sobria-app` (`bridge_install.rs`).
-//!
-//! `manifest/com.sobria.bridge.json.tmpl` is not referenced by any script or
-//! Rust code, so it is not pinned here.
 
 use std::collections::BTreeSet;
 
