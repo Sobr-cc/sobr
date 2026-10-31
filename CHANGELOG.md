@@ -7,6 +7,16 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Claude Code usage capture note (2026-10-31, SOB-145)
+
+- **`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`**: proposal for measuring
+  Claude Code without storing prompts. It covers the local transcripts (an
+  undocumented, unstable format), the plugin (status line and hooks),
+  OpenTelemetry for organizations, double counting and where the import is
+  built (ADR-0019 decision 4), with an official source for each fact and a
+  list of what is stored per session. The open questions are SOB-161, 162,
+  163, 164 and 166. No code changed.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
