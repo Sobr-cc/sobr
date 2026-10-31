@@ -158,7 +158,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/tests/changelog-assemble/run.sh
+      - name: Show the shell and awk in use
+        run: |
+          /bin/bash --version | head -n 1
+          awk -W version 2>&1 | head -n 1
+          awk --version 2>&1 | head -n 1
+      - run: /bin/bash scripts/tests/changelog-assemble/run.sh
 
   site-lint-build:
     name: Site (Astro) — check + lint + build

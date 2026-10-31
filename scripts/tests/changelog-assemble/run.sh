@@ -17,8 +17,9 @@ setup() {
   cp "$here/$1" "$case/CHANGELOG.md"
 }
 
+# Same shell as this test, so CI can pin it (macOS /bin/bash is 3.2).
 assemble() {
-  bash "$script" --dir "$case/fragments" --changelog "$case/CHANGELOG.md" "$@"
+  "$BASH" "$script" --dir "$case/fragments" --changelog "$case/CHANGELOG.md" "$@"
 }
 
 pass() { echo "ok   $1"; }
@@ -48,12 +49,12 @@ golden() {
 golden unreleased CHANGELOG.md expected-preview.md expected-write.md
 golden released CHANGELOG-released.md expected-preview-released.md expected-write-released.md
 
-# refused NAME CONTENT [OPTIONS]: CONTENT is a printf format; the fragment stops the script before anything is written.
+# refused NAME CONTENT [OPTIONS]: CONTENT takes printf %b escapes; the fragment stops the script before anything is written.
 refused() {
   local name=$1 content=$2
   shift 2
   setup CHANGELOG.md
-  printf "$content" > "$case/fragments/sob-9-heading-title.fixed.md"
+  printf '%b' "$content" > "$case/fragments/sob-9-heading-title.fixed.md"
   if out=$(assemble "$@" 2>&1); then
     fail "$name: accepted"
   elif [[ $out == *"Title starts with a heading"* ]] && cmp -s "$here/CHANGELOG.md" "$case/CHANGELOG.md" \
@@ -67,6 +68,7 @@ refused() {
 refused "heading in the title, --write" '### Fixed — x (2026-11-02, SOB-9)\n\n- y.\n' --version 1.0.0 --write
 refused "heading in the title, preview" '## x (2026-11-02, SOB-9)\n\n- y.\n'
 refused "heading after a BOM, CRLF" '\357\273\277# x (2026-11-02, SOB-9)\r\n\r\n- y.\r\n' --version 1.0.0 --write
+refused "title made of hashes only" '###\r\n\r\n- y.\r\n' --version 1.0.0 --write
 
 setup CHANGELOG.md
 printf '#58 regression fixed (2026-11-02, GH-58)\n\n- y.\n' > "$case/fragments/gh-58-issue-number.fixed.md"

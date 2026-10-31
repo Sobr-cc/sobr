@@ -39,7 +39,8 @@ Upload retried after a timeout (2026-11-02, SOB-123)
 ```
 
 The script adds the heading `### Fixed — ` in front of the title, so the
-title itself must not start with `#` and a space: the script stops on it.
+title itself must not start with a Markdown heading marker (`#`, `##`…):
+the script stops on it.
 
 ## Release
 

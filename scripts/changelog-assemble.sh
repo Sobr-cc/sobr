@@ -49,7 +49,7 @@ fi
 # Keep a Changelog's order, as in the header of CHANGELOG.md.
 categories="added changed deprecated removed fixed security"
 name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|deprecated|removed|fixed|security)\.md$'
-heading_pattern='^[[:space:]]*#+[[:space:]]'
+heading_pattern='^[[:space:]]*#+([[:space:]]|$)'
 bom=$(printf '\357\273\277')
 
 # Every file except the README must be a well-named fragment, so a typo
