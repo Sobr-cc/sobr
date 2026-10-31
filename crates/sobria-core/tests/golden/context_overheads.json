@@ -1,0 +1,14 @@
+[
+  {
+    "memory_tokens": 150,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 3000,
+    "tools_definition_tokens": 800
+  },
+  {
+    "memory_tokens": 0,
+    "system_prompt_tokens": 0,
+    "thinking_tokens_p50": 0,
+    "tools_definition_tokens": 0
+  }
+]
