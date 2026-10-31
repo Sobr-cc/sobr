@@ -17,7 +17,7 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   driven through their own `extractModelId` and `onSubmit` so the real alias
   tables and selectors are used; and a comparison of the 34 presets with the
   Rust registry (read from the estimator's `model_registry.json`). Line
-  coverage goes from 40 % to 74 % and function coverage from 53 % to 87 %.
+  coverage goes from 40 % to 74 % and function coverage from 53 % to 88 %.
   Quirks found are pinned and filed: SOB-171 (four preset labels differ from
   the Rust registry) and SOB-176 (labels resolved to the wrong model); the
   double counting is SOB-118.
