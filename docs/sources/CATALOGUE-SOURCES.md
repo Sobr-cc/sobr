@@ -1,274 +1,274 @@
-# Catalogue des sources de données — Sobr.ia
+# Data source catalog — Sobr.ia
 
-> **Version** : 2.1 — model catalog sources section added (2026-10-31, SOB-6) ; 2.0 — pivot ComparIA (12 mai 2026).
-> Chaque source traverse le pipeline médaillon (ADR-0009).
-> Toute modification = mise à jour du schéma Silver correspondant + bump de version.
-
----
-
-## Stratégie de priorisation
-
-| Tier | Critère | Sources |
-|------|---------|---------|
-| **Tier 1** | Datasets officiels référencés par le défi data.gouv.fr | ComparIA, RTE-NaTran-Teréga IRIS |
-| **Tier 2** | Sources publiques, gratuites, sans authentification | ADEME, EcoLogits, ML.Energy, CodeCarbon, HF AI Energy Score, Papers |
-| **Tier 3** | Source nationale stratégique avec compte gratuit | RTE eco2mix (mix élec FR live) |
-| **Supprimées** | Sources nécessitant compte payant ou clé restrictive | Electricity Maps, MaxMind GeoLite2 |
-
-**Engagement v1.0** : zéro source bloquante derrière un paywall. Toutes les sources Tier 1 et Tier 2 sont téléchargeables anonymement.
+> **Version**: 2.2 — translated to English (2026-10-31, SOB-149); 2.1 — model catalog sources section added (2026-10-31, SOB-6); 2.0 — ComparIA pivot (12 May 2026).
+> Each source goes through the medallion pipeline (ADR-0009).
+> Any change = update of the matching Silver schema + version bump.
 
 ---
 
-# 🥇 Tier 1 — Datasets officiels du défi
+## Prioritization strategy
 
-## S01 — ComparIA (Ministère de la Culture / Beta.gouv)
+| Tier | Criterion | Sources |
+|------|-----------|---------|
+| **Tier 1** | Official datasets referenced by the data.gouv.fr challenge | ComparIA, RTE-NaTran-Teréga IRIS |
+| **Tier 2** | Public, free sources, no authentication | ADEME, EcoLogits, ML.Energy, CodeCarbon, HF AI Energy Score, Papers |
+| **Tier 3** | Strategic national source with a free account | RTE eco2mix (live FR electricity mix) |
+| **Removed** | Sources that need a paid account or a restrictive key | Electricity Maps, MaxMind GeoLite2 |
 
-| Champ | Valeur |
-|-------|--------|
-| **URL data.gouv.fr** | https://www.data.gouv.fr/datasets/compar-ia |
-| **Plateforme** | https://comparia.beta.gouv.fr/ |
-| **Code source** | https://github.com/betagouv/ComparIA |
-| **Producteur** | Ministère de la Culture (DINUM / Beta.gouv) |
+**v1.0 commitment**: zero blocking source behind a paywall. All Tier 1 and Tier 2 sources can be downloaded anonymously.
+
+---
+
+# 🥇 Tier 1 — Official datasets of the challenge
+
+## S01 — ComparIA (Ministry of Culture / Beta.gouv)
+
+| Field | Value |
+|-------|-------|
+| **data.gouv.fr URL** | https://www.data.gouv.fr/datasets/compar-ia |
+| **Platform** | https://comparia.beta.gouv.fr/ |
+| **Source code** | https://github.com/betagouv/ComparIA |
+| **Producer** | Ministry of Culture (DINUM / Beta.gouv) |
 | **Licence** | **Licence Ouverte / Open Licence v2.0 (Etalab 2.0)** |
-| **Compatibilité Sobr.ia** | ✅ Parfaite (Etalab ↔ MIT/CC-BY) |
-| **Fréquence MAJ** | Trimestrielle (snapshot dernière MAJ : 5 mars 2026) |
-| **Politique fetch** | Hebdomadaire (poll metadata) |
-| **Authentification** | ❌ Aucune |
-| **Status défi** | 🎯 Dataset central |
+| **Sobr.ia compatibility** | ✅ Perfect (Etalab ↔ MIT/CC-BY) |
+| **Update frequency** | Quarterly (snapshot of the last update: 5 March 2026) |
+| **Fetch policy** | Weekly (metadata poll) |
+| **Authentication** | ❌ None |
+| **Challenge status** | 🎯 Central dataset |
 
-### Fichiers à ingérer
+### Files to ingest
 
-| Fichier | Format | Taille | URL téléchargement |
-|---------|--------|--------|---------------------|
+| File | Format | Size | Download URL |
+|------|--------|------|--------------|
 | Conversations | Parquet | 682 MB | https://www.data.gouv.fr/api/1/datasets/r/7651fd0b-f222-43b3-8db8-ed6ae660d313 |
 | Votes | Parquet | 733 MB | https://www.data.gouv.fr/api/1/datasets/r/4ffc86e1-84a4-4fdc-9726-66408e596fef |
-| Réactions | Parquet | 3,4 GB | https://www.data.gouv.fr/api/1/datasets/r/9dd3d51f-4299-4193-ab46-81ae039fe1be |
-| Documentation | CSV | 8,9 KB | https://www.data.gouv.fr/api/1/datasets/r/278fb12a-f75a-4891-add8-fff1d82f1622 |
+| Reactions | Parquet | 3.4 GB | https://www.data.gouv.fr/api/1/datasets/r/9dd3d51f-4299-4193-ab46-81ae039fe1be |
+| Documentation | CSV | 8.9 KB | https://www.data.gouv.fr/api/1/datasets/r/278fb12a-f75a-4891-add8-fff1d82f1622 |
 
-**Volume total : ~5 GB** — gros, mais Parquet colonnaire permet une ingestion fluide en DuckDB / polars.
+**Total volume: ~5 GB** — large, but columnar Parquet allows smooth ingestion into DuckDB / polars.
 
-### Entités Silver produites
+### Silver entities produced
 
-- `comparia_conversations.parquet` — questions + réponses + métadonnées modèle + impact env. par message
-- `comparia_votes.parquet` — préférences utilisateur par paire de modèles
-- `comparia_reactions.parquet` — réactions message par message (granularité fine)
+- `comparia_conversations.parquet` — questions + answers + model metadata + environmental impact per message
+- `comparia_votes.parquet` — user preferences per model pair
+- `comparia_reactions.parquet` — message-by-message reactions (fine granularity)
 
-### Champs critiques pour Sobr.ia
+### Critical fields for Sobr.ia
 
-- Modèle utilisé (provider + nom + version)
-- Tokens entrée / sortie réels (mesurés, pas estimés)
-- Impact environnemental calculé par EcoLogits (CO₂eq, énergie, eau si présent)
-- Localisation serveur (datacenter)
-- Type de question (catégorie thématique)
-- Préférences utilisateurs (signal qualité)
+- Model used (provider + name + version)
+- Actual input / output tokens (measured, not estimated)
+- Environmental impact computed by EcoLogits (CO₂eq, energy, water if present)
+- Server location (datacenter)
+- Question type (thematic category)
+- User preferences (quality signal)
 
-### Pourquoi c'est crucial
+### Why it is crucial
 
-- **Données réelles d'usage** en français (~250 000 questions, ~150 000 votes).
-- **Méthodologie environnementale officielle** (EcoLogits + ISO 14044) déjà appliquée.
-- **Croisable** avec ComparIA est mention culturelle française → cohérence territoriale.
-- **Licence Etalab 2.0** → republication possible.
+- **Real usage data** in French (~250,000 questions, ~150,000 votes).
+- **Official environmental methodology** (EcoLogits + ISO 14044) already applied.
+- **Cross-referenceable** with ComparIA is French cultural mention → territorial consistency.
+- **Etalab 2.0 licence** → republication possible.
 
-### Risques
+### Risks
 
-- Volume important → DVC obligatoire, pas de check-in Git.
-- Données utilisateur potentiellement sensibles (questions formulées en clair) → pseudonymisation à vérifier dans la doc ComparIA.
-- Couverture modèles fermés/ouverts inégale.
+- Large volume → DVC mandatory, no Git check-in.
+- User data potentially sensitive (questions written in plain text) → check the pseudonymization in the ComparIA documentation.
+- Uneven coverage of closed/open models.
 
 ### Tests / validation
 
-- Cohérence : somme(impact par message) = impact par conversation.
-- Présence des champs obligatoires sur ≥ 99 % des lignes.
-- Distribution des modèles attendue (≥ 30 modèles couverts).
+- Consistency: sum(impact per message) = impact per conversation.
+- Mandatory fields present on ≥ 99% of the rows.
+- Expected distribution of models (≥ 30 models covered).
 
 ---
 
-## S02 — Consommation annuelle IRIS sites industriels (RTE / NaTran / Teréga)
+## S02 — Annual IRIS consumption of industrial sites (RTE / NaTran / Teréga)
 
-| Champ | Valeur |
-|-------|--------|
-| **URL data.gouv.fr** | https://www.data.gouv.fr/datasets/consommation-annuelle-definitive-delectricite-et-de-gaz-par-iris-des-sites-industriels-raccordes-aux-reseaux-de-transport |
-| **Source originale** | https://odre.opendatasoft.com/explore/dataset/consommation-annuelle-par-iris/ |
-| **Producteurs** | NaTran, RTE, Teréga (gestionnaires des réseaux de transport élec + gaz) |
-| **Diffuseur** | Open Data Réseaux Énergies (ODRÉ) |
+| Field | Value |
+|-------|-------|
+| **data.gouv.fr URL** | https://www.data.gouv.fr/datasets/consommation-annuelle-definitive-delectricite-et-de-gaz-par-iris-des-sites-industriels-raccordes-aux-reseaux-de-transport |
+| **Original source** | https://odre.opendatasoft.com/explore/dataset/consommation-annuelle-par-iris/ |
+| **Producers** | NaTran, RTE, Teréga (electricity + gas transmission network operators) |
+| **Distributor** | Open Data Réseaux Énergies (ODRÉ) |
 | **Licence** | **Licence Ouverte / Open Licence v2.0 (Etalab 2.0)** |
-| **Compatibilité Sobr.ia** | ✅ Parfaite |
-| **Fréquence MAJ** | Annuelle (dernière : 6 décembre 2024, référentiel IRIS 2023) |
-| **Politique fetch** | Annuelle (déclenchée manuellement à chaque MAJ ODRÉ) |
-| **Authentification** | ❌ Aucune |
-| **Status défi** | 🎯 Dataset officiel — angle territorial |
+| **Sobr.ia compatibility** | ✅ Perfect |
+| **Update frequency** | Annual (last: 6 December 2024, IRIS 2023 referential) |
+| **Fetch policy** | Annual (triggered manually at each ODRÉ update) |
+| **Authentication** | ❌ None |
+| **Challenge status** | 🎯 Official dataset — territorial angle |
 
-### Fichiers à ingérer
+### Files to ingest
 
-| Fichier | Format | Taille | URL téléchargement |
-|---------|--------|--------|---------------------|
-| Données tabulaires | CSV | 90,2 MB | https://www.data.gouv.fr/api/1/datasets/r/631d6ec4-74c5-4f0f-9187-442cf9d1f0bc |
-| Données + coordonnées (JSON) | JSON | 97,8 MB | https://www.data.gouv.fr/api/1/datasets/r/67a173e0-30c6-461c-aed5-3f6a8ab15a09 |
-| GeoJSON | JSON | 91,0 MB | https://www.data.gouv.fr/api/1/datasets/r/2b584d52-f4e0-4232-87df-c456e715f334 |
-| Shapefile (ZIP) | ZIP | 38,9 MB | https://www.data.gouv.fr/api/1/datasets/r/95fb8941-47a9-4d15-8c7a-3320fa0e0319 |
+| File | Format | Size | Download URL |
+|------|--------|------|--------------|
+| Tabular data | CSV | 90.2 MB | https://www.data.gouv.fr/api/1/datasets/r/631d6ec4-74c5-4f0f-9187-442cf9d1f0bc |
+| Data + coordinates (JSON) | JSON | 97.8 MB | https://www.data.gouv.fr/api/1/datasets/r/67a173e0-30c6-461c-aed5-3f6a8ab15a09 |
+| GeoJSON | JSON | 91.0 MB | https://www.data.gouv.fr/api/1/datasets/r/2b584d52-f4e0-4232-87df-c456e715f334 |
+| Shapefile (ZIP) | ZIP | 38.9 MB | https://www.data.gouv.fr/api/1/datasets/r/95fb8941-47a9-4d15-8c7a-3320fa0e0319 |
 
-### Entités Silver produites
+### Silver entities produced
 
-- `iris_consommation_annuelle.parquet` — consommation MWh élec + gaz par IRIS + nombre de sites
-- `iris_geometries.parquet` (depuis le GeoJSON / shapefile) — polygones IRIS pour rendu carto
+- `iris_consommation_annuelle.parquet` — electricity + gas consumption (MWh) per IRIS + number of sites
+- `iris_geometries.parquet` (from the GeoJSON / shapefile) — IRIS polygons for map rendering
 
-### Champs critiques
+### Critical fields
 
-- Code IRIS (référentiel INSEE 2023)
-- Consommation électrique annuelle (MWh)
-- Consommation gaz annuelle (MWh)
-- Nombre de sites industriels raccordés transport
-- Année de référence
-- Géométrie du polygone IRIS
+- IRIS code (INSEE 2023 referential)
+- Annual electricity consumption (MWh)
+- Annual gas consumption (MWh)
+- Number of industrial sites connected to the transmission network
+- Reference year
+- Geometry of the IRIS polygon
 
-### Usage dans Sobr.ia
+### Usage in Sobr.ia
 
-- **Module M12 — Territoire français** : visualisation choroplèthe des concentrations industrielles.
-- **Heuristique datacenter** : un IRIS avec > N MWh élec + faible gaz est candidat à héberger un datacenter (à valider).
-- **Scénarios régionaux** : projeter l'impact d'un déploiement LLM par région française.
-- **Storytelling** : "voici les 10 IRIS qui concentrent X % de la consommation industrielle élec — combien d'usage IA correspond à un IRIS moyen ?"
+- **Module M12 — French territory**: choropleth visualization of industrial concentrations.
+- **Datacenter heuristic**: an IRIS with > N MWh electricity + low gas is a candidate to host a datacenter (to be validated).
+- **Regional scenarios**: project the impact of an LLM deployment by French region.
+- **Storytelling**: "here are the 10 IRIS that concentrate X% of industrial electricity consumption — how much AI usage corresponds to an average IRIS?"
 
-### Risques
+### Risks
 
-- Données annuelles → granularité temporelle grossière (compensée par eco2mix pour live).
-- Anonymisation par seuils : certains IRIS peuvent être en "secret statistique" → traitement spécial.
-- Évolution annuelle des polygones IRIS (INSEE) → versionner le référentiel.
+- Annual data → coarse temporal granularity (offset by eco2mix for live data).
+- Anonymization by thresholds: some IRIS may be under "statistical secrecy" (secret statistique) → special handling.
+- Yearly evolution of the IRIS polygons (INSEE) → version the referential.
 
 ### Tests / validation
 
-- Somme des consommations par région cohérente avec les bilans RTE/GRDF nationaux (±5 %).
-- Géométries valides (GeoJSON RFC 7946).
-- Nombre d'IRIS couverts (~50 000 IRIS en France) → check ratio de couverture.
+- Sum of the consumption per region consistent with the national RTE/GRDF balances (±5%).
+- Valid geometries (GeoJSON RFC 7946).
+- Number of IRIS covered (~50,000 IRIS in France) → check the coverage ratio.
 
 ---
 
-# 🥈 Tier 2 — Sources complémentaires (sans authentification)
+# 🥈 Tier 2 — Complementary sources (no authentication)
 
 ## S03 — ADEME Base Empreinte
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://base-empreinte.ademe.fr/ |
 | **API** | https://data.ademe.fr/datasets/base-empreinte |
-| **Format Copper** | CSV + JSON |
+| **Copper format** | CSV + JSON |
 | **Licence** | Etalab 2.0 |
-| **Fréquence MAJ** | Trimestrielle |
-| **Politique fetch** | Hebdomadaire |
-| **Authentification** | ❌ Aucune |
-| **Entités Silver** | `electricity_factors`, `hardware_factors` |
+| **Update frequency** | Quarterly |
+| **Fetch policy** | Weekly |
+| **Authentication** | ❌ None |
+| **Silver entities** | `electricity_factors`, `hardware_factors` |
 
-**Usage** : facteurs d'émission de référence (gCO₂eq/kWh par pays, par source, par année). Indispensable pour normaliser ComparIA → CO₂eq quand le champ n'est pas pré-rempli.
+**Usage**: reference emission factors (gCO₂eq/kWh by country, by source, by year). Essential to normalize ComparIA → CO₂eq when the field is not pre-filled.
 
 ---
 
 ## S04 — GenAI Impact / EcoLogits
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://github.com/genai-impact/ecologits |
-| **Format Copper** | JSON + Python (catalogue modèles) |
+| **Copper format** | JSON + Python (model catalog) |
 | **Licence** | MIT |
-| **Fréquence MAJ** | Continue (releases GitHub) |
-| **Politique fetch** | Hebdomadaire (poll releases) |
-| **Authentification** | ❌ Aucune |
-| **Entités Silver** | `ecologits_models`, `ecologits_assumptions` |
+| **Update frequency** | Continuous (GitHub releases) |
+| **Fetch policy** | Weekly (releases poll) |
+| **Authentication** | ❌ None |
+| **Silver entities** | `ecologits_models`, `ecologits_assumptions` |
 
-**Usage** : **la méthodologie officielle** déjà adoptée par ComparIA. Sobr.ia doit l'appliquer fidèlement (et la valider sur les 3 études de référence). Importer le catalogue de modèles + paramètres d'incertitude permet d'estimer aussi des modèles non couverts par ComparIA.
+**Usage**: **the official methodology** already adopted by ComparIA. Sobr.ia must apply it faithfully (and validate it on the 3 reference studies). Importing the model catalog + uncertainty parameters also makes it possible to estimate models not covered by ComparIA.
 
 ---
 
 ## S05 — Hugging Face AI Energy Score
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://huggingface.co/AIEnergyScore |
-| **Format Copper** | JSON / Parquet via HF Hub |
-| **Licence** | Apache 2.0 (modèles) / CC-BY (scores) |
-| **Fréquence MAJ** | Ad hoc (nouveaux modèles) |
-| **Politique fetch** | Hebdomadaire |
-| **Authentification** | ❌ Aucune (lecture publique HF Hub) |
-| **Entités Silver** | `model_energy_score` |
+| **Copper format** | JSON / Parquet via HF Hub |
+| **Licence** | Apache 2.0 (models) / CC-BY (scores) |
+| **Update frequency** | Ad hoc (new models) |
+| **Fetch policy** | Weekly |
+| **Authentication** | ❌ None (public read on HF Hub) |
+| **Silver entities** | `model_energy_score` |
 
-**Usage** : complète ComparIA pour les modèles non couverts. Score standardisé permettant des comparaisons.
+**Usage**: complements ComparIA for the models it does not cover. A standardized score allows comparisons.
 
 ---
 
 ## S06 — CodeCarbon Hub
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://github.com/mlco2/codecarbon |
-| **Format Copper** | CSV / JSON via GitHub releases |
+| **Copper format** | CSV / JSON via GitHub releases |
 | **Licence** | MIT |
-| **Fréquence MAJ** | Continue |
-| **Politique fetch** | Mensuelle |
-| **Authentification** | ❌ Aucune |
-| **Entités Silver** | `training_runs`, `inference_runs` |
+| **Update frequency** | Continuous |
+| **Fetch policy** | Monthly |
+| **Authentication** | ❌ None |
+| **Silver entities** | `training_runs`, `inference_runs` |
 
-**Usage** : mesures réelles d'entraînement et d'inférence soumises par la communauté. Élément de validation croisée.
+**Usage**: real training and inference measurements submitted by the community. Cross-validation element.
 
 ---
 
 ## S07 — ML.Energy Leaderboard
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://ml.energy/leaderboard |
-| **Format Copper** | CSV publié (+ scraping fallback) |
+| **Copper format** | Published CSV (+ scraping fallback) |
 | **Licence** | CC-BY 4.0 |
-| **Fréquence MAJ** | Mensuelle |
-| **Politique fetch** | Mensuelle |
-| **Authentification** | ❌ Aucune |
-| **Entités Silver** | `inference_benchmarks` |
+| **Update frequency** | Monthly |
+| **Fetch policy** | Monthly |
+| **Authentication** | ❌ None |
+| **Silver entities** | `inference_benchmarks` |
 
-**Usage** : benchmarks contrôlés sur hardware standardisé (NVIDIA A100/H100). Référence pour validation des distributions Sobr.ia.
+**Usage**: controlled benchmarks on standardized hardware (NVIDIA A100/H100). Reference to validate the Sobr.ia distributions.
 
 ---
 
-## S08 — Papers académiques
+## S08 — Academic papers
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **Sources** | arXiv, ACL Anthology, NeurIPS, Nature, etc. |
-| **Format Copper** | PDF + extracts manuels |
-| **Licence** | Variable (arXiv libre, journaux à vérifier) |
-| **Fréquence MAJ** | Ad hoc |
-| **Politique fetch** | Manuelle curatée |
-| **Authentification** | Selon source (la plupart libre) |
-| **Entités Silver** | `extracted_measures` |
+| **Copper format** | PDF + manual extracts |
+| **Licence** | Variable (arXiv open, journals to check) |
+| **Update frequency** | Ad hoc |
+| **Fetch policy** | Manual, curated |
+| **Authentication** | Depends on the source (most are open) |
+| **Silver entities** | `extracted_measures` |
 
-**Usage** : validation croisée méthodologique (Luccioni 2023, Patterson 2021, Faiz 2024, etc.).
+**Usage**: methodological cross-validation (Luccioni 2023, Patterson 2021, Faiz 2024, etc.).
 
 ---
 
-# 🥉 Tier 3 — Source optionnelle (compte gratuit)
+# 🥉 Tier 3 — Optional source (free account)
 
-## S09 — RTE eco2mix (mix électrique français live)
+## S09 — RTE eco2mix (live French electricity mix)
 
-| Champ | Valeur |
-|-------|--------|
+| Field | Value |
+|-------|-------|
 | **URL** | https://www.rte-france.com/eco2mix |
 | **API** | https://digital.iservices.rte-france.com/ (OAuth2) |
-| **Format Copper** | JSON |
+| **Copper format** | JSON |
 | **Licence** | Etalab 2.0 |
-| **Fréquence MAJ amont** | Temps réel (15 min) |
-| **Politique fetch** | Horaire |
-| **Authentification** | OAuth2 client credentials — **clé gratuite après inscription** |
-| **Entités Silver** | `mix_hourly_fr`, `mix_daily_fr` |
-| **Optionnalité** | ✅ Optionnel pour v1.0 — recommandé pour storytelling fin |
+| **Upstream update frequency** | Real time (15 min) |
+| **Fetch policy** | Hourly |
+| **Authentication** | OAuth2 client credentials — **free key after registration** |
+| **Silver entities** | `mix_hourly_fr`, `mix_daily_fr` |
+| **Optionality** | ✅ Optional for v1.0 — recommended for fine storytelling |
 
-**Usage** : pour les estimations temps réel et le module M4 simulateur avec trajectoire RTE 2030. Si la clé n'est pas obtenue en temps voulu, fallback sur valeur annuelle moyenne ADEME (≈ 56 gCO₂eq/kWh pour la France).
+**Usage**: for real-time estimates and the M4 simulator module with the RTE 2030 trajectory. If the key is not obtained in time, fall back on the ADEME annual average value (≈ 56 gCO₂eq/kWh for France).
 
-**Fallback sans clé** : RTE publie aussi des **CSV historiques téléchargeables sans authentification** sur leur portail open data (https://opendata.reseaux-energies.fr/). Ces CSV suffisent pour les analyses retrospectives.
+**Fallback without a key**: RTE also publishes **historical CSVs downloadable without authentication** on its open data portal (https://opendata.reseaux-energies.fr/). These CSVs are enough for retrospective analyses.
 
 ---
 
-# ❌ Sources supprimées du périmètre v1.0
+# ❌ Sources removed from the v1.0 scope
 
-| Source | Raison de suppression | Replacement |
-|--------|----------------------|-------------|
-| Electricity Maps | Plan gratuit limité, licence CC-BY-SA virale | RTE eco2mix pour FR, ADEME pour autres pays |
-| MaxMind GeoLite2 | Compte gratuit requis, CC-BY-SA virale | Pour M9 : mapping provider → zone (heuristique) ; pour M12 : pas besoin (IRIS = géocodage natif) |
+| Source | Reason for removal | Replacement |
+|--------|--------------------|-------------|
+| Electricity Maps | Limited free plan, viral CC-BY-SA licence | RTE eco2mix for FR, ADEME for other countries |
+| MaxMind GeoLite2 | Free account required, viral CC-BY-SA | For M9: provider → zone mapping (heuristic); for M12: not needed (IRIS = native geocoding) |
 
 ---
 
@@ -332,25 +332,25 @@ For every other provider the model list is machine-readable, but **prices are HT
 
 ---
 
-# Vue d'ensemble — matrice rapide
+# Overview — quick matrix
 
-| ID | Source | Tier | Bloquant ? | Sprint cible |
-|----|--------|------|------------|--------------|
-| S01 | **ComparIA** | 1 🎯 | **Oui** | **S2** |
-| S02 | **RTE IRIS** | 1 🎯 | **Oui** | **S2** |
-| S03 | ADEME Base Empreinte | 2 | Oui | S2 |
-| S04 | EcoLogits | 2 | Oui (méthodo) | S0 + S3 |
-| S05 | HF AI Energy Score | 2 | Recommandé | S3 |
-| S06 | CodeCarbon | 2 | Recommandé | S3 |
-| S07 | ML.Energy | 2 | Recommandé | S3 |
-| S08 | Papers | 2 | Oui (validation) | S0 + S3 |
-| S09 | RTE eco2mix | 3 | Non (optionnel) | S3 |
+| ID | Source | Tier | Blocking? | Target sprint |
+|----|--------|------|-----------|---------------|
+| S01 | **ComparIA** | 1 🎯 | **Yes** | **S2** |
+| S02 | **RTE IRIS** | 1 🎯 | **Yes** | **S2** |
+| S03 | ADEME Base Empreinte | 2 | Yes | S2 |
+| S04 | EcoLogits | 2 | Yes (methodology) | S0 + S3 |
+| S05 | HF AI Energy Score | 2 | Recommended | S3 |
+| S06 | CodeCarbon | 2 | Recommended | S3 |
+| S07 | ML.Energy | 2 | Recommended | S3 |
+| S08 | Papers | 2 | Yes (validation) | S0 + S3 |
+| S09 | RTE eco2mix | 3 | No (optional) | S3 |
 
-**8 sources actives au lieu de 10**, **0 clé bloquante** pour v1.0, **2 datasets officiels du défi** au cœur.
+**8 active sources instead of 10**, **0 blocking key** for v1.0, **2 official challenge datasets** at the core.
 
 ---
 
-# Schémas Silver (vue d'ensemble)
+# Silver schemas (overview)
 
 ```
 schemas/silver/
@@ -368,31 +368,31 @@ schemas/silver/
 ├── inference_runs-v1.json           (S06)
 ├── inference_benchmarks-v1.json     (S07)
 ├── extracted_measures-v1.json       (S08)
-└── mix_hourly_fr-v1.json            (S09, optionnel)
+└── mix_hourly_fr-v1.json            (S09, optional)
 ```
 
 ---
 
-# Pré-requis avant ingestion (S2)
+# Prerequisites before ingestion (S2)
 
-- [x] Stratégie de sources figée (ce document)
-- [ ] Stockage DVC remote configuré (R2 ou S3 — ComparIA pèse 5 GB)
-- [ ] Schémas Silver v1 figés et committés
-- [ ] Tests `proptest` template prêts
-- [ ] (Optionnel) Clé API RTE eco2mix obtenue (Thibault)
-
----
-
-# Politique de rétention par source
-
-| Source | Politique Copper |
-|--------|-------------------|
-| ComparIA | 1 snapshot par MAJ trimestrielle (4/an), conservé indéfiniment (lineage scientifique) |
-| RTE IRIS | 1 snapshot par MAJ annuelle, conservé indéfiniment |
-| ADEME | 30 derniers snapshots, puis mensuels 2 ans, puis annuels |
-| EcoLogits | Tous les snapshots de release GitHub (versionnement strict) |
-| Autres | 30 derniers snapshots, puis mensuels 1 an |
+- [x] Source strategy frozen (this document)
+- [ ] DVC remote storage configured (R2 or S3 — ComparIA weighs 5 GB)
+- [ ] Silver v1 schemas frozen and committed
+- [ ] `proptest` template tests ready
+- [ ] (Optional) RTE eco2mix API key obtained (Thibault)
 
 ---
 
-*Ce catalogue est vivant. Toute nouvelle source = nouvelle fiche + nouvelle implémentation `DataLayer`. Si le défi ajoute un dataset officiel, il passe directement en Tier 1.*
+# Retention policy per source
+
+| Source | Copper policy |
+|--------|---------------|
+| ComparIA | 1 snapshot per quarterly update (4/year), kept indefinitely (scientific lineage) |
+| RTE IRIS | 1 snapshot per annual update, kept indefinitely |
+| ADEME | Last 30 snapshots, then monthly for 2 years, then yearly |
+| EcoLogits | All GitHub release snapshots (strict versioning) |
+| Others | Last 30 snapshots, then monthly for 1 year |
+
+---
+
+*This catalog is living. Any new source = new sheet + new `DataLayer` implementation. If the challenge adds an official dataset, it goes straight to Tier 1.*
