@@ -1,5 +1,7 @@
 //! Golden-file comparison for the characterization tests.
 //!
+//! A copy of `sobria-estimator/tests/characterization/golden.rs`; SOB-150 merges them.
+//!
 //! Numbers are compared with a small relative tolerance so that the files
 //! stay valid on every OS the CI runs on. To rewrite the files, only when the
 //! change is intended:

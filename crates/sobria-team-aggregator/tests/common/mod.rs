@@ -61,15 +61,22 @@ pub struct Server {
     pub paths: DataPaths,
     pub base: String,
     pub client: reqwest::Client,
-    handle: tokio::task::JoinHandle<()>,
+    /// Runs the server: the accept loop, the retention task and every
+    /// connection. `Drop` shuts it down, which closes the database.
+    runtime: Option<tokio::runtime::Runtime>,
     log: Mutex<Vec<Value>>,
     /// Random value -> placeholder, in order of first appearance.
     placeholders: Mutex<HashMap<String, String>>,
     /// Last field: fields drop in order, so the folder is removed after the
-    /// server task was told to stop (a database file cannot be removed while
-    /// it is open on Windows).
+    /// server was shut down (a database file cannot be removed while it is
+    /// open on Windows).
     _dir: TempDir,
 }
+
+/// The seeded estimations are from May 2026. The purge of the server keeps
+/// the last 730 days by default, so it would delete them from mid-2028: the
+/// tests keep 100 years.
+const TEST_RETENTION_DAYS: &str = "36500";
 
 impl Server {
     /// `init` + HTTPS server on 127.0.0.1:0, ready when `/health` answers.
@@ -77,11 +84,21 @@ impl Server {
         let dir = tempfile::tempdir().expect("tempdir");
         let paths = DataPaths::new(dir.path());
         init::run(&paths, ADMIN_USERNAME, ADMIN_PASSWORD, false).expect("init");
+        // Before the server starts: its purge runs at boot.
+        Storage::open(&paths.db())
+            .expect("open storage")
+            .set_config("retention_days", TEST_RETENTION_DAYS)
+            .expect("retention");
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let base = format!("https://{}", listener.local_addr().expect("addr"));
         let served = paths.clone();
-        let handle = tokio::spawn(async move {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("server runtime");
+        runtime.spawn(async move {
             let _ = serve::run_with_listener(listener, &served).await;
         });
         let client = reqwest::ClientBuilder::new()
@@ -105,7 +122,7 @@ impl Server {
             paths,
             base,
             client,
-            handle,
+            runtime: Some(runtime),
             log: Mutex::new(Vec::new()),
             placeholders: Mutex::new(HashMap::new()),
         }
@@ -459,7 +476,11 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        self.handle.abort();
+        if let Some(runtime) = self.runtime.take() {
+            // Waits for the tasks to be dropped. Every test uses the
+            // multi-thread flavor, which `block_in_place` needs.
+            tokio::task::block_in_place(|| runtime.shutdown_timeout(Duration::from_secs(10)));
+        }
     }
 }
 

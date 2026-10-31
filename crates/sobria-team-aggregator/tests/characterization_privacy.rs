@@ -254,7 +254,8 @@ async fn user_alert_ignores_policy_and_consent() {
                 })),
         )
         .await;
-    // The period of a daily alert is computed from the UTC date of the estimation.
+    // The period of a daily alert is computed from the server clock when the
+    // estimation arrives.
     common::avoid_utc_midnight().await;
     server
         .record(
@@ -272,21 +273,34 @@ async fn user_alert_ignores_policy_and_consent() {
         )
         .await;
 
-    // The threshold is checked, and the row written, before the acknowledgement
-    // (only the notification is sent afterwards).
-    let (_, body) = server
-        .fetch(
-            server
-                .get("/api/v1/admin/alerts/triggers")
-                .bearer_auth(&token),
-        )
-        .await;
-    let rows = body["triggers"].as_array().expect("triggers");
+    // The threshold is checked, and the row written, before the acknowledgement.
+    // The notification is sent by a task that runs afterwards and then sets
+    // `notified_at` and `notify_error`: wait for it before reading them.
+    let mut rows = Vec::new();
+    for _ in 0..50 {
+        let (_, body) = server
+            .fetch(
+                server
+                    .get("/api/v1/admin/alerts/triggers")
+                    .bearer_auth(&token),
+            )
+            .await;
+        rows = body["triggers"].as_array().expect("triggers").clone();
+        if rows.first().is_some_and(|row| !row["notified_at"].is_null()) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    assert_eq!(rows.len(), 1, "one trigger row");
+    assert!(
+        !rows[0]["notified_at"].is_null(),
+        "the notification was never marked as sent"
+    );
     let parse = |key: &str| {
         chrono::DateTime::parse_from_rfc3339(rows[0][key].as_str().expect(key)).expect("RFC 3339")
     };
     server.note(
-        "trigger seen by the admin",
+        "trigger seen by the admin, once notified",
         json!({
             "rows": rows.len(),
             "observed_gco2eq": rows[0]["observed_gco2eq"],
