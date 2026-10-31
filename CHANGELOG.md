@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Removed — stale team server Dockerfile in the crate folder (2026-10-31, SOB-233)
+
+- **`sobria-team-aggregator`**: the old Dockerfile at the crate root is
+  removed. It pinned Rust 1.79, but the crate calls `usize::is_multiple_of`
+  (Rust 1.87). `deploy/team/Dockerfile`,
+  the one CI builds, is the only team server image. The release notes of
+  `team-aggregator-release.yml` and the README now point to it.
+
 ### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
 - **`sobria-team-aggregator`** (tests, no behavior change):

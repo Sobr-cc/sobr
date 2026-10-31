@@ -209,7 +209,7 @@ chmod +x sobria-team-aggregator-linux-x86_64
 Doc complète : [`docs/operations/team-aggregator.md`](docs/operations/team-aggregator.md)
 (quickstart, TPE/PME systemd, DSI reverse proxy + Let's Encrypt,
 sauvegardes SQLite, upgrade, troubleshooting). Bonus : Dockerfile
-multi-stage dans [`crates/sobria-team-aggregator/Dockerfile`](crates/sobria-team-aggregator/Dockerfile).
+multi-stage dans [`deploy/team/Dockerfile`](deploy/team/Dockerfile).
 
 Architecture : [ADR-0013 Phase 2](docs/adr/ADR-0013-extension-pairing-team-mode.md)
 · brief : [`docs/archive/chantiers/C28-mode-equipe-self-hosted.md`](docs/archive/chantiers/C28-mode-equipe-self-hosted.md).
