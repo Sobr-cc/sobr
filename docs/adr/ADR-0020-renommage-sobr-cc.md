@@ -1,6 +1,6 @@
 # ADR-0020 — Renommer Sobr.ia en Sobr.cc
 
-- **Statut** : Proposed (passe à Accepted quand Thibault approuve la PR)
+- **Statut** : Accepted (2026-10-30)
 - **Date** : 2026-10-30
 - **Décideurs** : Thibault (décision) ; recommandation du CTO
 - **Contexte technique** : Foundations, jalon Structure (SOB-13)
