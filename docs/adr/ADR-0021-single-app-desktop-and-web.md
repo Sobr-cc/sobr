@@ -5,6 +5,9 @@
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Foundations, Structure milestone (SOB-14)
 - **Amends**: ADR-0017, rule 2 (demo activation), once accepted
+- **Amendment 1** (2026-10-31, Proposed with ADR-0027): in the web context,
+  the Understand commands are answered by the estimator compiled to
+  WebAssembly, and the CSP allows WebAssembly. See the section below.
 
 > **Summary.** `web/` becomes the only interface. One build of it is embedded
 > both by the desktop app (Tauri) and by the organization server, in place of
@@ -18,6 +21,9 @@
 > desktop, so tokens never reach the webview. The seven web-team pages land
 > on screens M2, Z6, Z7, Z9, B2 and A6. The Organisation section is
 > admin-only until roles arrive. Six points for Thibault come first.
+>
+> *Amendment 1 (proposed with ADR-0027): the Understand pages move to the
+> web, computed in the browser. See the section of that name.*
 
 ## Points to decide
 
@@ -45,6 +51,9 @@ Six questions for Thibault; the recommendations rest on the Decision section.
 
    Alternative: move everything now. The merge would then wait for these
    four pieces of work.
+
+   *Amendment 1 (proposed with ADR-0027) answers the four reasons. See the
+   section of that name.*
 4. **The Organisation section is admin-only, based on the token's role,
    until roles arrive.** Recommended: yes. The server only knows `user` and
    `admin` (`server/auth/jwt.rs`). The manager role, what a manager sees,
@@ -125,6 +134,10 @@ Four facts weigh on the decision:
 | Web | tag `<meta name="sobr-runtime" content="server">` in the HTML the server sends | none: refused with code `not_available_here` | same-origin `fetch`, `/api/v1/...` | organization space (§4) |
 | Demo | neither (static hosting) | fixtures (ADR-0017) | none | those of ADR-0017 |
 
+*Amendment 1 (proposed with ADR-0027) changes the "Web" row: the Understand
+commands are answered by the WebAssembly module, and the Understand pages
+are offered to signed-in people.*
+
 - **Detection is synchronous** and read once at start-up. There is no
   network probe and no race.
 - **The server puts the tag in every HTML response**: `/`, `/index.html` and
@@ -178,7 +191,8 @@ Four facts weigh on the decision:
     - `default-src 'self'`;
     - `script-src 'self'` plus the hash of SvelteKit's inline start-up
       script. The server computes it from the embedded `index.html`
-      (`build.rs` or at start-up), never by hand;
+      (`build.rs` or at start-up), never by hand. *Amendment 1 (proposed
+      with ADR-0027) adds `'wasm-unsafe-eval'`;*
     - `style-src 'self' 'unsafe-inline'` and `font-src 'self' data:`, like
       the desktop CSP (`web/` uses inline styles);
     - `connect-src 'self'`, `img-src 'self' data:`;
@@ -298,6 +312,43 @@ password sign-in and these two limits.
    - a shared logic crate;
    - delivery of the territory files (ADR-0019, wave 3);
    - whether the API is internal or public (ADR-0019 §3).
+
+## Amendment 1 — The Understand pages on the web (2026-10-31)
+
+**Status.** Proposed with ADR-0027, and it applies once ADR-0027 is
+Accepted. On October 31, Thibault chose that on the web the Understand pages
+compute their numbers in the browser, with the estimator compiled to
+WebAssembly (SOB-246). This is the separate decision that point 3 announced.
+The text above stays as written; the changes below apply on top of it.
+
+1. **§1, the "Web" row of the table.**
+   * **The "App commands" column** said "none: refused with code
+     `not_available_here`".
+     * The Understand commands listed in ADR-0027 §2 are now answered by
+       the WebAssembly module, in the browser.
+     * The preferences are kept in the browser.
+     * Every other command is still refused with `not_available_here`.
+   * **The "Pages offered" column** adds the Understand pages to the
+     organization space once SOB-265 ships, for signed-in people.
+     * The pages are `/estimer`, `/comparer`, `/modeles`, `/datacenters`,
+       `/territoire`, `/methodo` and `/methodologies`.
+     * `/estimer` is ADR-0027 point 5: in the web context, `/` keeps the
+       redirect by role of §4.
+     * `/datasheets` and `/journal` stay on desktop.
+2. **Point 3.** The Understand section moves to the web through ADR-0027.
+   The four reasons listed there are answered:
+   * the prompt leaves the URL (SOB-247);
+   * the web pages write no ledger (ADR-0027 §2);
+   * the shared logic is the use-case layer of ADR-0023 (SOB-263);
+   * the territory files are embedded (SOB-248).
+3. **§3, the CSP.** `script-src 'self'` plus the hash of the start-up script
+   becomes `script-src 'self' 'wasm-unsafe-eval'` plus that hash.
+   * `'wasm-unsafe-eval'` allows compiling WebAssembly and nothing else.
+   * If a Web Worker is added, the server sends the same CSP on the
+     worker's script response (ADR-0027 §5).
+
+**Unchanged:** the web context shows no map, `connect-src` stays `'self'`,
+and the DTOs stay hand-written.
 
 ## Consequences
 
