@@ -1,0 +1,7 @@
+# Read by `cargo tarpaulin --workspace` (CLAUDE.md section 10, CONTRIBUTING.md) and by the CI coverage job (SOB-253).
+[workspace_coverage]
+# The default ptrace engine adds -Clink-dead-code, which compiles the never-called trait methods of
+# polars-arrow and fires their `const { assert!(false) }` (SOB-208). The LLVM engine does not.
+engine = "Llvm"
+# Test helper compiled only into test binaries (#[path] includes); it is not product code.
+exclude-files = ["test-support/*"]
