@@ -13,7 +13,9 @@ use std::{
     time::Duration,
 };
 
-use sobria_ingest::sources::territoire_fr::{discover_datasets, fetch_industrial_sites, fetch_rte_mix};
+use sobria_ingest::sources::territoire_fr::{
+    discover_datasets, fetch_industrial_sites, fetch_rte_mix,
+};
 
 #[tokio::test]
 async fn each_fetch_fails_with_its_own_message_when_the_tunnel_is_refused() {
@@ -33,7 +35,9 @@ async fn each_fetch_fails_with_its_own_message_when_the_tunnel_is_refused() {
                 .unwrap()
                 .push(first_line.trim_end().to_string());
             stream
-                .write_all(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .write_all(
+                    b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
                 .unwrap();
         }
     });
