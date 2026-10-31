@@ -7,6 +7,14 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Changed — ADR-0016 breakdown by project (2026-10-31, SOB-153)
+
+- **ADR-0016, Amendment 1** (Accepted): in the `anonymous` and `opt_in`
+  policies, the breakdown by project appears only when every group shown,
+  "other projects" and "no project" included, has at least k contributors
+  (SOB-148), the rule ADR-0022 sets at task level. The code work waits for
+  the Deep cleanup of the team server (SOB-25).
+
 ### Changed — ADR-0019 links, parity cases, data license and counts (2026-10-31, SOB-169)
 
 - **ADR-0019, Amendment 1** (Accepted): the rule that keeps cited pages in

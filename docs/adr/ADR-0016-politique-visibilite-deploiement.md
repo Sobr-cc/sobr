@@ -6,6 +6,29 @@
   consommation par employé et par projet ». Étend ADR-0015 sans le
   renverser : le défaut reste protecteur, l'identification intégrale
   devient possible pour les organisations qui en assument le cadre légal.
+- **Amendment 1** (2026-10-31, Accepted): the breakdown by project appears only when every group shown has at least k contributors. See the section below.
+
+## Amendment 1 — Breakdown by project: every group must reach k (2026-10-31)
+
+**Status.** Accepted (2026-10-31), SOB-153; merging the PR is Thibault's approval. Written in place by PR (SOB-87): the original text is kept, and a note marks the rule that changes.
+
+**What changes.** In the `anonymous` and `opt_in` policies, the rule of the "dimension projet" (C44) is replaced:
+
+1. A space's breakdown by project appears only when every group shown has at least k distinct contributors (k as in ADR-0015, rule 2). The groups are the projects shown, the remainder ("other projects") and "no project". Otherwise only the organization total shows. The organization-level check of ADR-0015 comes first: when fewer than k people were active, nothing shows.
+2. Empty groups are left out of the check.
+3. Under `identified`, the live views are unchanged, since k-anonymity does not apply there. The totals kept after the retention period follow the same all-groups rule whatever the policy (ADR-0022, section 10).
+
+ADR-0022 (section 10) sets the day-by-day check and the retention of kept totals; this ADR points to it.
+
+**Previous wording.** « les agrégats par projet n'affichent que les projets comptant ≥ k contributeurs distincts (modes 1-2), les autres étant fondus dans « autres projets » ».
+
+**Why.** Merging only the small projects leaves a hole: the organization total minus the projects shown gives the merged line, which can hold one or two people. The code shows it: `project_breakdown` (`storage/analytics.rs`) gives the merged line the largest contributor count among the projects it merged, so the line always stands below k. Thibault chose option 1 on SOB-148 (October 31): the same rule as ADR-0022 at task level. The alternative, which keeps the previous rule, shows more breakdowns but lets anyone subtract the projects shown from the total.
+
+**Cost.** Under the default policy, a space whose projects have few people shows its total only. A member still sees their own usage by project (ADR-0015).
+
+**Code work that follows.** This ADR changes no code. The work is in the issues of ADR-0022 that touch the team server ("Issues to create": 6, 7 and 13 apply the rule), and in SOB-114 (exports) and SOB-115 (analytics, alerts, user list), which apply the visibility policy and k to those outputs. All of it waits for the Deep cleanup of the team server (SOB-25), under the Foundations rule; `project_breakdown` changes in those issues, not before.
+
+**Issues.** SOB-153, SOB-148 (the answer), SOB-143 (ADR-0022), SOB-114, SOB-115, SOB-25.
 
 ## Contexte et problème
 
@@ -44,6 +67,7 @@ Règles transverses :
 - La **dimension projet** (C44) suit la même politique : les agrégats
   par projet n'affichent que les projets comptant ≥ k contributeurs
   distincts (modes 1-2), les autres étant fondus dans « autres projets ».
+  > Amendment 1 (2026-10-31): replaced by the all-groups rule. See point 1 of the Amendment 1 section.
 - La politique est affichée en permanence dans le dashboard admin et
   l'espace salarié (transparence : chacun sait sous quel régime il est).
 - Le site et la doc présentent toujours `opt_in` comme défaut ; le mode
@@ -53,6 +77,7 @@ Règles transverses :
 
 - (+) Le besoin opérationnel (« qui consomme quoi, par projet ») est
   servi sans imposer la surveillance par défaut à tous les déployeurs.
+  > Amendment 1 (2026-10-31): under the default policy, a small space may see its total only.
 - (+) La responsabilité juridique est portée par celui qui la détient
   réellement : l'employeur, via une attestation tracée.
 - (−) Trois chemins de code à tester (matrice de politique).
