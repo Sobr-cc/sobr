@@ -9,7 +9,7 @@
 > vous donne un journal scientifique reproductible — pour particulier,
 > équipe ou administration, sans cloud Sobr.ia.**
 >
-> *Candidat au défi data.gouv.fr — « L'impact environnemental de l'IA générative »*
+> *Built on open data from the data.gouv.fr challenge on the environmental impact of generative AI: ComparIA and RTE IRIS (Etalab 2.0).*
 
 ---
 
@@ -81,7 +81,7 @@ reproductibilité scientifique, citation DOI.
 | **Catalogue souverain de méthodologies** | Sobr.ia v1.0 embarque **2 méthodologies scientifiques** d'estimation d'empreinte LLM (AFNOR SPEC 2314 française + EcoLogits 2026-01 peer-reviewed). L'utilisateur choisit la sienne par défaut, active les autres en référence pour comparer les résultats côté Atelier. **Aucun concurrent ne fait ça** : EcoLogits / BoaVizta / AI Energy Score sont mono-méthodologie. Cf. [ADR-0012](docs/adr/ADR-0012-multi-methodology-engine.md). |
 | **Tiers de confiance vendor disclosure** | Sobr.ia agrège les disclosures environnementales officielles publiées par les fabricants : **Mistral × ADEME** (Large 2, 1.14 gCO₂eq pour 400 tokens), **Google Gemini** (0.03 gCO₂eq prompt médian, août 2025), **Meta Llama** (training location-based / market-based). Encadrés explicites par modèle dans la Bibliothèque. |
 | **Audit chaîné SHA-256 avec méthodologie tracée** | Chaque estimation est journalisée dans un ledger ACID SQLite avec chaînage cryptographique + **méthodologie utilisée** (colonne `method`). Anti-tampering vérifiable, reproductible à la nanoseconde, filtrable par méthodologie pour reporting CSRD historique. |
-| **Angle territorial FR unique** | Cartographie des sites industriels par IRIS (RTE/NaTran/Teréga) croisée avec ComparIA. Sankey énergétique national. Différenciateur unique du défi data.gouv. |
+| **Angle territorial FR unique** | Cartographie des sites industriels par IRIS (RTE/NaTran/Teréga) croisée avec ComparIA. Sankey énergétique national. |
 | **Datasheet Gebru** | Génération automatique du format académique standard (Gebru et al. 2018) pour reproductibilité scientifique. Adopté par NeurIPS, ICML, FAccT. |
 | **Rapport CSRD/AGEC** | Export PDF officiel + JSON-LD PROV-O signé SHA-256, prêt pour reporting réglementaire UE. |
 | **Privacy by design** | Tout en local. Zéro télémétrie, zéro tracking, zéro appel réseau au runtime. RGPD : droit à l'oubli implémenté avec préservation de la chaîne d'audit. |
