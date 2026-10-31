@@ -9,3 +9,6 @@
 *.webp binary
 *.woff2 binary
 *.sqlite binary
+
+# Changelog script test: this fixture must keep its CRLF line endings.
+scripts/tests/changelog-assemble/fragments/sob-102-crlf-entry.changed.md -text

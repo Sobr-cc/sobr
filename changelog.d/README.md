@@ -38,7 +38,9 @@ Upload retried after a timeout (2026-11-02, SOB-123)
 - **`sobria-app`**: an upload that times out is retried once, then queued.
 ```
 
-The script adds the heading `### Fixed — ` in front of the title.
+The script adds the heading `### Fixed — ` in front of the title, so the
+title itself must not start with a Markdown heading marker (`#`, `##`…):
+the script stops on it.
 
 ## Release
 

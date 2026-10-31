@@ -49,6 +49,7 @@ fi
 # Keep a Changelog's order, as in the header of CHANGELOG.md.
 categories="added changed deprecated removed fixed security"
 name_pattern='^[a-z]+-[0-9]+-[a-z0-9-]+\.(added|changed|deprecated|removed|fixed|security)\.md$'
+heading_pattern='^[[:space:]]*#+([[:space:]]|$)'
 bom=$(printf '\357\273\277')
 
 # Every file except the README must be a well-named fragment, so a typo
@@ -86,6 +87,10 @@ entries() {
       # PowerShell 5.1 writes UTF-8 files with a BOM.
       entry_title=$(head -n 1 "$f" | tr -d '\r')
       entry_title=${entry_title#"$bom"}
+      if [[ $entry_title =~ $heading_pattern ]]; then
+        echo "Title starts with a heading ('#') in $f: write the title only, the script adds the heading." >&2
+        exit 1
+      fi
       body=$(tail -n +2 "$f" | tr -d '\r' | awk '
         NF { if (seen) for (i = 0; i < blank; i++) print ""; blank = 0; seen = 1; print; next }
         { blank++ }
