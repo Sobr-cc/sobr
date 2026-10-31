@@ -11,9 +11,8 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 - **ADR-0013, Amendment 2**: the Validation note and the Décision statement
   read "no central cloud" as the note under "Ce qu'on ne fera PAS" does (no
-  closed, central SaaS), so exactly two lines are excepted everywhere. The
-  two lines are quoted verbatim. Thibault's answer on the managed cloud is
-  recorded (SOB-165, option 1).
+  closed, central SaaS). The two excepted lines are quoted verbatim.
+  Thibault's answer on the managed cloud is recorded (SOB-165, option 1).
 - **ADR-0013 and ADR-0014**: the SOB-87 sentences read in one tense and say
   that the ADR README now carries the rule (SOB-127).
 
