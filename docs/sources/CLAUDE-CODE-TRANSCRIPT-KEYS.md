@@ -75,4 +75,4 @@ A script checked that every line is valid JSON, that each of the 34 keys named i
 
 - What the extra requests counted by `cost-state` are (no `assistant` line, `querySource` is always `sdk`), and whether `cost-state` is written at every exit.
 - Whether keys differ between Claude Code versions: the survey mixed versions 2.1.270 to 2.1.314 and did not compare them. The golden files must be refreshed for each version Sobr supports.
-- Forks: what happens to usage that the parent already holds is a rule for SOB-146 (which session owns a `message.id` that is in two files); this note only gives the fact. Only `--resume` and `--resume --fork-session` were tried; other ways to start from an old session are not covered.
+- Forks: what happens to usage that the parent already holds is a rule for SOB-146 and ADR-0025 (which session owns a `message.id` that is in two files); this note only gives the fact. Only `--resume` and `--resume --fork-session` were tried; other ways to start from an old session are not covered.
