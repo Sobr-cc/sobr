@@ -80,6 +80,8 @@ fn expected_territoire() -> TerritoireFrArtifact {
                 pdl_count_elec: 5,
                 pdl_count_gas: 0,
                 pdl_total: 5,
+                // SOB-122: 0 is the year bug (ingest reads a field the API does not return).
+                // Also in the sample file and in all 200 shipped sites.
                 year: 0,
             },
             IndustrialSite {

@@ -4,7 +4,8 @@ Territory data contract tests (2026-10-31, SOB-189)
   output (`tests/fixtures/territoire_fr.sample.json`, `rte_mix_fr.sample.json`)
   with the geoloc structs and checks every field; any key renamed by the ingest
   side is refused; fields geoloc does not know are ignored in every struct; the
-  shipped `data/territoire_fr.json` is read and validated.
+  shipped `data/territoire_fr.json` is read and validated. The `year: 0` of the
+  sites is pinned as it is today (SOB-122).
 - **`sobria-ingest`**: `tests/territoire_contract.rs` checks that the ingest and
   geoloc structs both write exactly the fields of those samples, and that a file
   written by `write_artifact_json` is loaded by geoloc (the test lives here
