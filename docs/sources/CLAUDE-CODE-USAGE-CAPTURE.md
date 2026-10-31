@@ -125,7 +125,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 
 **Privacy limits of this path**
 
-- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `organization.id`, `user.account_uuid` and `user.account_id`, to whatever endpoint is configured. The endpoint is therefore the desktop app on the member's own machine (ADR-0025, point 2 and section 8), and nothing leaves the device before the space upload of ADR-0022.
+- Claude Code sends the raw signals, with full timestamps, `session.id`, `user.email`, `user.id`, `organization.id`, `user.account_uuid` and `user.account_id`, to whatever endpoint is configured. The endpoint is therefore the desktop app on the member's own machine (ADR-0025, point 2 and section 8), and nothing leaves the device before the space upload of ADR-0022.
 - The receiver in the app applies an allow-list at once and turns the increments into totals (ADR-0025, build issue 4). The identity attributes arrive in every data point (see "What the local receiver must accept"), so the allow-list is not optional.
 - The organization collector that would forward to the server with Claude Code's session ID was the option B of ADR-0025 and was rejected: it adds a third-party ID to the upload contract and a second merge point.
 
@@ -149,7 +149,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 | Nothing listens | Claude Code exits 0, prints nothing on stderr, takes the same time, and **does not retry**: a call made while nothing listened never arrived, and delta increments cannot be recovered. **A member whose app is not running is not measured.** |
 | The receiver answers an error | `503`: the same payload was sent again with a growing delay (four tries within 5 s seen), then dropped; no message, exit 0. `400`: not retried. Answer `200` at once. |
 | Logs and traces | With `OTEL_LOGS_EXPORTER=otlp` Claude Code also posts logs; a collector with a metrics-only pipeline answered 404 to `/v1/logs` and `/v1/traces`, and Claude Code still exited 0. Keep `OTEL_LOGS_EXPORTER=none`. |
-| Settings that deliver the variables | The `env` block of a settings file (`--settings`), with no telemetry variable in the process environment, delivered all of them: the three exports arrived. The managed settings file itself (machine-wide) was not installed for the test. |
+| Settings that deliver the variables | The `env` block of a settings file (`--settings`), with no telemetry variable in the process environment, delivered all of them: the three requests Claude Code made in that run reached the receiver. **The managed settings file itself (machine-wide) was not installed for the test**; the documentation says it uses the same `env` block. |
 
 **The managed settings that point Claude Code at the local app.** An organization puts this in the managed settings file (paths in "Enable it" above); a member can set the same in their own settings. The port is the one the app listens on; it is not chosen here.
 
@@ -165,7 +165,7 @@ Source: [Monitoring usage](https://code.claude.com/docs/en/monitoring-usage) unl
 }
 ```
 
-Both protocols reached the stand-in, so the receiver may take one. `http/json` needs no protobuf decoder; that is a choice for build issue 4, not decided here. A small stand-in receiver for tests is in `tools/otel-receiver-stub/`.
+Both protocols reached the stand-in, so the receiver may take one. `http/json` needs no protobuf decoder. The receiver is reachable by any process on the machine, and `OTEL_EXPORTER_OTLP_HEADERS` can carry a token for it to check. Which protocol, and whether to require a token, are choices for build issue 4, not decided here. A small stand-in receiver for tests is in `tools/otel-receiver-stub/`.
 
 **Options** (ADR-0025, point 2 and section 8)
 
@@ -173,7 +173,7 @@ Both protocols reached the stand-in, so the receiver may take one. `http/json` n
 2. *B. The organization's collector forwards to the server with Claude Code's session ID. Rejected.*
 3. *C. As B, with a keyed hash of the ID. Rejected.*
 
-**Recommendation**: option A, as ADR-0025 decided. This changes the recommendation of the first version of this note (a collector in front of the server). Send **metrics only** (`OTEL_LOGS_EXPORTER=none`): `claude_code.token.usage` and `claude_code.cost.usage` already give model, tokens, cost and session ID, with no per-prompt event at all. The receiver keeps those two names, `model`, `type`, `session.id`, the value and the record times, and drops every other attribute. It stays optional.
+**Recommendation**: option A, as ADR-0025 decided. This changes the recommendation of the first version of this note (a collector in front of the server). Send **metrics only** (`OTEL_LOGS_EXPORTER=none`): `claude_code.token.usage` and `claude_code.cost.usage` already give model, tokens, cost and session ID, with no per-prompt event at all. The receiver keeps those two names, `model`, `type`, `session.id`, the value and the record times, and drops every other attribute. The record times stay on the device: the upload carries only the day, as ADR-0022 and ADR-0025 (section 2) say. It stays optional.
 
 ## 4. Double counting
 
