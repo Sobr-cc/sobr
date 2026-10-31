@@ -1,23 +1,32 @@
-//! Conversions des résultats en équivalents parlants pour l'UI.
+//! Converts results into relatable equivalents for the UI.
 //!
-//! Toutes les conversions sont sourcées (commentaire avec référence).
-//! Voir CDC §4.2 (équivalents parlants).
+//! Every conversion is sourced (comment with a reference).
+//! See CDC §4.2 (relatable equivalents).
 
 use sobria_core::Equivalent;
 
-/// Facteur d'émission moyen d'une voiture thermique européenne, en gCO₂eq/km.
-/// Source : ADEME Base Empreinte 2024, voiture particulière essence moyenne.
+/// Average emission factor of a European combustion-engine car, in gCO₂eq/km.
+/// Source: ADEME Base Empreinte 2024, average petrol passenger car.
 const CAR_G_CO2EQ_PER_KM: f64 = 192.0;
 
-/// Énergie typique d'une douche chaude de 5 min (8 L/min, ΔT=30°C, ~chauffe-eau électrique).
-/// Source : ADEME — guide eau chaude sanitaire 2023.
+/// Typical energy of a 5 min hot shower (8 L/min, ΔT=30°C, ~electric water heater).
+/// Source: ADEME — "guide eau chaude sanitaire" 2023.
 const SHOWER_WH: f64 = 1_750.0;
 
-/// Énergie typique d'un écran 24" pendant une heure (~25 W moyens).
-/// Source : ADEME — guide écrans 2023.
+/// Typical energy of a 24" screen over one hour (~25 W on average).
+/// Source: ADEME — "guide écrans" 2023.
 const SCREEN_HOUR_WH: f64 = 25.0;
 
-/// Convertit un résultat CO₂eq (en grammes) en équivalent kilomètres voiture.
+/// The equivalents shown with every result: car km, shower, screen hours.
+pub(crate) fn standard(g_co2eq: f64, wh: f64) -> Vec<Equivalent> {
+    vec![
+        co2eq_to_car_km(g_co2eq),
+        energy_wh_to_shower_seconds(wh),
+        energy_wh_to_screen_hours(wh),
+    ]
+}
+
+/// Converts a CO₂eq result (in grams) into equivalent car kilometres.
 #[must_use]
 pub fn co2eq_to_car_km(g_co2eq: f64) -> Equivalent {
     Equivalent {
@@ -27,7 +36,7 @@ pub fn co2eq_to_car_km(g_co2eq: f64) -> Equivalent {
     }
 }
 
-/// Convertit un résultat énergie (en Wh) en équivalent secondes de douche chaude.
+/// Converts an energy result (in Wh) into equivalent seconds of hot shower.
 #[must_use]
 pub fn energy_wh_to_shower_seconds(wh: f64) -> Equivalent {
     let ratio = wh / SHOWER_WH;
@@ -38,7 +47,7 @@ pub fn energy_wh_to_shower_seconds(wh: f64) -> Equivalent {
     }
 }
 
-/// Convertit un résultat énergie (en Wh) en équivalent heures d'écran 24".
+/// Converts an energy result (in Wh) into equivalent hours of a 24" screen.
 #[must_use]
 pub fn energy_wh_to_screen_hours(wh: f64) -> Equivalent {
     Equivalent {

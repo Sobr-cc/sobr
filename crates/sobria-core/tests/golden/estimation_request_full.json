@@ -1,0 +1,36 @@
+{
+  "datacenter_id": "openai-us-east-virginia",
+  "modalities": [
+    {
+      "kind": "text"
+    },
+    {
+      "image_count": 2,
+      "kind": "vision_low"
+    },
+    {
+      "avg_height": 768,
+      "avg_width": 1024,
+      "image_count": 1,
+      "kind": "vision_high"
+    },
+    {
+      "kind": "document",
+      "page_count": 12
+    },
+    {
+      "duration_seconds": 30,
+      "kind": "audio_input"
+    }
+  ],
+  "model_id": "gpt-4o-mini",
+  "overhead": {
+    "memory_tokens": 150,
+    "system_prompt_tokens": 2000,
+    "thinking_tokens_p50": 3000,
+    "tools_definition_tokens": 800
+  },
+  "timestamp": "2026-05-12T14:32:08Z",
+  "tokens_in": 23,
+  "tokens_out_estimated": 720
+}
