@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`module catalogue > keeps the descriptions 1`] = `
+{
+  "m1": "Mesurer CO₂, énergie, eau, métaux pour une requête unique.",
+  "m10": "Charger un CSV/JSON de prompts pour estimation groupée. (Différé v1.1+, backend M18 disponible mais UI dédiée non livrée.)",
+  "m11": "Capter vos vrais usages ChatGPT/Claude depuis votre browser.",
+  "m12": "Carte interactive des sites avec drill-down énergie.",
+  "m13": "7 leviers temps réel pour explorer des scénarios.",
+  "m14": "Sources, licences, contributeurs, méthodologie courte.",
+  "m15": "Vos usages agrégés (jour, semaine, mois).",
+  "m16": "Projection annuelle avec bande d'incertitude et leviers.",
+  "m17": "Bilan complet pour reproductibilité scientifique.",
+  "m18": "Import + agrégation pour un rapport sourcé prêt à partager.",
+  "m19": "RBAC léger pour partager une installation entre collègues.",
+  "m2": "Estimer plusieurs prompts en série dans un même atelier. (Différé v1.1+, cf. ADR-0011.)",
+  "m20": "Cartographie RTE IRIS + Sankey énergétique territorial.",
+  "m21": "Notifications locales quand un seuil personnel est franchi.",
+  "m22": "PDF signé + bundle PROV-O conforme aux normes.",
+  "m23": "Modèles de cahiers des charges pour appels d'offre.",
+  "m24": "Mini-cours, bonnes pratiques, parcours guidés.",
+  "m25": "Eco-budget personnel hebdomadaire avec encouragements.",
+  "m3": "Benchmarker 2 à 8 modèles côte-à-côte sur un même prompt.",
+  "m5": "PDF, CSV ou JSON sourcé — pour intégrer un dossier. (Différé v1.1+, voir M22 Rapport CSRD pour le PDF officiel.)",
+  "m6": "Préciser l'origine géographique de l'inférence.",
+  "m7": "Ledger chaîné SHA-256 de toutes vos estimations.",
+  "m8": "Comprendre le moteur Monte-Carlo et ses sources.",
+  "m9": "Catalogue des 25+ modèles couverts et leurs sources.",
+}
+`;
+
+exports[`moduleReason > keeps the reasons 1`] = `
+{
+  "enterprise": {
+    "m1": "Référence d'estimation auditable pour ton scope 3 IA.",
+    "m12": "Comprendre où tournent vos LLM en Europe (PUE + mix élec).",
+    "m15": "Vue agrégée de votre usage (admin / RSE).",
+    "m17": "Datasheet Gebru pour reproductibilité scientifique.",
+    "m20": "Empreinte territoriale FR par IRIS (RTE × ComparIA).",
+    "m22": "Rapport CSRD/AGEC trimestriel signé + PROV-O.",
+    "m25": "Définir un plafond carbone mensuel avec alerte webhook ou email.",
+    "m7": "Ledger chaîné = preuve non-altération pour audits CSRD.",
+  },
+  "pro_tech": {
+    "m1": "Mesurer chaque appel API individuellement (ton terrain de jeu).",
+    "m13": "Explorer les leviers d'optimisation avant de modifier ton intégration.",
+    "m3": "Comparer 3 modèles côte-à-côte pour choisir le plus frugal.",
+    "m7": "Ledger SHA-256 chaîné pour le reporting interne / audit.",
+    "m8": "Voir les formules par méthodologie (AFNOR + EcoLogits).",
+    "m9": "Catalogue 25+ modèles avec P5/P50/P95 + vendor disclosure (Mistral × ADEME, Google, Meta).",
+  },
+  "public_sector": {
+    "m1": "Mesurer chaque prompt avec rigueur méthodologique sourcée Etalab 2.0.",
+    "m12": "Cartographier les datacenters européens (carte Leaflet + drill-down).",
+    "m17": "Datasheet scientifique réutilisable comme template marchés publics.",
+    "m20": "Empreinte par IRIS RTE : différenciateur FR unique de Sobr.ia.",
+    "m22": "Rapport réglementaire AGEC PDF + JSON-LD PROV-O.",
+    "m8": "Méthodologie AFNOR SPEC 2314 + sources officielles FR (ADEME, RTE).",
+  },
+  "researcher": {
+    "m1": "Atelier reproductible (seed SOBRIA_SEED=42).",
+    "m17": "Datasheet Gebru 2018 auto-générée + JSON-LD PROV-O.",
+    "m3": "Benchmark inter-modèles multi-méthodologie (AFNOR + EcoLogits).",
+    "m7": "Ledger chaîné SHA-256 = preuve non-altération pour reviewers.",
+    "m8": "Méthodologie complète + sources DOI (EcoLogits, AFNOR SPEC 2314).",
+    "m9": "Catalogue P5/P50/P95 + vendor disclosure (transparence multi-méthodo).",
+  },
+  "student": {
+    "m1": "Mesurer chaque prompt pour comprendre l'ordre de grandeur (CO₂, eau).",
+    "m13": "Explorer 'et si je raccourcis mes prompts ?' ou 'et si je change de modèle ?'.",
+    "m15": "Suivre ton usage semaine par semaine, équivalences humaines incluses.",
+    "m25": "Fixer un objectif mensuel + alerte quand tu le dépasses.",
+    "m8": "Voir la méthodologie de mesure expliquée simplement.",
+  },
+}
+`;
+
+exports[`persona catalogue > keeps the taglines 1`] = `
+{
+  "enterprise": "Piloter votre scope 3 IA, rapport CSRD, forecast budget carbone",
+  "pro_tech": "Optimiser vos prompts, comparer les modèles, exporter pour votre équipe",
+  "public_sector": "Suivre votre empreinte territoriale, marchés publics frugaux",
+  "researcher": "Reproductibilité, comparaisons inter-modèles, datasets publiables",
+  "student": "Comprendre votre impact, apprendre les bons réflexes",
+}
+`;

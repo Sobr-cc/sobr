@@ -1,0 +1,126 @@
+{
+  "computed_at": "<redacted>",
+  "equivalents": [
+    {
+      "label": "km en voiture thermique",
+      "source": "ADEME 2025",
+      "value": 0.017
+    },
+    {
+      "label": "heures d'ampoule LED",
+      "source": "ADEME 2025",
+      "value": 0.5
+    }
+  ],
+  "hypotheses": [
+    {
+      "key": "epsilon_decode_mJ_per_token",
+      "source": "HF AI Energy Score 2026",
+      "value": 1.8
+    },
+    {
+      "key": "pue",
+      "source": "Uptime Institute 2024",
+      "value": {
+        "p5": 1.1,
+        "p50": 1.2,
+        "p95": 1.4
+      }
+    },
+    {
+      "key": "mode",
+      "source": "test",
+      "value": "expert"
+    }
+  ],
+  "indicators": [
+    {
+      "bins": {
+        "counts": [4,10,25,10,1],
+        "max": 3.0,
+        "min": 1.5
+      },
+      "indicator": "co2_eq",
+      "interval": {
+        "p5": 1.68,
+        "p50": 2.14,
+        "p95": 2.74
+      },
+      "unit": "gCO2eq"
+    },
+    {
+      "indicator": "energy",
+      "interval": {
+        "p5": 5.5,
+        "p50": 7.25,
+        "p95": 9.5
+      },
+      "unit": "Wh"
+    },
+    {
+      "indicator": "water",
+      "interval": {
+        "p5": 0.012,
+        "p50": 0.02,
+        "p95": 0.031
+      },
+      "unit": "L"
+    },
+    {
+      "indicator": "critical_metals",
+      "interval": {
+        "p5": 0.5,
+        "p50": 0.75,
+        "p95": 1.25
+      },
+      "unit": "mg"
+    },
+    {
+      "indicator": "cost",
+      "interval": {
+        "p5": 0.0001,
+        "p50": 0.0002,
+        "p95": 0.0004
+      },
+      "unit": "EUR"
+    }
+  ],
+  "method": "ecologits",
+  "request": {
+    "datacenter_id": "openai-us-east-virginia",
+    "modalities": [
+      {
+        "kind": "text"
+      },
+      {
+        "image_count": 2,
+        "kind": "vision_low"
+      },
+      {
+        "avg_height": 768,
+        "avg_width": 1024,
+        "image_count": 1,
+        "kind": "vision_high"
+      },
+      {
+        "kind": "document",
+        "page_count": 12
+      },
+      {
+        "duration_seconds": 30,
+        "kind": "audio_input"
+      }
+    ],
+    "model_id": "gpt-4o-mini",
+    "overhead": {
+      "memory_tokens": 150,
+      "system_prompt_tokens": 2000,
+      "thinking_tokens_p50": 3000,
+      "tools_definition_tokens": 800
+    },
+    "timestamp": "2026-05-12T14:32:08Z",
+    "tokens_in": 23,
+    "tokens_out_estimated": 720
+  },
+  "seed": 42
+}

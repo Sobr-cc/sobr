@@ -1,11 +1,11 @@
-//! Simulateur « Et si...? » — chantier C11, module M13.
+//! « Et si...? » ("What if...?") simulator, chantier C11, module M13.
 //!
-//! Permet de comparer un baseline à N scénarios en faisant varier
-//! ponctuellement certains paramètres (modèle, PUE, mix élec, etc.) et
-//! de projeter ces variations sur 12 mois avec une hypothèse géométrique
-//! de croissance d'adoption.
+//! Compares a baseline with N scenarios that pin some parameters to
+//! fixed values (model, PUE, electricity mix, etc.), and projects
+//! these changes over 1 to `MAX_FORECAST_MONTHS` months with a geometric adoption-growth
+//! assumption.
 //!
-//! Voir `docs/archive/chantiers/C11-simulateur-et-si.md` pour la spec.
+//! See `docs/archive/chantiers/C11-simulateur-et-si.md` for the spec.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,44 +13,41 @@ use sobria_core::{EstimationRequest, EstimationResult, Indicator};
 
 use crate::{
     distributions::Distribution,
+    engine_trait::find_indicator,
     error::{EstimatorError, EstimatorResult},
+    forecast,
     params::EstimationParams,
 };
-// `MonteCarloEngine` n'est plus référencé par la signature publique
-// (`simulate` prend désormais `&dyn EmpreinteEngine`, C24) ; il reste utilisé
-// par les tests internes.
-#[cfg(test)]
-use crate::engine::MonteCarloEngine;
 
-/// Borne haute du nombre de scénarios autorisés par requête (anti-abus).
+/// Maximum number of scenarios allowed per request (anti-abuse).
 pub const MAX_SCENARIOS: usize = 20;
 
-/// Borne haute de l'horizon de projection (mois).
+/// Maximum projection horizon (months).
 pub const MAX_FORECAST_MONTHS: u32 = 60;
 
-/// Overrides partiels appliqués sur la requête et les paramètres du baseline.
+/// Partial overrides applied to the baseline request and parameters.
 ///
-/// Tous les champs sont `Option` : `None` = garde la valeur du baseline.
-/// Quand un champ est `Some`, il devient une `Distribution::Point` (valeur
-/// déterministe) — pour explorer "et si PUE valait exactement 1.1 ?".
+/// Every field is an `Option`: `None` keeps the baseline value.
+/// When a field is `Some`, it becomes a `Distribution::Point` (deterministic
+/// value), to explore "what if PUE were exactly 1.1?".
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ParamOverrides {
-    /// Modèle alternatif (utilise alors `EstimationParams::for_model`).
+    /// Alternative model (then uses `EstimationParams::for_model`).
     pub model_id: Option<String>,
-    /// Tokens de sortie alternatifs (impacte le calcul de E_compute).
+    /// Alternative output tokens (affects the E_compute calculation).
     pub tokens_out: Option<u32>,
-    /// PUE forcé à cette valeur (déterministe).
+    /// PUE forced to this value (deterministic).
     pub pue: Option<f64>,
-    /// Facteur d'émission électrique forcé (gCO₂eq/kWh).
+    /// Forced electricity emission factor (gCO₂eq/kWh).
     pub if_electrical_g_per_kwh: Option<f64>,
-    /// Embodied par requête forcé (gCO₂eq).
+    /// Forced embodied emissions per request (gCO₂eq).
     pub embodied_g_per_request: Option<f64>,
-    /// WUE forcé (L/kWh).
+    /// Forced WUE (L/kWh).
     pub wue_l_per_kwh: Option<f64>,
 }
 
 impl ParamOverrides {
-    /// `true` si au moins un champ est défini.
+    /// `true` if at least one field is set.
     #[must_use]
     pub fn any(&self) -> bool {
         self.model_id.is_some()
@@ -62,78 +59,80 @@ impl ParamOverrides {
     }
 }
 
-/// Un scénario nommé avec ses overrides.
+/// A named scenario with its overrides.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Scenario {
-    /// Libellé affiché dans la UI (ex: « France 100% renouvelable »).
+    /// Label shown in the UI (e.g. « France 100% renouvelable »).
     pub label: String,
-    /// Overrides appliqués. Si vide, le scénario est identique au baseline.
+    /// Applied overrides. If empty, the scenario matches the baseline.
     #[serde(default)]
     pub overrides: ParamOverrides,
 }
 
-/// Configuration d'une projection 12 mois (ou autre horizon).
+/// Configuration of a projection.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ForecastConfig {
-    /// Horizon en mois. Borné à `MAX_FORECAST_MONTHS`.
+    /// Horizon in months, from 1 to `MAX_FORECAST_MONTHS`; more is rejected.
     pub months: u32,
-    /// Croissance mensuelle exprimée en pourcentage (ex : `5.0` = +5%/mois).
-    /// Valeurs négatives autorisées (décroissance d'usage).
+    /// Monthly growth as a percentage (e.g. `5.0` = +5%/month).
+    /// Negative values allowed (declining usage).
     pub monthly_growth_pct: f64,
-    /// Volume baseline : nombre de prompts par jour au mois 0.
+    /// Baseline volume: number of prompts per day in month 0.
     pub base_volume_per_day: f64,
 }
 
-/// Requête de simulation.
+/// Simulation request.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct SimulationRequest {
-    /// Estimation de référence — utilisée comme point de comparaison.
+    /// Reference estimate, used as the point of comparison.
     pub baseline: EstimationRequest,
-    /// Scénarios à évaluer (1..= `MAX_SCENARIOS`).
+    /// Scenarios to evaluate, at most `MAX_SCENARIOS`.
     pub scenarios: Vec<Scenario>,
-    /// Projection optionnelle.
+    /// Optional projection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forecast: Option<ForecastConfig>,
 }
 
-/// Résultat d'un scénario.
+/// Result of one scenario.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ScenarioOutcome {
-    /// Libellé hérité du scénario d'entrée.
+    /// Label taken from the input scenario.
     pub label: String,
-    /// Résultat d'estimation complet (avec bins).
+    /// Full estimation result (with bins).
     pub result: EstimationResult,
-    /// Δ par rapport au baseline P50, en gCO₂eq (peut être négatif).
+    /// Δ from the baseline P50, in gCO₂eq (can be negative).
     pub delta_co2eq_g: f64,
-    /// Δ relatif par rapport au baseline P50, en pourcentage.
+    /// Relative Δ from the baseline P50, as a percentage.
     pub delta_pct: f64,
 }
 
-/// Résultat d'une projection 12 mois.
+/// Result of a projection.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ForecastResult {
-    /// Horizon effectif (peut être ≤ months demandé si bornage).
+    /// Horizon in months, as requested.
     pub months: u32,
-    /// Volume baseline par jour utilisé pour calculer les masses.
+    /// Baseline volume per day used to compute the masses.
     pub base_volume_per_day: f64,
-    /// Croissance mensuelle utilisée (pourcentage).
+    /// Monthly growth used (percentage).
     pub monthly_growth_pct: f64,
-    /// Série mensuelle baseline en gCO₂eq (longueur = months).
+    /// Baseline monthly series in gCO₂eq (length = months).
     pub baseline_monthly_co2eq_g: Vec<f64>,
-    /// Cumul annuel baseline en gCO₂eq.
+    /// Baseline total over `months` (not a calendar year despite the name,
+    /// SOB-210), in gCO₂eq.
     pub baseline_annual_co2eq_g: f64,
-    /// Cumul annuel par scénario (ordre identique à `SimulationRequest.scenarios`).
+    /// Total over `months` per scenario, in the order of
+    /// `SimulationRequest.scenarios`.
     pub scenarios_annual_co2eq_g: Vec<f64>,
 }
 
-/// Résultat global d'une simulation.
+/// Overall result of a simulation.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SimulationResult {
-    /// Estimation du baseline (incl. bins distributionnels).
+    /// Baseline estimate (incl. distribution bins).
     pub baseline: EstimationResult,
-    /// Un outcome par scénario, dans l'ordre de la requête.
+    /// One outcome per scenario, in request order.
     pub scenarios: Vec<ScenarioOutcome>,
-    /// Projection optionnelle.
+    /// Optional projection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub forecast: Option<ForecastResult>,
 }
@@ -142,62 +141,45 @@ pub struct SimulationResult {
 // simulate()
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Exécute le baseline + tous les scénarios + la projection.
+/// Runs the baseline + every scenario + the projection.
 ///
-/// Polish G (C24) — Le paramètre `engine` est devenu `&dyn EmpreinteEngine`
-/// pour que la simulation honore la méthodologie choisie par l'utilisateur
-/// (AFNOR Sobr.ia ou EcoLogits 2026-01). Les wrappers existants qui
-/// passaient `&MonteCarloEngine` continuent de fonctionner via coercion
-/// `&MonteCarloEngine` → `&dyn EmpreinteEngine` (trait impl additif).
+/// `engine` runs the methodology the user chose. `baseline_params` comes from
+/// the caller, which can apply a datacenter override (PUE, IF, WUE); the
+/// scenarios start from it, except a `model_id` override, which rebuilds the
+/// params from that model's preset.
 ///
-/// C25-A8 — Le paramètre `baseline_params` est désormais fourni par
-/// l'appelant. Cela permet à la couche IPC (`sobria-app::logic`) d'y
-/// appliquer un override datacenter (PUE/IF/WUE) avant de déléguer.
-/// Les scénarios partent toujours de `baseline_params` (sauf
-/// `model_id` override qui reconstruit les params depuis le nouveau
-/// preset — comportement préservé dans `apply_overrides`).
-///
-/// **Erreurs** :
-/// - `Schema` si plus de `MAX_SCENARIOS` scénarios,
-/// - `Schema` si forecast hors bornes,
-/// - `Schema` si deux scénarios partagent le même `label` (anti-confusion UI),
-/// - propage les erreurs de `engine.estimate` (model inconnu, etc.).
+/// **Errors**:
+/// - `Schema` if there are more than `MAX_SCENARIOS` scenarios,
+/// - `Schema` if the forecast is out of bounds,
+/// - `Schema` if two scenarios share the same `label` (avoids UI confusion),
+/// - propagates the errors of `engine.estimate` (unknown model, etc.).
 pub fn simulate(
     engine: &dyn crate::engine_trait::EmpreinteEngine,
     request: &SimulationRequest,
     baseline_params: &EstimationParams,
 ) -> EstimatorResult<SimulationResult> {
-    if request.scenarios.len() > MAX_SCENARIOS {
-        return Err(EstimatorError::Schema(format!(
-            "trop de scénarios : {} (max {MAX_SCENARIOS})",
-            request.scenarios.len()
-        )));
-    }
-    // Vérification unicité des labels.
+    forecast::check_scenario_count(request.scenarios.len(), MAX_SCENARIOS)?;
     let mut seen_labels = std::collections::HashSet::new();
     for s in &request.scenarios {
-        if !seen_labels.insert(s.label.clone()) {
-            return Err(EstimatorError::Schema(format!(
-                "label scénario en doublon : '{}'",
-                s.label
-            )));
+        if !seen_labels.insert(s.label.as_str()) {
+            return Err(forecast::duplicate_label(&s.label));
         }
     }
     if let Some(f) = &request.forecast {
         validate_forecast(f)?;
     }
 
-    // 1. Baseline
     let baseline = engine.estimate(&request.baseline, baseline_params)?;
     let baseline_co2_p50 = co2_p50(&baseline)?;
 
-    // 2. Scénarios
     let mut outcomes: Vec<ScenarioOutcome> = Vec::with_capacity(request.scenarios.len());
+    let mut scenario_p50s = Vec::with_capacity(request.scenarios.len());
     for scenario in &request.scenarios {
         let (req_derived, params_derived) =
             apply_overrides(&request.baseline, baseline_params, &scenario.overrides)?;
         let result = engine.estimate(&req_derived, &params_derived)?;
         let p50 = co2_p50(&result)?;
+        scenario_p50s.push(p50);
         let delta = p50 - baseline_co2_p50;
         let delta_pct = if baseline_co2_p50.abs() > f64::EPSILON {
             (delta / baseline_co2_p50) * 100.0
@@ -212,16 +194,12 @@ pub fn simulate(
         });
     }
 
-    // 3. Forecast (optionnel)
     let forecast = request.forecast.as_ref().map(|f| {
         let baseline_monthly = monthly_series(baseline_co2_p50, f);
         let baseline_annual: f64 = baseline_monthly.iter().sum();
-        let scenarios_annual: Vec<f64> = outcomes
+        let scenarios_annual: Vec<f64> = scenario_p50s
             .iter()
-            .map(|o| {
-                let p50 = co2_p50(&o.result).unwrap_or(0.0);
-                monthly_series(p50, f).iter().sum()
-            })
+            .map(|&p50| monthly_series(p50, f).iter().sum())
             .collect();
         ForecastResult {
             months: f.months,
@@ -245,46 +223,29 @@ pub fn simulate(
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn validate_forecast(f: &ForecastConfig) -> EstimatorResult<()> {
-    if f.months == 0 || f.months > MAX_FORECAST_MONTHS {
-        return Err(EstimatorError::Schema(format!(
-            "months {} hors bornes [1, {MAX_FORECAST_MONTHS}]",
-            f.months
-        )));
-    }
-    if !(-50.0..=50.0).contains(&f.monthly_growth_pct) {
+    forecast::check_months(f.months, MAX_FORECAST_MONTHS)?;
+    if !forecast::growth_in_bounds(f.monthly_growth_pct) {
         return Err(EstimatorError::Schema(format!(
             "monthly_growth_pct {} hors bornes [-50, 50]",
             f.monthly_growth_pct
         )));
     }
-    if !f.base_volume_per_day.is_finite()
-        || f.base_volume_per_day < 0.0
-        || f.base_volume_per_day > 1_000_000.0
-    {
-        return Err(EstimatorError::Schema(format!(
-            "base_volume_per_day {} hors bornes [0, 10⁶]",
-            f.base_volume_per_day
-        )));
-    }
-    Ok(())
+    forecast::check_volume_per_day(f.base_volume_per_day)
 }
 
 fn co2_p50(result: &EstimationResult) -> EstimatorResult<f64> {
-    result
-        .indicators
-        .iter()
-        .find(|i| matches!(i.indicator, Indicator::Co2Eq))
+    find_indicator(result, Indicator::Co2Eq)
         .map(|i| i.interval.p50)
         .ok_or_else(|| EstimatorError::Schema("CO2eq indicator missing".into()))
 }
 
-/// Construit une requête et des paramètres dérivés en appliquant les overrides.
+/// Builds a derived request and parameters by applying the overrides.
 fn apply_overrides(
     baseline_req: &EstimationRequest,
     baseline_params: &EstimationParams,
     overrides: &ParamOverrides,
 ) -> EstimatorResult<(EstimationRequest, EstimationParams)> {
-    // Requête : on remplace tokens_out et/ou model_id si demandé.
+    // Request: replace tokens_out and/or model_id if asked.
     let mut req = baseline_req.clone();
     if let Some(t) = overrides.tokens_out {
         req.tokens_out_estimated = t;
@@ -293,8 +254,8 @@ fn apply_overrides(
         req.model_id.clone_from(model);
     }
 
-    // Params : on part de ceux du model_id effectif (potentiellement changé),
-    // puis on applique les overrides scalaires comme distributions Point.
+    // Params: start from those of the effective model_id (possibly changed),
+    // then apply the scalar overrides as Point distributions.
     let mut params = if let Some(model) = &overrides.model_id {
         EstimationParams::for_model(model)?
     } else {
@@ -316,36 +277,24 @@ fn apply_overrides(
     Ok((req, params))
 }
 
-/// Calcule la série mensuelle de gCO₂eq agrégée à partir d'un P50 unitaire.
+/// Computes the aggregated monthly gCO₂eq series from a per-request P50.
 ///
 /// `mois_n = (P50 × volume_jour × 30) × (1 + growth)^n`.
 fn monthly_series(p50_per_req_g: f64, cfg: &ForecastConfig) -> Vec<f64> {
-    let base_monthly = p50_per_req_g * cfg.base_volume_per_day * 30.0;
-    let growth = 1.0 + cfg.monthly_growth_pct / 100.0;
+    let base_monthly = p50_per_req_g * cfg.base_volume_per_day * forecast::DAYS_PER_MONTH;
+    let growth = forecast::growth_factor(cfg.monthly_growth_pct);
     (0..cfg.months)
-        .map(|n| {
-            // Borné à MAX_FORECAST_MONTHS=60 par validate_forecast → cast safe.
-            let exp = i32::try_from(n).unwrap_or(i32::MAX);
-            base_monthly * growth.powi(exp)
-        })
+        .map(|n| forecast::grown(base_monthly, growth, n))
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
+    use crate::engine::MonteCarloEngine;
 
     fn baseline_request() -> EstimationRequest {
-        EstimationRequest {
-            model_id: "gpt-4o-mini".into(),
-            tokens_in: 100,
-            tokens_out_estimated: 500,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
+        crate::validation::request_for("gpt-4o-mini", 100, 500)
     }
 
     fn sim_request_with(scenarios: Vec<Scenario>) -> SimulationRequest {
@@ -356,9 +305,9 @@ mod tests {
         }
     }
 
-    /// Helper test (C25-A8) : construit les params du baseline du request
-    /// et délègue à `simulate`. Permet de garder les tests internes
-    /// concis après le changement de signature `simulate(engine, req,
+    /// Test helper: builds the params of the request's baseline and
+    /// delegates to `simulate`. Keeps the internal tests short after
+    /// the signature change to `simulate(engine, req,
     /// baseline_params)`.
     fn sim(
         engine: &dyn crate::engine_trait::EmpreinteEngine,
@@ -403,21 +352,20 @@ mod tests {
             pue_low < pue_high,
             "PUE 1.05 ({pue_low}) doit être < PUE 1.6 ({pue_high})"
         );
-        // Delta calculé correctement.
         let baseline_p50 = res.baseline.indicators[0].interval.p50;
         assert!((res.scenarios[0].delta_co2eq_g - (pue_low - baseline_p50)).abs() < 1e-9);
     }
 
     #[test]
     fn scenario_with_if_override_drastically_changes_p50() {
-        // France (56 g/kWh) vs USA charbon-lourd (~600 g/kWh).
+        // France (56 g/kWh) vs coal-heavy USA (~600 g/kWh).
         //
-        // On force `embodied = 0` dans les deux scénarios pour isoler la
-        // contribution du mix électrique. Sans ça, pour un petit modèle
-        // type gpt-4o-mini sur 100+500 tokens, l'embodied (~0.002 g)
-        // dominerait la composante électrique (~0.00001 g) et le ratio
-        // IF charbon/FR serait masqué. Ce constat est un enseignement
-        // méthodologique surfacé dans l'UI M13.
+        // We force `embodied = 0` in both scenarios to isolate the
+        // electricity-mix contribution. Without it, for a small model
+        // like gpt-4o-mini on 100+500 tokens, embodied (~0.002 g)
+        // would dominate the electrical part (~0.00001 g) and hide the
+        // coal/FR IF ratio. This finding is a methodology lesson
+        // surfaced in the M13 UI.
         let engine = MonteCarloEngine::new(42);
         let scenarios = vec![
             Scenario {
@@ -457,9 +405,9 @@ mod tests {
             },
         }];
         let res = sim(&engine, &sim_request_with(scenarios)).unwrap();
-        // model_id remplacé → impact attendu sur P50 (probable mais pas testé en
-        // valeur absolue : on vérifie juste que ça tourne et que le delta est
-        // calculé).
+        // model_id replaced → expected impact on P50 (likely, but not tested as
+        // an absolute value: we only check that it runs and that the delta is
+        // computed).
         let outcome = &res.scenarios[0];
         assert!(outcome.delta_co2eq_g.is_finite());
         assert!(outcome.delta_pct.is_finite());
@@ -531,7 +479,7 @@ mod tests {
                 "série pas constante : {v} ≠ {first}"
             );
         }
-        // Cumul annuel = 12 × mois 0.
+        // Annual total = 12 × month 0.
         assert!((f.baseline_annual_co2eq_g - first * 12.0).abs() < 1e-6);
     }
 
@@ -546,7 +494,7 @@ mod tests {
         });
         let res = sim(&engine, &req).unwrap();
         let f = res.forecast.unwrap();
-        // mois 11 = mois 0 × 1.05^11
+        // month 11 = month 0 × 1.05^11
         let expected_last = f.baseline_monthly_co2eq_g[0] * 1.05_f64.powi(11);
         let last = *f.baseline_monthly_co2eq_g.last().unwrap();
         assert!(
@@ -595,8 +543,8 @@ mod tests {
 
     #[test]
     fn empty_scenario_outcome_equals_baseline_within_seed_determinism() {
-        // Un scénario avec overrides vide doit reproduire le baseline
-        // (même graine, même calcul → même résultat exact).
+        // A scenario with empty overrides must reproduce the baseline
+        // (same seed, same computation → same exact result).
         let engine = MonteCarloEngine::new(42);
         let scenarios = vec![Scenario {
             label: "no-op".into(),

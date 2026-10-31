@@ -1,9 +1,9 @@
-//! Distributions de probabilité utilisées par le moteur Monte-Carlo.
+//! Probability distributions used by the Monte-Carlo engine.
 //!
-//! Voir ADR-0004 §"Distributions par paramètre" et CDC §9.2.
+//! See ADR-0004 §"Distributions par paramètre" and CDC §9.2.
 //!
-//! Toutes les distributions échantillonnent des valeurs **positives ou
-//! nulles** (les variables physiques traitées sont toujours ≥ 0).
+//! Every distribution samples **non-negative** values (the physical
+//! quantities handled are always ≥ 0).
 
 use rand::Rng;
 use rand_distr::{Distribution as RandDistribution, LogNormal as RdLogNormal, Normal as RdNormal};
@@ -12,44 +12,50 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{EstimatorError, EstimatorResult};
 
-/// Z-score correspondant au quantile 0.95 de la loi normale standard.
-/// Utilisé par le calibrage log-normale depuis un intervalle P5-P95.
+/// Z-score of the 0.95 quantile of the standard normal distribution.
+/// Used by the log-normal calibration from a P5-P95 interval.
 const Z_95: f64 = 1.644_853_626_951_472_7;
 
-/// Distribution paramétrable pour Monte-Carlo.
+/// Parameterised distribution for Monte-Carlo.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Distribution {
-    /// Valeur déterministe (sans incertitude).
+    /// Deterministic value (no uncertainty).
     Point {
-        /// La valeur retournée à chaque tirage.
+        /// The value returned by every draw.
         value: f64,
     },
-    /// Uniforme bornée [low, high].
+    /// Uniform on [low, high].
     Uniform {
-        /// Borne inférieure.
+        /// Lower bound.
         low: f64,
-        /// Borne supérieure.
+        /// Upper bound.
         high: f64,
     },
-    /// Loi normale (tronquée à 0 si tirage négatif).
+    /// Normal distribution (truncated to 0 when a draw is negative).
     Normal {
-        /// Moyenne.
+        /// Mean.
         mean: f64,
-        /// Écart-type.
+        /// Standard deviation.
         std: f64,
     },
-    /// Loi log-normale, paramétrée par `μ` et `σ` de la log.
+    /// Log-normal distribution, parameterised by `μ` and `σ` of the log.
     LogNormal {
-        /// Paramètre μ (moyenne de la log).
+        /// Parameter μ (mean of the log).
         mu: f64,
-        /// Paramètre σ (écart-type de la log).
+        /// Parameter σ (standard deviation of the log).
         sigma: f64,
     },
 }
 
 impl Distribution {
-    /// Tire une valeur dans la distribution.
+    /// Draws one value from the distribution.
+    ///
+    /// # Panics
+    ///
+    /// On a non-finite `std` or `sigma`, a NaN or infinite `low` or `high`, or
+    /// `low > high`, which [`Self::validate`] refuses (SOB-210); and on finite
+    /// bounds whose `high - low` overflows, which it accepts.
     pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
         match *self {
             Self::Point { value } => value,
@@ -66,11 +72,11 @@ impl Distribution {
         }
     }
 
-    /// Construit une `LogNormal` calibrée pour passer par `p50` (médiane)
-    /// et dont l'intervalle P5-P95 approche `[p5, p95]`.
+    /// Builds a `LogNormal` calibrated to pass through `p50` (median)
+    /// with a P5-P95 interval close to `[p5, p95]`.
     ///
-    /// Formule : `μ = ln(p50)`, `σ = ln(p95/p5) / (2 × z_{0.95})`
-    /// avec `z_{0.95} ≈ 1.6449`.
+    /// Formula: `μ = ln(p50)`, `σ = ln(p95/p5) / (2 × z_{0.95})`
+    /// with `z_{0.95} ≈ 1.6449`.
     pub fn log_normal_from_interval(p5: f64, p50: f64, p95: f64) -> EstimatorResult<Self> {
         if p5 <= 0.0 || p50 <= 0.0 || p95 <= 0.0 {
             return Err(EstimatorError::Schema(format!(
@@ -92,7 +98,7 @@ impl Distribution {
         Ok(Self::LogNormal { mu, sigma })
     }
 
-    /// Vérifie les invariants de la distribution.
+    /// Checks the invariants of the distribution.
     pub fn validate(&self) -> EstimatorResult<()> {
         match *self {
             Self::Point { value } => {

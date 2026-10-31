@@ -1,31 +1,11 @@
-//! Registry de paramètres distributionnels par modèle.
+//! Registry of distribution parameters per model.
 //!
-//! Voir `docs/archive/chantiers/C06-model-presets.md` pour la méthodologie
-//! d'extrapolation et `docs/methodology/MODEL-PRESETS.md` pour la
-//! documentation chiffre par chiffre.
+//! Method: `docs/archive/chantiers/C06-model-presets.md` (extrapolation) and
+//! `docs/methodology/MODEL-PRESETS.md` (each figure). Values of closed models
+//! are indicative or extrapolated (missing sources: SOB-209). Older presets
+//! stay, with `deprecated: true`, so the audit ledger can be reproduced.
 //!
-//! **Garde-fou méthodologique** : les valeurs fournies ici sont
-//! *indicatives* ou *extrapolées* pour les modèles fermés. Elles
-//! seront raffinées en chantier #7 par validation croisée contre
-//! Luccioni 2023 et EcoLogits.
-//!
-//! ## C34.2 — Catalogue 2026
-//!
-//! Étendu en v0.9.0 (chantier C34.2, complété ensuite — le compte exact
-//! vit dans le doc-comment de [`MODEL_REGISTRY`]) avec :
-//! - les presets 2025-2026 (Claude 4.x, GPT-5.5, Gemini 3.x, Llama 4,
-//!   Mistral Large 3, DeepSeek V4, Grok 4, Qwen 3.6, Phi-4 reasoning).
-//! - Anciens presets 2024 marqués `deprecated: true` (conservés pour
-//!   reproductibilité historique audit ledger).
-//! - Nouveaux enums : [`ModelFamily`], [`ArchitectureKind`],
-//!   [`VisionPricing`].
-//! - Nouveaux champs de capabilities : `release_date`, `model_family`,
-//!   `architecture`, `vision_capable`, `vision_pricing`, `audio_capable`,
-//!   `reasoning_capable`, `thinking_token_multiplier`,
-//!   `default_context_overhead_tokens`, `deprecated`, `source_url`,
-//!   `active_params_b`.
-//!
-//! Shortlist source : `docs/archive/chantiers/C34-shortlist-models-validated.md`.
+//! Shortlist source: `docs/archive/chantiers/C34-shortlist-models-validated.md`.
 
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -33,71 +13,71 @@ use serde::Serialize;
 use crate::{
     distributions::Distribution,
     error::{EstimatorError, EstimatorResult},
-    params::EstimationParams,
+    params::{EstimationParams, DEFAULT_PUE, DEFAULT_WUE_L_PER_KWH, FRANCE_MIX_G_PER_KWH},
 };
 
-/// Statut de calibration d'un preset.
+/// Calibration status of a preset.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CalibrationStatus {
-    /// Validé contre une étude de référence à ±15 %.
+    /// Validated against a reference study within ±15 %.
     Validated,
-    /// Calibré par ordre de grandeur depuis HF AI Energy Score / EcoLogits.
+    /// Calibrated by order of magnitude from HF AI Energy Score / EcoLogits.
     Indicative,
-    /// Extrapolé depuis un modèle ouvert comparable (modèles fermés).
+    /// Extrapolated from a comparable open model (closed models).
     Extrapolated,
 }
 
-/// Ouverture du modèle.
+/// Openness of the model.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Openness {
-    /// Code et poids publics sous licence ouverte.
+    /// Public code and weights under an open licence.
     Open,
-    /// Poids publics, conditions d'usage variables.
+    /// Public weights, varying terms of use.
     OpenWeights,
-    /// Modèle fermé (API uniquement).
+    /// Closed model (API only).
     Closed,
 }
 
-/// Périmètre d'un chiffre publié par un fabricant.
+/// Scope of a figure published by a vendor.
 ///
-/// **`Training`** : empreinte totale de l'entraînement du modèle (one-shot,
-/// amortie sur la durée de vie). Unité typique : `t_co2eq`, `m3_water`.
+/// **`Training`**: total footprint of training the model (one-shot,
+/// amortised over its lifetime). Typical unit: `t_co2eq`, `m3_water`.
 ///
-/// **`InferencePerPrompt`** : empreinte d'un prompt unitaire (estimation
-/// vendor selon sa propre méthodologie — médiane, percentile, etc.).
-/// Unité typique : `g_co2eq`, `wh`, `ml_water`.
+/// **`InferencePerPrompt`**: footprint of a single prompt (vendor estimate
+/// under its own methodology — median, percentile, etc.).
+/// Typical unit: `g_co2eq`, `wh`, `ml_water`.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum VendorScope {
-    /// Empreinte training (one-shot, amorti sur durée de vie).
+    /// Training footprint (one-shot, amortised over the lifetime).
     Training,
-    /// Empreinte par prompt d'inférence (selon méthodologie vendor).
+    /// Footprint per inference prompt (vendor methodology).
     InferencePerPrompt,
 }
 
-/// Métrique exposée dans un vendor disclosure.
+/// Metric exposed in a vendor disclosure.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum VendorUnit {
-    /// Tonnes de CO₂eq (typiquement training).
+    /// Tonnes of CO₂eq (typically training).
     TCo2Eq,
-    /// Grammes de CO₂eq (typiquement par prompt).
+    /// Grams of CO₂eq (typically per prompt).
     GCo2Eq,
-    /// Watt-heures (typiquement par prompt).
+    /// Watt-hours (typically per prompt).
     Wh,
-    /// Millilitres d'eau (typiquement par prompt).
+    /// Millilitres of water (typically per prompt).
     MlWater,
-    /// Mètres cubes d'eau (typiquement training).
+    /// Cubic metres of water (typically training).
     M3Water,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// C34.2 — Nouveaux enums : ModelFamily, ArchitectureKind, VisionPricing
+// Enums: ModelFamily, ArchitectureKind, VisionPricing
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// **C34.2** — Famille du fabricant. Sert au filtrage et au regroupement UI.
+/// Vendor family. Used for UI filtering and grouping.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelFamily {
@@ -119,88 +99,88 @@ pub enum ModelFamily {
     Alibaba,
     /// Microsoft (Phi).
     Microsoft,
-    /// Autre / non classifié.
+    /// Other / unclassified.
     Other,
 }
 
-/// **C34.2** — Architecture interne du modèle.
+/// Internal architecture of the model.
 ///
-/// L'énergie d'inférence (`ε_decode`) est calculée à partir des paramètres
-/// **actifs** (cf. [`ModelPreset::active_params_b`]). Pour MoE, c'est
-/// significativement inférieur aux paramètres totaux.
+/// Inference energy (`ε_decode`) is computed from the **active**
+/// parameters (cf. [`ModelPreset::active_params_b`]). For MoE, this is
+/// significantly lower than the total parameters.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum ArchitectureKind {
-    /// Transformer dense classique (GPT-3/4, Claude 1-3, Llama 1-3).
+    /// Classic dense transformer (GPT-3/4, Claude 1-3, Llama 1-3).
     DenseTransformer,
     /// Mixture-of-Experts (Mixtral, DeepSeek V3+, Llama 4, Qwen3 MoE).
     Moe {
-        /// Nombre total d'experts dans chaque couche MoE.
+        /// Total number of experts in each MoE layer.
         experts: u32,
-        /// Nombre d'experts activés par token (typiquement 1-8).
+        /// Number of experts activated per token (typically 1-8).
         active_experts: u32,
     },
-    /// Architecture Mamba / SSM (rare en frontier).
+    /// Mamba / SSM architecture (rare at the frontier).
     Mamba,
-    /// Architecture hybride (Mamba + Transformer, etc.).
+    /// Hybrid architecture (Mamba + Transformer, etc.).
     Hybrid,
 }
 
-/// **C34.2** — Formule de tarification tokens vision par fabricant.
+/// Vision token pricing formula per vendor.
 ///
-/// Sourcée des docs publiques officielles (voir [`ModelPreset::source_url`]) :
-/// - **OpenAI** : <https://platform.openai.com/docs/guides/vision/calculating-costs>
-/// - **Anthropic** : <https://docs.anthropic.com/en/docs/build-with-claude/vision>
-/// - **Google Gemini** : <https://ai.google.dev/gemini-api/docs/vision>
-/// - **Meta Llama** : <https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/>
+/// Sourced from the official public docs (see [`ModelPreset::source_url`]):
+/// - **OpenAI**: <https://platform.openai.com/docs/guides/vision/calculating-costs>
+/// - **Anthropic**: <https://docs.anthropic.com/en/docs/build-with-claude/vision>
+/// - **Google Gemini**: <https://ai.google.dev/gemini-api/docs/vision>
+/// - **Meta Llama**: <https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/>
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case", tag = "kind")]
 pub enum VisionPricing {
-    /// OpenAI : `base + per_tile × ⌈W/tile_size⌉ × ⌈H/tile_size⌉` en haute
-    /// résolution. Constants typiques : `base = 85`, `per_tile = 170`,
-    /// `tile_size = 512`. En basse résolution : `base` seul.
+    /// OpenAI: `base + per_tile × ⌈W/tile_size⌉ × ⌈H/tile_size⌉` at high
+    /// resolution. Typical constants: `base = 85`, `per_tile = 170`,
+    /// `tile_size = 512`. At low resolution: `base` only.
     OpenAiTiles {
-        /// Tokens de base (low detail).
+        /// Base tokens (low detail).
         base: u32,
-        /// Tokens par tile (high detail).
+        /// Tokens per tile (high detail).
         per_tile: u32,
-        /// Taille de tile en pixels (carré).
+        /// Tile size in pixels (square).
         tile_size: u32,
     },
-    /// Anthropic Claude : `(W × H) / divisor` tokens, plafonné à `max_tokens`.
-    /// Constants typiques : `divisor = 750`, `max_tokens = 1568`.
+    /// Anthropic Claude: `(W × H) / divisor` tokens, capped at `max_tokens`.
+    /// Typical constants: `divisor = 750`, `max_tokens = 1568`.
     AnthropicArea {
-        /// Diviseur appliqué à l'aire en pixels.
+        /// Divisor applied to the pixel area.
         divisor: u32,
-        /// Plafond de tokens par image.
+        /// Token cap per image.
         max_tokens: u32,
     },
-    /// Google Gemini : `base` tokens fixes pour images ≤ 384×384, sinon
-    /// `base × ⌈W/tile_size⌉ × ⌈H/tile_size⌉`. Constants : `base = 258`,
+    /// Google Gemini: fixed `base` tokens for images ≤ 384×384, otherwise
+    /// `base × ⌈W/tile_size⌉ × ⌈H/tile_size⌉`. Constants: `base = 258`,
     /// `tile_size = 768`.
     GeminiNative {
-        /// Tokens de base (image ≤ 384×384).
+        /// Base tokens (image ≤ 384×384).
         base: u32,
-        /// Taille de tile (768 chez Gemini).
+        /// Tile size (768 for Gemini).
         tile_size: u32,
     },
-    /// Meta Llama 3.2 Vision / Llama 4 multimodal : `tokens_per_image` fixe
-    /// (patches 14×14 sur 560×560 → ≈ 1601 tokens chez Llama 3.2).
+    /// Meta Llama 3.2 Vision / Llama 4 multimodal: fixed `tokens_per_image`
+    /// (14×14 patches on 560×560 → ≈ 1601 tokens for Llama 3.2).
     LlamaPatches {
-        /// Tokens fixes par image traitée.
+        /// Fixed tokens per processed image.
         tokens_per_image: u32,
     },
 }
 
 impl VisionPricing {
-    /// Calcule les tokens facturés pour `count` images de dimensions données.
+    /// Computes the billed tokens for `count` images of the given size.
     ///
-    /// `high_detail = true` active la tile-based pricing (OpenAI) ou la
-    /// version haute résolution pour les autres. Pour Anthropic et Llama,
-    /// le paramètre est ignoré (la formule est unique).
+    /// `high_detail = true` turns on tile-based pricing (OpenAI) or the
+    /// high-resolution variant for the others. For Anthropic and Llama,
+    /// the parameter is ignored (single formula).
     ///
-    /// **Garanties** : retourne 0 si `count = 0`. Pas de panique
-    /// arithmétique : `saturating_*` utilisé en interne.
+    /// **Guarantees**: returns 0 if `count = 0`. No arithmetic
+    /// panic: `saturating_*` is used internally.
     #[must_use]
     pub fn tokens_for(&self, count: u32, width: u32, height: u32, high_detail: bool) -> u32 {
         if count == 0 {
@@ -249,245 +229,245 @@ impl VisionPricing {
     }
 }
 
-/// Chiffre officiel publié par un fabricant (Mistral, Google, Meta…).
+/// Official figure published by a vendor (Mistral, Google, Meta…).
 ///
-/// **C32.4** — agrégation des vendor disclosures officielles (audit datasets
-/// Q3 2026 §D). Sobr.ia est le tiers de confiance qui les normalise et les
-/// présente avec leur lineage, **sans se substituer aux méthodologies
-/// indépendantes** (AFNOR/EcoLogits restent calculées en parallèle).
+/// Aggregation of the official vendor disclosures (dataset audit
+/// Q3 2026 §D). Sobr.ia is the trusted third party that normalises them and
+/// shows them with their lineage, **without replacing the independent
+/// methodologies** (AFNOR/EcoLogits are still computed alongside).
 ///
-/// `Deserialize` n'est pas dérivé (cf. doc de [`ModelPreset`]).
+/// `Deserialize` is not derived (cf. the doc of [`ModelPreset`]).
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 pub struct VendorDisclosure {
-    /// Fabricant (ex : `"Mistral AI"`, `"Google"`, `"Meta"`).
+    /// Vendor (e.g. `"Mistral AI"`, `"Google"`, `"Meta"`).
     pub vendor: &'static str,
-    /// Périmètre du chiffre (training ou inference).
+    /// Scope of the figure (training or inference).
     pub scope: VendorScope,
-    /// Valeur numérique.
+    /// Numeric value.
     pub value: f64,
-    /// Unité de la valeur.
+    /// Unit of the value.
     pub unit: VendorUnit,
-    /// URL canonique de la source (citation directe).
+    /// Canonical URL of the source (direct citation).
     pub source_url: &'static str,
-    /// Date de publication (RFC 3339 simplifié `YYYY-MM-DD`).
+    /// Publication date (simplified RFC 3339 `YYYY-MM-DD`).
     pub published_at: &'static str,
-    /// Note méthodologique courte (1-3 phrases) — explication du périmètre,
-    /// hypothèses du fabricant, caveats. Affichée dans l'encadré M9.
+    /// Short methodology note (1-3 sentences) — scope explanation,
+    /// vendor assumptions, caveats. Shown in the M9 box.
     pub methodology_note: &'static str,
 }
 
-/// Preset distributionnel pour un modèle.
+/// Distribution preset for a model.
 ///
-/// `Deserialize` n'est pas dérivé : les presets sont des constantes statiques
-/// définies dans le code Rust (avec `&'static str` et `&'static [&'static str]`,
-/// qui ne sont pas désérialisables). `Serialize` suffit pour exposer le
-/// catalogue côté frontend.
+/// `Deserialize` is not derived: presets are static constants defined
+/// in the Rust code (with `&'static str` and `&'static [&'static str]`,
+/// which cannot be deserialised). `Serialize` is enough to expose the
+/// catalogue to the frontend.
 ///
-/// **C34.2** — 4 bools de capabilities (vision/audio/reasoning/deprecated) :
-/// allow `struct_excessive_bools` car chaque flag a une sémantique distincte
-/// et indépendante (refactor en enum/bitflags rendrait le code moins lisible).
+/// 4 capability bools (vision/audio/reasoning/deprecated):
+/// `struct_excessive_bools` is allowed because each flag has a distinct,
+/// independent meaning (an enum/bitflags refactor would read worse).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 pub struct ModelPreset {
-    /// Identifiant stable (ex: `"gpt-4o-mini"`).
+    /// Stable identifier (e.g. `"gpt-4o-mini"`).
     pub id: &'static str,
-    /// Nom commercial.
+    /// Commercial name.
     pub display_name: &'static str,
-    /// Provider (legacy — `model_family` est la version typée C34.2).
+    /// Provider (legacy — `model_family` is the typed version).
     pub provider: &'static str,
-    /// Famille (regroupement intra-provider, legacy).
+    /// Family (intra-provider grouping, legacy).
     pub family: &'static str,
-    /// Nombre de paramètres **total** en milliards.
+    /// **Total** parameter count in billions.
     ///
-    /// - Pour dense : égal à [`Self::active_params_b`].
-    /// - Pour MoE : peut être beaucoup plus grand (Llama 4 Maverick =
-    ///   400B total / 17B actifs).
+    /// - For dense: equal to [`Self::active_params_b`].
+    /// - For MoE: can be much larger (Llama 4 Maverick =
+    ///   400B total / 17B active).
     pub approx_params_billions: f64,
-    /// **C34.2** — Nombre de paramètres **actifs** par token (en
-    /// milliards). Drive l'énergie d'inférence.
+    /// **Active** parameter count per token (in
+    /// billions). Drives inference energy.
     ///
-    /// - Pour dense : `= approx_params_billions`.
-    /// - Pour MoE : `= experts × params_per_expert + shared` (publié
-    ///   par le vendor).
+    /// - For dense: `= approx_params_billions`.
+    /// - For MoE: `= experts × params_per_expert + shared` (published
+    ///   by the vendor).
     pub active_params_b: f64,
-    /// Ouverture du modèle.
+    /// Openness of the model.
     pub openness: Openness,
-    /// (P5, P50, P95) de ε_prefill en mJ/token.
+    /// (P5, P50, P95) of ε_prefill in mJ/token.
     pub epsilon_prefill_mj: (f64, f64, f64),
-    /// (P5, P50, P95) de ε_decode en mJ/token.
+    /// (P5, P50, P95) of ε_decode in mJ/token.
     pub epsilon_decode_mj: (f64, f64, f64),
-    /// (P5, P50, P95) de l'embodied amorti en gCO₂eq/req.
+    /// (P5, P50, P95) of the amortised embodied footprint in gCO₂eq/req.
     pub embodied_g_per_req: (f64, f64, f64),
-    /// Statut de calibration.
+    /// Calibration status.
     pub calibration: CalibrationStatus,
-    /// Sources documentaires.
+    /// Documentary sources.
     pub sources: &'static [&'static str],
-    /// **C32.4** — Chiffres officiels publiés par le fabricant (training
-    /// et inference). Liste vide si le fabricant n'a pas de disclosure
-    /// publique (cas Anthropic, OpenAI au 2026-05).
+    /// Official figures published by the vendor (training
+    /// and inference). Empty list if the vendor has no public
+    /// disclosure (the case of Anthropic, OpenAI as of 2026-05).
     ///
-    /// Quand non-vide, l'UI M9 affiche un encadré dédié « Données vendor
-    /// disclosure » qui présente la valeur officielle **à côté** de
-    /// l'estimation Sobr.ia Monte-Carlo (transparence multi-méthodologie).
+    /// When non-empty, the M9 UI shows a dedicated « Données vendor
+    /// disclosure » box with the official value **next to** the
+    /// Sobr.ia Monte-Carlo estimate (multi-methodology transparency).
     pub vendor_disclosures: &'static [VendorDisclosure],
-    /// **C34.2** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    /// Public release date (ISO `YYYY-MM-DD`).
     ///
-    /// Format `&'static str` au lieu de `chrono::NaiveDate` pour rester
-    /// compatible `static` (NaiveDate n'a pas de constructeur const).
-    /// Format validé en test (10 chars, 3 segments `YYYY-MM-DD`).
+    /// `&'static str` rather than `chrono::NaiveDate` to stay
+    /// `static`-compatible (NaiveDate has no const constructor).
+    /// Format checked in tests (10 chars, 3 segments `YYYY-MM-DD`).
     pub release_date: &'static str,
-    /// **C34.2** — Famille typée du fabricant.
+    /// Typed vendor family.
     pub model_family: ModelFamily,
-    /// **C34.2** — Architecture du modèle.
+    /// Architecture of the model.
     pub architecture: ArchitectureKind,
-    /// **C34.2** — `true` si le modèle accepte les images en entrée.
+    /// `true` if the model accepts images as input.
     pub vision_capable: bool,
-    /// **C34.2** — Formule de tarification tokens vision selon vendor.
-    /// `None` si `vision_capable = false`.
+    /// Vision token pricing formula of the vendor.
+    /// `None` if `vision_capable = false`.
     pub vision_pricing: Option<VisionPricing>,
-    /// **C34.2** — `true` si le modèle accepte l'audio en entrée.
+    /// `true` if the model accepts audio as input.
     pub audio_capable: bool,
-    /// **C34.2** — `true` si le modèle a un mode reasoning intégré
-    /// (chain-of-thought tokens visibles ou cachés : o3, R1, V4, Claude
+    /// `true` if the model has a built-in reasoning mode
+    /// (visible or hidden chain-of-thought tokens: o3, R1, V4, Claude
     /// extended thinking, Gemini thinking, Phi-4 reasoning, etc.).
     pub reasoning_capable: bool,
-    /// **C34.2** — `(P5, P95)` du ratio thinking/output tokens pour
-    /// reasoning models. `None` si `reasoning_capable = false`.
+    /// `(P5, P95)` of the thinking/output token ratio for
+    /// reasoning models. `None` if `reasoning_capable = false`.
     ///
-    /// Sources :
-    /// - OpenAI o3 / GPT-5.5 Thinking : `(5.0, 30.0)` (system card)
-    /// - DeepSeek R1 / V4 thinking : `(8.0, 25.0)` (paper arXiv 2501.12948)
-    /// - Claude extended thinking : `(2.0, 50.0)` (configurable, max 128k)
-    /// - Gemini 2.5+ thinking : `(3.0, 25.0)` (Google doc)
-    /// - Phi-4 reasoning : `(5.0, 15.0)` (Phi-4 reasoning technical report)
+    /// Sources:
+    /// - OpenAI o3 / GPT-5.5 Thinking: `(5.0, 30.0)` (system card)
+    /// - DeepSeek R1 / V4 thinking: `(8.0, 25.0)` (paper arXiv 2501.12948)
+    /// - Claude extended thinking: `(2.0, 50.0)` (configurable, max 128k)
+    /// - Gemini 2.5+ thinking: `(3.0, 25.0)` (Google doc)
+    /// - Phi-4 reasoning: `(5.0, 15.0)` (Phi-4 reasoning technical report)
     pub thinking_token_multiplier: Option<(f64, f64)>,
-    /// **C34.2** — Overhead système typique (system prompt + tools) en
-    /// tokens pour l'INTERFACE app vendor par défaut.
+    /// Typical system overhead (system prompt + tools) in
+    /// tokens for the vendor's default app INTERFACE.
     ///
-    /// Valeurs P50 utilisées (cf. brief C34 §3 sources) :
-    /// - Claude (claude.ai) : 2000
-    /// - GPT (ChatGPT) : 1000
-    /// - Gemini (web) : 1000
-    /// - Mistral (chat.mistral.ai) : 300
-    /// - API directe / open-weights local : 0
+    /// P50 values used (cf. brief C34 §3 sources):
+    /// - Claude (claude.ai): 2000
+    /// - GPT (ChatGPT): 1000
+    /// - Gemini (web): 1000
+    /// - Mistral (chat.mistral.ai): 300
+    /// - Direct API / local open-weights: 0
     ///
-    /// **Estimation ± 50 %** — basée sur leaks publics et reverse-engineering
-    /// (Claude.ai, ChatGPT app, Gemini app). À surcharger en mode Expert
-    /// si l'utilisateur connaît sa valeur exacte.
+    /// **Estimate ± 50 %** — based on public leaks and reverse-engineering
+    /// (Claude.ai, ChatGPT app, Gemini app). To be overridden in Expert mode
+    /// if the user knows their exact value.
     pub default_context_overhead_tokens: u32,
-    /// **C34.2** — `true` pour les modèles obsolètes conservés pour
-    /// reproductibilité historique de l'audit ledger uniquement (à exclure
-    /// par défaut de la liste UI via [`available_models_filtered`]).
+    /// `true` for obsolete models kept only so the audit ledger
+    /// stays reproducible; [`available_models_filtered`] can leave them out
+    /// (the app lists [`available_models`] today).
     pub deprecated: bool,
-    /// **C34.2** — URL canonique de la source vendor (model card, blog
-    /// post, system card). Toujours HTTPS, validé en test.
+    /// Canonical URL of the vendor source (model card, blog
+    /// post, system card). Always HTTPS, checked in tests.
     pub source_url: &'static str,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers d'extrapolation
+// Extrapolation helpers
 //
-// Ces constantes et fonctions publient les **formules** utilisées pour
-// calculer les valeurs du registry. Elles ne sont pas appelées au runtime
-// (les valeurs sont hardcodées pour rester lisibles côté lecteur du code),
-// mais elles servent de "specs" exécutables : les tests de ce module
-// vérifient que chaque preset reste cohérent avec ces formules.
-// Voir `docs/methodology/MODEL-PRESETS.md` §2.
+// These constants and functions publish the **formulas** used to
+// compute the registry values. They are not called at runtime
+// (the values are hardcoded so the code stays readable),
+// but they act as executable "specs": the tests of this module
+// check that every preset stays consistent with these formulas.
+// See `docs/methodology/MODEL-PRESETS.md` §2.
 //
-// **C34.2** : les formules prennent `active_params_b` (pas total) pour
-// les MoE. Pour dense, active == total donc identique.
+// The formulas take `active_params_b` (not total) for
+// MoE. For dense, active == total so it is the same.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Coefficient `mJ/token/B` pour décoder.
+/// `mJ/token/B` coefficient for decoding.
 ///
-/// Recalibré 2026-05 (chantier C24) : auparavant `0.025` (sous-évaluait
-/// d'un facteur ~1000), désormais `25.0` pour aligner avec la mesure
-/// HF AI Energy Score et ML.ENERGY (Llama 3.1 70B ≈ 1.75 J/token decode,
-/// ≈ 25 × 70 mJ/token).
+/// Recalibrated 2026-05 (chantier C24): previously `0.025` (underestimated
+/// by a factor of ~1000), now `25.0` to align with the
+/// HF AI Energy Score and ML.ENERGY measurements (Llama 3.1 70B ≈ 1.75 J/token
+/// decode, ≈ 25 × 70 mJ/token).
 ///
-/// Cf. ADR-0012 et `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`
-/// pour le détail de la calibration.
+/// Cf. ADR-0012 and `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`
+/// for the calibration details.
 pub const K_DECODE_MJ_PER_TOKEN_PER_B: f64 = 25.0;
 
-/// Ratio prefill/decode (le prefill est plus efficient, batché sur GPU).
+/// Prefill/decode ratio (prefill is more efficient, batched on GPU).
 pub const PREFILL_DECODE_RATIO: f64 = 0.4;
 
-/// Coefficient embodied amorti — Gupta et al. 2022, amorti sur 10⁹ req/an.
+/// Amortised embodied coefficient — Gupta et al. 2022, amortised over 10⁹ req/yr.
 pub const K_EMBODIED_G_PER_B: f64 = 0.000_25;
 
-/// Largeur d'incertitude : ratio P95/P50 (et symétrique P50/P5).
-/// Correspond à σ_log ≈ 0.30 (CV typique des mesures HF).
+/// Uncertainty width: P95/P50 ratio (and symmetric P50/P5).
+/// Matches σ_log ≈ 0.30 (typical CV of HF measurements).
 pub const UNCERTAINTY_RATIO: f64 = 1.65;
 
-/// Construit un triplet `(p5, p50, p95)` autour d'une médiane donnée
-/// avec la largeur standard `UNCERTAINTY_RATIO`.
+/// Builds a `(p5, p50, p95)` triplet around a given median
+/// with the standard width `UNCERTAINTY_RATIO`.
 #[must_use]
 pub fn around(p50: f64) -> (f64, f64, f64) {
     (p50 / UNCERTAINTY_RATIO, p50, p50 * UNCERTAINTY_RATIO)
 }
 
-/// Extrapole ε_decode (P5, P50, P95) en mJ/token pour un modèle de
-/// `n_b` milliards de paramètres **actifs**.
+/// Extrapolates ε_decode (P5, P50, P95) in mJ/token for a model with
+/// `n_b` billion **active** parameters.
 #[must_use]
 pub fn extrapolate_decode(n_b: f64) -> (f64, f64, f64) {
     around(K_DECODE_MJ_PER_TOKEN_PER_B * n_b)
 }
 
-/// Extrapole ε_prefill (P5, P50, P95) comme `PREFILL_DECODE_RATIO × ε_decode`.
+/// Extrapolates ε_prefill (P5, P50, P95) as `PREFILL_DECODE_RATIO × ε_decode`.
 #[must_use]
 pub fn extrapolate_prefill(n_b: f64) -> (f64, f64, f64) {
     around(K_DECODE_MJ_PER_TOKEN_PER_B * n_b * PREFILL_DECODE_RATIO)
 }
 
-/// Extrapole embodied amorti par requête en gCO₂eq.
+/// Extrapolates the amortised embodied footprint per request in gCO₂eq.
 #[must_use]
 pub fn extrapolate_embodied(n_b: f64) -> (f64, f64, f64) {
     around(K_EMBODIED_G_PER_B * n_b)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers C34.2 : valeurs vision pricing canoniques par vendor
+// Helpers: canonical vision pricing values per vendor
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// OpenAI Vision pricing canonique : `85 + 170 × tiles`.
+/// Canonical OpenAI Vision pricing: `85 + 170 × tiles`.
 const OPENAI_VISION: VisionPricing = VisionPricing::OpenAiTiles {
     base: 85,
     per_tile: 170,
     tile_size: 512,
 };
 
-/// Anthropic Vision pricing canonique : `(W × H) / 750`, max 1568.
+/// Canonical Anthropic Vision pricing: `(W × H) / 750`, max 1568.
 const ANTHROPIC_VISION: VisionPricing = VisionPricing::AnthropicArea {
     divisor: 750,
     max_tokens: 1568,
 };
 
-/// Google Gemini vision native : 258 tokens, tiles 768.
+/// Google Gemini native vision: 258 tokens, tiles 768.
 const GEMINI_VISION: VisionPricing = VisionPricing::GeminiNative {
     base: 258,
     tile_size: 768,
 };
 
-/// Meta Llama vision (patches 14×14 sur 560×560) : 1601 tokens fixe.
+/// Meta Llama vision (14×14 patches on 560×560): fixed 1601 tokens.
 const LLAMA_VISION: VisionPricing = VisionPricing::LlamaPatches {
     tokens_per_image: 1601,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Registry statique
+// Static registry
 //
-// Ordre : nouveaux presets 2025-2026 d'abord (par fraîcheur descendante),
-// puis presets historiques 2024 (deprecated:true) en fin de registry.
+// Order: new 2025-2026 presets first (newest first),
+// then historical 2024 presets (deprecated:true) at the end of the registry.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Liste de tous les presets connus.
+/// List of all known presets.
 ///
-/// **Cohorte courante** : 34 presets — 26 actifs et 8 `deprecated`
-/// (le catalogue v1, conservé pour reproductibilité de l'audit ledger
-/// historique). Compte verrouillé par `registry_count_matches_docstring`.
+/// **Current cohort**: 34 presets — 26 active and 8 `deprecated`
+/// (the v1 catalogue, kept so the historical audit ledger stays
+/// reproducible). Count locked by `registry_count_matches_docstring`.
 pub static MODEL_REGISTRY: &[ModelPreset] = &[
     // ════════════════════════════════════════════════════════════════════════
-    // ANTHROPIC (7 presets, 7 en 2025-2026)
+    // ANTHROPIC (7 presets, 7 in 2025-2026)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "claude-opus-4-8",
@@ -497,7 +477,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         approx_params_billions: 2000.0,
         active_params_b: 2000.0,
         openness: Openness::Closed,
-        // 2000 × 25 = 50000 mJ/tok (même classe taille qu'Opus 4.7).
+        // 2000 × 25 = 50000 mJ/tok (same size class as Opus 4.7).
         epsilon_prefill_mj: (12_120.0, 20_000.0, 33_000.0),
         epsilon_decode_mj: (30_300.0, 50_000.0, 82_500.0),
         embodied_g_per_req: (0.303, 0.500, 0.825),
@@ -698,7 +678,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://www.anthropic.com/news/claude-3-7-sonnet",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // OPENAI (4 presets actifs, 2 deprecated)
+    // OPENAI (4 active presets, 2 deprecated)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "gpt-5-5",
@@ -818,7 +798,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://openai.com/o1/",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // GOOGLE DEEPMIND (3 presets actifs, 1 deprecated)
+    // GOOGLE DEEPMIND (3 active presets, 1 deprecated)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "gemini-3-5-flash",
@@ -910,7 +890,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://deepmind.google/technologies/gemini/",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // META LLAMA (3 presets actifs, 2 deprecated)
+    // META LLAMA (3 active presets, 2 deprecated)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "llama-4-scout",
@@ -918,9 +898,9 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         provider: "Meta",
         family: "llama-4",
         approx_params_billions: 109.0, // total
-        active_params_b: 17.0,         // 17B actifs (16 experts, ~1 active)
+        active_params_b: 17.0,         // 17B active (16 experts, ~1 active)
         openness: Openness::OpenWeights,
-        // 17 × 25 = 425 mJ/tok (sur paramètres actifs)
+        // 17 × 25 = 425 mJ/tok (on active parameters)
         epsilon_prefill_mj: (103.0, 170.0, 280.5),
         epsilon_decode_mj: (258.0, 425.0, 701.0),
         embodied_g_per_req: (0.00258, 0.00425, 0.00701),
@@ -951,7 +931,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         provider: "Meta",
         family: "llama-4",
         approx_params_billions: 400.0, // total
-        active_params_b: 17.0,         // 17B actifs (128 experts)
+        active_params_b: 17.0,         // 17B active (128 experts)
         openness: Openness::OpenWeights,
         epsilon_prefill_mj: (103.0, 170.0, 280.5),
         epsilon_decode_mj: (258.0, 425.0, 701.0),
@@ -1007,7 +987,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://github.com/meta-llama/llama-models",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // MISTRAL AI (3 presets actifs, 2 deprecated)
+    // MISTRAL AI (3 active presets, 2 deprecated)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "mistral-medium-3-5",
@@ -1075,7 +1055,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         provider: "Mistral AI",
         family: "mistral-large",
         approx_params_billions: 675.0, // total
-        active_params_b: 41.0,         // actifs MoE
+        active_params_b: 41.0,         // MoE active
         openness: Openness::OpenWeights,
         // 41 × 25 = 1025
         epsilon_prefill_mj: (248.0, 410.0, 676.5),
@@ -1103,7 +1083,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://docs.mistral.ai/models/mistral-large-3-25-12/",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // DEEPSEEK (2 presets actifs)
+    // DEEPSEEK (2 active presets)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "deepseek-v4-pro",
@@ -1111,7 +1091,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         provider: "DeepSeek",
         family: "deepseek-v4",
         approx_params_billions: 1600.0, // total
-        active_params_b: 49.0,          // actifs MoE
+        active_params_b: 49.0,          // MoE active
         openness: Openness::OpenWeights,
         // 49 × 25 = 1225
         epsilon_prefill_mj: (297.0, 490.0, 808.5),
@@ -1144,7 +1124,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         provider: "DeepSeek",
         family: "deepseek-r1",
         approx_params_billions: 671.0, // total
-        active_params_b: 37.0,         // actifs MoE
+        active_params_b: 37.0,         // MoE active
         openness: Openness::OpenWeights,
         // 37 × 25 = 925
         epsilon_prefill_mj: (224.0, 370.0, 610.5),
@@ -1172,7 +1152,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://arxiv.org/abs/2501.12948",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // xAI (1 preset actif)
+    // xAI (1 active preset)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "grok-4",
@@ -1205,7 +1185,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://x.ai/news",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // ALIBABA QWEN (1 preset actif)
+    // ALIBABA QWEN (1 active preset)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "qwen-3-6-plus",
@@ -1238,7 +1218,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://www.caixinglobal.com/2026-04-02/alibaba-releases-qwen-36-plus-ai-model-with-enhanced-coding-capabilities-102430395.html",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // MICROSOFT PHI (2 presets actifs)
+    // MICROSOFT PHI (2 active presets)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "phi-4-reasoning-vision",
@@ -1301,7 +1281,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
         source_url: "https://www.microsoft.com/en-us/research/publication/phi-4-reasoning-technical-report/",
     },
     // ════════════════════════════════════════════════════════════════════════
-    // DEPRECATED 2024 (conservés pour reproductibilité audit ledger)
+    // DEPRECATED 2024 (kept so the audit ledger stays reproducible)
     // ════════════════════════════════════════════════════════════════════════
     ModelPreset {
         id: "gpt-4o",
@@ -1406,8 +1386,8 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "EcoLogits 2026-01",
             "Mistral AI × ADEME × Carbone 4 (2025-08)",
         ],
-        // C32.4 — Première ACV complète d'un LLM, publiée par un vendor
-        // mondial (Mistral AI) en partenariat avec ADEME + Carbone 4.
+        // First complete LCA of an LLM, published by a global
+        // vendor (Mistral AI) in partnership with ADEME + Carbone 4.
         vendor_disclosures: &[
             VendorDisclosure {
                 vendor: "Mistral AI",
@@ -1496,7 +1476,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "HF AI Energy Score 2026",
             "Meta Llama 3.1 model card (MODEL_CARD.md)",
         ],
-        // C32.4 — Meta publie le training (mais pas l'inférence par prompt).
+        // Meta publishes training (but not inference per prompt).
         vendor_disclosures: &[
             VendorDisclosure {
                 vendor: "Meta",
@@ -1581,7 +1561,7 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
             "Analogie Mistral Medium",
             "Google Environmental Impact paper (2025-08)",
         ],
-        // C32.4 — Google publie un prompt médian (méthodologie Google).
+        // Google publishes a median prompt (Google methodology).
         vendor_disclosures: &[
             VendorDisclosure {
                 vendor: "Google",
@@ -1628,25 +1608,25 @@ pub static MODEL_REGISTRY: &[ModelPreset] = &[
     },
 ];
 
-/// Cherche un preset par son identifiant exact, même deprecated.
+/// Looks up a preset by its exact identifier, deprecated ones included.
 #[must_use]
 pub fn find_preset(model_id: &str) -> Option<&'static ModelPreset> {
     MODEL_REGISTRY.iter().find(|p| p.id == model_id)
 }
 
-/// Retourne la liste de tous les modèles, **deprecated inclus** (compat
-/// SemVer avec les appelants existants).
+/// Returns the list of all models, **deprecated included** (SemVer
+/// compatibility with existing callers).
 #[must_use]
 pub fn available_models() -> Vec<&'static ModelPreset> {
     MODEL_REGISTRY.iter().collect()
 }
 
-/// **C34.2** — Retourne la liste de tous les modèles avec filtrage des
-/// deprecated.
+/// Returns the list of all models, with deprecated ones
+/// filtered.
 ///
-/// Si `include_deprecated = false`, exclut les presets avec
-/// [`ModelPreset::deprecated`] = `true`. Utiliser ceci dans l'UI M1 / M9
-/// par défaut, et `available_models()` pour les outils d'audit historique.
+/// If `include_deprecated = false`, leaves out the presets with
+/// [`ModelPreset::deprecated`] = `true`. Not called by the app, which lists
+/// [`available_models`] (deprecated models included).
 #[must_use]
 pub fn available_models_filtered(include_deprecated: bool) -> Vec<&'static ModelPreset> {
     MODEL_REGISTRY
@@ -1656,8 +1636,8 @@ pub fn available_models_filtered(include_deprecated: bool) -> Vec<&'static Model
 }
 
 impl EstimationParams {
-    /// Construit un set de paramètres distributionnels calibré pour un modèle
-    /// du registry interne.
+    /// Builds a set of distribution parameters calibrated for a model
+    /// of the internal registry.
     pub fn for_model(model_id: &str) -> EstimatorResult<Self> {
         let preset = find_preset(model_id).ok_or_else(|| {
             let known: Vec<&str> = MODEL_REGISTRY.iter().map(|p| p.id).collect();
@@ -1668,8 +1648,8 @@ impl EstimationParams {
         Self::from_preset(preset)
     }
 
-    /// Construit `EstimationParams` directement à partir d'un preset
-    /// (utile pour les tests ou pour des presets custom).
+    /// Builds `EstimationParams` directly from a preset
+    /// (useful for tests or for custom presets).
     pub fn from_preset(preset: &ModelPreset) -> EstimatorResult<Self> {
         let epsilon_prefill = Distribution::log_normal_from_interval(
             preset.epsilon_prefill_mj.0,
@@ -1689,18 +1669,11 @@ impl EstimationParams {
         Ok(Self {
             epsilon_prefill_mj_per_token: epsilon_prefill,
             epsilon_decode_mj_per_token: epsilon_decode,
-            pue: Distribution::Uniform {
-                low: 1.1,
-                high: 1.4,
-            },
-            // Par défaut : mix électrique France 2024 ADEME (~56 gCO₂eq/kWh).
-            // Override possible via with_if_electrical().
-            if_electrical_g_per_kwh: Distribution::Point { value: 56.0 },
+            pue: DEFAULT_PUE,
+            // Override with with_if_electrical().
+            if_electrical_g_per_kwh: FRANCE_MIX_G_PER_KWH,
             embodied_g_per_request: embodied,
-            wue_l_per_kwh: Distribution::Uniform {
-                low: 0.5,
-                high: 2.5,
-            },
+            wue_l_per_kwh: DEFAULT_WUE_L_PER_KWH,
         })
     }
 }
@@ -1709,24 +1682,12 @@ impl EstimationParams {
 mod tests {
     use super::*;
     use crate::engine::MonteCarloEngine;
-    use chrono::Utc;
-    use sobria_core::{EstimationRequest, Indicator};
-
-    fn request_for(model_id: &str, t_in: u32, t_out: u32) -> EstimationRequest {
-        EstimationRequest {
-            model_id: model_id.into(),
-            tokens_in: t_in,
-            tokens_out_estimated: t_out,
-            datacenter_id: None,
-            timestamp: Utc::now(),
-            modalities: Vec::new(),
-            overhead: sobria_core::ContextOverhead::default(),
-        }
-    }
+    use crate::validation::request_for;
+    use sobria_core::Indicator;
 
     #[test]
     fn registry_has_at_least_25_presets() {
-        // DoD C34.2 : >= 25 presets totaux dans le registry.
+        // >= 25 presets in total in the registry.
         assert!(
             MODEL_REGISTRY.len() >= 25,
             "registry doit avoir >= 25 presets, a {}",
@@ -1736,10 +1697,10 @@ mod tests {
 
     #[test]
     fn registry_count_matches_docstring() {
-        // La docstring de MODEL_REGISTRY publie des comptes exacts ; ils
-        // ont déjà dérivé une fois (« 25 presets » pour 34 réels, audit
-        // 2026-06-12). Tout ajout de preset doit mettre à jour la
-        // docstring ET ces deux constantes.
+        // The MODEL_REGISTRY docstring publishes exact counts; they
+        // already drifted once ("25 presets" for 34 real ones, audit
+        // 2026-06-12). Any new preset must update the
+        // docstring AND these two constants.
         let total = MODEL_REGISTRY.len();
         let deprecated = MODEL_REGISTRY.iter().filter(|p| p.deprecated).count();
         assert_eq!(total, 34, "docstring MODEL_REGISTRY à resynchroniser");
@@ -1751,7 +1712,7 @@ mod tests {
 
     #[test]
     fn registry_has_at_least_12_models_released_2025_or_later() {
-        // DoD C34.2 : >= 12 presets sortis 2025-2026.
+        // >= 12 presets released in 2025-2026.
         let recent: Vec<&str> = MODEL_REGISTRY
             .iter()
             .filter(|p| !p.deprecated && p.release_date >= "2025-01-01")
@@ -1821,7 +1782,7 @@ mod tests {
 
     #[test]
     fn c34_new_presets_findable() {
-        // DoD C34.2 : tous les nouveaux presets clés sont accessibles via find_preset.
+        // All the new key presets can be reached through find_preset.
         for id in &[
             "claude-opus-4-7",
             "claude-sonnet-4-6",
@@ -1855,7 +1816,7 @@ mod tests {
 
     #[test]
     fn estimation_with_preset_yields_reasonable_co2eq() {
-        // Pour GPT-4o-mini, 100 tokens in + 500 tokens out, mix FR : P50 raisonnable.
+        // For GPT-4o-mini, 100 tokens in + 500 tokens out, FR mix: sensible P50.
         let params = EstimationParams::for_model("gpt-4o-mini").unwrap();
         let engine = MonteCarloEngine::new(42);
         let res = engine
@@ -1875,7 +1836,7 @@ mod tests {
 
     #[test]
     fn at_least_three_vendors_have_disclosures() {
-        // C32.4 — Mistral Large 2, Gemini 2.0 Flash, Llama 3.1 70B au moins.
+        // At least Mistral Large 2, Gemini 2.0 Flash, Llama 3.1 70B.
         let vendors_with_disclosure: std::collections::HashSet<&str> = MODEL_REGISTRY
             .iter()
             .flat_map(|p| p.vendor_disclosures.iter().map(|d| d.vendor))
@@ -1970,10 +1931,10 @@ mod tests {
         assert!((p50 - 2.0).abs() < 1e-12);
     }
 
-    /// **C34.2** — les formules d'extrapolation utilisent `active_params_b`
-    /// (pour MoE), pas `approx_params_billions` qui est le total.
+    /// The extrapolation formulas use `active_params_b`
+    /// (for MoE), not `approx_params_billions`, which is the total.
     ///
-    /// Tolérance : ±2 % (les valeurs sont hardcodées arrondies).
+    /// Tolerance: ±2 % (the hardcoded values are rounded).
     #[test]
     fn registry_values_consistent_with_extrapolation_formulas() {
         for preset in MODEL_REGISTRY {
@@ -2013,7 +1974,7 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // C34.2 — Tests des nouveaux champs et enums
+    // Tests of the fields and enums
     // ─────────────────────────────────────────────────────────────────────────
 
     #[test]
@@ -2033,7 +1994,6 @@ mod tests {
                 "preset {} : format date invalide",
                 preset.id
             );
-            // Parse year
             let year: u32 = parts[0].parse().unwrap_or_else(|_| {
                 panic!("preset {} : year non numérique", preset.id);
             });
@@ -2123,7 +2083,7 @@ mod tests {
 
     #[test]
     fn deprecated_presets_count() {
-        // On a >= 8 deprecated (les anciens 2024).
+        // There are >= 8 deprecated (the old 2024 ones).
         let deprecated: Vec<&str> = MODEL_REGISTRY
             .iter()
             .filter(|p| p.deprecated)
@@ -2139,7 +2099,7 @@ mod tests {
 
     #[test]
     fn vision_pricing_openai_low_detail() {
-        // OpenAI low detail = 85 fixe quel que soit la taille.
+        // OpenAI low detail = fixed 85 whatever the size.
         let openai = OPENAI_VISION;
         assert_eq!(openai.tokens_for(1, 1024, 1024, false), 85);
         assert_eq!(openai.tokens_for(3, 1024, 1024, false), 255);
@@ -2147,10 +2107,10 @@ mod tests {
 
     #[test]
     fn vision_pricing_openai_high_detail() {
-        // OpenAI high detail 512×512 : 85 + 170 × 1 × 1 = 255 tokens.
+        // OpenAI high detail 512×512: 85 + 170 × 1 × 1 = 255 tokens.
         let openai = OPENAI_VISION;
         assert_eq!(openai.tokens_for(1, 512, 512, true), 255);
-        // 1024×1024 high detail : 85 + 170 × 2 × 2 = 765 tokens.
+        // 1024×1024 high detail: 85 + 170 × 2 × 2 = 765 tokens.
         assert_eq!(openai.tokens_for(1, 1024, 1024, true), 765);
         // 2 images
         assert_eq!(openai.tokens_for(2, 1024, 1024, true), 1530);
@@ -2161,7 +2121,7 @@ mod tests {
         let anthropic = ANTHROPIC_VISION;
         // 750×750 = 562 500 pixels / 750 = 750 tokens.
         assert_eq!(anthropic.tokens_for(1, 750, 750, false), 750);
-        // 2000×2000 = 4M pixels / 750 = 5333 → capé à 1568.
+        // 2000×2000 = 4M pixels / 750 = 5333 → capped at 1568.
         assert_eq!(anthropic.tokens_for(1, 2000, 2000, false), 1568);
         // 2 images
         assert_eq!(anthropic.tokens_for(2, 750, 750, false), 1500);
@@ -2170,7 +2130,7 @@ mod tests {
     #[test]
     fn vision_pricing_gemini_small() {
         let gemini = GEMINI_VISION;
-        // <= 384×384 : 258 fixe.
+        // <= 384×384: fixed 258.
         assert_eq!(gemini.tokens_for(1, 384, 384, false), 258);
         assert_eq!(gemini.tokens_for(1, 100, 100, false), 258);
     }
@@ -2178,18 +2138,18 @@ mod tests {
     #[test]
     fn vision_pricing_gemini_large() {
         let gemini = GEMINI_VISION;
-        // 768×768 : 258 × 1 × 1 = 258.
+        // 768×768: 258 × 1 × 1 = 258.
         assert_eq!(gemini.tokens_for(1, 768, 768, false), 258);
-        // 1500×768 : 258 × 2 × 1 = 516.
+        // 1500×768: 258 × 2 × 1 = 516.
         assert_eq!(gemini.tokens_for(1, 1500, 768, false), 516);
-        // 1500×1500 : 258 × 2 × 2 = 1032.
+        // 1500×1500: 258 × 2 × 2 = 1032.
         assert_eq!(gemini.tokens_for(1, 1500, 1500, false), 1032);
     }
 
     #[test]
     fn vision_pricing_llama_fixed() {
         let llama = LLAMA_VISION;
-        // 1601 fixe quelle que soit la taille.
+        // Fixed 1601 whatever the size.
         assert_eq!(llama.tokens_for(1, 100, 100, false), 1601);
         assert_eq!(llama.tokens_for(1, 4000, 4000, true), 1601);
         assert_eq!(llama.tokens_for(3, 1024, 1024, true), 4803);
@@ -2204,8 +2164,8 @@ mod tests {
 
     #[test]
     fn serde_round_trip_model_preset_json() {
-        // ModelPreset doit être sérialisable (Deserialize n'est pas dérivé,
-        // donc round-trip impossible — on teste juste la sérialisation).
+        // ModelPreset must be serialisable (Deserialize is not derived,
+        // so no round-trip — we only test serialisation).
         let preset = find_preset("claude-opus-4-7").unwrap();
         let json = serde_json::to_string(preset).expect("serialize");
         assert!(json.contains("claude-opus-4-7"));
