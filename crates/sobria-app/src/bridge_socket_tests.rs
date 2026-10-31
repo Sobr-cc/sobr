@@ -189,10 +189,12 @@ impl Server {
         let mut client = connect(&self.endpoint).await;
         client.write_all(bytes).await.unwrap();
         client.flush().await.unwrap();
-        assert!(
-            read_frame(&mut client).await.is_err(),
-            "{what}: expected no answer"
-        );
+        // The server must close the connection: an answer, or a connection left
+        // open and silent, both fail the test.
+        let read = tokio::time::timeout(Duration::from_secs(5), read_frame(&mut client))
+            .await
+            .unwrap_or_else(|_| panic!("{what}: the server left the connection open"));
+        assert!(read.is_err(), "{what}: expected no answer");
     }
 }
 
