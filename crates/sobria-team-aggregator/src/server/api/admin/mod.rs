@@ -11,8 +11,20 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
+use chrono::{DateTime, Utc};
 
+use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
+
+/// Parses an optional RFC 3339 query date; absent or empty gives `default`.
+fn parse_date_or(raw: Option<&str>, default: DateTime<Utc>) -> ApiResult<DateTime<Utc>> {
+    match raw {
+        None | Some("") => Ok(default),
+        Some(s) => DateTime::parse_from_rfc3339(s)
+            .map(|d| d.with_timezone(&Utc))
+            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
+    }
+}
 
 /// Sous-routeur monté sous `/admin` par [`crate::server::api::router`].
 pub fn router() -> Router<ServerState> {

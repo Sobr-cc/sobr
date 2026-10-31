@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::error::AggregatorResult;
 use crate::storage::estimations::UsageTotals;
+use crate::storage::parse_ts;
 
 /// Employé enrôlé. `password_hash` est un PHC Argon2id (cf. `crypto::password`).
 #[derive(Debug, Clone)]
@@ -199,14 +200,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<UserRow> {
         created_at: parse_ts(&created_at_s, 5)?,
         last_seen_at: last_seen_s.map(|s| parse_ts(&s, 6)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]

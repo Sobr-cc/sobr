@@ -19,9 +19,10 @@ use axum::{
     extract::{Query, State},
     Json,
 };
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::parse_date_or;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -89,8 +90,8 @@ pub async fn handle(
     Query(q): Query<AnalyticsQuery>,
 ) -> ApiResult<Json<AnalyticsResponse>> {
     let now = Utc::now();
-    let from = parse_or_default(q.from.as_deref(), || now - Duration::days(30))?;
-    let to = parse_or_default(q.to.as_deref(), || now)?;
+    let from = parse_date_or(q.from.as_deref(), now - Duration::days(30))?;
+    let to = parse_date_or(q.to.as_deref(), now)?;
     if from >= to {
         return Err(ApiError::BadRequest("from doit être < to".into()));
     }
@@ -186,16 +187,4 @@ pub async fn handle(
         projects,
         method_breakdown,
     }))
-}
-
-fn parse_or_default<F: FnOnce() -> DateTime<Utc>>(
-    raw: Option<&str>,
-    default_fn: F,
-) -> Result<DateTime<Utc>, ApiError> {
-    match raw {
-        None | Some("") => Ok(default_fn()),
-        Some(s) => DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
-    }
 }

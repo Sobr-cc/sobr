@@ -21,9 +21,19 @@ pub mod users;
 
 use std::path::Path;
 
+use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::AggregatorResult;
+
+/// Reads an RFC 3339 text column as UTC; a parse failure reports column `col`.
+pub(crate) fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .map(|d| d.with_timezone(&Utc))
+        .map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
+        })
+}
 
 /// Façade SQLite mono-connexion (cf. doc du module).
 pub struct Storage {

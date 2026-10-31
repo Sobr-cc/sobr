@@ -9,10 +9,10 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
+use crate::crypto::secret::enrollment_code;
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
@@ -71,7 +71,7 @@ pub async fn handle_create(
     let mut out = Vec::with_capacity(req.count as usize);
     for _ in 0..req.count {
         let id = Ulid::new().to_string();
-        let code = random_12_digit_code();
+        let code = enrollment_code();
         enrollment_codes::insert(
             storage.connection(),
             &id,
@@ -105,18 +105,4 @@ pub async fn handle_revoke(
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
     let revoked = enrollment_codes::revoke(storage.connection(), &id, Utc::now())?;
     Ok(Json(RevokeResponse { revoked }))
-}
-
-/// Cf. `commands::code::random_12_digit_code` — version dupliquée pour
-/// pas exporter trop large. Les deux deviennent un helper partagé si on
-/// les fait évoluer.
-fn random_12_digit_code() -> String {
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    let mut acc: u128 = 0;
-    for b in &bytes {
-        acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
-    }
-    let n: u64 = (acc % 1_000_000_000_000u128) as u64;
-    format!("{n:012}")
 }

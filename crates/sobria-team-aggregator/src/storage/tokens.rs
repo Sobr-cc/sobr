@@ -19,6 +19,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::crypto::password;
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
 /// Vue d'un refresh token en base.
 #[derive(Debug, Clone)]
@@ -144,14 +145,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<TokenRow> {
         expires_at: parse_ts(&expires_at_s, 5)?,
         revoked_at: revoked_at_s.map(|s| parse_ts(&s, 6)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]

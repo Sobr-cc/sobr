@@ -13,6 +13,7 @@ use axum::{
 use chrono::{Duration, Utc};
 use serde::Deserialize;
 
+use super::parse_date_or;
 use crate::exports::{csrd, csv as team_csv, prov_o, ExportRequest};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -36,8 +37,8 @@ pub struct ExportInput {
 impl ExportInput {
     fn resolve(self) -> ApiResult<ExportRequest> {
         let now = Utc::now();
-        let from = parse_or(self.from.as_deref(), || now - Duration::days(30))?;
-        let to = parse_or(self.to.as_deref(), || now)?;
+        let from = parse_date_or(self.from.as_deref(), now - Duration::days(30))?;
+        let to = parse_date_or(self.to.as_deref(), now)?;
         if from >= to {
             return Err(ApiError::BadRequest("from doit être < to".into()));
         }
@@ -47,18 +48,6 @@ impl ExportInput {
             entity_name: self.entity_name,
             anonymize: self.anonymize,
         })
-    }
-}
-
-fn parse_or<F: FnOnce() -> chrono::DateTime<Utc>>(
-    raw: Option<&str>,
-    default_fn: F,
-) -> ApiResult<chrono::DateTime<Utc>> {
-    match raw {
-        None | Some("") => Ok(default_fn()),
-        Some(s) => chrono::DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
     }
 }
 

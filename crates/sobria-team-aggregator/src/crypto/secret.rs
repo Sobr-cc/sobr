@@ -20,6 +20,23 @@ pub fn jwt_signing_key() -> String {
     random_hex(32)
 }
 
+/// Code aléatoire 12 chiffres ASCII via OS RNG.
+///
+/// Entropie ≈ 40 bits (10^12 = 2^39.86) — suffisant car les codes sont
+/// révoqués après usage et Argon2id rend tout brute force serveur lent.
+#[must_use]
+pub fn enrollment_code() -> String {
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    // 16 octets → u128 ; on prend modulo 10^12 pour un nombre 12 chiffres.
+    let mut acc: u128 = 0;
+    for b in &bytes {
+        acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
+    }
+    let n: u64 = (acc % 1_000_000_000_000u128) as u64;
+    format!("{n:012}")
+}
+
 fn encode_hex(bytes: &[u8]) -> String {
     use std::fmt::Write;
     let mut out = String::with_capacity(bytes.len() * 2);

@@ -19,7 +19,6 @@ pub const REFRESH_TTL: Duration = Duration::days(7);
 #[derive(Debug, Clone)]
 pub struct IssuedRefreshToken {
     pub combined: String,
-    pub id: String,
     pub expires_at: DateTime<Utc>,
 }
 
@@ -46,7 +45,6 @@ pub fn issue(
     )?;
     Ok(IssuedRefreshToken {
         combined: format!("{token_id}.{secret}"),
-        id: token_id,
         expires_at,
     })
 }

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::alerts::periods::AlertPeriod;
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,17 +40,6 @@ impl NotifyKind {
             NotifyKind::Webhook => "webhook",
             NotifyKind::Email => "email",
             NotifyKind::LogOnly => "log_only",
-        }
-    }
-
-    pub fn parse(s: &str) -> AggregatorResult<Self> {
-        match s {
-            "webhook" => Ok(Self::Webhook),
-            "email" => Ok(Self::Email),
-            "log_only" => Ok(Self::LogOnly),
-            other => Err(crate::error::AggregatorError::Internal(format!(
-                "notify_kind inconnu: {other}"
-            ))),
         }
     }
 }
@@ -299,53 +289,42 @@ pub fn observed_gco2eq_team(
     Ok(v.unwrap_or(0.0))
 }
 
+fn invalid_text(col: usize, message: String) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        col,
+        rusqlite::types::Type::Text,
+        Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            message,
+        )),
+    )
+}
+
 fn row_to_threshold(row: &rusqlite::Row<'_>) -> rusqlite::Result<Threshold> {
     let scope_s: String = row.get(1)?;
     let scope = match scope_s.as_str() {
         "user" => AlertScope::User,
         "team" => AlertScope::Team,
-        _ => {
-            return Err(rusqlite::Error::FromSqlConversionFailure(
-                1,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("scope invalide: {scope_s}"),
-                )),
-            ));
-        },
+        _ => return Err(invalid_text(1, format!("scope invalide: {scope_s}"))),
     };
     let period_s: String = row.get(3)?;
-    let period: AlertPeriod = period_s.parse().map_err(|e: String| {
-        rusqlite::Error::FromSqlConversionFailure(
-            3,
-            rusqlite::types::Type::Text,
-            Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
-        )
-    })?;
+    let period: AlertPeriod = period_s.parse().map_err(|e: String| invalid_text(3, e))?;
     let notify_kind_s: String = row.get(5)?;
     let notify_kind = match notify_kind_s.as_str() {
         "webhook" => NotifyKind::Webhook,
         "email" => NotifyKind::Email,
         "log_only" => NotifyKind::LogOnly,
         _ => {
-            return Err(rusqlite::Error::FromSqlConversionFailure(
+            return Err(invalid_text(
                 5,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("notify_kind invalide: {notify_kind_s}"),
-                )),
-            ));
+                format!("notify_kind invalide: {notify_kind_s}"),
+            ))
         },
     };
     let created_at_s: String = row.get(8)?;
-    let created_at = parse_rfc3339_col(8, &created_at_s)?;
+    let created_at = parse_ts(&created_at_s, 8)?;
     let disabled_at: Option<String> = row.get(9)?;
-    let disabled_at = match disabled_at {
-        Some(s) => Some(parse_rfc3339_col(9, &s)?),
-        None => None,
-    };
+    let disabled_at = disabled_at.map(|s| parse_ts(&s, 9)).transpose()?;
     Ok(Threshold {
         id: row.get(0)?,
         scope,
@@ -368,24 +347,13 @@ fn row_to_trigger(row: &rusqlite::Row<'_>) -> rusqlite::Result<TriggerRow> {
     Ok(TriggerRow {
         id: row.get(0)?,
         threshold_id: row.get(1)?,
-        period_start: parse_rfc3339_col(2, &period_start_s)?,
-        period_end: parse_rfc3339_col(3, &period_end_s)?,
+        period_start: parse_ts(&period_start_s, 2)?,
+        period_end: parse_ts(&period_end_s, 3)?,
         observed_gco2eq: row.get(4)?,
-        triggered_at: parse_rfc3339_col(5, &triggered_at_s)?,
-        notified_at: match notified_at_s {
-            Some(s) => Some(parse_rfc3339_col(6, &s)?),
-            None => None,
-        },
+        triggered_at: parse_ts(&triggered_at_s, 5)?,
+        notified_at: notified_at_s.map(|s| parse_ts(&s, 6)).transpose()?,
         notify_error: row.get(7)?,
     })
-}
-
-fn parse_rfc3339_col(col: usize, s: &str) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]

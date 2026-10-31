@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
 /// DTO d'admin tel que stocké en base.
 #[derive(Debug, Clone)]
@@ -110,14 +111,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<AdminRow> {
         created_at: parse_ts(&created_at_s, 3)?,
         last_login_at: last_login_s.map(|s| parse_ts(&s, 4)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]

@@ -9,6 +9,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
 /// Une estimation typée à insérer.
 #[derive(Debug, Clone)]
@@ -125,15 +126,7 @@ pub fn list_for_window(
     )?;
     let rows = stmt.query_map(params![from.to_rfc3339(), to.to_rfc3339()], |row| {
         let ts_s: String = row.get(4)?;
-        let ts = DateTime::parse_from_rfc3339(&ts_s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(
-                    4,
-                    rusqlite::types::Type::Text,
-                    Box::new(e),
-                )
-            })?;
+        let ts = parse_ts(&ts_s, 4)?;
         Ok(EstimationRow {
             id: row.get(0)?,
             user_id: row.get(1)?,

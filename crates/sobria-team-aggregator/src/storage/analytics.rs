@@ -114,14 +114,12 @@ pub fn project_breakdown(
         water_ml: 0.0,
         folded: true,
     };
-    let mut folded_users = std::collections::HashSet::new();
     for r in rows {
         if r.contributors >= k {
             kept.push(r);
         } else {
             // contributors par projet ne s'additionne pas (recouvrements
             // possibles) : on garde le max comme borne basse honnête.
-            folded_users.insert(r.project.clone());
             folded.contributors = folded.contributors.max(r.contributors);
             folded.count += r.count;
             folded.gco2eq_g += r.gco2eq_g;

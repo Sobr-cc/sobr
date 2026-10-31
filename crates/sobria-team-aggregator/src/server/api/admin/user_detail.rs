@@ -10,9 +10,10 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::parse_date_or;
 use crate::policy::{self, VisibilityPolicy};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -56,8 +57,8 @@ pub async fn handle(
     Query(q): Query<DetailQuery>,
 ) -> ApiResult<Json<UserDetailResponse>> {
     let now = Utc::now();
-    let from = parse_or(q.from.as_deref(), now - Duration::days(30))?;
-    let to = parse_or(q.to.as_deref(), now)?;
+    let from = parse_date_or(q.from.as_deref(), now - Duration::days(30))?;
+    let to = parse_date_or(q.to.as_deref(), now)?;
 
     let storage = state
         .storage
@@ -96,13 +97,4 @@ pub async fn handle(
         top_models: analytics::top_models(conn, Some(&user_id), from, to, 10)?,
         method_breakdown: analytics::method_breakdown(conn, Some(&user_id), from, to)?,
     }))
-}
-
-fn parse_or(raw: Option<&str>, default: DateTime<Utc>) -> Result<DateTime<Utc>, ApiError> {
-    match raw {
-        None | Some("") => Ok(default),
-        Some(s) => DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
-    }
 }

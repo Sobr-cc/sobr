@@ -8,10 +8,10 @@
 
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
-use rand::RngCore;
 use ulid::Ulid;
 
 use crate::config::DataPaths;
+use crate::crypto::secret::enrollment_code;
 use crate::storage::{admins, enrollment_codes, Storage};
 
 /// Codes nouvellement créés (clair + métadonnées).
@@ -41,7 +41,7 @@ pub fn create_batch(
     let mut out = Vec::with_capacity(count as usize);
     for _ in 0..count {
         let id = Ulid::new().to_string();
-        let code = random_12_digit_code();
+        let code = enrollment_code();
         enrollment_codes::insert(storage.connection(), &id, &code, &admin.id, now, expires_at)
             .context("insert enrollment code")?;
         out.push(CreatedCode {
@@ -67,22 +67,6 @@ pub fn revoke(paths: &DataPaths, id: &str) -> Result<bool> {
         id,
         Utc::now(),
     )?)
-}
-
-/// Code aléatoire 12 chiffres ASCII via OS RNG.
-///
-/// Entropie ≈ 40 bits (10^12 = 2^39.86) — suffisant car les codes sont
-/// révoqués après usage et Argon2id rend tout brute force serveur lent.
-fn random_12_digit_code() -> String {
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    // 16 octets → u128 ; on prend modulo 10^12 pour un nombre 12 chiffres.
-    let mut acc: u128 = 0;
-    for b in &bytes {
-        acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
-    }
-    let n: u64 = (acc % 1_000_000_000_000u128) as u64;
-    format!("{n:012}")
 }
 
 #[cfg(test)]

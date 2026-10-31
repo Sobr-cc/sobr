@@ -13,10 +13,11 @@
 //! 4. [`revoke`] permet à l'admin d'annuler un code non utilisé.
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 
 use crate::crypto::password::{self, verify_password};
 use crate::error::AggregatorResult;
+use crate::storage::parse_ts;
 
 /// Vue d'un code en base (le clear text n'est jamais accessible).
 #[derive(Debug, Clone)]
@@ -29,14 +30,6 @@ pub struct EnrollmentCodeRow {
     pub used_at: Option<DateTime<Utc>>,
     pub used_by_user_id: Option<String>,
     pub revoked_at: Option<DateTime<Utc>>,
-}
-
-impl EnrollmentCodeRow {
-    /// `true` si le code est utilisable pour enroll (non utilisé, non révoqué,
-    /// non expiré).
-    pub fn is_active(&self, now: DateTime<Utc>) -> bool {
-        self.used_at.is_none() && self.revoked_at.is_none() && self.expires_at > now
-    }
 }
 
 /// Code en clair + métadonnées renvoyés par [`create_batch`] (à présenter
@@ -145,20 +138,6 @@ pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<EnrollmentCodeRow>> {
     Ok(rows)
 }
 
-/// Cherche un code par id (utilisé par CLI `code revoke`).
-pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<EnrollmentCodeRow>> {
-    let row = conn
-        .query_row(
-            "SELECT id, code_hash, created_by, created_at, expires_at,
-                    used_at, used_by_user_id, revoked_at
-             FROM enrollment_codes WHERE id = ?1",
-            params![id],
-            map_row,
-        )
-        .optional()?;
-    Ok(row)
-}
-
 fn map_row(row: &rusqlite::Row) -> rusqlite::Result<EnrollmentCodeRow> {
     let created_at_s: String = row.get(3)?;
     let expires_at_s: String = row.get(4)?;
@@ -174,14 +153,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<EnrollmentCodeRow> {
         used_by_user_id: row.get(6)?,
         revoked_at: revoked_at_s.map(|s| parse_ts(&s, 7)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]
