@@ -12,7 +12,7 @@ targets = [
 
 [advisories]
 version = 2
-# Tous les ignores ci-dessous sont des advisories « unmaintained » (aucune
+# Les ignores sans `reason` sont des advisories « unmaintained » (aucune
 # vulnérabilité active) — état au 2026-06-12, à réévaluer à chaque bump tauri.
 ignore = [
     # gtk-rs GTK3 : tirés par tauri sur Linux. Pas de correctif tant que
@@ -38,6 +38,11 @@ ignore = [
     # rustls-pemfile : dép directe de sobria-team-aggregator.
     # TODO(sobria-team-aggregator): migrer vers rustls-pki-types::PemObject.
     "RUSTSEC-2025-0134",
+    # zstd 0.13 and zstd-safe 7, pulled by polars 0.46 (sobria-ingest only). Decided in SOB-244; removed
+    # when polars is upgraded (SOB-245). Keep in step with .cargo/audit.toml.
+    { id = "RUSTSEC-2026-0391", reason = "zstd: needs with_context, which polars-parquet 0.46.0 never calls (SOB-196). Re-check by 2026-11-14." },
+    { id = "RUSTSEC-2026-0398", reason = "zstd-safe: needs the seekable feature, which is not built (SOB-196). Re-check by 2026-11-14." },
+    { id = "RUSTSEC-2026-0403", reason = "zstd-safe: hits only the write-side decoder, polars reads with the read-side one (SOB-196). Re-check by 2026-11-14." },
 ]
 
 [licenses]
