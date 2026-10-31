@@ -37,6 +37,7 @@ notebook/*.pdf
 # Logs
 *.log
 logs/
+stub-log.jsonl
 
 # OS
 .DS_Store
