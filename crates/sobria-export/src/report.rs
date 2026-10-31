@@ -3,10 +3,10 @@
 //! Voir `docs/archive/chantiers/C14-rapport-csrd-agec.md` §1 pour la
 //! structure complète.
 
-use std::io::BufWriter;
-
 use chrono::{DateTime, Utc};
-use printpdf::{BuiltinFont, Mm, PdfDocument};
+use printpdf::{
+    BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sobria_audit::AuditEntry;
@@ -14,7 +14,7 @@ use sobria_core::EmpreinteMethod;
 use tracing::{debug, info};
 
 use crate::{
-    error::{ExportError, ExportResult},
+    error::ExportResult,
     provo::{build_provo_jsonld, ProvOOptions},
     summary::{aggregate, ReportSummary},
 };
@@ -79,7 +79,7 @@ pub fn generate_report(
         "agrégat de période calculé"
     );
 
-    let pdf_bytes = build_pdf(req, &summary)?;
+    let pdf_bytes = build_pdf(req, &summary);
     let pdf_sha256 = sha256_hex(&pdf_bytes);
 
     let report_id = format!(
@@ -120,25 +120,46 @@ pub fn generate_report(
 // PDF building (printpdf, A4 portrait)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Text operations of one page, with the call shape of the printpdf 0.7 layer.
+#[derive(Default)]
+struct TextPage {
+    ops: Vec<Op>,
+}
+
+impl TextPage {
+    fn use_text<S: Into<String>>(
+        &mut self,
+        text: S,
+        size: f32,
+        x: Mm,
+        y: Mm,
+        font: &PdfFontHandle,
+    ) {
+        self.ops.extend([
+            Op::StartTextSection,
+            Op::SetTextCursor {
+                pos: Point::new(x, y),
+            },
+            Op::SetFont {
+                font: font.clone(),
+                size: Pt(size),
+            },
+            Op::ShowText {
+                items: vec![TextItem::Text(text.into())],
+            },
+            Op::EndTextSection,
+        ]);
+    }
+}
+
 #[allow(clippy::too_many_lines)] // PDF rendering : flow linéaire mieux lu en bloc
-fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u8>> {
-    // A4 portrait : 210 × 297 mm.
-    let (doc, page1, layer1) = PdfDocument::new(
-        format!("Sobr.ia - {}", req.organization_name),
-        Mm(210.0),
-        Mm(297.0),
-        "page1",
-    );
-    let font_regular = doc
-        .add_builtin_font(BuiltinFont::HelveticaBold)
-        .map_err(|e| ExportError::Pdf(format!("font load: {e}")))?;
-    let font_body = doc
-        .add_builtin_font(BuiltinFont::Helvetica)
-        .map_err(|e| ExportError::Pdf(format!("font load: {e}")))?;
+fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> Vec<u8> {
+    let font_regular = PdfFontHandle::Builtin(BuiltinFont::HelveticaBold);
+    let font_body = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
 
     // ── Page 1 : page de garde ────────────────────────────────────────
-    {
-        let layer = doc.get_page(page1).get_layer(layer1);
+    let cover_ops = {
+        let mut layer = TextPage::default();
         let mut y = 260.0;
         let title = "Empreinte environnementale IA générative".to_string();
         layer.use_text(title, 22.0, Mm(20.0), Mm(y), &font_regular);
@@ -152,7 +173,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         );
         y -= 7.0;
         let period_line = format!(
-            "Période : {} → {}",
+            "Période : {} – {}",
             req.period_start.format("%Y-%m-%d"),
             req.period_end.format("%Y-%m-%d")
         );
@@ -220,12 +241,12 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
             Mm(y),
             &font_body,
         );
-    }
+        layer.ops
+    };
 
     // ── Page 2 : Méthodologie + Audit + Signature ─────────────────────
-    let (page2, layer2) = doc.add_page(Mm(210.0), Mm(297.0), "page2");
-    {
-        let layer = doc.get_page(page2).get_layer(layer2);
+    let details_ops = {
+        let mut layer = TextPage::default();
         let mut y = 270.0;
         layer.use_text("Méthodologie", 16.0, Mm(20.0), Mm(y), &font_regular);
         y -= 8.0;
@@ -293,7 +314,7 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
         y -= 8.0;
         layer.use_text(
             format!(
-                "Entrées d'audit couvertes : id {} → {}",
+                "Entrées d'audit couvertes : id {} – {}",
                 summary.first_audit_id, summary.last_audit_id
             ),
             10.0,
@@ -336,15 +357,22 @@ fn build_pdf(req: &ReportRequest, summary: &ReportSummary) -> ExportResult<Vec<u
             layer.use_text(line, 9.0, Mm(20.0), Mm(y), &font_body);
             y -= 5.0;
         }
-    }
+        layer.ops
+    };
 
-    let mut buf = BufWriter::new(Vec::new());
-    doc.save(&mut buf)
-        .map_err(|e| ExportError::Pdf(format!("save: {e}")))?;
-    let bytes = buf
-        .into_inner()
-        .map_err(|e| ExportError::Pdf(format!("buffer: {}", e.error())))?;
-    Ok(bytes)
+    // A4 portrait : 210 × 297 mm.
+    let pages: Vec<PdfPage> = [cover_ops, details_ops]
+        .into_iter()
+        .map(|ops| PdfPage::new(Mm(210.0), Mm(297.0), ops))
+        .collect();
+    let mut warnings = Vec::new();
+    let bytes = PdfDocument::new(&format!("Sobr.ia - {}", req.organization_name))
+        .with_pages(pages)
+        .save(&PdfSaveOptions::default(), &mut warnings);
+    if !warnings.is_empty() {
+        debug!(?warnings, "printpdf save warnings");
+    }
+    bytes
 }
 
 /// SHA-256 en hexadécimal minuscule (partagé avec `datasheet`).
@@ -355,6 +383,7 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ExportError;
     use chrono::TimeZone;
     use sobria_core::{
         EmpreinteMethod, EstimationRequest, EstimationResult, Hypothesis, Indicator,
