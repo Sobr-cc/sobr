@@ -7,6 +7,26 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — ADR-0026, infrastructure as code and automatic deployment (2026-10-31, SOB-73)
+
+- **ADR-0026** (Proposed): the infrastructure lives in the `infra` repo of
+  Sobr-cc and changes only by pull request.
+  - OpenTofu (`bpg/proxmox`) for the Proxmox layer, `talosctl` for the Talos
+    nodes as ADR-0024 says, Flux for the cluster, SOPS with age for secrets.
+  - Every pull request shows the plan. After a merge, the deployment waits in a
+    GitHub environment whose only required reviewer is an account no session
+    can use, with administrator bypass off: Claude sessions act as Thibault's
+    everyday account, and GitHub lets a `repo` token of a required reviewer
+    approve.
+  - Drift is checked daily and Flux corrects the cluster. Rollback is a revert
+    through the same approval. Secrets are not in git in clear, nor in state.
+  - Throwaway runner VMs: CI runners hold no secret, the deploy runner serves
+    the `infra` repo only, and fork pull requests never reach a self-hosted
+    runner. macOS stays on GitHub.
+  - 10 build issues (34 points). Three points wait for Thibault (SOB-207): the
+    approver account, the visibility of `infra` and the GitHub plan, and the
+    approval of ordinary CI.
+
 ### Changed — Sources catalog translated to English (2026-10-31, SOB-149)
 
 - **`docs/sources/CATALOGUE-SOURCES.md`** (version 2.2): the French part (sources
