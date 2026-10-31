@@ -1,9 +1,10 @@
-//! Binaire de l'application Tauri Sobr.ia — voir ADR-0001 et
+//! Binary of the Sobr.ia Tauri app — see ADR-0001 and
 //! `docs/archive/chantiers/C09-tauri-integration.md`.
 //!
-//! Le runtime Tauri se contente d'enregistrer les commandes IPC et de
-//! charger le bundle frontend (SvelteKit produit par `web/`). Toute la
-//! logique métier vit dans `sobria_app::logic` et est testable sans Tauri.
+//! The Tauri runtime only registers the IPC commands and loads the
+//! frontend bundle (SvelteKit built from `web/`). Most of the business
+//! logic lives in `sobria_app::logic` and is testable without Tauri; the
+//! bridge install and `team_*` commands still hold theirs here.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![deny(unsafe_code)]
@@ -36,10 +37,10 @@ use sobria_app::{
 use tauri::Manager;
 use tracing::info;
 
-/// Chemin attendu du binaire `sobria-bridge` à côté de l'app. Utilisé pour
-/// remplir le manifest natif et indiquer à l'extension où trouver le pont.
-/// Si l'exécutable courant n'est pas localisable, on retombe sur `None` et
-/// les IPC d'install rejettent proprement.
+/// Expected path of the `sobria-bridge` binary next to the app. Used to
+/// fill the native manifest and tell the extension where to find the bridge.
+/// If the current executable cannot be located, falls back to `None` and
+/// the install IPC commands reject cleanly.
 fn resolve_bridge_path() -> Option<PathBuf> {
     let current = std::env::current_exe().ok()?;
     let dir = current.parent()?.to_path_buf();
@@ -52,7 +53,7 @@ fn resolve_bridge_path() -> Option<PathBuf> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Commandes IPC — délégation pure vers `logic::*`
+// IPC commands (mostly delegation to `logic::*`)
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[tauri::command]
@@ -75,8 +76,8 @@ fn get_model_detail(id: String, state: tauri::State<'_, AppState>) -> IpcResult<
     logic::get_model_detail(&id, state.inner())
 }
 
-/// **C32.4** — Liste agrégée des vendor disclosures par fabricant pour la
-/// table comparaison M9 (5 lignes, Mistral / Google / Meta / Anthropic / OpenAI).
+/// **C32.4** — Vendor disclosures aggregated per vendor for the M9
+/// comparison table (one row per vendor).
 #[tauri::command]
 fn list_vendor_comparison() -> IpcResult<Vec<VendorComparisonRowDto>> {
     logic::list_vendor_comparison()
@@ -300,7 +301,7 @@ fn reload_referentiel() -> IpcResult<ReferentielReloadResultDto> {
     logic::reload_referentiel()
 }
 
-// ─── C27.5 — extension navigateur ────────────────────────────────────────────
+// ─── C27.5 — browser extension ───────────────────────────────────────────────
 
 #[tauri::command]
 fn regenerate_pairing_code(state: tauri::State<'_, AppState>) -> IpcResult<PairingCodeDto> {
@@ -372,7 +373,7 @@ fn install_extension_bridge(
     Ok(written)
 }
 
-// ─── C28.6 — Mode Équipe (self-hosted aggregator) ────────────────────────────
+// ─── C28.6 — Team mode (self-hosted aggregator) ──────────────────────────────
 
 #[tauri::command]
 fn team_status(state: tauri::State<'_, AppState>) -> IpcResult<TeamStatus> {
@@ -443,7 +444,7 @@ async fn team_ping(state: tauri::State<'_, AppState>) -> IpcResult<team_client::
     };
     let client = TeamClient::new(cfg).map_err(team_client::map_team_err)?;
     let resp = client.ping().await.map_err(team_client::map_team_err)?;
-    // C29.1 — toute connexion réussie met à jour `last_seen_at`.
+    // C29.1 — every successful connection updates `last_seen_at`.
     if let Ok(store) = state.team_settings.lock() {
         let _ = store.mark_seen_now();
     }
@@ -476,7 +477,7 @@ async fn team_enroll(
         .enroll(req)
         .await
         .map_err(team_client::map_team_err)?;
-    // Persiste tokens + side effects en re-lockant le store.
+    // Persists tokens + side effects by re-locking the store.
     {
         let store = state
             .team_settings
@@ -505,8 +506,8 @@ async fn team_push_estimation(
     payload: serde_json::Value,
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<bool> {
-    // Best-effort : retourne `false` si dispatch non éligible (mode=local
-    // ou non enrôlé), pas une erreur.
+    // Best-effort: returns `false` if dispatch is not eligible (mode=local
+    // or not enrolled), not an error.
     let (snapshot, cfg) = {
         let store = state
             .team_settings
@@ -539,7 +540,7 @@ async fn team_push_estimation(
         team_client::persist::save_tokens(&store, &access, &refresh)
             .map_err(team_client::map_team_err)?;
     }
-    // C29.1 — push réussi : compteur + timestamp.
+    // C29.1 — successful push: counter + timestamp.
     if outcome.data.ack {
         if let Ok(store) = state.team_settings.lock() {
             let _ = store.increment_estimations_sent();
@@ -559,7 +560,7 @@ fn uninstall_extension_bridge(browsers: Vec<BrowserKind>) -> IpcResult<()> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entrée principale
+// Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn main() {
@@ -580,8 +581,8 @@ fn main() {
             })?;
             app.manage(state);
 
-            // C27 patch v0.6.0 — démarre le socket server pour le forward
-            // bridge ↔ app en temps réel (Unix socket / Windows named pipe).
+            // C27 patch v0.6.0 — starts the socket server for real-time
+            // bridge ↔ app forwarding (Unix socket / Windows named pipe).
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = bridge_server::run(app_handle).await {
@@ -589,13 +590,13 @@ fn main() {
                 }
             });
 
-            // C27 patch v0.6.0 — poller de fallback offline : draine toutes
-            // les 5 s le spool écrit par le bridge quand l'app était fermée
-            // ou que le socket était injoignable.
+            // C27 patch v0.6.0 — offline fallback poller: every 5 s, drains
+            // the spool written by the bridge while the app was closed
+            // or the socket was unreachable.
             let spool_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut ticker = tokio::time::interval(std::time::Duration::from_secs(5));
-                ticker.tick().await; // saute le premier tick immédiat
+                ticker.tick().await; // skips the immediate first tick
                 loop {
                     ticker.tick().await;
                     let state = spool_handle.state::<AppState>();

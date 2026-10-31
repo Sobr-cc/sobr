@@ -1,12 +1,10 @@
-//! Traitement par lots de prompts en CSV (M18 / C21).
+//! Batch processing of prompts from a CSV file (M18 / C21).
 //!
-//! Cycle :
-//! 1. Parse + validate CSV input.
-//! 2. Exécute `estimate_prompt` par ligne (journalisé dans le ledger).
-//! 3. Agrège stats globales + par modèle.
-//! 4. Optionnel : écrit les résultats dans un CSV.
+//! This module parses and validates the input CSV and writes the results CSV;
+//! `logic::run_batch_from_csv` runs `estimate_prompt` on each row (logged in
+//! the ledger) and aggregates the global and per-model stats.
 //!
-//! Voir `docs/archive/chantiers/C21-batch-csv.md`.
+//! See `docs/archive/chantiers/C21-batch-csv.md`.
 
 use std::{
     fs::File,
@@ -17,12 +15,12 @@ use std::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Nombre max de lignes par batch (anti-abus + cap perf).
+/// Maximum number of rows per batch (anti-abuse + performance cap).
 pub const MAX_BATCH_ROWS: usize = 1000;
 
-/// Tolérance maximale de lignes rejetées avant erreur globale (50%).
+/// Maximum share of rejected rows before a global error (50%).
 const REJECTION_RATIO_LIMIT: f64 = 0.5;
-/// Même seuil exposé en pourcentage entier (pour les messages d'erreur).
+/// Same threshold as a whole percentage (for error messages).
 const REJECTION_RATIO_LIMIT_PCT: u8 = 50;
 
 #[derive(Debug, Error)]
@@ -49,7 +47,7 @@ pub enum BatchError {
 
 pub type BatchResult<T> = Result<T, BatchError>;
 
-/// Une ligne du CSV d'entrée.
+/// One row of the input CSV.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BatchInputRow {
     pub model_id: String,
@@ -59,7 +57,7 @@ pub struct BatchInputRow {
     pub datacenter_id: Option<String>,
 }
 
-/// Une ligne de résultat batch.
+/// One batch result row.
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchOutputRow {
     pub row_index: u32,
@@ -76,13 +74,12 @@ pub struct BatchOutputRow {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Parser CSV
+// CSV parser
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Parse le CSV d'entrée et retourne les lignes valides au format `BatchInputRow`.
-/// Les erreurs de format (fichier absent, header mal formé, > max rows) sont
-/// remontées. Les lignes individuellement invalides sont **comptées** mais ne
-/// stoppent pas le parsing (validations métier en aval).
+/// Parses the input CSV and returns the valid rows as `BatchInputRow`.
+/// Any error (missing file, malformed header, > max rows, an invalid row)
+/// stops the parse and is returned.
 pub fn parse_csv(path: &Path) -> BatchResult<Vec<BatchInputRow>> {
     if !path.exists() {
         return Err(BatchError::FileNotFound(path.to_path_buf()));
@@ -93,7 +90,7 @@ pub fn parse_csv(path: &Path) -> BatchResult<Vec<BatchInputRow>> {
         .trim(csv::Trim::All)
         .from_reader(BufReader::new(file));
 
-    // Vérifie le header.
+    // Checks the header.
     let headers = reader.headers()?;
     let expected = ["model_id", "tokens_in", "tokens_out", "datacenter_id"];
     if headers.len() < 3 {
@@ -115,7 +112,7 @@ pub fn parse_csv(path: &Path) -> BatchResult<Vec<BatchInputRow>> {
         )));
     }
 
-    // Parse les lignes.
+    // Parses the rows.
     let mut rows: Vec<BatchInputRow> = Vec::new();
     for (idx, record) in reader.records().enumerate() {
         let record = record?;
@@ -125,7 +122,7 @@ pub fn parse_csv(path: &Path) -> BatchResult<Vec<BatchInputRow>> {
                 max: MAX_BATCH_ROWS,
             });
         }
-        // Lignes vides → skip silencieusement.
+        // Empty rows → skipped silently.
         if record.iter().all(|f| f.trim().is_empty()) {
             continue;
         }
@@ -174,10 +171,10 @@ fn parse_record(record: &csv::StringRecord) -> BatchResult<BatchInputRow> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Export CSV résultats
+// Results CSV export
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Écrit les résultats dans un fichier CSV.
+/// Writes the results to a CSV file.
 pub fn export_results_csv(path: &Path, rows: &[BatchOutputRow]) -> BatchResult<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -210,7 +207,7 @@ pub fn export_results_csv(path: &Path, rows: &[BatchOutputRow]) -> BatchResult<(
     Ok(())
 }
 
-/// Échappe un champ contenant virgule / guillemet / saut de ligne.
+/// Escapes a field that contains a comma, quote or newline.
 fn csv_escape(s: &str) -> String {
     if s.contains(',') || s.contains('"') || s.contains('\n') {
         let escaped = s.replace('"', "\"\"");
@@ -221,13 +218,13 @@ fn csv_escape(s: &str) -> String {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vérification post-traitement
+// Post-processing check
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Lève une erreur si trop de lignes rejetées (>50%).
+/// Returns an error if too many rows were rejected (>50%).
 ///
-/// `usize as f64` ne perd pas de précision tant que la valeur tient sur
-/// 52 bits — borné ici par `MAX_BATCH_ROWS = 1000`.
+/// `usize as f64` loses no precision while the value fits in
+/// 52 bits — bounded here by `MAX_BATCH_ROWS = 1000`.
 #[allow(clippy::cast_precision_loss)]
 pub fn check_rejection_ratio(rejected: usize, total: usize) -> BatchResult<()> {
     if total == 0 {
@@ -247,8 +244,8 @@ pub fn check_rejection_ratio(rejected: usize, total: usize) -> BatchResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // `Write` est déjà importé via le `use` du module parent (BufReader,
-    // BufWriter, Write), donc inutile de le ré-importer ici.
+    // `Write` is already imported by the parent module's `use` (BufReader,
+    // BufWriter, Write), so there is no need to import it again here.
 
     fn write_csv(content: &str) -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
@@ -296,8 +293,8 @@ claude-3-5-sonnet,200,1000,
 gpt-4o-mini,100,500,
 ";
         let (_tmp, path) = write_csv(csv);
-        // Sans header, la 1ère ligne est consommée comme header → parse échoue
-        // soit sur le header (colonnes != attendues), soit sur des records absents.
+        // Without a header, the 1st row is consumed as the header → parsing fails
+        // either on the header (columns != expected) or on missing records.
         let result = parse_csv(&path);
         assert!(result.is_err(), "doit échouer sans header");
     }

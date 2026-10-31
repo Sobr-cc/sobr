@@ -1,10 +1,10 @@
-//! Data Transfer Objects entre Rust (Tauri) et le frontend SvelteKit.
+//! Data Transfer Objects between Rust (Tauri) and the SvelteKit frontend.
 //!
-//! Conventions :
-//! - Tous les DTO sont `serde::Serialize` (sortie IPC).
-//! - Les DTO d'entrée (`*Dto` côté requête) sont aussi `Deserialize`.
-//! - Pas de `Option<T>` côté entrée sauf vrai cas optionnel UI (ex: `datacenter_id`).
-//! - Les timestamps sont des `String` RFC 3339 (interopérable JavaScript).
+//! Conventions:
+//! - All DTOs are `serde::Serialize` (IPC output).
+//! - Input DTOs (`*Dto` on the request side) are also `Deserialize`.
+//! - No `Option<T>` on input unless the UI field is truly optional (e.g. `datacenter_id`).
+//! - Timestamps are RFC 3339 `String`s (JavaScript-friendly).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -28,59 +28,59 @@ use sobria_geoloc::{
 // meta_info
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Informations runtime de l'app (footer + diagnostic).
+/// App runtime information (footer + diagnostics).
 #[derive(Debug, Clone, Serialize)]
 pub struct MetaInfo {
-    /// Version sémantique du package `sobria-app`.
+    /// Semantic version of the `sobria-app` package.
     pub app_version: String,
-    /// Seed Monte-Carlo configuré (déterminisme).
+    /// Configured Monte-Carlo seed (determinism).
     pub estimator_seed: u64,
-    /// N tirages Monte-Carlo (défaut 10⁴).
+    /// Number of Monte-Carlo draws (default 10⁴).
     pub estimator_n: u32,
-    /// Chemin du ledger SQLite (info seule — pas de FS access).
+    /// Path of the SQLite ledger (information only, no FS access).
     pub audit_path: String,
-    /// Racine de données utilisateur.
+    /// User data root.
     pub data_root: String,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// referentiel (C26.5 — accès au Gold)
+// referentiel (C26.5 — Gold access)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Statut compact du référentiel Gold pour la page Paramètres.
-/// Mirroir TS dans `web/src/lib/api.ts::ReferentielStatusDto`.
+/// Compact status of the Gold referentiel for the Settings page.
+/// TS mirror in `web/src/lib/api.ts::ReferentielStatusDto`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ReferentielStatusDto {
-    /// `true` si le référentiel a pu être ouvert ; sinon les autres champs
-    /// peuvent être vides.
+    /// `true` if the referentiel could be opened; otherwise the other fields
+    /// may be empty.
     pub available: bool,
-    /// Message court lisible humain (raison de l'indisponibilité, ou OK).
+    /// Short human-readable message (why it is unavailable, or OK).
     pub message: String,
-    /// Version sémantique du référentiel (héritée de `sobria-ingest`).
+    /// Semantic version of the referentiel (inherited from `sobria-ingest`).
     pub version: String,
-    /// Date de dernière modification du fichier (RFC 3339).
+    /// Last modification date of the file (RFC 3339).
     pub snapshot_date: String,
-    /// SHA-256 hexadécimal du SQLite (intégrité).
+    /// Hex SHA-256 of the SQLite file (integrity).
     pub sha256: String,
-    /// Nombre de sources contributrices.
+    /// Number of contributing sources.
     pub source_count: u64,
-    /// Nombre de modèles distincts dans `model_overview`.
+    /// Number of distinct models in `model_overview`.
     pub model_count: u64,
-    /// Chemin du SQLite consulté (info seule).
+    /// Path of the SQLite file read (information only).
     pub path: String,
 }
 
-/// Résultat d'une demande explicite de rechargement (`reload_referentiel`).
-/// Mirroir TS dans `web/src/lib/api.ts::ReferentielReloadResultDto`.
+/// Result of an explicit reload request (`reload_referentiel`).
+/// TS mirror in `web/src/lib/api.ts::ReferentielReloadResultDto`.
 #[derive(Debug, Clone, Serialize)]
 pub struct ReferentielReloadResultDto {
-    /// `true` si `dvc pull` a réussi ET le référentiel est ouvert.
+    /// `true` if `dvc pull` succeeded AND the referentiel is open.
     pub success: bool,
-    /// Message d'aide / d'erreur lisible humain.
+    /// Human-readable help or error message.
     pub message: String,
-    /// Stdout/stderr concaténés de `dvc pull` (debug, max ~4 ko).
+    /// Concatenated stdout/stderr of `dvc pull` (debug, max ~4 KB).
     pub dvc_output: String,
-    /// Statut résultant (None si reload a échoué avant ouverture).
+    /// Resulting status (None if the reload failed before opening).
     pub status: Option<ReferentielStatusDto>,
 }
 
@@ -88,11 +88,11 @@ pub struct ReferentielReloadResultDto {
 // list_models
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Preset modèle envoyé au frontend (déclinaison statique → owned strings).
+/// Model preset sent to the frontend (static data turned into owned strings).
 ///
-/// **C34.4** — 3 bools de capabilities (vision/audio/reasoning) + `deprecated` :
-/// allow `struct_excessive_bools` car chaque flag a une sémantique distincte
-/// et indépendante (cf. doc équivalente sur `ModelPreset`).
+/// **C34.4** — 3 capability bools (vision/audio/reasoning) + `deprecated`:
+/// `struct_excessive_bools` is allowed because each flag has a distinct,
+/// independent meaning (see the matching doc on `ModelPreset`).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ModelPresetDto {
@@ -104,30 +104,30 @@ pub struct ModelPresetDto {
     pub openness: String,
     pub calibration: String,
     pub sources: Vec<String>,
-    /// **C34.4** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    /// **C34.4** — Public release date (ISO `YYYY-MM-DD`).
     pub release_date: String,
-    /// **C34.4** — Paramètres actifs (en milliards). `= approx_params_billions`
-    /// pour dense, < pour MoE.
+    /// **C34.4** — Active parameters (in billions). `= approx_params_billions`
+    /// for dense, lower for MoE.
     pub active_params_b: f64,
-    /// **C34.4** — Famille typée du fabricant (snake_case).
+    /// **C34.4** — Typed vendor family (snake_case).
     pub model_family: String,
     /// **C34.4** — Architecture (`dense_transformer`, `moe`, `mamba`, `hybrid`).
     pub architecture: String,
-    /// **C34.4** — Accepte des images en entrée.
+    /// **C34.4** — Accepts image input.
     pub vision_capable: bool,
-    /// **C34.4** — Accepte de l'audio en entrée.
+    /// **C34.4** — Accepts audio input.
     pub audio_capable: bool,
-    /// **C34.4** — Reasoning model (extended thinking / chain-of-thought intégré).
+    /// **C34.4** — Reasoning model (built-in extended thinking / chain-of-thought).
     pub reasoning_capable: bool,
-    /// **C34.4** — `(P5, P95)` du ratio thinking/output tokens. `None` si
-    /// pas reasoning_capable.
+    /// **C34.4** — `(P5, P95)` of the thinking/output token ratio. `None` if
+    /// not reasoning_capable.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_token_multiplier: Option<(f64, f64)>,
-    /// **C34.4** — Overhead système typique (interface app vendor).
+    /// **C34.4** — Typical system overhead (vendor app interface).
     pub default_context_overhead_tokens: u32,
-    /// **C34.4** — `true` pour les modèles obsolètes (à filtrer par défaut UI).
+    /// **C34.4** — `true` for obsolete models (hidden by default in the UI).
     pub deprecated: bool,
-    /// **C34.4** — URL canonique de la source vendor (model card).
+    /// **C34.4** — Canonical URL of the vendor source (model card).
     pub source_url: String,
 }
 
@@ -190,7 +190,7 @@ impl From<&ModelPreset> for ModelPresetDto {
 // estimate_prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Payload de demande d'estimation envoyé par le frontend.
+/// Estimation request payload sent by the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EstimationRequestDto {
     pub model_id: String,
@@ -198,25 +198,25 @@ pub struct EstimationRequestDto {
     pub tokens_out_estimated: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub datacenter_id: Option<String>,
-    /// Méthodologie utilisée pour ce calcul (C24).
+    /// Methodology used for this computation (C24).
     ///
-    /// `None` → fallback sur la méthodologie par défaut de l'utilisateur
-    /// (`AppPreferencesDto::default_method`), ou `EmpreinteMethod::default_method()`
-    /// si aucune préférence n'est encore enregistrée.
+    /// `None` → falls back to the user's default methodology
+    /// (`AppPreferencesDto::default_method`), or `EmpreinteMethod::default_method()`
+    /// if no preference is stored yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub method: Option<sobria_core::EmpreinteMethod>,
-    /// **C34.3** — Modalités d'input du prompt (texte, vision, document,
-    /// audio). `None`/absent → uniquement Text (compatible v0.8.x).
+    /// **C34.3** — Input modalities of the prompt (text, vision, document,
+    /// audio). `None`/absent → Text only (compatible with v0.8.x).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub modalities: Option<Vec<sobria_core::InputModality>>,
-    /// **C34.3** — Overhead système (system prompt + tools + memory +
-    /// thinking). `None`/absent → zéros (compatible v0.8.x).
+    /// **C34.3** — System overhead (system prompt + tools + memory +
+    /// thinking). `None`/absent → zeros (compatible with v0.8.x).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overhead: Option<sobria_core::ContextOverhead>,
 }
 
 impl EstimationRequestDto {
-    /// Convertit en `sobria_core::EstimationRequest` (ajoute le timestamp).
+    /// Converts into `sobria_core::EstimationRequest` (adds the timestamp).
     #[must_use]
     pub fn into_core(self, timestamp: DateTime<Utc>) -> EstimationRequest {
         EstimationRequest {
@@ -231,18 +231,18 @@ impl EstimationRequestDto {
     }
 }
 
-/// Intervalle d'un indicateur (P5-P50-P95) + histogramme distributionnel
-/// optionnel.
+/// Interval of one indicator (P5-P50-P95) + optional distribution
+/// histogram.
 #[derive(Debug, Clone, Serialize)]
 pub struct IndicatorDto {
-    /// Nom de l'indicateur : `co2eq`, `energy`, `water`.
+    /// Indicator name (`co2eq`, `energy`, `water`, `critical_metals`, `cost`).
     pub indicator: String,
     pub p5: f64,
     pub p50: f64,
     pub p95: f64,
     pub unit: String,
-    /// Histogramme Monte-Carlo (équi-width). `None` pour les entrées
-    /// d'audit antérieures à v0.2 ou les estimations à N trop petit.
+    /// Monte-Carlo histogram (equal-width). `None` for audit entries
+    /// older than v0.2 or estimations with too small an N.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bins: Option<DistributionBins>,
 }
@@ -267,7 +267,7 @@ impl From<&IndicatorValue> for IndicatorDto {
     }
 }
 
-/// Équivalent parlant (UI).
+/// Human-friendly equivalent (UI).
 #[derive(Debug, Clone, Serialize)]
 pub struct EquivalentDto {
     pub label: String,
@@ -285,7 +285,7 @@ impl From<&Equivalent> for EquivalentDto {
     }
 }
 
-/// Hypothèse cliquable (UI).
+/// Clickable hypothesis (UI).
 #[derive(Debug, Clone, Serialize)]
 pub struct HypothesisDto {
     pub key: String,
@@ -303,11 +303,11 @@ impl From<&Hypothesis> for HypothesisDto {
     }
 }
 
-/// Résultat d'estimation complet renvoyé au frontend.
+/// Full estimation result returned to the frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct EstimationResultDto {
-    /// Méthodologie utilisée pour produire ce résultat (C24).
-    /// Affiché en badge dans `ResultBlock.svelte` + dans le journal d'audit.
+    /// Methodology used to produce this result (C24).
+    /// Shown as a badge in `ResultBlock.svelte` and in the audit log.
     pub method: sobria_core::EmpreinteMethod,
     pub request: EstimationRequestEchoDto,
     pub indicators: Vec<IndicatorDto>,
@@ -315,12 +315,12 @@ pub struct EstimationResultDto {
     pub hypotheses: Vec<HypothesisDto>,
     pub computed_at: String,
     pub seed: u64,
-    /// ID de l'entrée du ledger d'audit qui journalise ce résultat.
-    /// `0` = estimation éphémère (non journalisée, cf. estimate_for_comparison).
+    /// ID of the audit ledger entry that records this result.
+    /// `0` = ephemeral estimation (not logged, see estimate_for_comparison).
     pub audit_id: i64,
 }
 
-/// Écho de la requête (avec timestamp ajouté côté serveur).
+/// Echo of the request (with the timestamp added server-side).
 #[derive(Debug, Clone, Serialize)]
 pub struct EstimationRequestEchoDto {
     pub model_id: String,
@@ -344,7 +344,7 @@ impl From<&EstimationRequest> for EstimationRequestEchoDto {
 }
 
 impl EstimationResultDto {
-    /// Construit le DTO depuis un `EstimationResult` + l'`audit_id` du ledger.
+    /// Builds the DTO from an `EstimationResult` and the ledger `audit_id`.
     #[must_use]
     pub fn from_result(r: &EstimationResult, audit_id: i64) -> Self {
         Self {
@@ -364,7 +364,7 @@ impl EstimationResultDto {
 // audit
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Rapport d'intégrité de la chaîne d'audit.
+/// Integrity report of the audit chain.
 #[derive(Debug, Clone, Serialize)]
 pub struct IntegrityReportDto {
     pub total_entries: usize,
@@ -385,7 +385,7 @@ impl From<&IntegrityReport> for IntegrityReportDto {
     }
 }
 
-/// Résumé d'une entrée du ledger (pour la liste paginée).
+/// Summary of one ledger entry (for the paginated list).
 #[derive(Debug, Clone, Serialize)]
 pub struct AuditEntrySummaryDto {
     pub id: i64,
@@ -394,18 +394,18 @@ pub struct AuditEntrySummaryDto {
     pub co2eq_p50: f64,
     pub sig_short: String,
     pub purged: bool,
-    /// Méthodologie qui a produit cette entrée (C24).
-    /// Extraite du payload JSON. Pour les entrées historiques pré-C24,
-    /// vaut `AfnorSobria` (seul moteur disponible à l'époque) via le
-    /// `#[serde(default)]` sur `EstimationResult.method`.
+    /// Methodology that produced this entry (C24).
+    /// Extracted from the JSON payload. For historical pre-C24 entries it is
+    /// `AfnorSobria` (the only engine available then) through the
+    /// `#[serde(default)]` on `EstimationResult.method`.
     pub method: sobria_core::EmpreinteMethod,
 }
 
 impl AuditEntrySummaryDto {
-    /// Construit le résumé en extrayant `model_id` + `co2eq_p50` + `method`
-    /// du payload. Si le payload est purgé ou mal formé, on remplit avec
-    /// des sentinelles (méthode → AfnorSobria par défaut, cohérent avec
-    /// les ledgers historiques).
+    /// Builds the summary by extracting `model_id` + `co2eq_p50` + `method`
+    /// from the payload. If the payload is purged or malformed, it is filled
+    /// with sentinels (method → AfnorSobria by default, consistent with
+    /// historical ledgers).
     #[must_use]
     pub fn from_entry(e: &AuditEntry) -> Self {
         let parsed = parse_payload_full(&e.estimation_result_json);
@@ -423,10 +423,10 @@ impl AuditEntrySummaryDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// territoire_fr (C13 — M20 Territoire FR)
+// territoire_fr (C13 — M20 French territory)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Résumé d'un site industriel pour la carte M20.
+/// Summary of an industrial site for the M20 map.
 #[derive(Debug, Clone, Serialize)]
 pub struct IndustrialSiteSummaryDto {
     pub code_iris: String,
@@ -460,7 +460,7 @@ impl From<&IndustrialSite> for IndustrialSiteSummaryDto {
     }
 }
 
-/// Agrégat régional FR pour le drill-down.
+/// French regional aggregate for the drill-down.
 #[derive(Debug, Clone, Serialize)]
 pub struct RegionFrAggregateDto {
     pub region_iso: String,
@@ -578,12 +578,12 @@ impl From<&SankeyData> for SankeyDataDto {
 // batch CSV (C21 — M18)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Requête de traitement batch CSV.
+/// Batch CSV processing request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchRequestDto {
-    /// Chemin absolu vers le CSV d'entrée.
+    /// Absolute path to the input CSV.
     pub input_csv_path: String,
-    /// Si fourni : écrit un CSV de résultats à ce chemin.
+    /// If set: writes a results CSV at this path.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_csv_path: Option<String>,
 }
@@ -619,10 +619,10 @@ pub struct BatchResultDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// projects + datasheet (C20 — M17 Empreinte projet)
+// projects + datasheet (C20 — M17 project footprint)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Représentation d'un projet vers le frontend.
+/// Project representation sent to the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectDto {
     pub id: i64,
@@ -636,7 +636,7 @@ pub struct ProjectDto {
     pub updated_at: String,
 }
 
-/// Payload de création.
+/// Creation payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProjectDto {
     pub name: String,
@@ -648,7 +648,7 @@ pub struct CreateProjectDto {
     pub tags: Vec<String>,
 }
 
-/// Payload de mise à jour partielle (dates non modifiables — cf. brief §1.1).
+/// Partial update payload (dates cannot be changed — see brief §1.1).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UpdateProjectDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -659,7 +659,7 @@ pub struct UpdateProjectDto {
     pub tags: Option<Vec<String>>,
 }
 
-/// Composition agrégée renvoyée avec le datasheet.
+/// Aggregated composition returned with the datasheet.
 #[derive(Debug, Clone, Serialize)]
 pub struct CompositionDto {
     pub total_requests: u32,
@@ -671,8 +671,8 @@ pub struct CompositionDto {
     pub date_first_entry: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub date_last_entry: Option<String>,
-    /// Polish G (C24) — Méthodologies utilisées pour les entrées de la
-    /// période. Surfacé par l'UI M17 pour info chercheur.
+    /// Methodologies used by the entries of the
+    /// period. Surfaced by the M17 UI as information for researchers.
     pub methodologies_used: Vec<sobria_core::EmpreinteMethod>,
 }
 
@@ -691,7 +691,7 @@ impl From<&sobria_export::Composition> for CompositionDto {
     }
 }
 
-/// Datasheet Gebru produit pour un projet.
+/// Gebru datasheet produced for a project.
 #[derive(Debug, Clone, Serialize)]
 pub struct DatasheetDto {
     pub project: ProjectDto,
@@ -728,7 +728,7 @@ pub struct DailySeriesPointDto {
     pub water_l_p50: f64,
 }
 
-/// Total agrégé pour une méthodologie unique sur la période (Polish E, C24).
+/// Aggregated total for a single methodology over the period.
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodTotalDto {
     pub method: sobria_core::EmpreinteMethod,
@@ -751,10 +751,10 @@ pub struct DashboardSummaryDto {
     pub vs_previous: Option<DashboardComparisonDto>,
     pub top_models: Vec<TopModelDto>,
     pub daily_series: Vec<DailySeriesPointDto>,
-    /// Polish E (C24) — Breakdown par méthodologie présente dans la période.
+    /// Breakdown by methodology present in the period.
     pub method_breakdown: Vec<MethodTotalDto>,
-    /// `true` si la période contient + d'une méthodologie. Le frontend
-    /// affiche alors un warning : sommer 2 méthodos n'est pas scientifique.
+    /// `true` if the period contains more than one methodology. The frontend
+    /// then shows a warning: summing 2 methodologies is not scientific.
     pub warning_multi_method: bool,
 }
 
@@ -810,7 +810,7 @@ impl From<&crate::dashboard::DashboardSummary> for DashboardSummaryDto {
     }
 }
 
-/// Objectif personnel échangé avec le frontend.
+/// Personal goal exchanged with the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersonalGoalDto {
     /// "co2eq" | "energy" | "water"
@@ -821,27 +821,27 @@ pub struct PersonalGoalDto {
     pub unit: String,
 }
 
-/// Statut de consommation d'un objectif.
+/// Consumption status of a goal.
 #[derive(Debug, Clone, Serialize)]
 pub struct BudgetStatusDto {
     pub goal: PersonalGoalDto,
     pub current_value: f64,
     pub period_start: String,
     pub period_end: String,
-    /// 0..100+ (peut dépasser).
+    /// 0..100+ (may go above 100).
     pub consumed_pct: f64,
     /// "ok" (<70%), "warning" (70-100%), "exceeded" (>100%)
     pub status: String,
-    /// value_max - current_value (peut être < 0).
+    /// value_max - current_value (may be < 0).
     pub remaining: f64,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// model detail (C18 — M9 Référentiel modèles)
+// model detail (C18 — M9 model referentiel)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Triplet P5/P50/P95 (équivalent à `UncertaintyInterval` sans la
-/// validation côté DTO).
+/// P5/P50/P95 triplet (equivalent to `UncertaintyInterval` without
+/// validation on the DTO side).
 #[derive(Debug, Clone, Serialize)]
 pub struct TripletDto {
     pub p5: f64,
@@ -849,15 +849,15 @@ pub struct TripletDto {
     pub p95: f64,
 }
 
-/// Fiche détaillée d'un modèle exposant ses params distributionnels et
-/// un baseline contextuel (gpt-4o-mini 100/500 tokens, paramètres par
-/// défaut). **Pas journalisée** dans l'audit ledger.
+/// Detail sheet of a model, exposing its distribution params and
+/// a contextual baseline (gpt-4o-mini 100/500 tokens, default
+/// parameters). **Not logged** in the audit ledger.
 ///
-/// **C34.5** — étendu avec les capabilities du modèle (vision, audio,
-/// reasoning, MoE) pour alimenter la fiche M9.
+/// **C34.5** — extended with the model capabilities (vision, audio,
+/// reasoning, MoE) to feed the M9 sheet.
 ///
-/// 4 bools indépendants : `vision_capable`, `audio_capable`,
-/// `reasoning_capable`, `deprecated` (cf. doc équivalente sur `ModelPreset`).
+/// 4 independent bools: `vision_capable`, `audio_capable`,
+/// `reasoning_capable`, `deprecated` (see the matching doc on `ModelPreset`).
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize)]
 pub struct ModelDetailDto {
@@ -869,61 +869,61 @@ pub struct ModelDetailDto {
     pub openness: String,
     pub calibration: String,
     pub sources: Vec<String>,
-    /// Plage P5/P50/P95 de l'énergie prefill (mJ par token d'entrée).
+    /// P5/P50/P95 range of the prefill energy (mJ per input token).
     pub epsilon_prefill_mj_per_token: TripletDto,
-    /// Plage P5/P50/P95 de l'énergie decode (mJ par token de sortie).
+    /// P5/P50/P95 range of the decode energy (mJ per output token).
     pub epsilon_decode_mj_per_token: TripletDto,
-    /// Plage P5/P50/P95 de l'embodied carbon amorti (gCO₂eq par requête).
+    /// P5/P50/P95 range of the amortised embodied carbon (gCO₂eq per request).
     pub embodied_g_per_request: TripletDto,
-    /// CO₂eq P5/P50/P95 pour le prompt de référence (100 in / 500 out).
+    /// CO₂eq P5/P50/P95 for the reference prompt (100 in / 500 out).
     pub baseline_co2eq_p5_g: f64,
     pub baseline_co2eq_p50_g: f64,
     pub baseline_co2eq_p95_g: f64,
     pub baseline_energy_wh_p50: f64,
     pub baseline_water_l_p50: f64,
-    /// **C32.4** — Disclosures officielles publiées par le fabricant.
-    /// Vide pour les modèles dont le fabricant n'a pas publié (Anthropic,
-    /// OpenAI au 2026-05).
+    /// **C32.4** — Official disclosures published by the vendor.
+    /// Empty for models whose vendor has not published any (Anthropic,
+    /// OpenAI as of 2026-05).
     pub vendor_disclosures: Vec<VendorDisclosureDto>,
-    /// **C34.5** — Date de sortie publique (ISO `YYYY-MM-DD`).
+    /// **C34.5** — Public release date (ISO `YYYY-MM-DD`).
     pub release_date: String,
-    /// **C34.5** — Paramètres actifs (= total pour dense, < pour MoE).
+    /// **C34.5** — Active parameters (= total for dense, lower for MoE).
     pub active_params_b: f64,
-    /// **C34.5** — Famille typée (snake_case).
+    /// **C34.5** — Typed family (snake_case).
     pub model_family: String,
     /// **C34.5** — Architecture (`dense_transformer` / `moe` / `mamba` /
     /// `hybrid`).
     pub architecture: String,
-    /// **C34.5** — Si MoE, nombre d'experts (sinon `None`).
+    /// **C34.5** — Number of experts if MoE (otherwise `None`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moe_experts: Option<u32>,
-    /// **C34.5** — Si MoE, nombre d'experts actifs par token (sinon `None`).
+    /// **C34.5** — Number of active experts per token if MoE (otherwise `None`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moe_active_experts: Option<u32>,
-    /// **C34.5** — Accepte des images en entrée.
+    /// **C34.5** — Accepts image input.
     pub vision_capable: bool,
-    /// **C34.5** — Tarification tokens vision (formule vendor). `None` si
-    /// `vision_capable = false`. Sérialisé en JSON tagged (`{"kind": …}`).
+    /// **C34.5** — Vision token pricing (vendor formula). `None` if
+    /// `vision_capable = false`. Serialized as tagged JSON (`{"kind": …}`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vision_pricing: Option<VisionPricing>,
-    /// **C34.5** — Accepte de l'audio en entrée.
+    /// **C34.5** — Accepts audio input.
     pub audio_capable: bool,
-    /// **C34.5** — Reasoning model intégré.
+    /// **C34.5** — Built-in reasoning model.
     pub reasoning_capable: bool,
-    /// **C34.5** — `(P5, P95)` ratio thinking/output tokens. `None` si
-    /// pas reasoning.
+    /// **C34.5** — `(P5, P95)` thinking/output token ratio. `None` if
+    /// not reasoning.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_token_multiplier: Option<(f64, f64)>,
-    /// **C34.5** — Overhead système typique de l'interface app vendor.
+    /// **C34.5** — Typical system overhead of the vendor app interface.
     pub default_context_overhead_tokens: u32,
-    /// **C34.5** — Modèle obsolète (filtrer par défaut UI).
+    /// **C34.5** — Obsolete model (hidden by default in the UI).
     pub deprecated: bool,
-    /// **C34.5** — URL canonique de la source vendor.
+    /// **C34.5** — Canonical URL of the vendor source.
     pub source_url: String,
 }
 
-/// **C32.4** — Chiffre officiel publié par un fabricant (Mistral × ADEME,
-/// Google Gemini, Meta Llama). Voir `sobria_estimator::VendorDisclosure`.
+/// **C32.4** — Official figure published by a vendor (Mistral × ADEME,
+/// Google Gemini, Meta Llama). See `sobria_estimator::VendorDisclosure`.
 #[derive(Debug, Clone, Serialize)]
 pub struct VendorDisclosureDto {
     pub vendor: String,
@@ -937,21 +937,21 @@ pub struct VendorDisclosureDto {
     pub methodology_note: String,
 }
 
-/// **C32.4** — Ligne de la table comparaison vendor disclosure (M9 page
-/// principale). Agrège les disclosures de tous les modèles d'un fabricant
-/// donné.
+/// **C32.4** — Row of the vendor disclosure comparison table (M9 main
+/// page). Aggregates the disclosures of all models of a given
+/// vendor.
 #[derive(Debug, Clone, Serialize)]
 pub struct VendorComparisonRowDto {
-    /// Nom du fabricant (ex : `"Mistral AI"`, `"OpenAI"`).
+    /// Vendor name (e.g. `"Mistral AI"`, `"OpenAI"`).
     pub vendor: String,
-    /// `true` si au moins un modèle du vendor publie une disclosure
-    /// prompt-level (inference_per_prompt).
+    /// `true` if at least one model of the vendor publishes a
+    /// prompt-level disclosure (inference_per_prompt).
     pub has_prompt_level: bool,
-    /// `true` si au moins un modèle du vendor publie une disclosure
-    /// training.
+    /// `true` if at least one model of the vendor publishes a training
+    /// disclosure.
     pub has_training: bool,
-    /// Première source URL trouvée (si au moins une disclosure existe).
-    /// `None` si aucun modèle du vendor n'a de disclosure.
+    /// First source URL found (if at least one disclosure exists).
+    /// `None` if no model of the vendor has a disclosure.
     pub primary_source_url: Option<String>,
 }
 
@@ -981,13 +981,13 @@ impl From<&VendorDisclosure> for VendorDisclosureDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// benchmark (C17 — M3 Comparer modèles)
+// benchmark (C17 — M3 compare models)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Requête de benchmark N modèles sur un même prompt.
+/// Benchmark request for N models on the same prompt.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BenchmarkRequestDto {
-    /// 1..=20 model_ids à comparer.
+    /// 1..=20 model_ids to compare.
     pub model_ids: Vec<String>,
     pub tokens_in: u32,
     pub tokens_out_estimated: u32,
@@ -995,7 +995,7 @@ pub struct BenchmarkRequestDto {
     pub datacenter_id: Option<String>,
 }
 
-/// Outcome d'un modèle benchmarké.
+/// Outcome of one benchmarked model.
 #[derive(Debug, Clone, Serialize)]
 pub struct BenchmarkOutcomeDto {
     pub model_id: String,
@@ -1010,7 +1010,7 @@ pub struct BenchmarkOutcomeDto {
     pub rank_water: u32,
 }
 
-/// Résultat global d'un benchmark.
+/// Overall result of a benchmark.
 #[derive(Debug, Clone, Serialize)]
 pub struct BenchmarkResultDto {
     pub outcomes: Vec<BenchmarkOutcomeDto>,
@@ -1022,10 +1022,10 @@ pub struct BenchmarkResultDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// yearly forecast (C15 — M16 Forecaster 12 mois)
+// yearly forecast (C15 — M16 12-month forecaster)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Payload du forecast envoyé par le frontend.
+/// Forecast payload sent by the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YearlyForecastRequestDto {
     pub baseline: EstimationRequestDto,
@@ -1050,7 +1050,7 @@ impl From<YearlyScenarioDto> for YearlyScenario {
 }
 
 impl YearlyForecastRequestDto {
-    /// Convertit en types internes (ajoute le timestamp baseline).
+    /// Converts into internal types (adds the baseline timestamp).
     #[must_use]
     pub fn into_core(self, baseline_timestamp: DateTime<Utc>) -> YearlyForecastRequest {
         YearlyForecastRequest {
@@ -1100,7 +1100,7 @@ pub struct YearlyForecastResultDto {
     pub baseline_co2eq_p5_g: f64,
     pub baseline_co2eq_p50_g: f64,
     pub baseline_co2eq_p95_g: f64,
-    /// `audit_id` de l'entrée journalisée pour la baseline (0 si non journalisé).
+    /// `audit_id` of the entry logged for the baseline (0 if not logged).
     pub baseline_audit_id: i64,
     pub scenarios: Vec<YearlyScenarioOutcomeDto>,
 }
@@ -1122,18 +1122,18 @@ impl YearlyForecastResultDto {
 // CSRD report (C14 — M22)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Requête de génération de rapport CSRD/AGEC envoyée par le frontend.
+/// CSRD/AGEC report generation request sent by the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CsrdReportRequestDto {
     /// ISO 8601 (`2026-01-01T00:00:00Z`).
     pub period_start: String,
     pub period_end: String,
     pub organization_name: String,
-    /// Locale UI — v1.0 : `"fr"`.
+    /// UI locale — v1.0: `"fr"`.
     pub locale: String,
 }
 
-/// Réponse renvoyée après génération.
+/// Response returned after generation.
 #[derive(Debug, Clone, Serialize)]
 pub struct CsrdReportResultDto {
     pub pdf_path: String,
@@ -1147,12 +1147,12 @@ pub struct CsrdReportResultDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// simulation (C11 — M13 Simulateur « Et si...? »)
+// simulation (C11 — M13 "what if" simulator)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Payload de simulation envoyé par le frontend.
+/// Simulation payload sent by the frontend.
 ///
-/// Voir `docs/archive/chantiers/C11-simulateur-et-si.md`.
+/// See `docs/archive/chantiers/C11-simulateur-et-si.md`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationRequestDto {
     pub baseline: EstimationRequestDto,
@@ -1161,7 +1161,7 @@ pub struct SimulationRequestDto {
     pub forecast: Option<ForecastConfigDto>,
 }
 
-/// Scénario envoyé par le frontend.
+/// Scenario sent by the frontend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioDto {
     pub label: String,
@@ -1169,7 +1169,7 @@ pub struct ScenarioDto {
     pub overrides: ParamOverridesDto,
 }
 
-/// Overrides paramétriques optionnels. Tous les champs sont facultatifs.
+/// Optional parameter overrides. All fields are optional.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ParamOverridesDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1208,7 +1208,7 @@ impl From<ScenarioDto> for Scenario {
     }
 }
 
-/// Config de projection 12 mois.
+/// 12-month projection config.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ForecastConfigDto {
     pub months: u32,
@@ -1227,7 +1227,7 @@ impl From<ForecastConfigDto> for ForecastConfig {
 }
 
 impl SimulationRequestDto {
-    /// Convertit en `SimulationRequest` interne en ajoutant le timestamp baseline.
+    /// Converts into the internal `SimulationRequest`, adding the baseline timestamp.
     #[must_use]
     pub fn into_core(self, baseline_timestamp: DateTime<Utc>) -> SimulationRequest {
         SimulationRequest {
@@ -1238,20 +1238,20 @@ impl SimulationRequestDto {
     }
 }
 
-// ── Sortie ───────────────────────────────────────────────────────────────────
+// ── Output ───────────────────────────────────────────────────────────────────
 
-/// Résultat d'un scénario, prêt à afficher.
+/// Result of one scenario, ready to display.
 #[derive(Debug, Clone, Serialize)]
 pub struct ScenarioOutcomeDto {
     pub label: String,
     pub result: EstimationResultDto,
-    /// Δ par rapport au baseline P50, en gCO₂eq (peut être négatif).
+    /// Δ versus the baseline P50, in gCO₂eq (may be negative).
     pub delta_co2eq_g: f64,
-    /// Δ relatif en pourcentage du baseline P50.
+    /// Relative Δ as a percentage of the baseline P50.
     pub delta_pct: f64,
 }
 
-/// Résultat d'une projection 12 mois.
+/// Result of a 12-month projection.
 #[derive(Debug, Clone, Serialize)]
 pub struct ForecastResultDto {
     pub months: u32,
@@ -1275,21 +1275,21 @@ impl From<ForecastResult> for ForecastResultDto {
     }
 }
 
-/// Résultat global d'une simulation.
+/// Overall result of a simulation.
 #[derive(Debug, Clone, Serialize)]
 pub struct SimulationResultDto {
-    /// Estimation baseline (avec `audit_id` réel — journalisée).
+    /// Baseline estimation (with a real `audit_id` — logged).
     pub baseline: EstimationResultDto,
-    /// Outcomes par scénario. `result.audit_id == 0` (non journalisé).
+    /// Outcomes per scenario. `result.audit_id == 0` (not logged).
     pub scenarios: Vec<ScenarioOutcomeDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub forecast: Option<ForecastResultDto>,
 }
 
 impl SimulationResultDto {
-    /// Construit le DTO de sortie en passant l'`audit_id` de l'entrée baseline
-    /// dans le ledger. Les scénarios reçoivent un `audit_id = 0` (non journalisés
-    /// — voir brief C11 §3.audit).
+    /// Builds the output DTO, passing the `audit_id` of the baseline entry
+    /// in the ledger. Scenarios get `audit_id = 0` (not logged
+    /// — see brief C11 §3.audit).
     #[must_use]
     pub fn from_result(r: &SimulationResult, baseline_audit_id: i64) -> Self {
         let baseline = EstimationResultDto::from_result(&r.baseline, baseline_audit_id);
@@ -1315,7 +1315,7 @@ impl SimulationResultDto {
 // datacenters (C12 — M12)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Résumé d'un datacenter, suffisant pour placer un marker sur la carte.
+/// Summary of a datacenter, enough to place a marker on the map.
 #[derive(Debug, Clone, Serialize)]
 pub struct DatacenterSummaryDto {
     pub id: String,
@@ -1345,7 +1345,7 @@ impl From<&DatacenterRecord> for DatacenterSummaryDto {
     }
 }
 
-/// Détail complet pour le drill-down (donut + barres + 24h).
+/// Full detail for the drill-down (donut + bars + 24h).
 #[derive(Debug, Clone, Serialize)]
 pub struct DatacenterDetailDto {
     pub id: String,
@@ -1363,17 +1363,17 @@ pub struct DatacenterDetailDto {
     pub capacity_mw: Option<f64>,
     pub sources: Vec<String>,
     pub hourly_profile_24h: Vec<f64>,
-    /// CO₂eq P50 (gCO₂eq) pour un prompt de référence (gpt-4o-mini 100/500 tokens)
-    /// avec les paramètres PUE/IF/WUE du DC. Permet à l'UI de remplir les
-    /// "barres" sans nouvelle commande IPC.
+    /// CO₂eq P50 (gCO₂eq) for a reference prompt (gpt-4o-mini 100/500 tokens)
+    /// with the DC's PUE/IF/WUE parameters. Lets the UI fill the
+    /// "bars" without a new IPC command.
     pub baseline_co2eq_p50_g: f64,
-    /// Idem pour l'énergie (Wh) — médiane.
+    /// Same for energy (Wh) — median.
     pub baseline_energy_wh_p50: f64,
-    /// Idem pour l'eau (L) — médiane.
+    /// Same for water (L) — median.
     pub baseline_water_l_p50: f64,
 }
 
-/// Agrégat par pays pour la vue dézoomée Europe.
+/// Per-country aggregate for the zoomed-out Europe view.
 #[derive(Debug, Clone, Serialize)]
 pub struct CountryAggregateDto {
     pub country_iso: String,
@@ -1404,40 +1404,40 @@ impl From<&CountryAggregate> for CountryAggregateDto {
 // preferences (C10 — ADR-0010)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Préférences utilisateur partagées entre Rust et le frontend SvelteKit.
+/// User preferences shared between Rust and the SvelteKit frontend.
 ///
-/// Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md) et
+/// See [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md) and
 /// `docs/archive/chantiers/C10-onboarding-personas.md` §2.2.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppPreferencesDto {
-    /// Persona courant (`null` tant que l'utilisateur n'a pas validé l'onboarding).
+    /// Current persona (`null` until the user has completed onboarding).
     #[serde(default)]
     pub persona: Option<Persona>,
-    /// Modules visibles dans le rail UI. Set fermé v1.3 (24 IDs possibles, M4 réservé).
+    /// Modules visible in the UI rail. Closed set v1.3 (24 possible IDs, M4 reserved).
     pub enabled_modules: Vec<ModuleId>,
-    /// `true` une fois l'onboarding complété au moins une fois.
+    /// `true` once onboarding has been completed at least once.
     pub onboarded: bool,
-    /// Langue UI : `"fr"` ou `"en"`.
+    /// UI language: `"fr"` or `"en"`.
     pub lang: String,
-    /// Méthodologie utilisée par défaut pour les calculs (C24).
-    /// AFNOR SPEC 2314 (Sobr.ia) au premier lancement — choix souverain.
+    /// Default methodology for computations (C24).
+    /// AFNOR SPEC 2314 (Sobr.ia) on first launch — sovereign choice.
     #[serde(default)]
     pub default_method: sobria_core::EmpreinteMethod,
-    /// Méthodologies additionnelles à afficher en référence dans le
-    /// panneau "Voir aussi" (C24). Liste vide par défaut.
+    /// Extra methodologies shown for reference in the
+    /// "Voir aussi" panel (C24). Empty list by default.
     #[serde(default)]
     pub also_show_methods: Vec<sobria_core::EmpreinteMethod>,
-    /// Dernier datacenter sélectionné, pré-rempli au prochain chargement
-    /// des routes /estimate, /comparer, /simuler (C25). `None` = pas de
-    /// préfill, l'utilisateur part d'un picker vide.
+    /// Last selected datacenter, prefilled on the next load of the
+    /// /estimate, /comparer, /simuler routes (C25). `None` = no
+    /// prefill, the user starts from an empty picker.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_datacenter_id: Option<String>,
 }
 
 impl AppPreferencesDto {
-    /// Valeurs par défaut renvoyées quand `app_preferences` est vide
-    /// (premier lancement). Utilise le bundle `pro_tech` qui est le plus
-    /// équilibré (cf. ADR-0010 §"Onboarding non-bloquant").
+    /// Defaults returned when `app_preferences` is empty
+    /// (first launch). Uses the `pro_tech` bundle, the most
+    /// balanced one (see ADR-0010 §"Onboarding non-bloquant").
     #[must_use]
     pub fn defaults() -> Self {
         Self {
@@ -1453,33 +1453,34 @@ impl AppPreferencesDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Catalogue de méthodologies (C24)
+// Methodology catalogue (C24)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Métadonnées d'une méthodologie d'empreinte LLM, exposées au frontend
-/// pour affichage dans `Settings → Méthodologies` (page `/methodologies`).
+/// Metadata of an LLM footprint methodology, exposed to the frontend
+/// for display in `Settings → Méthodologies` (page `/methodologies`).
 ///
-/// Voir [`sobria_estimator::MethodologyInfo`] côté backend pour la source
-/// de vérité ; ce DTO en est une projection 1:1 sérialisable.
+/// See [`sobria_estimator::MethodologyInfo`] on the backend for the source
+/// of truth; this DTO is a 1:1 serializable projection of it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MethodologyInfoDto {
-    /// Identifiant stable (`afnor_sobria` / `ecologits`).
+    /// Stable identifier (`afnor_sobria` / `ecologits`).
     pub method: sobria_core::EmpreinteMethod,
-    /// Nom affiché en UI (langue FR).
+    /// Name shown in the UI (French).
     pub display_name: String,
-    /// Courte description 1-2 phrases (langue FR).
+    /// Short 1-2 sentence description (French).
     pub short_description: String,
-    /// URL de référence (DOI ou doc officielle).
+    /// Reference URL (DOI or official doc).
     pub reference_url: String,
-    /// DOI normalisé si dispo.
+    /// Normalized DOI if available.
     pub doi: Option<String>,
-    /// Licence de la méthodologie publiée.
+    /// License of the published methodology.
     pub license: String,
-    /// Statut de calibration ("peer_reviewed_reproduced" / "public_method_calibration_pending" / "indicative").
+    /// Calibration status ("peer_reviewed_reproduced" /
+    /// "public_method_calibration_pending" / "indicative").
     pub calibration: String,
-    /// Année de publication de la méthodologie de référence.
+    /// Publication year of the reference methodology.
     pub year_published: u16,
-    /// Organisation qui maintient la méthodologie de référence.
+    /// Organization that maintains the reference methodology.
     pub maintained_by: String,
 }
 
@@ -1509,34 +1510,34 @@ impl From<&sobria_estimator::MethodologyInfo> for MethodologyInfoDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// extension navigateur — pairing (C27.5.c/d)
+// browser extension — pairing (C27.5.c/d)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Code 6 chiffres affiché à l'utilisateur côté UI Sobr.ia pour appairer
-/// l'extension navigateur. TTL 5 min.
+/// 6-digit code shown to the user in the Sobr.ia UI to pair
+/// the browser extension. TTL 5 min.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairingCodeDto {
-    /// Les 6 chiffres à recopier dans l'extension.
+    /// The 6 digits to type into the extension.
     pub code: String,
-    /// Instant d'expiration en RFC 3339.
+    /// Expiry instant in RFC 3339.
     pub expires_at: String,
-    /// Secondes restantes (calculé serveur, indicatif pour l'UI).
+    /// Remaining seconds (computed server-side, indicative for the UI).
     pub seconds_remaining: i64,
 }
 
-/// Secret produit après validation d'un code de pairing — c'est ce que
-/// l'extension va stocker en `chrome.storage.local` et présenter à chaque
-/// requête.
+/// Secret produced once a pairing code is validated — this is what
+/// the extension stores in `chrome.storage.local` and presents with each
+/// request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairingSecretDto {
-    /// `id` du pairing créé (ULID).
+    /// `id` of the created pairing (ULID).
     pub pairing_id: String,
-    /// Secret 32 octets encodé hex (64 chars). À transmettre tel quel à
-    /// l'extension via le bridge, puis jeté côté app desktop.
+    /// 32-byte secret, hex-encoded (64 chars). Passed as is to
+    /// the extension through the bridge, then discarded by the desktop app.
     pub secret_hex: String,
 }
 
-/// Représentation UI d'un pairing actif (liste dans /parametres).
+/// UI representation of an active pairing (list in /parametres).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PairingDto {
     pub id: String,
@@ -1560,7 +1561,7 @@ impl From<&crate::extension_store::PairingRow> for PairingDto {
     }
 }
 
-/// Représentation UI d'un événement ingéré depuis l'extension.
+/// UI representation of an event ingested from the extension.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensionEventDto {
     pub id: String,
@@ -1594,8 +1595,8 @@ impl From<&crate::extension_store::ExtensionEventRow> for ExtensionEventDto {
     }
 }
 
-/// Champs extraits d'un payload `estimation_result_json` du ledger.
-/// Utilisé par [`AuditEntrySummaryDto::from_entry`].
+/// Fields extracted from a ledger `estimation_result_json` payload.
+/// Used by [`AuditEntrySummaryDto::from_entry`].
 struct ParsedPayload {
     model_id: String,
     co2eq_p50: f64,
@@ -1607,8 +1608,8 @@ fn parse_payload_full(payload: &str) -> ParsedPayload {
         return ParsedPayload {
             model_id: "(purgé)".into(),
             co2eq_p50: f64::NAN,
-            // Une entrée purgée ne révèle plus sa méthode ; on défaut sur
-            // AfnorSobria (sentinel cohérent avec ledger v1 historique).
+            // A purged entry no longer reveals its method; default to
+            // AfnorSobria (sentinel consistent with the historical v1 ledger).
             method: sobria_core::EmpreinteMethod::AfnorSobria,
         };
     }
@@ -1635,12 +1636,11 @@ fn parse_payload_full(payload: &str) -> ParsedPayload {
     }
 }
 
-/// Wrapper rétro-compat de [`parse_payload_full`] pour le code legacy qui
-/// ne veut que `(model_id, co2eq_p50)`. À supprimer quand tous les
-/// call-sites auront migré.
+/// Backward-compatible wrapper of [`parse_payload_full`] for legacy code that
+/// only wants `(model_id, co2eq_p50)`.
 ///
-/// Aujourd'hui seul utilisé par les tests — gardé sous `#[cfg(test)]` en
-/// attendant la migration / suppression définitive.
+/// Currently used only by tests — kept under `#[cfg(test)]` until
+/// the final migration / removal.
 #[cfg(test)]
 fn parse_payload(payload: &str) -> (String, f64) {
     let p = parse_payload_full(payload);

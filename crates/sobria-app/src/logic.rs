@@ -1,10 +1,10 @@
-//! Logique métier des commandes IPC, **testable sans Tauri**.
+//! Business logic of the IPC commands, **testable without Tauri**.
 //!
-//! Chaque commande `#[tauri::command]` du binaire `sobria-app` se réduit
-//! à un appel vers une fonction ici. Cela permet :
-//! - des tests unitaires rapides (`cargo test -p sobria-app`),
-//! - une réutilisation possible côté CLI plus tard (chantier C10),
-//! - une frontière propre `IpcError` ↔ logique interne.
+//! Each `#[tauri::command]` of the `sobria-app` binary boils down
+//! to a call to a function here. This gives:
+//! - fast unit tests (`cargo test -p sobria-app`),
+//! - possible reuse from a CLI later (workstream C10),
+//! - a clean `IpcError` ↔ internal logic boundary.
 
 use chrono::Utc;
 use sobria_core::{EstimationRequest, Indicator, ModuleId};
@@ -36,19 +36,17 @@ use crate::{
     state::AppState,
 };
 
-/// Constante exposée par `meta_info`.
+/// Constant exposed by `meta_info`.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Métadonnées runtime.
-/// Polish G (C24) — Helper interne : résout la méthodologie effective
-/// pour les estimations « ambient » (fiches statiques M9/M12, simulateur
-/// M13, forecaster M16) qui n'ont pas de `method` explicite dans la
-/// requête frontend.
+/// Internal helper: resolves the effective methodology for "ambient"
+/// estimations (static M9/M12 sheets, M13 simulator, M16 forecaster)
+/// that carry no explicit `method` in the frontend request.
 ///
-/// Lit `prefs.default_method` avec fallback `EmpreinteMethod::default_method()`
-/// si erreur disque ou store vide. Lecture best-effort — ne propage pas
-/// l'erreur, car ces écrans doivent rester utilisables même si le store
-/// de préférences est cassé.
+/// Reads `prefs.default_method`, falling back to `EmpreinteMethod::default_method()`
+/// on a disk error or an empty store. Best-effort read: the error is not
+/// propagated, because these screens must stay usable even if the
+/// preferences store is broken.
 fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
     state
         .preferences
@@ -59,13 +57,13 @@ fn user_default_method(state: &AppState) -> sobria_core::EmpreinteMethod {
         .unwrap_or_else(sobria_core::EmpreinteMethod::default_method)
 }
 
-/// Quand l'utilisateur a sélectionné un datacenter, surcharge `params.pue`,
-/// `params.if_electrical_g_per_kwh` et — si la fiche DC en a un —
-/// `params.wue_l_per_kwh` par des `Distribution::Point` dérivés du record.
+/// When the user has picked a datacenter, overrides `params.pue`,
+/// `params.if_electrical_g_per_kwh` and, if the DC record has one,
+/// `params.wue_l_per_kwh` with `Distribution::Point` values taken from the record.
 ///
-/// Erreurs :
-/// - `InvalidRequest` si l'id est inconnu (la liste UI vient toujours de
-///   `list_datacenters` donc un id orphelin est forcément un bug).
+/// Errors:
+/// - `InvalidRequest` if the id is unknown (the UI list always comes from
+///   `list_datacenters`, so an orphan id is always a bug).
 fn apply_datacenter_override(
     params: &mut sobria_estimator::params::EstimationParams,
     datacenter_id: Option<&str>,
@@ -88,6 +86,7 @@ fn apply_datacenter_override(
     Ok(())
 }
 
+/// Runtime metadata.
 pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
     Ok(MetaInfo {
         app_version: APP_VERSION.into(),
@@ -98,22 +97,22 @@ pub fn meta_info(state: &AppState) -> IpcResult<MetaInfo> {
     })
 }
 
-/// Liste les presets de modèles disponibles (≥ 8 — voir C06).
+/// Lists the available model presets (≥ 8, see C06).
 pub fn list_models() -> IpcResult<Vec<ModelPresetDto>> {
     Ok(available_models().into_iter().map(Into::into).collect())
 }
 
-/// **C32.4** — Agrège les disclosures vendor par fabricant pour la table
-/// comparaison M9. Renvoie une ligne par fabricant présent dans
-/// `MODEL_REGISTRY`, avec deux booléens (training / prompt-level) qui
-/// permettent à l'UI d'afficher un ✅ ou un ❌ « Pas de disclosure ».
+/// **C32.4** — Aggregates vendor disclosures by vendor for the M9
+/// comparison table. Returns one row per vendor present in
+/// `MODEL_REGISTRY`, with two booleans (training / prompt-level) that
+/// let the UI show a ✅ or a ❌ « Pas de disclosure ».
 ///
-/// Source de vérité : `sobria_estimator::MODEL_REGISTRY[*].vendor_disclosures`.
+/// Source of truth: `sobria_estimator::MODEL_REGISTRY[*].vendor_disclosures`.
 pub fn list_vendor_comparison() -> IpcResult<Vec<crate::dto::VendorComparisonRowDto>> {
     use sobria_estimator::{VendorScope, MODEL_REGISTRY};
     use std::collections::BTreeMap;
 
-    // BTreeMap : ordre alphabétique stable côté UI sans tri JS.
+    // BTreeMap: stable alphabetical order for the UI, no JS sort needed.
     let mut by_vendor: BTreeMap<String, (bool, bool, Option<String>)> = BTreeMap::new();
 
     for preset in MODEL_REGISTRY {
@@ -147,21 +146,20 @@ pub fn list_vendor_comparison() -> IpcResult<Vec<crate::dto::VendorComparisonRow
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Référentiel Gold (C26.5 — pipeline médaillon)
+// Gold referential (C26.5 — medallion pipeline)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Statut du référentiel Gold (`data/gold/referentiel.sqlite` ou path
-/// défini par `SOBRIA_REFERENTIEL_PATH`). Toujours OK : si le fichier
-/// est absent, on retourne un statut `available=false` avec un message
-/// explicite plutôt qu'une erreur IPC — l'UI peut alors proposer une
-/// action de rechargement.
+/// Status of the Gold referential (`data/gold/referentiel.sqlite` or the path
+/// set by `SOBRIA_REFERENTIEL_PATH`). Always OK: if the file is missing,
+/// returns an `available=false` status with an explicit message
+/// rather than an IPC error, so the UI can offer a
+/// reload action.
 pub fn get_referentiel_status() -> IpcResult<crate::dto::ReferentielStatusDto> {
     Ok(referentiel_status_dto())
 }
 
-/// Tente de recharger le référentiel via `dvc pull`. Skip silencieux si
-/// `dvc` n'est pas installé sur le PATH (l'UI affichera le message
-/// d'erreur). Retourne le statut résultant.
+/// Tries to reload the referential via `dvc pull`. If `dvc` is missing or
+/// fails, returns `success: false` with the error message for the UI.
 pub fn reload_referentiel() -> IpcResult<crate::dto::ReferentielReloadResultDto> {
     use crate::dto::ReferentielReloadResultDto;
 
@@ -170,7 +168,7 @@ pub fn reload_referentiel() -> IpcResult<crate::dto::ReferentielReloadResultDto>
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
-            // Limite ~4 ko pour éviter de spammer l'UI.
+            // Cap at ~4 KB so the UI is not flooded.
             let mut combined = format!("{stdout}\n{stderr}");
             if combined.len() > 4096 {
                 combined.truncate(4096);
@@ -207,9 +205,9 @@ pub fn reload_referentiel() -> IpcResult<crate::dto::ReferentielReloadResultDto>
     }
 }
 
-/// Helper interne : ouvre le référentiel et fabrique un DTO. Capture les
-/// erreurs en `available=false` plutôt que de les propager — laisse l'UI
-/// décider.
+/// Internal helper: opens the referential and builds a DTO. Turns errors
+/// into `available=false` instead of propagating them, and lets the UI
+/// decide.
 fn referentiel_status_dto() -> crate::dto::ReferentielStatusDto {
     use crate::dto::ReferentielStatusDto;
     match sobria_referentiel::load() {
@@ -249,11 +247,11 @@ fn referentiel_status_dto() -> crate::dto::ReferentielStatusDto {
     }
 }
 
-/// Liste les méthodologies d'empreinte LLM embarquées dans Sobr.ia (C24).
+/// Lists the LLM footprint methodologies built into Sobr.ia (C24).
 ///
-/// Cette commande IPC alimente la page `/methodologies` (catalogue) et
-/// les sélecteurs Settings → "Méthodologie par défaut" / "Voir aussi".
-/// Pas d'effet de bord — lecture seule du registry compile-time.
+/// This IPC command feeds the `/methodologies` page (catalogue) and
+/// the Settings → "Méthodologie par défaut" / "Voir aussi" selectors.
+/// No side effects: read-only access to the compile-time registry.
 pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
     Ok(sobria_estimator::AVAILABLE_METHODS
         .iter()
@@ -261,12 +259,12 @@ pub fn list_methodologies() -> IpcResult<Vec<crate::dto::MethodologyInfoDto>> {
         .collect())
 }
 
-/// Détaille un modèle (M9 / C18) avec ses params distributionnels et un
-/// baseline contextuel calculé sur prompt référence 100/500 tokens.
+/// Details a model (M9 / C18) with its distribution params and a
+/// context baseline computed on a 100/500-token reference prompt.
 ///
-/// **Pas journalisé** dans l'audit ledger — c'est une fiche statique
-/// pédagogique, pas un acte d'estimation utilisateur.
-#[allow(clippy::too_many_lines)] // C34.5 — ajout 16 champs capabilities, refactor en helpers couterait en lisibilité.
+/// **Not logged** in the audit ledger: this is a static, educational
+/// sheet, not a user estimation.
+#[allow(clippy::too_many_lines)] // C34.5 — 16 capability fields; helpers would hurt readability.
 pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDetailDto> {
     let preset = find_preset(model_id)
         .ok_or_else(|| IpcError::new("not_found", format!("modèle '{model_id}' inconnu")))?;
@@ -281,10 +279,10 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         sobria_estimator::CalibrationStatus::Extrapolated => "extrapolated",
     };
 
-    // Baseline pour contexte (sans journalisation).
-    // Polish G — Honore la méthodologie par défaut de l'utilisateur,
-    // sinon la fiche modèle affiche un baseline AFNOR alors que l'user
-    // calcule en EcoLogits (mensonge visuel).
+    // Baseline for context (not logged).
+    // Honours the user's default methodology; otherwise the model sheet
+    // would show an AFNOR baseline while the user computes with EcoLogits
+    // (misleading display).
     let params = EstimationParams::for_model(model_id).map_err(AppError::from)?;
     let req = sobria_core::EstimationRequest {
         model_id: model_id.to_string(),
@@ -342,9 +340,9 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
         baseline_co2eq_p95_g: co2.interval.p95,
         baseline_energy_wh_p50: energy_p50,
         baseline_water_l_p50: water_p50,
-        // C32.4 — vendor disclosures officielles.
+        // C32.4 — official vendor disclosures.
         vendor_disclosures: preset.vendor_disclosures.iter().map(Into::into).collect(),
-        // C34.5 — capabilities du modèle pour la fiche M9.
+        // C34.5 — model capabilities for the M9 sheet.
         release_date: preset.release_date.into(),
         active_params_b: preset.active_params_b,
         model_family: match preset.model_family {
@@ -386,24 +384,26 @@ pub fn get_model_detail(model_id: &str, state: &AppState) -> IpcResult<ModelDeta
     })
 }
 
-/// Estime un prompt + journalise dans le ledger.
+/// Estimates a prompt and logs it in the ledger.
 ///
-/// Étapes :
-/// 1. Validation de la requête.
-/// 2. Lookup `EstimationParams` pour le `model_id`.
-/// 3. Monte-Carlo via `MonteCarloEngine::estimate`.
-/// 4. Append au ledger (lock acquis).
-/// 5. Retourne le DTO + `audit_id`.
+/// Steps:
+/// 1. Validate the request.
+/// 2. Look up `EstimationParams` for the `model_id`, with the datacenter
+///    override, and save the datacenter as the last one used.
+/// 3. Estimate with `engine_for(method)`: the explicit method, else the
+///    user preference, else the default.
+/// 4. Append to the ledger (lock held).
+/// 5. Return the DTO + `audit_id`.
 pub fn estimate_prompt(
     req: EstimationRequestDto,
     state: &AppState,
 ) -> IpcResult<EstimationResultDto> {
-    // Vérif modèle connu avant toute conversion (erreur stable côté UI).
+    // Check the model is known before any conversion (stable error for the UI).
     if find_preset(&req.model_id).is_none() {
         return Err(IpcError::from(AppError::UnknownModel(req.model_id.clone())));
     }
 
-    // Validation basique avant Monte-Carlo (le moteur valide aussi).
+    // Basic validation before Monte-Carlo (the engine validates too).
     if req.tokens_in == 0 && req.tokens_out_estimated == 0 {
         return Err(IpcError::from(AppError::InvalidRequest(
             "tokens_in et tokens_out_estimated sont tous les deux nuls".into(),
@@ -417,9 +417,9 @@ pub fn estimate_prompt(
     let mut params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
     apply_datacenter_override(&mut params, datacenter_id.as_deref())?;
 
-    // Choix de la méthodologie : surcharge explicite > préférence user > défaut.
+    // Methodology choice: explicit override > user preference > default.
     let method = method_override.unwrap_or_else(|| {
-        // Lecture best-effort des préférences ; si erreur, fallback default.
+        // Best-effort read of the preferences; on error, fall back to the default.
         state
             .preferences
             .lock()
@@ -442,10 +442,10 @@ pub fn estimate_prompt(
     let audit_id = entry.id;
     drop(ledger);
 
-    // Persistance "last used" (C25). Best-effort : un échec ne casse pas
-    // l'estimation, on log et on continue. La valeur courante (Some ou None)
-    // est sauvegardée — symétrique, l'utilisateur peut revenir à
-    // "aucun choisi" et ça persiste.
+    // Persist "last used" (C25). Best-effort: a failure does not break
+    // the estimation; we log and carry on. The current value (Some or None)
+    // is saved, symmetrically, so the user can go back to
+    // "none selected" and that persists too.
     if let Ok(mut store) = state.preferences.lock() {
         if let Err(e) = store.set_default_datacenter_id(datacenter_id.as_deref()) {
             warn!(error = ?e, "set_default_datacenter_id échoué (non-bloquant)");
@@ -461,27 +461,27 @@ pub fn estimate_prompt(
     Ok(EstimationResultDto::from_result(&result, audit_id))
 }
 
-/// Lance une estimation **éphémère** pour le panneau "Voir aussi" (C24).
+/// Runs an **ephemeral** estimation for the "Voir aussi" panel (C24).
 ///
-/// Différence avec [`estimate_prompt`] :
-/// - La méthodologie est **toujours** spécifiée par l'appelant (pas de
-///   fallback sur la préférence user — c'est explicitement une
-///   comparaison).
-/// - Le résultat **n'est PAS journalisé** dans l'audit ledger.
+/// Differences from [`estimate_prompt`]:
+/// - The methodology is **always** set by the caller (no
+///   fallback to the user preference: this is explicitly a
+///   comparison).
+/// - The result is **NOT logged** in the audit ledger.
 ///
-/// Pourquoi ne pas logguer ? Le panneau "Voir aussi" fait tourner 1 à N
-/// méthodologies alternatives à chaque estimation principale, ce qui
-/// multiplierait le volume du ledger sans valeur ajoutée pour
-/// l'utilisateur : ces calculs sont *exploratoires*, pas des décisions.
-/// L'estimation principale (la méthodo par défaut) reste, elle, dans le
-/// ledger via [`estimate_prompt`] — c'est elle qui sert pour les
-/// rapports CSRD, le dashboard et le datasheet Gebru.
+/// Why not log? The "Voir aussi" panel runs 1 to N
+/// alternative methodologies for each main estimation, which
+/// would multiply the ledger volume with no added value for
+/// the user: these computations are *exploratory*, not decisions.
+/// The main estimation (the default methodology) does stay in the
+/// ledger via [`estimate_prompt`]; it is the one used for
+/// CSRD reports, the dashboard and the Gebru datasheet.
 ///
-/// L'`audit_id` du DTO retourné est `0` (sentinel "non journalisé").
+/// The returned DTO's `audit_id` is `0` (sentinel for "not logged").
 ///
-/// Cette fonction est *stateless* (pas d'accès au `AppState`) — un
-/// comparatif n'a pas à lire les préférences user ni à toucher au
-/// ledger. C'est volontaire.
+/// This function is *stateless* (no access to `AppState`): a
+/// comparison has no reason to read user preferences or touch the
+/// ledger. This is deliberate.
 pub fn estimate_for_comparison(
     req: EstimationRequestDto,
     method: sobria_core::EmpreinteMethod,
@@ -499,9 +499,9 @@ pub fn estimate_for_comparison(
     let datacenter_id = req.datacenter_id.clone();
     let core_req = req.into_core(Utc::now());
     let mut params = EstimationParams::for_model(&model_id).map_err(AppError::from)?;
-    // C25-A6 — applique l'override datacenter (PUE/IF/WUE) avant Monte-Carlo.
-    // Stateless : pas de persistance des prefs ici, contrairement à
-    // `estimate_prompt` — c'est volontaire (cf. rustdoc ci-dessus).
+    // C25-A6 — applies the datacenter override (PUE/IF/WUE) before Monte-Carlo.
+    // Stateless: no prefs persistence here, unlike
+    // `estimate_prompt`; this is deliberate (see the rustdoc above).
     apply_datacenter_override(&mut params, datacenter_id.as_deref())?;
     let engine = sobria_estimator::engine_for(method);
     let result = engine
@@ -514,11 +514,11 @@ pub fn estimate_for_comparison(
         co2eq_p50 = ?result.indicators.first().map(|i| i.interval.p50),
         "estimate_for_comparison: ok (no ledger write)"
     );
-    // audit_id = 0 → sentinel "estimation éphémère, non journalisée".
+    // audit_id = 0 → sentinel for "ephemeral estimation, not logged".
     Ok(EstimationResultDto::from_result(&result, 0))
 }
 
-/// Vérifie l'intégrité de la chaîne d'audit.
+/// Verifies the integrity of the audit chain.
 pub fn verify_audit(state: &AppState) -> IpcResult<IntegrityReportDto> {
     let ledger = state
         .ledger
@@ -533,9 +533,9 @@ pub fn verify_audit(state: &AppState) -> IpcResult<IntegrityReportDto> {
     Ok((&report).into())
 }
 
-/// Liste les entrées d'audit (résumé) avec pagination.
+/// Lists the audit entries (summary) with pagination.
 ///
-/// `limit` est borné à 1000 pour protéger l'UI.
+/// `limit` is capped at 1000 to protect the UI.
 pub fn list_audit_entries(
     limit: u32,
     offset: u32,
@@ -547,9 +547,9 @@ pub fn list_audit_entries(
         .ledger
         .lock()
         .map_err(|e| AppError::Poisoned(format!("ledger: {e}")))?;
-    // L'API publique du ledger n'expose pas (encore) une lecture paginée :
-    // on fait via export NDJSON en mémoire et tranche. Acceptable au volume
-    // attendu (audit < 10⁵ entrées). À factoriser en C10 si besoin.
+    // The ledger's public API does not (yet) offer a paginated read, so
+    // we export NDJSON in memory and slice it. Acceptable at the expected
+    // volume (audit < 10⁵ entries). To be factored out in C10 if needed.
     let mut buf: Vec<u8> = Vec::new();
     ledger.export_ndjson(&mut buf).map_err(AppError::from)?;
     drop(ledger);
@@ -572,13 +572,13 @@ pub fn list_audit_entries(
 // datacenters (C12 — M12)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Liste tous les datacenters européens connus (28 en v1.0).
+/// Lists all known European datacenters (28 in v1.0).
 pub fn list_datacenters() -> IpcResult<Vec<DatacenterSummaryDto>> {
     Ok(all_datacenters().iter().map(Into::into).collect())
 }
 
-/// Retourne le détail d'un datacenter avec un baseline calculé (gpt-4o-mini
-/// 100/500 tokens) pour les barres de l'UI drill-down.
+/// Returns a datacenter's details with a computed baseline (gpt-4o-mini,
+/// 100/500 tokens) for the bars of the drill-down UI.
 pub fn get_datacenter_detail(id: &str, state: &AppState) -> IpcResult<DatacenterDetailDto> {
     let dc = find_datacenter(id).ok_or_else(|| {
         IpcError::new("not_found", format!("datacenter '{id}' inconnu"))
@@ -605,16 +605,16 @@ pub fn get_datacenter_detail(id: &str, state: &AppState) -> IpcResult<Datacenter
     })
 }
 
-/// Agrège les 28 datacenters par pays (13 pays en v1.0).
+/// Aggregates the 28 datacenters by country (13 countries in v1.0).
 pub fn aggregate_datacenters_by_country() -> IpcResult<Vec<CountryAggregateDto>> {
     Ok(aggregate_by_country().iter().map(Into::into).collect())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// territoire_fr (C13 — M20 Territoire FR)
+// territoire_fr (C13 — M20 French territory)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Chemin attendu pour le JSON ODRÉ produit par `sobria-ingest`.
+/// Expected path of the ODRÉ JSON produced by `sobria-ingest`.
 fn territoire_fr_path(state: &AppState) -> std::path::PathBuf {
     state.data_root.join("territoire_fr.json")
 }
@@ -669,7 +669,7 @@ fn load_or_err(state: &AppState) -> IpcResult<TerritoireFrArtifact> {
     load_territoire_fr(&territoire_fr_path(state)).map_err(territoire_or_data_not_ingested)
 }
 
-/// Liste paginée des sites industriels (top par consommation totale décroissante).
+/// Paginated list of industrial sites (top by total consumption, descending).
 pub fn list_industrial_sites_fr(
     limit: u32,
     offset: u32,
@@ -688,7 +688,7 @@ pub fn list_industrial_sites_fr(
     Ok(dtos)
 }
 
-/// Détail d'un site IRIS par son code.
+/// Details of an IRIS site, looked up by its code.
 pub fn get_industrial_site_fr(
     code_iris: &str,
     state: &AppState,
@@ -699,7 +699,7 @@ pub fn get_industrial_site_fr(
     Ok(site.into())
 }
 
-/// Agrégation des sites industriels par région ISO.
+/// Aggregates the industrial sites by ISO region.
 pub fn aggregate_industrial_sites_by_region(
     state: &AppState,
 ) -> IpcResult<Vec<RegionFrAggregateDto>> {
@@ -710,7 +710,7 @@ pub fn aggregate_industrial_sites_by_region(
         .collect())
 }
 
-/// Génère les données du Sankey énergétique national à partir du mix RTE chargé.
+/// Generates the national energy Sankey data from the loaded RTE mix.
 pub fn sankey_fr_data(state: &AppState) -> IpcResult<SankeyDataDto> {
     let mix = load_rte_mix(&rte_mix_path(state)).map_err(sankey_or_data_not_ingested)?;
     let sankey = generate_sankey_fr(&mix);
@@ -718,19 +718,19 @@ pub fn sankey_fr_data(state: &AppState) -> IpcResult<SankeyDataDto> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// rapport CSRD/AGEC (C14 — M22)
+// CSRD/AGEC report (C14 — M22)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Génère un rapport CSRD/AGEC pour la période demandée et écrit les
-/// fichiers `report.pdf` + `provo.jsonld` dans `output_dir`.
+/// Generates a CSRD/AGEC report for the requested period and writes the
+/// `report.pdf` + `provo.jsonld` files into `output_dir`.
 ///
-/// La période est inclusive sur `period_start` et exclusive sur `period_end`.
+/// The period includes `period_start` and excludes `period_end`.
 pub fn export_csrd_report(
     req: CsrdReportRequestDto,
     output_dir: &std::path::Path,
     state: &AppState,
 ) -> IpcResult<CsrdReportResultDto> {
-    // 1. Parse les dates ISO 8601.
+    // 1. Parse the ISO 8601 dates.
     let period_start = chrono::DateTime::parse_from_rfc3339(&req.period_start)
         .map_err(|e| {
             IpcError::from(AppError::InvalidRequest(format!(
@@ -762,10 +762,10 @@ pub fn export_csrd_report(
         ))));
     }
 
-    // 2. Lit toutes les entrées de l'audit ledger.
+    // 2. Read every audit ledger entry.
     let entries = read_all_audit_entries(state)?;
 
-    // 3. Génère le rapport.
+    // 3. Generate the report.
     let export_req = sobria_export::ReportRequest {
         period_start,
         period_end,
@@ -783,7 +783,7 @@ pub fn export_csrd_report(
         other => IpcError::new("export_error", other.to_string()),
     })?;
 
-    // 4. Écrit les artefacts sur disque.
+    // 4. Write the artefacts to disk.
     std::fs::create_dir_all(output_dir).map_err(AppError::from)?;
     let pdf_path = output_dir.join("report.pdf");
     let provo_path = output_dir.join("provo.jsonld");
@@ -815,7 +815,7 @@ pub fn export_csrd_report(
 // dashboard + eco-budget (C19 — M15 + M25)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Construit le résumé dashboard pour la période donnée.
+/// Builds the dashboard summary for the given period.
 pub fn get_dashboard_summary(period_str: &str, state: &AppState) -> IpcResult<DashboardSummaryDto> {
     let period = dashboard::DashboardPeriod::parse(period_str).ok_or_else(|| {
         IpcError::from(AppError::InvalidRequest(format!(
@@ -827,7 +827,7 @@ pub fn get_dashboard_summary(period_str: &str, state: &AppState) -> IpcResult<Da
     Ok((&summary).into())
 }
 
-/// Liste tous les objectifs personnels (M25).
+/// Lists all personal goals (M25).
 pub fn list_personal_goals(state: &AppState) -> IpcResult<Vec<PersonalGoalDto>> {
     let store = state
         .goals
@@ -837,7 +837,7 @@ pub fn list_personal_goals(state: &AppState) -> IpcResult<Vec<PersonalGoalDto>> 
     Ok(goals.into_iter().map(goal_to_dto).collect())
 }
 
-/// UPSERT d'un objectif personnel.
+/// UPSERTs a personal goal.
 pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()> {
     let goal = dto_to_goal(&dto)?;
     goal.validate().map_err(IpcError::from)?;
@@ -855,7 +855,7 @@ pub fn set_personal_goal(dto: PersonalGoalDto, state: &AppState) -> IpcResult<()
     Ok(())
 }
 
-/// Supprime un objectif (idempotent).
+/// Deletes a goal (idempotent).
 pub fn delete_personal_goal(indicator: &str, period: &str, state: &AppState) -> IpcResult<()> {
     let i = GoalIndicator::parse(indicator).ok_or_else(|| {
         IpcError::from(AppError::InvalidRequest(format!(
@@ -875,7 +875,7 @@ pub fn delete_personal_goal(indicator: &str, period: &str, state: &AppState) -> 
     Ok(())
 }
 
-/// Statut budget pour chaque objectif défini.
+/// Budget status for each defined goal.
 pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
     let goals = list_personal_goals(state)?;
     if goals.is_empty() {
@@ -910,9 +910,9 @@ pub fn get_budget_status(state: &AppState) -> IpcResult<Vec<BudgetStatusDto>> {
             period_end: end.to_rfc3339(),
             consumed_pct,
             status: status.into(),
-            remaining: 0.0, // remplace ligne suivante
+            remaining: 0.0, // set just below
         });
-        // calcule remaining APRÈS push pour éviter le borrow ; on patche
+        // compute remaining AFTER the push to avoid the borrow; patch it in place
         let last = out.last_mut().unwrap();
         last.remaining = last.goal.value_max - last.current_value;
     }
@@ -949,7 +949,7 @@ fn dto_to_goal(dto: &PersonalGoalDto) -> IpcResult<PersonalGoal> {
     })
 }
 
-/// Somme un indicateur sur une fenêtre donnée. Indicator = "co2eq" | "energy" | "water".
+/// Sums an indicator over a given window. Indicator = "co2eq" | "energy" | "water".
 fn sum_indicator_in_window(
     entries: &[sobria_audit::AuditEntry],
     indicator: &str,
@@ -985,7 +985,7 @@ fn sum_indicator_in_window(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// batch CSV (C21 — M18)
+// CSV batch (C21 — M18)
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
@@ -1016,8 +1016,8 @@ fn batch_error_to_ipc(e: batch::BatchError) -> IpcError {
     }
 }
 
-/// Lance un batch CSV : parse → estimate par ligne → agrégat + export optionnel.
-#[allow(clippy::cast_precision_loss)] // batch ≤ 1000 lignes, OK pour f64
+/// Runs a CSV batch: parse → estimate per row → aggregate + optional export.
+#[allow(clippy::cast_precision_loss)] // batch ≤ 1000 rows, fine for f64
 pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<BatchResultDto> {
     let input_path = std::path::PathBuf::from(&req.input_csv_path);
     let rows = batch::parse_csv(&input_path).map_err(batch_error_to_ipc)?;
@@ -1069,7 +1069,7 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
 
     batch::check_rejection_ratio(rejected as usize, total_input).map_err(batch_error_to_ipc)?;
 
-    // Agrégation
+    // Aggregation
     let aggregate = if output_rows.is_empty() {
         BatchAggregateDto {
             total_co2eq_g_p50: 0.0,
@@ -1104,7 +1104,7 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
 
     let by_model = aggregate_by_model(&output_rows);
 
-    // Export optionnel
+    // Optional export
     let output_path = if let Some(out) = req.output_csv_path.as_ref() {
         let path = std::path::PathBuf::from(out);
         batch::export_results_csv(&path, &output_rows).map_err(batch_error_to_ipc)?;
@@ -1131,7 +1131,7 @@ pub fn run_batch_from_csv(req: BatchRequestDto, state: &AppState) -> IpcResult<B
     })
 }
 
-/// Extrait (P5, P50, P95) d'un indicateur du DTO (par son id string).
+/// Extracts (P5, P50, P95) of an indicator from the DTO (by its string id).
 fn pick_indicator_dto(dto: &EstimationResultDto, id: &str) -> (f64, f64, f64) {
     dto.indicators
         .iter()
@@ -1165,10 +1165,10 @@ fn aggregate_by_model(rows: &[batch::BatchOutputRow]) -> Vec<BatchModelAggregate
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// projects + datasheet (C20 — M17 Empreinte projet)
+// projects + datasheet (C20 — M17 project footprint)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Liste tous les projets enregistrés (ordre ID décroissant).
+/// Lists all saved projects (descending ID order).
 pub fn list_projects(state: &AppState) -> IpcResult<Vec<ProjectDto>> {
     let store = state
         .projects
@@ -1178,7 +1178,7 @@ pub fn list_projects(state: &AppState) -> IpcResult<Vec<ProjectDto>> {
     Ok(projects.into_iter().map(project_to_dto).collect())
 }
 
-/// Récupère un projet par son ID.
+/// Fetches a project by its ID.
 pub fn get_project(id: i64, state: &AppState) -> IpcResult<ProjectDto> {
     let store = state
         .projects
@@ -1191,7 +1191,7 @@ pub fn get_project(id: i64, state: &AppState) -> IpcResult<ProjectDto> {
     Ok(project_to_dto(p))
 }
 
-/// Crée un nouveau projet et retourne sa version persistée.
+/// Creates a new project and returns its persisted version.
 pub fn create_project(req: CreateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
     let period_start = parse_rfc3339(&req.period_start, "period_start")?;
     let period_end = parse_rfc3339(&req.period_end, "period_end")?;
@@ -1212,7 +1212,7 @@ pub fn create_project(req: CreateProjectDto, state: &AppState) -> IpcResult<Proj
     Ok(project_to_dto(p))
 }
 
-/// Met à jour un projet existant (champs optionnels, dates non modifiables).
+/// Updates an existing project (optional fields; dates cannot be changed).
 pub fn update_project(id: i64, req: UpdateProjectDto, state: &AppState) -> IpcResult<ProjectDto> {
     let mut store = state
         .projects
@@ -1231,7 +1231,7 @@ pub fn update_project(id: i64, req: UpdateProjectDto, state: &AppState) -> IpcRe
     Ok(project_to_dto(p))
 }
 
-/// Supprime un projet (idempotent).
+/// Deletes a project (idempotent).
 pub fn delete_project(id: i64, state: &AppState) -> IpcResult<()> {
     let mut store = state
         .projects
@@ -1241,9 +1241,9 @@ pub fn delete_project(id: i64, state: &AppState) -> IpcResult<()> {
     Ok(())
 }
 
-/// Génère le datasheet Gebru JSON-LD pour un projet existant.
+/// Generates the Gebru JSON-LD datasheet for an existing project.
 pub fn generate_project_datasheet(id: i64, state: &AppState) -> IpcResult<DatasheetDto> {
-    // 1. Récupère le projet.
+    // 1. Fetch the project.
     let project = {
         let store = state
             .projects
@@ -1255,14 +1255,14 @@ pub fn generate_project_datasheet(id: i64, state: &AppState) -> IpcResult<Datash
             .ok_or_else(|| IpcError::new("not_found", format!("projet {id} inconnu")))?
     };
 
-    // 2. Filtre les entrées du ledger sur la période.
+    // 2. Keep the ledger entries that fall in the period.
     let all_entries = read_all_audit_entries(state)?;
     let in_period: Vec<sobria_audit::AuditEntry> = all_entries
         .into_iter()
         .filter(|e| e.timestamp >= project.period_start && e.timestamp < project.period_end)
         .collect();
 
-    // 3. Construit le datasheet.
+    // 3. Build the datasheet.
     let meta = sobria_export::ProjectMeta {
         id: project.id,
         name: project.name.clone(),
@@ -1313,8 +1313,8 @@ fn parse_rfc3339(s: &str, field: &str) -> IpcResult<chrono::DateTime<Utc>> {
         })
 }
 
-/// Lit toutes les entrées du ledger en mémoire (export ndjson + parse).
-/// OK au volume v1.0 (<10⁵ entrées).
+/// Reads every ledger entry into memory (NDJSON export + parse).
+/// Fine at the v1.0 volume (<10⁵ entries).
 fn read_all_audit_entries(state: &AppState) -> IpcResult<Vec<sobria_audit::AuditEntry>> {
     let ledger = state
         .ledger
@@ -1335,18 +1335,18 @@ fn read_all_audit_entries(state: &AppState) -> IpcResult<Vec<sobria_audit::Audit
     Ok(out)
 }
 
-/// Calcule un baseline (CO₂eq, énergie, eau) pour un DC donné avec un prompt
-/// de référence gpt-4o-mini 100/500 tokens. Les params PUE/IF/WUE du DC
-/// sont injectés comme `Distribution::Point` (déterministes).
+/// Computes a baseline (CO₂eq, energy, water) for a given DC with a
+/// gpt-4o-mini 100/500-token reference prompt. The DC's PUE/IF/WUE params
+/// are injected as `Distribution::Point` (deterministic).
 ///
-/// **Détermination cross-DC** : pour que les comparaisons entre DC soient
-/// numériquement comparables (même graine Monte-Carlo, mêmes tirages),
-/// on force tous les paramètres "scalaires" en `Point`. Pour les DC qui
-/// ne publient pas leur WUE, on injecte une valeur médiane littéraire
-/// (1.5 L/kWh — Mytton 2021) afin d'éviter qu'une distribution `Uniform`
-/// fasse dériver l'état du RNG entre deux DC et masque la différence
-/// de mix électrique. Cette WUE par défaut ne réapparaît pas dans le DTO
-/// retourné (`wue_l_per_kwh` reste `None` côté front).
+/// **Cross-DC determinism**: so that DC-to-DC comparisons stay
+/// numerically comparable (same Monte-Carlo seed, same draws),
+/// every "scalar" parameter is forced to `Point`. For DCs that
+/// do not publish their WUE, a median value from the literature is used
+/// (1.5 L/kWh — Mytton 2021), so that a `Uniform` distribution does not
+/// shift the RNG state between two DCs and hide the difference
+/// in electricity mix. This default WUE does not show up in the returned
+/// DTO (`wue_l_per_kwh` stays `None` on the frontend).
 fn compute_baseline_for_dc(
     dc: &DatacenterRecord,
     state: &AppState,
@@ -1354,8 +1354,8 @@ fn compute_baseline_for_dc(
     const REF_MODEL: &str = "gpt-4o-mini";
     const REF_TOKENS_IN: u32 = 100;
     const REF_TOKENS_OUT: u32 = 500;
-    /// Médian Mytton 2021 — utilisé uniquement pour les DC qui ne publient
-    /// pas leur WUE. Préserve la déterminisme RNG entre DC.
+    /// Mytton 2021 median, used only for DCs that do not publish
+    /// their WUE. Keeps the RNG deterministic across DCs.
     const WUE_DEFAULT_L_PER_KWH: f64 = 1.5;
 
     let mut params = EstimationParams::for_model(REF_MODEL)?;
@@ -1377,7 +1377,7 @@ fn compute_baseline_for_dc(
         modalities: Vec::new(),
         overhead: sobria_core::ContextOverhead::default(),
     };
-    // Polish G — baseline DC respecte la méthodologie user
+    // The DC baseline honours the user's methodology.
     let engine = sobria_estimator::engine_for(user_default_method(state));
     let result = engine.estimate(&req, &params)?;
     let co2 = pick_p50(&result, Indicator::Co2Eq);
@@ -1394,15 +1394,15 @@ fn pick_p50(result: &sobria_core::EstimationResult, ind: Indicator) -> f64 {
         .map_or(0.0, |i| i.interval.p50)
 }
 
-/// Borne haute du nombre de modèles autorisés dans un benchmark.
+/// Upper bound on the number of models allowed in a benchmark.
 pub const MAX_BENCHMARK_MODELS: usize = 20;
 
-/// Compare N modèles (1..=`MAX_BENCHMARK_MODELS`) sur un même prompt (M3 / C17).
+/// Compares N models (1..=`MAX_BENCHMARK_MODELS`) on the same prompt (M3 / C17).
 ///
-/// Boucle simplement sur `estimate_prompt` puis calcule des classements
-/// par P50 ascendant pour CO₂eq / énergie / eau. Chaque appel journalise
-/// dans l'audit ledger (1 entrée par modèle).
-#[allow(clippy::too_many_lines)] // flow linéaire : validations + N estimations + 3 rankings
+/// Simply loops over `estimate_prompt`, then computes rankings
+/// by ascending P50 for CO₂eq / energy / water. Each call logs
+/// to the audit ledger (1 entry per model).
+#[allow(clippy::too_many_lines)] // linear flow: validations + N estimations + 3 rankings
 pub fn benchmark_models(
     req: BenchmarkRequestDto,
     state: &AppState,
@@ -1437,14 +1437,14 @@ pub fn benchmark_models(
         return Err(IpcError::from(AppError::UnknownModel(unknown.join(", "))));
     }
 
-    // 2. Estimation + journalisation de chaque modèle.
+    // 2. Estimate and log each model.
     //
-    // Polish D — On lit la méthodologie par défaut **une fois** au lieu
-    // de laisser chaque `estimate_prompt` la relire depuis SQLite. Ça :
-    // 1. évite N appels disque (1 par modèle benchmarké),
-    // 2. garantit que TOUS les modèles utilisent la **même** méthodo
-    //    même si l'utilisateur change ses préférences pendant le calcul
-    //    (race-condition mitigation — un benchmark doit être cohérent).
+    // Reads the default methodology **once** instead of letting each
+    // `estimate_prompt` re-read it from SQLite. This:
+    // 1. avoids N disk reads (1 per benchmarked model),
+    // 2. guarantees that ALL models use the **same** methodology
+    //    even if the user changes their preferences during the run
+    //    (race-condition mitigation: a benchmark must be consistent).
     let user_method = state
         .preferences
         .lock()
@@ -1461,7 +1461,7 @@ pub fn benchmark_models(
             tokens_in: req.tokens_in,
             tokens_out_estimated: req.tokens_out_estimated,
             datacenter_id: req.datacenter_id.clone(),
-            // Méthodo explicite — pas de fallback IPC, on a déjà résolu.
+            // Explicit methodology: no IPC fallback, it is already resolved.
             method: Some(user_method),
             modalities: None,
             overhead: None,
@@ -1490,14 +1490,14 @@ pub fn benchmark_models(
             }
             .into(),
             result: result_dto,
-            rank_co2eq: 0, // assigné ci-dessous
+            rank_co2eq: 0, // assigned below
             rank_energy: 0,
             rank_water: 0,
         };
         tmp.push((outcome, co2_p50, energy_p50, water_p50));
     }
 
-    // 3. Classements ascendant (rang 1 = meilleur = plus bas P50).
+    // 3. Ascending rankings (rank 1 = best = lowest P50).
     let ranking_co2 = rank_ascending(&tmp, |v| v.1);
     let ranking_energy = rank_ascending(&tmp, |v| v.2);
     let ranking_water = rank_ascending(&tmp, |v| v.3);
@@ -1520,7 +1520,7 @@ pub fn benchmark_models(
             o
         })
         .collect();
-    // Garde l'ordre demandé par l'utilisateur dans `outcomes` (utile pour l'UI).
+    // Keep the user's requested order in `outcomes` (useful for the UI).
     let order: Vec<String> = req.model_ids.clone();
     outcomes.sort_by_key(|o| {
         order
@@ -1573,21 +1573,21 @@ fn build_rank_map(ranking: &[String]) -> std::collections::HashMap<String, u32> 
         .iter()
         .enumerate()
         .map(|(i, m)| {
-            // Borné par MAX_BENCHMARK_MODELS (= 20) → cast safe.
+            // Bounded by MAX_BENCHMARK_MODELS (= 20) → safe cast.
             let rank = u32::try_from(i).unwrap_or(u32::MAX).saturating_add(1);
             (m.clone(), rank)
         })
         .collect()
 }
 
-/// Lance un forecast 12 mois (M16 / C15) avec bande d'incertitude
-/// P5/P50/P95 et superposition de scénarios de croissance.
+/// Runs a 12-month forecast (M16 / C15) with a P5/P50/P95
+/// uncertainty band and overlaid growth scenarios.
 ///
-/// Étapes :
-/// 1. Validation modèle baseline.
-/// 2. `sobria_estimator::forecast_yearly()` (1 Monte-Carlo + projections déterministes).
-/// 3. Journalisation du baseline dans le ledger (1 entrée).
-/// 4. Conversion DTO.
+/// Steps:
+/// 1. Validate the baseline model.
+/// 2. `sobria_estimator::forecast_yearly()` (1 Monte-Carlo + deterministic projections).
+/// 3. Log the baseline in the ledger (1 entry).
+/// 4. Convert to the DTO.
 pub fn forecast_yearly_budget(
     req: YearlyForecastRequestDto,
     state: &AppState,
@@ -1598,15 +1598,15 @@ pub fn forecast_yearly_budget(
         )));
     }
     let core_req = req.into_core(Utc::now());
-    // Polish G — Forecaster honore la méthodologie par défaut user.
+    // The forecaster honours the user's default methodology.
     let engine = sobria_estimator::engine_for(user_default_method(state));
     let result =
         sobria_estimator::forecast_yearly(engine.as_ref(), &core_req).map_err(AppError::from)?;
 
-    // Journalisation baseline : on relance l'estimateur baseline pour
-    // récupérer un EstimationResult complet (avec bins) à journaliser.
-    // Aurait pu être renvoyé par forecast_yearly() mais on garde l'API
-    // simple ; le coût est faible (1 Monte-Carlo de plus).
+    // Baseline logging: rerun the baseline estimation to get a full
+    // EstimationResult (with bins) to log.
+    // forecast_yearly() could have returned it, but we keep the API
+    // simple; the cost is low (1 extra Monte-Carlo run).
     let params = sobria_estimator::EstimationParams::for_model(&core_req.baseline.model_id)
         .map_err(AppError::from)?;
     let baseline_full = engine
@@ -1630,14 +1630,15 @@ pub fn forecast_yearly_budget(
     Ok(YearlyForecastResultDto::from_result(&result, audit_id))
 }
 
-/// Lance une simulation « Et si...? » (M13 / C11).
+/// Runs a « Et si...? » simulation (M13 / C11).
 ///
-/// Étapes :
-/// 1. Validation modèle baseline.
-/// 2. Conversion DTO → types Rust internes (avec timestamp baseline).
+/// Steps:
+/// 1. Validate the baseline model.
+/// 2. Convert DTO → internal Rust types (with the baseline timestamp and the
+///    datacenter override).
 /// 3. `sobria_estimator::simulate(...)`.
-/// 4. Journalisation **du seul baseline** dans le ledger (cf. brief C11 §3).
-/// 5. Retourne le DTO complet (baseline avec audit_id, scénarios sans).
+/// 4. Log **only the baseline** in the ledger (see brief C11 §3).
+/// 5. Return the full DTO (baseline with audit_id, scenarios without).
 pub fn simulate_scenarios(
     req: SimulationRequestDto,
     state: &AppState,
@@ -1647,19 +1648,19 @@ pub fn simulate_scenarios(
             req.baseline.model_id.clone(),
         )));
     }
-    // C25-A8 — Honore `datacenter_id` du baseline en surchargeant
-    // PUE/IF/WUE des params avant délégation à l'estimator. La signature
-    // de `sobria_estimator::simulate` accepte désormais `baseline_params`
-    // explicitement pour ce câblage.
+    // C25-A8 — Honours the baseline's `datacenter_id` by overriding
+    // PUE/IF/WUE in the params before handing over to the estimator. The
+    // signature of `sobria_estimator::simulate` now takes `baseline_params`
+    // explicitly for this wiring.
     let mut params = EstimationParams::for_model(&req.baseline.model_id).map_err(AppError::from)?;
     apply_datacenter_override(&mut params, req.baseline.datacenter_id.as_deref())?;
     let sim_core = req.into_core(Utc::now());
-    // Polish G — Simulateur honore la méthodologie par défaut user.
+    // The simulator honours the user's default methodology.
     let engine = sobria_estimator::engine_for(user_default_method(state));
     let result =
         sobria_estimator::simulate(engine.as_ref(), &sim_core, &params).map_err(AppError::from)?;
 
-    // Journalise UNIQUEMENT le baseline (les scénarios sont exploratoires).
+    // Log ONLY the baseline (the scenarios are exploratory).
     let mut ledger = state
         .ledger
         .lock()
@@ -1678,7 +1679,7 @@ pub fn simulate_scenarios(
     Ok(SimulationResultDto::from_result(&result, audit_id))
 }
 
-/// Exporte le ledger en NDJSON vers `path`. Retourne le nombre de lignes.
+/// Exports the ledger as NDJSON to `path`. Returns the number of lines.
 pub fn export_audit_ndjson(path: &std::path::Path, state: &AppState) -> IpcResult<usize> {
     let ledger = state
         .ledger
@@ -1691,11 +1692,11 @@ pub fn export_audit_ndjson(path: &std::path::Path, state: &AppState) -> IpcResul
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// préférences utilisateur (C10 — ADR-0010)
+// user preferences (C10 — ADR-0010)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Récupère les préférences utilisateur. Fusionne les valeurs persistées
-/// avec les défauts (`AppPreferencesDto::defaults()`).
+/// Fetches the user preferences. Merges the persisted values
+/// with the defaults (`AppPreferencesDto::defaults()`).
 pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
     let store = state
         .preferences
@@ -1719,16 +1720,16 @@ pub fn get_app_preferences(state: &AppState) -> IpcResult<AppPreferencesDto> {
     })
 }
 
-/// Persiste les préférences utilisateur après validation stricte.
+/// Persists the user preferences after strict validation.
 ///
-/// Erreurs retournées (toutes en `invalid_request`) :
-/// - `lang` n'est pas dans `{"fr", "en"}`,
-/// - `enabled_modules` contient des doublons,
-/// - `enabled_modules` est vide alors que `onboarded == true` (un utilisateur
-///   onboardé doit avoir au moins un module — M1 au strict minimum).
+/// Errors returned (all as `invalid_request`):
+/// - `lang` is not in `{"fr", "en"}`,
+/// - `enabled_modules` contains duplicates,
+/// - `enabled_modules` is empty while `onboarded == true` (an onboarded
+///   user must keep at least one module, M1 at the very least).
 ///
-/// Note : les variantes invalides de `Persona` / `ModuleId` sont déjà
-/// rejetées à la désérialisation par serde — pas besoin de re-valider ici.
+/// Note: invalid `Persona` / `ModuleId` variants are already
+/// rejected by serde at deserialization, so there is no need to re-validate here.
 pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcResult<()> {
     validate_lang(&prefs.lang)?;
     validate_modules(&prefs.enabled_modules, prefs.onboarded)?;
@@ -1740,12 +1741,12 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         lang: Some(prefs.lang),
         default_method: Some(prefs.default_method),
         also_show_methods: Some(prefs.also_show_methods),
-        // C25 : `write_all` ne fait qu'`UPSERT` quand `Some` et ignore les
-        // `None` (sémantique skip-on-None documentée dans
-        // `preferences_store::write_all`). Pour un set IPC qui doit refléter
-        // une suppression explicite (`None` côté DTO ⇒ ligne supprimée), on
-        // appelle `set_default_datacenter_id` après `write_all` ci-dessous.
-        // On laisse donc le champ à `None` ici pour éviter un double UPSERT.
+        // C25: `write_all` only does an `UPSERT` for `Some` and ignores
+        // `None` (skip-on-None semantics documented in
+        // `preferences_store::write_all`). For an IPC set that must reflect
+        // an explicit removal (`None` in the DTO ⇒ row deleted), we
+        // call `set_default_datacenter_id` after `write_all` below.
+        // So the field stays `None` here to avoid a double UPSERT.
         default_datacenter_id: None,
     };
 
@@ -1754,19 +1755,19 @@ pub fn set_app_preferences(prefs: AppPreferencesDto, state: &AppState) -> IpcRes
         .lock()
         .map_err(|e| AppError::Poisoned(format!("preferences: {e}")))?;
     store.write_all(&stored).map_err(IpcError::from)?;
-    // C25 : le DTO `AppPreferencesDto` autorise `default_datacenter_id = None`
-    // pour vider explicitement la clé. Comme `write_all` SKIP-on-None pour tous
-    // les champs `Option` non-`persona` (cf. doc de `write_all`), un appel
-    // `write_all` ne supprime jamais cette clé : on route donc l'intention
-    // explicite via le setter dédié `set_default_datacenter_id`.
+    // C25: the `AppPreferencesDto` DTO allows `default_datacenter_id = None`
+    // to clear the key explicitly. Since `write_all` is SKIP-on-None for every
+    // non-`persona` `Option` field (see the `write_all` doc), a `write_all`
+    // call never deletes this key, so the explicit intent goes through
+    // the dedicated setter `set_default_datacenter_id`.
     //
-    // Note : ce setter s'exécute dans sa propre transaction, donc le couple
-    // `write_all` + `set_default_datacenter_id` N'EST PAS atomique. Un kill
-    // process entre les deux laisse `default_datacenter_id` désynchronisé du
-    // reste. C'est un trade-off accepté : la fenêtre est de l'ordre du µs et
-    // l'enjeu utilisateur (pré-remplir un picker) ne justifie pas la complexité
-    // d'un paramètre "full-replacement" sur `write_all`. À revisiter si une
-    // classe d'opérations exigeant l'atomicité émerge.
+    // Note: this setter runs in its own transaction, so the
+    // `write_all` + `set_default_datacenter_id` pair is NOT atomic. A process
+    // kill between the two leaves `default_datacenter_id` out of sync with
+    // the rest. This is an accepted trade-off: the window is around a µs and
+    // the user stake (prefilling a picker) does not justify the complexity
+    // of a "full-replacement" parameter on `write_all`. To revisit if a
+    // class of operations that need atomicity appears.
     store
         .set_default_datacenter_id(prefs.default_datacenter_id.as_deref())
         .map_err(IpcError::from)?;
@@ -1794,7 +1795,7 @@ fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
             "un utilisateur onboardé doit conserver au moins un module".into(),
         )));
     }
-    // Doublons : un module ne peut apparaître qu'une fois.
+    // Duplicates: a module may appear only once.
     let mut seen = std::collections::HashSet::new();
     for m in modules {
         if !seen.insert(*m) {
@@ -1807,15 +1808,15 @@ fn validate_modules(modules: &[ModuleId], onboarded: bool) -> IpcResult<()> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// extension navigateur — pairing + ingestion (C27.5.c/d)
+// browser extension — pairing + ingestion (C27.5.c/d)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Génère (ou régénère) un code de pairing 6 chiffres, TTL 5 min, single-use.
+/// Generates (or regenerates) a 6-digit pairing code, 5 min TTL, single-use.
 ///
-/// Stocke le code dans `state.pending_code` (écrase l'éventuel code précédent).
-/// L'UI affiche ces 6 chiffres ; l'utilisateur les saisit dans l'extension
-/// qui les transmet via le bridge, et l'app desktop appellera ensuite
-/// `verify_pairing_code` pour finaliser.
+/// Stores the code in `state.pending_code` (overwrites any previous code).
+/// The UI shows these 6 digits; the user types them into the extension,
+/// which sends them through the bridge, and the desktop app then calls
+/// `verify_pairing_code` to finish.
 pub fn regenerate_pairing_code(state: &AppState) -> IpcResult<crate::dto::PairingCodeDto> {
     let code = crate::pairing::PendingCode::new();
     let now = Utc::now();
@@ -1833,7 +1834,7 @@ pub fn regenerate_pairing_code(state: &AppState) -> IpcResult<crate::dto::Pairin
     Ok(dto)
 }
 
-/// Statut courant du code (ou `None` si aucun code en attente / expiré).
+/// Current status of the code (or `None` if no code is pending or it has expired).
 pub fn get_pairing_code_status(state: &AppState) -> IpcResult<Option<crate::dto::PairingCodeDto>> {
     let guard = state
         .pending_code
@@ -1850,9 +1851,9 @@ pub fn get_pairing_code_status(state: &AppState) -> IpcResult<Option<crate::dto:
         }))
 }
 
-/// Valide un code saisi dans l'extension : si OK, génère le secret, persiste
-/// le pairing dans `device_pairings`, consomme le `pending_code`, retourne
-/// le secret en clair (le seul moment où il sort de l'app).
+/// Validates a code typed into the extension: if OK, generates the secret,
+/// persists the pairing in `device_pairings`, consumes the `pending_code`, and
+/// returns the secret in clear text (the only time it leaves the app).
 pub fn verify_pairing_code(
     state: &AppState,
     code: &str,
@@ -1881,7 +1882,7 @@ pub fn verify_pairing_code(
             IpcError::new("invalid_pairing_code", "code invalide ou expiré")
         },
     })?;
-    // Code OK : génère le secret + persiste.
+    // Code OK: generate the secret and persist it.
     let secret = crate::pairing::PairingSecret::new();
     let store = state
         .extension_store
@@ -1890,7 +1891,7 @@ pub fn verify_pairing_code(
     let pairing_id = store
         .record_pairing(fingerprint, &secret)
         .map_err(AppError::from)?;
-    // Consomme le code (single-use).
+    // Consume the code (single-use).
     *guard = None;
     info!(%pairing_id, fingerprint, "pairing: validé + persisté");
     Ok(crate::dto::PairingSecretDto {
@@ -1899,7 +1900,7 @@ pub fn verify_pairing_code(
     })
 }
 
-/// Liste les pairings (révoqués inclus pour audit).
+/// Lists the pairings (revoked ones included, for audit).
 pub fn list_pairings(state: &AppState) -> IpcResult<Vec<crate::dto::PairingDto>> {
     let store = state
         .extension_store
@@ -1909,7 +1910,7 @@ pub fn list_pairings(state: &AppState) -> IpcResult<Vec<crate::dto::PairingDto>>
     Ok(rows.iter().map(Into::into).collect())
 }
 
-/// Marque un pairing comme révoqué (la ligne reste pour audit).
+/// Marks a pairing as revoked (the row stays, for audit).
 pub fn revoke_pairing(state: &AppState, id: &str) -> IpcResult<()> {
     let store = state
         .extension_store
@@ -1920,7 +1921,7 @@ pub fn revoke_pairing(state: &AppState, id: &str) -> IpcResult<()> {
     Ok(())
 }
 
-/// Liste les évènements ingérés depuis l'extension (paginé).
+/// Lists the events ingested from the extension (paginated).
 pub fn list_extension_events(
     state: &AppState,
     limit: u32,
@@ -1936,8 +1937,8 @@ pub fn list_extension_events(
     Ok(rows.iter().map(Into::into).collect())
 }
 
-/// Drain le spool `~/.sobria/spool/incoming.jsonl` produit par `sobria-bridge`.
-/// Retourne le nombre d'évènements ingérés. Appelé manuellement ou par un timer.
+/// Drains the `~/.sobria/spool/incoming.jsonl` spool produced by `sobria-bridge`.
+/// Returns the number of ingested events. Called manually or by a timer.
 pub fn drain_extension_spool(state: &AppState) -> IpcResult<usize> {
     let spool_path =
         sobria_bridge::spool_path().map_err(|e| AppError::Internal(format!("{e:#}")))?;
@@ -1953,7 +1954,7 @@ pub fn drain_extension_spool(state: &AppState) -> IpcResult<usize> {
 }
 
 #[cfg(test)]
-#[allow(unused_variables)] // certains tests gardent `tmp` uniquement comme drop-guard RAII
+#[allow(unused_variables)] // some tests keep `tmp` only as an RAII drop guard
 mod tests {
     use super::*;
 
@@ -1976,7 +1977,7 @@ mod tests {
     fn list_models_returns_at_least_8() {
         let models = list_models().unwrap();
         assert!(models.len() >= 8, "got {} models", models.len());
-        // Présence de quelques modèles clés du registry C06.
+        // A few key models from the C06 registry are present.
         let ids: Vec<&str> = models.iter().map(|m| m.id.as_str()).collect();
         assert!(ids.contains(&"gpt-4o-mini"));
         assert!(ids.contains(&"claude-3-5-sonnet"));
@@ -1984,8 +1985,8 @@ mod tests {
 
     #[test]
     fn list_vendor_comparison_has_5_vendors_with_correct_flags() {
-        // C32.4 — la table comparaison doit montrer les 5 fabricants
-        // présents dans MODEL_REGISTRY, avec leurs flags has_*.
+        // C32.4 — the comparison table must show the 5 vendors
+        // present in MODEL_REGISTRY, with their has_* flags.
         let rows = list_vendor_comparison().unwrap();
         let vendors: Vec<&str> = rows.iter().map(|r| r.vendor.as_str()).collect();
         for expected in ["Mistral AI", "Google", "Meta", "Anthropic", "OpenAI"] {
@@ -1994,25 +1995,25 @@ mod tests {
                 "vendor {expected} attendu dans la comparaison, vu : {vendors:?}"
             );
         }
-        // Mistral AI : training ✓ + prompt-level ✓.
+        // Mistral AI: training ✓ + prompt-level ✓.
         let mistral = rows.iter().find(|r| r.vendor == "Mistral AI").unwrap();
         assert!(mistral.has_training, "Mistral AI doit avoir training=true");
         assert!(
             mistral.has_prompt_level,
             "Mistral AI doit avoir prompt-level=true"
         );
-        // Google : prompt-level ✓ seulement.
+        // Google: prompt-level ✓ only.
         let google = rows.iter().find(|r| r.vendor == "Google").unwrap();
         assert!(google.has_prompt_level);
         assert!(!google.has_training, "Google ne publie pas training");
-        // Meta : training ✓ seulement.
+        // Meta: training ✓ only.
         let meta = rows.iter().find(|r| r.vendor == "Meta").unwrap();
         assert!(meta.has_training);
         assert!(
             !meta.has_prompt_level,
             "Meta ne publie pas prompt-level (training only)"
         );
-        // Anthropic + OpenAI : aucune disclosure.
+        // Anthropic + OpenAI: no disclosure.
         for absent in ["Anthropic", "OpenAI"] {
             let row = rows.iter().find(|r| r.vendor == absent).unwrap();
             assert!(
@@ -2073,7 +2074,7 @@ mod tests {
         let result = estimate_prompt(req, &state).unwrap();
         assert!(result.audit_id >= 1);
         assert_eq!(result.indicators.len(), 3);
-        // CO₂eq attendu strictement positif et fini.
+        // CO₂eq expected to be strictly positive and finite.
         let co2 = result
             .indicators
             .iter()
@@ -2151,7 +2152,7 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // préférences utilisateur — C10 / ADR-0010
+    // user preferences — C10 / ADR-0010
     // ─────────────────────────────────────────────────────────────────────
 
     use sobria_core::{ModuleId, Persona};
@@ -2163,7 +2164,7 @@ mod tests {
         assert!(prefs.persona.is_none(), "persona doit être None par défaut");
         assert!(!prefs.onboarded, "onboarded false par défaut");
         assert_eq!(prefs.lang, "fr");
-        // Le bundle par défaut est celui de pro_tech (cf ADR-0010).
+        // The default bundle is the pro_tech one (see ADR-0010).
         assert_eq!(
             prefs.enabled_modules,
             Persona::ProTech.default_modules(),
@@ -2219,7 +2220,7 @@ mod tests {
             persona: Some(Persona::Student),
             enabled_modules: vec![ModuleId::M1],
             onboarded: true,
-            lang: "es".into(), // espagnol pas supporté en v1.0
+            lang: "es".into(), // Spanish not supported in v1.0
             ..AppPreferencesDto::defaults()
         };
         let err = set_app_preferences(prefs, &state).unwrap_err();
@@ -2243,7 +2244,7 @@ mod tests {
 
     #[test]
     fn set_preferences_allows_empty_modules_when_not_onboarded() {
-        // Au tout début de l'onboarding, l'utilisateur n'a encore rien coché.
+        // At the very start of onboarding, the user has not ticked anything yet.
         let (tmp, state) = fresh_state();
         let prefs = AppPreferencesDto {
             persona: None,
@@ -2374,8 +2375,8 @@ mod tests {
             "scenarios non journalisés"
         );
         assert!(res.scenarios[0].delta_co2eq_g.is_finite());
-        // PUE 1.05 doit donner un delta négatif (moins que baseline avec PUE
-        // uniforme [1.1, 1.4]).
+        // PUE 1.05 must give a negative delta (lower than the baseline with a
+        // uniform PUE [1.1, 1.4]).
         assert!(
             res.scenarios[0].delta_co2eq_g < 0.0,
             "PUE 1.05 doit baisser CO2eq, got {}",
@@ -2420,7 +2421,7 @@ mod tests {
         assert_eq!(f.months, 12);
         assert_eq!(f.baseline_monthly_co2eq_g.len(), 12);
         assert!(f.baseline_annual_co2eq_g > 0.0);
-        // Série géométrique croissante
+        // Increasing geometric series
         for i in 1..f.baseline_monthly_co2eq_g.len() {
             assert!(
                 f.baseline_monthly_co2eq_g[i] > f.baseline_monthly_co2eq_g[i - 1],
@@ -2437,7 +2438,7 @@ mod tests {
     fn list_datacenters_returns_28() {
         let dcs = list_datacenters().unwrap();
         assert_eq!(dcs.len(), 28);
-        // Présence de quelques DC clés.
+        // A few key DCs are present.
         let ids: Vec<&str> = dcs.iter().map(|d| d.id.as_str()).collect();
         assert!(ids.contains(&"ovh-rbx-roubaix"));
         assert!(ids.contains(&"aws-eu-central-1-frankfurt"));
@@ -2460,7 +2461,7 @@ mod tests {
         assert_eq!(detail.id, "ovh-gra-gravelines");
         assert_eq!(detail.country_iso, "FR");
         assert_eq!(detail.hourly_profile_24h.len(), 24);
-        // baseline cohérent : > 0 et fini.
+        // consistent baseline: > 0 and finite.
         assert!(detail.baseline_co2eq_p50_g.is_finite());
         assert!(detail.baseline_co2eq_p50_g > 0.0);
         assert!(detail.baseline_energy_wh_p50.is_finite());
@@ -2477,14 +2478,14 @@ mod tests {
 
     #[test]
     fn datacenter_baselines_differ_by_country_mix() {
-        // Mix FR (56 g/kWh) doit donner un CO2eq inférieur à mix DE (386 g/kWh)
-        // sur le même prompt de référence.
+        // The FR mix (56 g/kWh) must give a lower CO2eq than the DE mix (386 g/kWh)
+        // on the same reference prompt.
         let (tmp, state) = fresh_state();
         let fr = get_datacenter_detail("ovh-gra-gravelines", &state).unwrap();
         let de = get_datacenter_detail("aws-eu-central-1-frankfurt", &state).unwrap();
-        // L'embodied étant constant entre DC, la différence vient du mix élec.
-        // En théorie DE > FR mais l'écart peut être faible si l'embodied
-        // domine. On vérifie juste que DE > FR (au moins de quelques %).
+        // Embodied is constant across DCs, so the difference comes from the grid mix.
+        // In theory DE > FR, but the gap can be small if embodied
+        // dominates. We only check that DE >= FR.
         assert!(
             de.baseline_co2eq_p50_g >= fr.baseline_co2eq_p50_g,
             "DE ({}) doit être >= FR ({})",
@@ -2497,7 +2498,7 @@ mod tests {
     fn aggregate_datacenters_returns_13_countries_sorted() {
         let agg = aggregate_datacenters_by_country().unwrap();
         assert_eq!(agg.len(), 13);
-        // Trié alphabétique
+        // Sorted alphabetically
         for w in agg.windows(2) {
             assert!(w[0].country_iso < w[1].country_iso);
         }
@@ -2578,7 +2579,7 @@ mod tests {
             forecast: None,
         };
         let err = simulate_scenarios(req, &state).unwrap_err();
-        // Erreur propagée depuis estimator → mappée en estimator_error.
+        // Error propagated from the estimator → mapped to estimator_error.
         assert_eq!(err.code, "estimator_error");
     }
 
@@ -2586,7 +2587,7 @@ mod tests {
     // territoire_fr — C13 / M20
     // ─────────────────────────────────────────────────────────────────────
 
-    /// Fixture JSON ODRÉ minimale écrite dans `data_root` pour tester le loader.
+    /// Minimal ODRÉ JSON fixture written to `data_root` to test the loader.
     fn write_territoire_fixture(state: &AppState) {
         let path = state.data_root.join("territoire_fr.json");
         let json = r#"{
@@ -2688,7 +2689,7 @@ mod tests {
         let (tmp, state) = fresh_state();
         write_rte_mix_fixture(&state);
         let sankey = sankey_fr_data(&state).unwrap();
-        // Σ liens == total production (pas d'import dans la fixture)
+        // Σ links == total production (no imports in the fixture)
         let sum_links: f64 = sankey.links.iter().map(|l| l.value_twh).sum();
         assert!(
             (sum_links - sankey.total_production_twh).abs() < 1e-6,
@@ -2700,7 +2701,7 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // batch CSV — C21 / M18
+    // CSV batch — C21 / M18
     // ─────────────────────────────────────────────────────────────────────
 
     use crate::dto::BatchRequestDto;
@@ -2747,13 +2748,13 @@ mistral-medium-3,80,300,
         .unwrap();
         assert_eq!(res.rows_processed, 3);
         assert_eq!(res.rows_rejected, 0);
-        // Ledger doit contenir 3 entrées
+        // The ledger must hold 3 entries
         let ledger_len = {
             let l = state.ledger.lock().unwrap();
             l.len().unwrap()
         };
         assert_eq!(ledger_len, 3);
-        // Agrégat cohérent
+        // Consistent aggregate
         assert!(res.aggregate.total_co2eq_g_p50 > 0.0);
         assert!(res.aggregate.avg_co2eq_g_p50 > 0.0);
         assert!(res.aggregate.min_co2eq_g_p50 <= res.aggregate.max_co2eq_g_p50);
@@ -2762,7 +2763,7 @@ mistral-medium-3,80,300,
     #[test]
     fn batch_invalid_model_rejected_but_others_processed() {
         let (tmp, state) = fresh_state();
-        // 1 ligne valide + 1 ligne avec modèle inconnu = 50% rejected → OK
+        // 1 valid row + 1 row with an unknown model = 50% rejected → OK
         let csv = "\
 model_id,tokens_in,tokens_out,datacenter_id
 gpt-4o-mini,100,500,
@@ -2784,7 +2785,7 @@ modele-bidon,50,200,
     #[test]
     fn batch_too_many_rejections_returns_invalid_request() {
         let (tmp, state) = fresh_state();
-        // 1 valide + 3 invalides = 75% rejected → erreur
+        // 1 valid + 3 invalid = 75% rejected → error
         let csv = "\
 model_id,tokens_in,tokens_out,datacenter_id
 gpt-4o-mini,100,500,
@@ -2823,13 +2824,13 @@ gpt-4o-mini,150,600,
             &state,
         )
         .unwrap();
-        // 2 modèles distincts dans by_model
+        // 2 distinct models in by_model
         assert_eq!(res.by_model.len(), 2);
-        // Tri par total_co2eq_p50 desc — le plus gros premier
+        // Sorted by total_co2eq_p50 desc, largest first
         for w in res.by_model.windows(2) {
             assert!(w[0].total_co2eq_g_p50 >= w[1].total_co2eq_g_p50);
         }
-        // gpt-4o-mini a 2 entrées
+        // gpt-4o-mini has 2 entries
         let mini = res
             .by_model
             .iter()
@@ -2882,7 +2883,7 @@ gpt-4o-mini,200,700,
             &state,
         )
         .unwrap();
-        // first_audit_id < last_audit_id, et écart = N-1
+        // first_audit_id < last_audit_id, and gap = N-1
         assert!(res.first_audit_id >= 1);
         assert!(res.last_audit_id >= res.first_audit_id);
         assert_eq!(
@@ -2894,12 +2895,12 @@ gpt-4o-mini,200,700,
 
     #[test]
     fn batch_row_with_datacenter_id_applies_override() {
-        // C25-A9 — chaque ligne de batch CSV doit honorer son propre
-        // `datacenter_id` : deux lignes identiques (même modèle, mêmes
-        // tokens) ne doivent pas produire le même CO2eq P50 si l'une
-        // surcharge le DC. Vérifie que le helper `apply_datacenter_override`
-        // est bien appliqué transitivement via `estimate_prompt` dans le
-        // loop de `run_batch_from_csv`.
+        // C25-A9 — each CSV batch row must honour its own
+        // `datacenter_id`: two identical rows (same model, same
+        // tokens) must not produce the same CO2eq P50 if one of them
+        // overrides the DC. Checks that the `apply_datacenter_override` helper
+        // is applied transitively via `estimate_prompt` in the
+        // `run_batch_from_csv` loop.
         let (tmp, state) = fresh_state();
         let csv = "\
 model_id,tokens_in,tokens_out,datacenter_id
@@ -2926,7 +2927,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // projets + datasheet — C20 / M17
+    // projects + datasheet — C20 / M17
     // ─────────────────────────────────────────────────────────────────────
 
     use crate::dto::{CreateProjectDto, UpdateProjectDto};
@@ -2935,7 +2936,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         CreateProjectDto {
             name: name.into(),
             description: "Test".into(),
-            // Période ouverte autour de maintenant
+            // Open period around now
             period_start: (Utc::now() - chrono::Duration::days(30)).to_rfc3339(),
             period_end: (Utc::now() + chrono::Duration::days(1)).to_rfc3339(),
             tags: vec!["test".into(), "etude".into()],
@@ -3019,7 +3020,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn delete_project_idempotent() {
         let (tmp, state) = fresh_state();
-        // Delete sur ID inexistant ne plante pas
+        // Deleting a missing ID does not fail
         delete_project(999, &state).unwrap();
         let p = create_project(create_project_req("X"), &state).unwrap();
         delete_project(p.id, &state).unwrap();
@@ -3036,7 +3037,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn generate_datasheet_happy_path_has_seven_gebru_sections() {
         let (tmp, state) = fresh_state();
-        // 1. Crée des estimations qui tomberont dans la période du projet.
+        // 1. Create estimations that fall within the project period.
         for _ in 0..3 {
             estimate_prompt(
                 EstimationRequestDto {
@@ -3052,11 +3053,11 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             )
             .unwrap();
         }
-        // 2. Crée le projet.
+        // 2. Create the project.
         let p = create_project(create_project_req("Étude test"), &state).unwrap();
-        // 3. Génère le datasheet.
+        // 3. Generate the datasheet.
         let ds = generate_project_datasheet(p.id, &state).unwrap();
-        // 4. Vérifie les 7 sections Gebru
+        // 4. Check the 7 Gebru sections
         let datasheet_node = &ds.jsonld["@graph"][1];
         for key in [
             "sobria:motivation",
@@ -3072,7 +3073,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
                 "section Gebru manquante : {key}"
             );
         }
-        // Composition reflète les 3 estimations
+        // The composition reflects the 3 estimations
         assert_eq!(ds.composition.total_requests, 3);
         assert!(ds.composition.total_co2eq_g_p50 > 0.0);
         assert_eq!(ds.sha256.len(), 64);
@@ -3081,7 +3082,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn generate_datasheet_empty_period_composition_zero() {
         let (tmp, state) = fresh_state();
-        // Projet sur une période passée vide (pas d'estimations).
+        // Project over an empty past period (no estimations).
         let req = CreateProjectDto {
             name: "Vide".into(),
             description: String::new(),
@@ -3091,7 +3092,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         };
         let p = create_project(req, &state).unwrap();
         let ds = generate_project_datasheet(p.id, &state).unwrap();
-        // Composition agrégée vide mais datasheet quand même produit.
+        // Empty aggregated composition, but the datasheet is still produced.
         assert_eq!(ds.composition.total_requests, 0);
         assert_eq!(ds.composition.unique_models.len(), 0);
     }
@@ -3207,7 +3208,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             indicator: "water".into(),
             period: "weekly".into(),
             value_max: 10.0,
-            unit: "Wh".into(), // attendu: L
+            unit: "Wh".into(), // expected: L
         };
         let err = set_personal_goal(dto, &state).unwrap_err();
         assert_eq!(err.code, "invalid_request");
@@ -3216,7 +3217,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn delete_personal_goal_is_idempotent() {
         let (tmp, state) = fresh_state();
-        // Suppression d'un goal absent ne plante pas.
+        // Deleting a missing goal does not fail.
         delete_personal_goal("co2eq", "daily", &state).unwrap();
         assert!(list_personal_goals(&state).unwrap().is_empty());
     }
@@ -3252,7 +3253,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn budget_status_with_high_usage_warns_or_exceeds() {
         let (tmp, state) = fresh_state();
-        // Goal très bas (0.0001 gCO2eq) → vite dépassé.
+        // Very low goal (0.0001 gCO2eq) → quickly exceeded.
         set_personal_goal(
             PersonalGoalDto {
                 indicator: "co2eq".into(),
@@ -3263,7 +3264,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             &state,
         )
         .unwrap();
-        // Quelques estimations
+        // A few estimations
         for _ in 0..3 {
             estimate_prompt(
                 EstimationRequestDto {
@@ -3281,7 +3282,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         }
         let st = get_budget_status(&state).unwrap();
         assert_eq!(st.len(), 1);
-        // 0.0001 g de budget vs ~0.006 g de conso → dépassé
+        // 0.0001 g budget vs ~0.006 g consumed → exceeded
         assert_eq!(st[0].status, "exceeded");
         assert!(st[0].consumed_pct > 100.0);
         assert!(st[0].remaining < 0.0);
@@ -3300,7 +3301,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_model_detail_mistral_large_2_has_vendor_disclosures() {
-        // C32.4 — Mistral Large 2 doit retourner ses 3 disclosures vendor
+        // C32.4 — Mistral Large 2 must return its 3 vendor disclosures
         // (training tCO2eq, training m3 water, inference gCO2eq).
         let (tmp, state) = fresh_state();
         let d = get_model_detail("mistral-large-2", &state).unwrap();
@@ -3324,7 +3325,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn get_model_detail_gpt_4o_has_no_vendor_disclosure() {
-        // C32.4 — OpenAI ne publie pas → vendor_disclosures vide.
+        // C32.4 — OpenAI does not publish → empty vendor_disclosures.
         let (tmp, state) = fresh_state();
         let d = get_model_detail("gpt-4o", &state).unwrap();
         assert!(
@@ -3343,7 +3344,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         assert_ne!(d.display_name.len(), 0);
         assert_ne!(d.provider.len(), 0);
         assert!(!d.sources.is_empty(), "sources non vides");
-        // Triplets ordonnés (P5 ≤ P50 ≤ P95)
+        // Ordered triplets (P5 ≤ P50 ≤ P95)
         let t = &d.epsilon_prefill_mj_per_token;
         assert!(
             t.p5 <= t.p50 && t.p50 <= t.p95,
@@ -3356,7 +3357,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         assert!(t.p5 <= t.p50 && t.p50 <= t.p95);
         let t = &d.embodied_g_per_request;
         assert!(t.p5 <= t.p50 && t.p50 <= t.p95);
-        // Baseline cohérent
+        // Consistent baseline
         assert!(d.baseline_co2eq_p50_g > 0.0 && d.baseline_co2eq_p50_g.is_finite());
         assert!(d.baseline_co2eq_p5_g <= d.baseline_co2eq_p50_g);
         assert!(d.baseline_co2eq_p50_g <= d.baseline_co2eq_p95_g);
@@ -3390,7 +3391,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // benchmark modèles — C17 / M3
+    // model benchmark — C17 / M3
     // ─────────────────────────────────────────────────────────────────────
 
     use crate::dto::BenchmarkRequestDto;
@@ -3445,7 +3446,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let res = benchmark_models(req, &state).unwrap();
         assert_eq!(res.outcomes.len(), 2);
         assert_eq!(res.ranking_by_co2eq_p50.len(), 2);
-        // Le ranking #1 doit avoir rank_co2eq = 1
+        // Ranking #1 must have rank_co2eq = 1
         let winner_id = &res.ranking_by_co2eq_p50[0];
         let winner = res
             .outcomes
@@ -3453,7 +3454,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             .find(|o| &o.model_id == winner_id)
             .unwrap();
         assert_eq!(winner.rank_co2eq, 1);
-        // L'ordre dans `outcomes` suit l'ordre de la requête.
+        // The order in `outcomes` follows the request order.
         assert_eq!(res.outcomes[0].model_id, "gpt-4o-mini");
         assert_eq!(res.outcomes[1].model_id, "claude-3-5-sonnet");
     }
@@ -3461,13 +3462,13 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn benchmark_creates_one_audit_entry_per_model() {
         let (tmp, state) = fresh_state();
-        // Avant : ledger vide.
+        // Before: empty ledger.
         let before = {
             let l = state.ledger.lock().unwrap();
             l.len().unwrap()
         };
         assert_eq!(before, 0);
-        // 3 modèles → 3 entrées attendues.
+        // 3 models → 3 entries expected.
         let req = bench_req(&["gpt-4o-mini", "claude-3-5-sonnet", "mistral-medium-3"]);
         let _ = benchmark_models(req, &state).unwrap();
         let after = {
@@ -3542,7 +3543,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let res = forecast_yearly_budget(req, &state).unwrap();
         assert!(res.baseline_audit_id >= 1);
         assert_eq!(res.scenarios.len(), 3);
-        // Quantiles baseline cohérents.
+        // Consistent baseline quantiles.
         assert!(res.baseline_co2eq_p5_g <= res.baseline_co2eq_p50_g);
         assert!(res.baseline_co2eq_p50_g <= res.baseline_co2eq_p95_g);
     }
@@ -3654,7 +3655,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
     #[test]
     fn csrd_report_happy_path_writes_pdf_and_provo() {
         let (tmp, state) = fresh_state();
-        // 1. Crée des entrées d'audit en passant par estimate_prompt
+        // 1. Create audit entries through estimate_prompt
         let est_req = EstimationRequestDto {
             model_id: "gpt-4o-mini".into(),
             tokens_in: 100,
@@ -3667,7 +3668,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         for _ in 0..3 {
             estimate_prompt(est_req.clone(), &state).unwrap();
         }
-        // 2. Génère le rapport pour une période très large couvrant maintenant
+        // 2. Generate the report for a very wide period that covers now
         let now = Utc::now();
         let start = now - chrono::Duration::days(1);
         let end = now + chrono::Duration::days(1);
@@ -3680,7 +3681,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let out_dir = tmp.path().join("report-out");
         let result = export_csrd_report(req, &out_dir, &state).unwrap();
 
-        // 3. Validation
+        // 3. Checks
         assert_eq!(result.audit_entries_count, 3);
         assert_eq!(result.total_requests, 3);
         assert!(result.total_co2eq_g_p50 > 0.0);
@@ -3692,7 +3693,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         // PDF magic bytes
         let pdf_bytes = std::fs::read(pdf_path).unwrap();
         assert!(pdf_bytes.starts_with(b"%PDF-"));
-        // PROV-O JSON-LD valide + lien vers le sha256
+        // Valid PROV-O JSON-LD + link to the sha256
         let provo_text = std::fs::read_to_string(provo_path).unwrap();
         let provo: serde_json::Value = serde_json::from_str(&provo_text).unwrap();
         assert!(provo["@context"]["prov"].is_string());
@@ -3731,7 +3732,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             )
             .unwrap();
         }
-        // Réouvre l'AppState : le store doit persister.
+        // Reopen the AppState: the store must persist.
         let state2 = AppState::init_in(tmp.path()).unwrap();
         let prefs = get_app_preferences(&state2).unwrap();
         assert_eq!(prefs.persona, Some(Persona::Enterprise));
@@ -3743,9 +3744,9 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         use sobria_estimator::distributions::Distribution;
         let mut params =
             sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
-        // `ovh-gra-gravelines` est la fiche canonique utilisée dans les tests
-        // C25 — elle possède `wue_l_per_kwh: 0.18` dans `datacenters.json`,
-        // ce qui exerce les trois overrides.
+        // `ovh-gra-gravelines` is the canonical record used in the C25
+        // tests: it has `wue_l_per_kwh: 0.18` in `datacenters.json`,
+        // which exercises all three overrides.
         apply_datacenter_override(&mut params, Some("ovh-gra-gravelines")).unwrap();
         assert!(matches!(params.pue, Distribution::Point { .. }));
         assert!(matches!(
@@ -3769,8 +3770,8 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             sobria_estimator::params::EstimationParams::for_model("gpt-4o-mini").unwrap();
         let original_pue_dbg = format!("{:?}", params.pue);
         apply_datacenter_override(&mut params, None).unwrap();
-        // PartialEq n'est pas dérivé sur Distribution ; on compare la repr
-        // Debug comme proxy peu coûteux.
+        // PartialEq is not derived on Distribution, so we compare the Debug
+        // repr as a cheap proxy.
         assert_eq!(format!("{:?}", params.pue), original_pue_dbg);
     }
 
@@ -3842,9 +3843,9 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn estimate_for_comparison_honors_datacenter_id() {
-        // C25-A6 — la fonction stateless "Voir aussi" doit, comme
-        // `estimate_prompt`, honorer le `datacenter_id` du DTO en
-        // surchargeant PUE/IF/WUE via `apply_datacenter_override`.
+        // C25-A6 — the stateless "Voir aussi" function must, like
+        // `estimate_prompt`, honour the DTO's `datacenter_id` by
+        // overriding PUE/IF/WUE via `apply_datacenter_override`.
         let baseline = estimate_for_comparison(
             EstimationRequestDto {
                 model_id: "gpt-4o-mini".into(),
@@ -3883,13 +3884,13 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             .find(|i| i.indicator == "co2eq")
             .unwrap()
             .p50;
-        // Plan C25-A6 prescrivait `> 1e-3` (durci vs `1e-9` de A5 pour
-        // détecter une régression silencieuse). Le delta réel observé sur
-        // `gpt-4o-mini` + `ovh-gra-gravelines` est ~3.3e-4 gCO2eq (~8% du
-        // baseline) — signal légitime, mais inférieur au seuil prescrit.
-        // On retient `1e-4` : 100 000× plus strict que `1e-9` (objectif
-        // anti-régression atteint), tout en évitant un faux échec lié à
-        // l'échelle du fixture (prompt 100/500 tokens sur un petit modèle).
+        // Plan C25-A6 prescribed `> 1e-3` (tightened from A5's `1e-9` to
+        // catch a silent regression). The actual delta observed on
+        // `gpt-4o-mini` + `ovh-gra-gravelines` is ~3.3e-4 gCO2eq (~8% of the
+        // baseline): a legitimate signal, but below the prescribed threshold.
+        // We keep `1e-4`: 100 000× stricter than `1e-9` (anti-regression
+        // goal met), while avoiding a false failure due to the
+        // fixture's scale (100/500-token prompt on a small model).
         assert!(
             (b - d).abs() > 1e-4,
             "expected DC override to move CO2 P50 ({b} vs {d})"
@@ -3898,10 +3899,10 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn benchmark_with_datacenter_applies_to_every_model() {
-        // C25-A7 — `benchmark_models` boucle en appelant `estimate_prompt`
-        // pour chaque modèle. Comme A5 a câblé `apply_datacenter_override`
-        // dans `estimate_prompt`, l'override `datacenter_id` doit se
-        // propager à TOUS les outcomes du benchmark.
+        // C25-A7 — `benchmark_models` loops, calling `estimate_prompt`
+        // for each model. Since A5 wired `apply_datacenter_override`
+        // into `estimate_prompt`, the `datacenter_id` override must
+        // reach ALL benchmark outcomes.
         let (tmp, state) = fresh_state();
         let baseline = benchmark_models(
             BenchmarkRequestDto {
@@ -3923,7 +3924,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
             &state,
         )
         .unwrap();
-        // Chaque outcome doit voir son CO2 P50 bouger quand on change le DC.
+        // Each outcome's CO2 P50 must move when the DC changes.
         for (b, d) in baseline.outcomes.iter().zip(with_dc.outcomes.iter()) {
             let b_co2 = pick_p50_from_dto(&b.result, "co2eq");
             let d_co2 = pick_p50_from_dto(&d.result, "co2eq");
@@ -3977,7 +3978,7 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         assert!(stored2.default_datacenter_id.is_none());
     }
 
-    // ─── C27.5.c/d — pairing extension navigateur ────────────────────────────
+    // ─── C27.5.c/d — browser extension pairing ───────────────────────────────
 
     #[test]
     fn regenerate_pairing_code_emits_6_digit_code() {
@@ -4004,9 +4005,9 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let secret = verify_pairing_code(&state, &code.code, "chrome-mac-fp1").unwrap();
         assert_eq!(secret.secret_hex.len(), 64);
         assert_ne!(secret.pairing_id.len(), 0);
-        // Code consommé
+        // Code consumed
         assert!(state.pending_code.lock().unwrap().is_none());
-        // Pairing persisté
+        // Pairing persisted
         let list = list_pairings(&state).unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].fingerprint, "chrome-mac-fp1");
@@ -4017,12 +4018,12 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
         let (tmp, state) = fresh_state();
         let _ = regenerate_pairing_code(&state).unwrap();
         let err = verify_pairing_code(&state, "000000", "fp").unwrap_err();
-        // Si le code aléatoire vaut "000000" par chance, on retry une fois.
-        // Probabilité 1/10⁶ — acceptable pour un test.
+        // If the random code happens to be "000000", retry once.
+        // Probability 1/10⁶, acceptable for a test.
         if err.code == "invalid_pairing_code" {
-            // OK, le code random était différent.
+            // OK, the random code was different.
         } else {
-            // C'était par malchance le code random. On régénère et retest.
+            // By bad luck it was the random code. Regenerate and test again.
             let dto = regenerate_pairing_code(&state).unwrap();
             let wrong = if dto.code == "000000" {
                 "111111"
@@ -4070,12 +4071,12 @@ gpt-4o-mini,100,500,ovh-gra-gravelines
 
     #[test]
     fn drain_extension_spool_returns_zero_when_no_spool() {
-        // Le spool est sous $HOME/.sobria/spool, donc s'il n'existe pas
-        // sur la machine de CI, on retourne 0.
+        // The spool lives under $HOME/.sobria/spool; the test only checks that
+        // draining succeeds.
         let (tmp, state) = fresh_state();
         let result = drain_extension_spool(&state);
-        // Soit `Ok(n)` (spool absent ou vide), soit erreur si HOME inaccessible.
-        // Sur un environnement de test sain, on attend Ok.
+        // Either `Ok(n)` (spool missing or empty) or an error if HOME is unreachable.
+        // On a sane test environment, we expect Ok.
         assert!(
             result.is_ok(),
             "drain doit être Ok ou home introuvable: {result:?}"
