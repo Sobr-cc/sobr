@@ -219,8 +219,9 @@ jobs:
               fi
             fi
           done
-          if [ ! -f target/release/sobria-app ]; then
-            echo "❌ target/release/sobria-app not found: NF-03 was not checked"
+          # Same test as the loop above, so that an app the loop skipped cannot pass unseen.
+          if [ ! -f target/release/sobria-app ] || [ ! -x target/release/sobria-app ]; then
+            echo "❌ target/release/sobria-app not found or not executable: NF-03 was not checked"
             status=1
           fi
           if [ "$status" -eq 0 ]; then
