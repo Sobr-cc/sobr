@@ -103,16 +103,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p bundles
-          # Tauri output location depends on target. Glob to grab any bundle from this build.
-          shopt -s globstar nullglob
-          for f in target/**/release/bundle/**/* ; do
-            ext="${f##*.}"
-            case "$ext" in
-              msi|exe|dmg|deb|AppImage|appimage)
-                cp -v "$f" bundles/
-                ;;
-            esac
-          done
+          # find, not globstar: macOS runners ship bash 3.2. The path depends on the target.
+          find target -path '*/release/bundle/*' -type f \( -name '*.msi' -o -name '*.exe' \
+            -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.appimage' \) \
+            -exec cp -v {} bundles/ \;
           ls -la bundles/
           # Compute SHA-256 for each artifact
           cd bundles
