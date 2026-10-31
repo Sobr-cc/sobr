@@ -6,7 +6,6 @@ Tests of the self-signed certificate setting of the app (2026-10-31, SOB-200)
   handshake off; with `team_set_accept_invalid_certs(true)` it returns the health
   answer and records the last-seen time; turning the setting on, off and on again
   is followed on each call.
-- Two dev-dependencies for these tests only, `rcgen` (makes the certificate at
-  test time, so no private key is committed) and `tokio-rustls`, with the `ring`
-  backend as in the team server. Both are already in `Cargo.lock`. No production
-  code changed.
+- Two dev-dependencies for these tests only, `rcgen` and `tokio-rustls` (`ring`
+  backend, already in `Cargo.lock`); the certificate is made at test time. No
+  production code changed.

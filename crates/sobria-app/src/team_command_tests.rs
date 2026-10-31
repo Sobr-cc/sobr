@@ -17,8 +17,8 @@ use std::sync::{Arc, Mutex, Once};
 
 use serde_json::json;
 use tauri::test::{mock_app, MockRuntime};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::TcpListener;
 
 use super::*;
 use team_settings::{
@@ -110,7 +110,11 @@ impl Stub {
     }
 }
 
-async fn answer(mut socket: TcpStream, handler: Arc<Handler>, log: Arc<Mutex<Vec<Seen>>>) {
+async fn answer(
+    mut socket: impl AsyncRead + AsyncWrite + Unpin,
+    handler: Arc<Handler>,
+    log: Arc<Mutex<Vec<Seen>>>,
+) {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 4096];
     let head_end = loop {
@@ -173,9 +177,16 @@ impl Fixture {
         // The stub is on localhost: keep a proxy of the machine from catching it.
         static NO_PROXY: Once = Once::new();
         NO_PROXY.call_once(|| {
-            let has_proxy = ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"]
-                .iter()
-                .any(|name| std::env::var_os(name).is_some());
+            let has_proxy = [
+                "HTTP_PROXY",
+                "http_proxy",
+                "HTTPS_PROXY",
+                "https_proxy",
+                "ALL_PROXY",
+                "all_proxy",
+            ]
+            .iter()
+            .any(|name| std::env::var_os(name).is_some());
             if has_proxy {
                 let current = std::env::var("NO_PROXY").unwrap_or_default();
                 std::env::set_var("NO_PROXY", format!("{current},127.0.0.1,localhost"));
@@ -917,29 +928,22 @@ async fn team_push_estimation_fails_with_transport_when_the_server_hangs_up() {
 // ─── team_ping over TLS (SOB-200) ────────────────────────────────────────────
 
 /// The "accept invalid certificates" setting on a real TLS connection.
-///
-/// `rcgen` and `tokio-rustls` are dev-dependencies for this only (see the
-/// comment in `Cargo.toml`).
 mod tls {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
     use tokio_rustls::rustls::{
-        crypto::ring::default_provider,
-        pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer},
-        ServerConfig,
+        crypto::ring::default_provider, pki_types::PrivatePkcs8KeyDer, ServerConfig,
     };
     use tokio_rustls::TlsAcceptor;
 
     use super::*;
 
-    /// A server with a self-signed certificate that answers `HEALTH` to any
-    /// request. It counts the handshakes it completes and the ones the client
-    /// breaks off, which is what a client does when it does not trust the
-    /// certificate.
+    /// A server with a self-signed certificate that answers `HEALTH`, and counts
+    /// the handshakes that fail: a client that does not trust the certificate
+    /// breaks the handshake off.
     struct TlsStub {
-        url: String,
-        completed: Arc<AtomicUsize>,
+        stub: Stub,
         refused: Arc<AtomicUsize>,
     }
 
@@ -947,77 +951,66 @@ mod tls {
         async fn start() -> Self {
             let certified = rcgen::generate_simple_self_signed(vec!["127.0.0.1".to_string()])
                 .expect("a self-signed certificate");
-            let key = PrivatePkcs8KeyDer::from(certified.key_pair.serialize_der());
             let config = ServerConfig::builder_with_provider(Arc::new(default_provider()))
                 .with_safe_default_protocol_versions()
                 .expect("TLS versions")
                 .with_no_client_auth()
                 .with_single_cert(
                     vec![certified.cert.der().clone()],
-                    PrivateKeyDer::Pkcs8(key),
+                    PrivatePkcs8KeyDer::from(certified.key_pair.serialize_der()).into(),
                 )
                 .expect("the certificate and its key");
             let acceptor = TlsAcceptor::from(Arc::new(config));
 
             let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let url = format!("https://{}", listener.local_addr().unwrap());
-            let completed = Arc::new(AtomicUsize::new(0));
+            let seen = Arc::new(Mutex::new(Vec::new()));
             let refused = Arc::new(AtomicUsize::new(0));
-            let counts = (Arc::clone(&completed), Arc::clone(&refused));
+            let handler: Arc<Handler> = Arc::new(|_| (200, HEALTH.to_string()));
+            let (log, count) = (Arc::clone(&seen), Arc::clone(&refused));
             tokio::spawn(async move {
                 while let Ok((socket, _)) = listener.accept().await {
-                    let acceptor = acceptor.clone();
-                    let (completed, refused) = counts.clone();
+                    let (acceptor, handler) = (acceptor.clone(), Arc::clone(&handler));
+                    let (log, count) = (Arc::clone(&log), Arc::clone(&count));
                     tokio::spawn(async move {
-                        let Ok(mut stream) = acceptor.accept(socket).await else {
-                            refused.fetch_add(1, Ordering::SeqCst);
-                            return;
-                        };
-                        completed.fetch_add(1, Ordering::SeqCst);
-                        let mut head = Vec::new();
-                        let mut chunk = [0u8; 1024];
-                        while !head.windows(4).any(|w| w == b"\r\n\r\n") {
-                            match stream.read(&mut chunk).await {
-                                Ok(0) | Err(_) => return,
-                                Ok(n) => head.extend_from_slice(&chunk[..n]),
-                            }
+                        match acceptor.accept(socket).await {
+                            Ok(stream) => answer(stream, handler, log).await,
+                            Err(_) => {
+                                count.fetch_add(1, Ordering::SeqCst);
+                            },
                         }
-                        let response = format!(
-                            "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{HEALTH}",
-                            HEALTH.len()
-                        );
-                        let _ = stream.write_all(response.as_bytes()).await;
-                        let _ = stream.shutdown().await;
                     });
                 }
             });
             Self {
-                url,
-                completed,
+                stub: Stub { url, seen },
                 refused,
             }
         }
 
-        fn completed(&self) -> usize {
-            self.completed.load(Ordering::SeqCst)
+        fn refused(&self) -> usize {
+            self.refused.load(Ordering::SeqCst)
         }
 
-        /// The server learns of a refused handshake a moment after the client.
-        async fn wait_for_refused(&self, expected: usize) {
+        /// The server learns of a failed handshake a moment after the client.
+        async fn wait_for_refused(&self) {
             for _ in 0..250 {
-                if self.refused.load(Ordering::SeqCst) >= expected {
+                if self.refused() > 0 {
                     break;
                 }
                 tokio::time::sleep(Duration::from_millis(20)).await;
             }
-            assert_eq!(self.refused.load(Ordering::SeqCst), expected);
+            assert!(
+                self.refused() > 0,
+                "no handshake failed on the stub: did the request reach it (proxy, port)?"
+            );
         }
     }
 
     /// The team URL is set with the real command, as the UI does.
     fn fixture_on(server: &TlsStub) -> Fixture {
         let fx = Fixture::new();
-        team_set_url(server.url.clone(), fx.state()).unwrap();
+        team_set_url(server.stub.url.clone(), fx.state()).unwrap();
         fx
     }
 
@@ -1029,9 +1022,11 @@ mod tls {
         // The flag was never set: it is off.
         assert_err(team_ping(fx.state()).await, "transport", "");
 
-        // The cause is the certificate: the client broke the handshake off.
-        server.wait_for_refused(1).await;
-        assert_eq!(server.completed(), 0);
+        // The client reached the stub and broke the handshake off, so no request
+        // was read. The tests below show that the same stub answers when the flag
+        // is on.
+        server.wait_for_refused().await;
+        assert!(server.stub.requests().is_empty());
         assert_eq!(fx.get(KEY_LAST_SEEN_AT), None);
     }
 
@@ -1045,8 +1040,10 @@ mod tls {
 
         assert!(health.ok);
         assert_eq!(health.version, "0.9.0");
-        assert_eq!(server.completed(), 1);
-        assert_eq!(server.refused.load(Ordering::SeqCst), 0);
+        let requests = server.stub.requests();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].path, "/health");
+        assert_eq!(server.refused(), 0);
         assert_rfc3339(fx.get(KEY_LAST_SEEN_AT));
     }
 
@@ -1060,14 +1057,14 @@ mod tls {
 
         team_set_accept_invalid_certs(false, fx.state()).unwrap();
         assert_err(team_ping(fx.state()).await, "transport", "");
-        server.wait_for_refused(1).await;
+        server.wait_for_refused().await;
 
         team_set_accept_invalid_certs(true, fx.state()).unwrap();
         assert!(team_ping(fx.state()).await.unwrap().ok);
         assert_eq!(
-            server.completed(),
+            server.stub.requests().len(),
             2,
-            "one handshake for each accepted ping"
+            "one request for each accepted ping"
         );
     }
 }
