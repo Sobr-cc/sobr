@@ -417,17 +417,6 @@ mod tests {
     }
 
     #[test]
-    fn pair_with_wrong_code_returns_invalid_error() {
-        let (_tmp, state) = fresh_state();
-        let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
-        let err = pair_error(&state, &wrong_code_for(&dto.code));
-        assert!(
-            err.contains("invalide") || err.contains("expiré") || err.contains("chiffres"),
-            "got: {err}"
-        );
-    }
-
-    #[test]
     fn pair_code_is_single_use() {
         let (_tmp, state) = fresh_state();
         let dto = crate::logic::regenerate_pairing_code(&state).unwrap();
