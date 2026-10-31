@@ -202,7 +202,7 @@ Other existing issues to adjust: SOB-38 (split per repo if the extension has alr
 
 ## Amendment 1 — Links, parity cases, data license and counts (2026-10-31)
 
-**Status.** Accepted (2026-10-31), SOB-169; merging the PR is Thibault's approval. Written in place by PR (SOB-87). The recommended option of each choice below is applied; if Thibault picks another in the PR, the text follows before the merge. Thibault's four answers, the options and the three waves are unchanged. The lists, counts and rows that were wrong are corrected in the text above; this section says which.
+**Status.** Accepted (2026-10-31), SOB-169; merging the PR is Thibault's approval. Written in place by PR (SOB-87). Thibault chose the recommended option of each choice below on October 31 (SOB-169), and the text above applies them. Thibault's four answers, the options and the three waves are unchanged. The lists, counts and rows that were wrong are corrected in the text above; this section says which.
 
 **Why.** The review of PR #2 at 404ddae (sobria-07) finished after the merge and found five gaps. Each was checked against `main` on 2026-10-31.
 
@@ -215,16 +215,16 @@ Other existing issues to adjust: SOB-38 (split per repo if the extension has alr
 5. **`LICENSE-DATA`.** `sobria-geoloc` embeds Etalab data in the binaries of `sobr` (`data/territoire_fr.json`, `rte_mix_fr.json`, `datacenters_demo.json`). `LICENSE-DATA` goes to `data` and a copy stays in `sobr` (§2). In both copies, the path `docs/sources/CATALOGUE-SOURCES.md` becomes the URL of the page where it lives after the docs copy (`.github` if it is on the first list of §3, `sobr` otherwise).
 6. **Counts.** `main` has 10 crates since SOB-67 (Context). The second docs step is one issue per folder, and the total of §6 is 76.
 
-**Choices for Thibault.** Three points were left open. The text above follows the recommended option of each.
+**Choices of Thibault (October 31, 2026).** Three points were left open. He chose the options marked "Chosen" below.
 
 | Point | Option | Cost and risk |
 |-------|--------|---------------|
 | Site links (point 3) | A. The site fetches the three pages from `sobr` | Three more paths, same mechanism as the ADR pages; the site stays coupled to project documents of `sobr` and keeps publishing the application document |
-| | B. SOB-69 removes the link. **Recommended for the two links of the application page** (`candidature.astro`), which presents an application that is off (SOB-104) | Lowest cost; the page loses a link |
-| | C. SOB-69 points the link to the GitHub page in `sobr`. **Recommended for the extension architecture**, a technical page of §3 | Low cost; the reader leaves the site |
-| `LICENSE-DATA` (point 5) | A. A copy stays in `sobr`. **Recommended**: `sobr` ships Etalab data, and the licence must travel with it | Two copies to keep in step; `data` holds the master |
+| | B. SOB-69 removes the link. **Chosen for the two links of the application page** (`candidature.astro`), which presents an application that is off (SOB-104) | Lowest cost; the page loses a link |
+| | C. SOB-69 points the link to the GitHub page in `sobr`. **Chosen for the extension architecture**, a technical page of §3 | Low cost; the reader leaves the site |
+| `LICENSE-DATA` (point 5) | A. A copy stays in `sobr`. **Chosen**: `sobr` ships Etalab data, and the licence must travel with it | Two copies to keep in step; `data` holds the master |
 | | B. No copy | False while geoloc embeds the files |
-| Second docs step (point 6) | A. One issue per folder. **Recommended** | 6 points for the folders, 7 with the copy row; each waits for its own Deep cleanup, as the Foundations rule asks |
+| Second docs step (point 6) | A. One issue per folder. **Chosen** | 6 points for the folders, 7 with the copy row; each waits for its own Deep cleanup, as the Foundations rule asks |
 | | B. One issue after the last cleanup | 3 points; the pages stay in `sobr`, and the site fetches them there, until SOB-76 and SOB-29 are done |
 
 **Checks added to the move issues.** `git grep -n "docs/methodology\|docs/operations" -- web/src` lists only references that the second docs step rewrites (links, comments and visible text); `web/src/lib/demo/fixtures` is generated output, rewritten by regenerating it, not by hand. `git grep -n 'href="/docs/[A-Za-z]' -- site/src/pages` lists the links to docs pages, and once SOB-69 has removed or repointed the three links each target must be a page of the site fetch; the other links (sources and operations) are on the first list of §3.
