@@ -1,0 +1,79 @@
+{
+  "@context": {
+    "prov": "http://www.w3.org/ns/prov#",
+    "schema": "https://schema.org/",
+    "sobria": "https://sobr.ia/vocab#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#"
+  },
+  "@graph": [
+    {
+      "@id": "sobria:report-20260101-to-20260401",
+      "@type": "prov:Entity",
+      "prov:generatedAtTime": {
+        "@type": "xsd:dateTime",
+        "@value": "2026-04-01T00:00:00+00:00"
+      },
+      "prov:wasGeneratedBy": {
+        "@id": "sobria:report-20260101-to-20260401-activity"
+      },
+      "schema:about": {
+        "schema:endDate": "2026-04-01",
+        "schema:startDate": "2026-01-01"
+      },
+      "schema:contentSha256": "<sha256>",
+      "schema:datePublished": "2026-04-01",
+      "sobria:organizationName": "Acme Corp",
+      "sobria:totalCo2eqGramsP5": 2.0999999999999996,
+      "sobria:totalCo2eqGramsP50": 3.0,
+      "sobria:totalCo2eqGramsP95": 4.199999999999999,
+      "sobria:totalEnergyWhP50": 2.0,
+      "sobria:totalRequests": 2,
+      "sobria:totalWaterLitersP50": 0.002
+    },
+    {
+      "@id": "sobria:report-20260101-to-20260401-activity",
+      "@type": "prov:Activity",
+      "prov:endedAtTime": {
+        "@type": "xsd:dateTime",
+        "@value": "2026-04-01T00:00:00+00:00"
+      },
+      "prov:startedAtTime": {
+        "@type": "xsd:dateTime",
+        "@value": "2026-04-01T00:00:00+00:00"
+      },
+      "prov:used": [
+        {
+          "@id": "sobria:audit-entries-1-2"
+        },
+        {
+          "@id": "sobria:estimator-engine-v0.2.0"
+        }
+      ],
+      "prov:wasAssociatedWith": {
+        "@id": "sobria:agent-sobria-export"
+      }
+    },
+    {
+      "@id": "sobria:audit-entries-1-2",
+      "@type": "prov:Entity",
+      "sobria:entryCount": 2,
+      "sobria:firstAuditId": 1,
+      "sobria:lastAuditId": 2
+    },
+    {
+      "@id": "sobria:estimator-engine-v0.2.0",
+      "@type": "prov:Entity",
+      "schema:version": "0.2.0",
+      "sobria:methodologiesUsed": ["AFNOR SPEC 2314 (Sobr.ia) — Monte-Carlo distributional","EcoLogits 2026-01 — port direct, doi:10.21105/joss.07471"],
+      "sobria:methodology": "AFNOR SPEC 2314 (Sobr.ia)",
+      "sobria:monteCarloN": 10000,
+      "sobria:seed": 42
+    },
+    {
+      "@id": "sobria:agent-sobria-export",
+      "@type": "prov:SoftwareAgent",
+      "schema:name": "sobria-export",
+      "schema:version": "<crate-version>"
+    }
+  ]
+}
