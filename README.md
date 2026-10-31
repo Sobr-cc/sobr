@@ -219,7 +219,7 @@ Architecture : [ADR-0013 Phase 2](docs/adr/ADR-0013-extension-pairing-team-mode.
 | Couche | Technologie |
 |---|---|
 | Wrapper natif | Tauri 2 |
-| Backend | Rust stable (≥ 1.79), workspace Cargo |
+| Backend | Rust stable (≥ 1.89), workspace Cargo |
 | Frontend | SvelteKit 2 + TypeScript strict + Svelte 5 runes |
 | DB transactionnelle | SQLite WAL (rusqlite 0.32) |
 | DB analytique | DuckDB (duckdb-rs), deferred to the analytics step ([SOB-172](https://linear.app/sobrcc/issue/SOB-172/decide-whether-to-keep-the-unused-duckdb-dependency)) |
