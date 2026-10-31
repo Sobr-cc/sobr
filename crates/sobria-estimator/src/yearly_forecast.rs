@@ -1,10 +1,10 @@
-//! Forecaster 12 mois — module M16 (chantier C15).
+//! 12-month forecaster — module M16 (chantier C15).
 //!
-//! Projette l'empreinte cumulée d'une utilisation IA avec **bande
-//! d'incertitude P5/P50/P95** propagée mensuellement, et superposition
-//! de plusieurs scénarios de croissance d'adoption.
+//! Projects the cumulative footprint of an AI usage with a **P5/P50/P95
+//! uncertainty band** propagated month by month, and overlays several
+//! adoption growth scenarios.
 //!
-//! Voir `docs/archive/chantiers/C15-forecaster-12-mois.md`.
+//! See `docs/archive/chantiers/C15-forecaster-12-mois.md`.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,36 +17,36 @@ use crate::{
     params::EstimationParams,
 };
 
-/// Nombre maximum de scénarios par requête de forecast.
+/// Maximum number of scenarios per forecast request.
 pub const MAX_FORECAST_SCENARIOS: usize = 10;
 
-/// Horizon maximum d'une projection (mois).
+/// Maximum horizon of a projection (months).
 pub const MAX_FORECAST_HORIZON_MONTHS: u32 = 60;
 
-/// Configuration d'un scénario d'adoption mensuelle.
+/// Configuration of a monthly adoption scenario.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct YearlyScenario {
-    /// Libellé affiché par l'UI (ex: « Status quo », « +10% / mois »).
+    /// Label shown by the UI (e.g. « Status quo », « +10% / mois »).
     pub label: String,
-    /// Croissance mensuelle en pourcentage (ex: 5.0 = +5%/mois).
-    /// Valeurs négatives autorisées (décroissance d'usage).
+    /// Monthly growth in percent (e.g. 5.0 = +5%/month).
+    /// Negative values allowed (usage decline).
     pub monthly_growth_pct: f64,
 }
 
-/// Requête de forecast.
+/// Forecast request.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct YearlyForecastRequest {
-    /// Estimation baseline — utilisée pour extraire `co2eq_p5/p50/p95`.
+    /// Baseline estimation — used to extract `co2eq_p5/p50/p95`.
     pub baseline: EstimationRequest,
-    /// Scénarios à projeter (1..=`MAX_FORECAST_SCENARIOS`).
+    /// Scenarios to project (1..=`MAX_FORECAST_SCENARIOS`).
     pub scenarios: Vec<YearlyScenario>,
-    /// Horizon de projection en mois.
+    /// Projection horizon in months.
     pub months: u32,
-    /// Volume baseline (prompts par jour au mois 0).
+    /// Baseline volume (prompts per day at month 0).
     pub base_volume_per_day: f64,
 }
 
-/// Résultat d'un scénario : séries mensuelles + cumulatives + annuel.
+/// Result of one scenario: monthly + cumulative series + annual total.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct YearlyScenarioOutcome {
     pub label: String,
@@ -63,10 +63,10 @@ pub struct YearlyScenarioOutcome {
     pub annual_p95_g: f64,
 }
 
-/// Résultat global du forecast.
+/// Overall forecast result.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct YearlyForecastResult {
-    /// Quantiles baseline (1 requête unitaire, sans agrégation volume).
+    /// Baseline quantiles (1 single request, no volume aggregation).
     pub baseline_co2eq_p5_g: f64,
     pub baseline_co2eq_p50_g: f64,
     pub baseline_co2eq_p95_g: f64,
@@ -77,15 +77,15 @@ pub struct YearlyForecastResult {
 // forecast_yearly()
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Lance le forecast sur 1-60 mois pour 1-10 scénarios de croissance.
+/// Runs the forecast over 1-60 months for 1-10 growth scenarios.
 ///
-/// **Errors** :
-/// - `Schema` si `scenarios` est vide ou > `MAX_FORECAST_SCENARIOS`.
-/// - `Schema` si `months` hors `[1, MAX_FORECAST_HORIZON_MONTHS]`.
-/// - `Schema` si `base_volume_per_day` hors `[0, 10⁶]`.
-/// - `Schema` si un `monthly_growth_pct` hors `[-50, 50]`.
-/// - `Schema` si deux scénarios ont le même `label`.
-/// - propage les erreurs de `engine.estimate`.
+/// **Errors**:
+/// - `Schema` if `scenarios` is empty or > `MAX_FORECAST_SCENARIOS`.
+/// - `Schema` if `months` is outside `[1, MAX_FORECAST_HORIZON_MONTHS]`.
+/// - `Schema` if `base_volume_per_day` is outside `[0, 10⁶]`.
+/// - `Schema` if a `monthly_growth_pct` is outside `[-50, 50]`.
+/// - `Schema` if two scenarios share the same `label`.
+/// - propagates the errors of `engine.estimate`.
 pub fn forecast_yearly(
     engine: &dyn crate::engine_trait::EmpreinteEngine,
     req: &YearlyForecastRequest,
@@ -150,7 +150,7 @@ fn validate(req: &YearlyForecastRequest) -> EstimatorResult<()> {
     Ok(())
 }
 
-#[allow(clippy::similar_names)] // p5 / p50 / p95 sont intentionnels et lisibles
+#[allow(clippy::similar_names)] // p5 / p50 / p95 are intentional and readable
 fn project_scenario(
     label: &str,
     growth_pct: f64,
@@ -339,7 +339,7 @@ mod tests {
                 cum[i]
             );
         }
-        // annual_p50_g == dernière valeur cumulée
+        // annual_p50_g == last cumulative value
         assert!((res.scenarios[0].annual_p50_g - cum[cum.len() - 1]).abs() < 1e-9);
     }
 
@@ -387,7 +387,7 @@ mod tests {
         ]);
         let res = forecast_yearly(&engine, &req).unwrap();
         assert_eq!(res.scenarios.len(), 3);
-        // L'accélération dépasse status quo, ralentissement plus bas.
+        // Acceleration exceeds status quo, slowdown stays below.
         let sq = res.scenarios[0].annual_p50_g;
         let acc = res.scenarios[1].annual_p50_g;
         let ralenti = res.scenarios[2].annual_p50_g;

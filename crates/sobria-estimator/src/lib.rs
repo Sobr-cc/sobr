@@ -1,9 +1,9 @@
 //! # sobria-estimator
 //!
-//! Moteur de calcul scientifique de Sobr.ia — Monte-Carlo N=10⁴ pour la
-//! formule AFNOR SPEC 2314 (voir ADR-0004).
+//! Scientific computation engine of Sobr.ia — Monte-Carlo N=10⁴ for the
+//! AFNOR SPEC 2314 formula (see ADR-0004).
 //!
-//! ## Exemple
+//! ## Example
 //!
 //! ```no_run
 //! use sobria_core::{ContextOverhead, EstimationRequest};

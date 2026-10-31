@@ -21,23 +21,23 @@ use crate::{
     params::EstimationParams,
 };
 
-/// Nombre de tirages par défaut. Voir ADR-0004.
+/// Default number of draws. See ADR-0004.
 pub const DEFAULT_N: u32 = 10_000;
 
-/// Nombre de bins par défaut pour `bin_samples()`. Voir C09 §3.2 (option A1).
+/// Default number of bins for `bin_samples()`. See C09 §3.2 (option A1).
 ///
-/// 50 bins offrent une résolution suffisante pour distinguer la queue droite
-/// d'une distribution log-normale tout en gardant le payload audit léger
-/// (~200 octets par indicateur).
+/// 50 bins give enough resolution to tell apart the right tail
+/// of a log-normal distribution while keeping the audit payload light
+/// (~200 bytes per indicator).
 pub const DEFAULT_BIN_COUNT: usize = 50;
 
-/// Seuil minimal de samples pour calculer un histogramme.
+/// Minimum number of samples to compute a histogram.
 ///
-/// En-dessous (tests unitaires à N petit), on retourne `None` pour éviter
-/// les histogrammes peu significatifs.
+/// Below it (unit tests with a small N), we return `None` to avoid
+/// meaningless histograms.
 pub const MIN_SAMPLES_FOR_BINS: usize = 10;
 
-/// Moteur Monte-Carlo réutilisable.
+/// Reusable Monte-Carlo engine.
 #[derive(Debug, Clone, Copy)]
 pub struct MonteCarloEngine {
     n: u32,
@@ -51,32 +51,32 @@ impl Default for MonteCarloEngine {
 }
 
 impl MonteCarloEngine {
-    /// Construit un moteur avec un seed donné et N=10⁴ par défaut.
+    /// Builds an engine with the given seed and N=10⁴ by default.
     #[must_use]
     pub fn new(seed: u64) -> Self {
         Self { n: DEFAULT_N, seed }
     }
 
-    /// Remplace le nombre de tirages.
+    /// Replaces the number of draws.
     #[must_use]
     pub fn with_n(mut self, n: u32) -> Self {
         self.n = n;
         self
     }
 
-    /// Retourne le seed configuré.
+    /// Returns the configured seed.
     #[must_use]
     pub fn seed(&self) -> u64 {
         self.seed
     }
 
-    /// Retourne N (nombre de tirages).
+    /// Returns N (number of draws).
     #[must_use]
     pub fn n(&self) -> u32 {
         self.n
     }
 
-    /// Lance l'estimation pour une requête + un set de paramètres.
+    /// Runs the estimation for a request + a parameter set.
     pub fn estimate(
         &self,
         request: &EstimationRequest,
@@ -99,9 +99,9 @@ impl MonteCarloEngine {
         let mut energy_samples = Vec::with_capacity(n_usize);
         let mut water_samples = Vec::with_capacity(n_usize);
 
-        // Effective tokens incluant overhead système + modalités
-        // + thinking tokens auto pour reasoning models. Si le modèle est
-        // inconnu, fallback aux valeurs brutes (pas d'overhead/modality).
+        // Effective tokens, including system overhead + modalities
+        // + auto thinking tokens for reasoning models. If the model is
+        // unknown, fall back to the raw values (no overhead/modality).
         let preset_opt = find_preset(&request.model_id);
         let (effective_in, effective_out) = effective_tokens::effective_tokens(request, preset_opt);
         let t_in = f64::from(effective_in);
@@ -115,15 +115,15 @@ impl MonteCarloEngine {
             let embodied = params.embodied_g_per_request.sample(&mut rng);
             let wue = params.wue_l_per_kwh.sample(&mut rng);
 
-            // E_compute en mJ, puis Wh : 1 Wh = 3 600 J = 3 600 000 mJ.
-            // Donc E_total_wh = (E_compute_mj × PUE) / 3 600 000.
+            // E_compute in mJ, then Wh: 1 Wh = 3 600 J = 3 600 000 mJ.
+            // So E_total_wh = (E_compute_mj × PUE) / 3 600 000.
             let e_compute_mj = t_in * eps_prefill + t_out * eps_decode;
             let e_total_wh = (e_compute_mj * pue) / 3_600_000.0;
 
             // CO₂eq (g) = (E_total / 1000) * IF (g/kWh) + embodied
             let co2eq_g = (e_total_wh / 1000.0) * if_elec + embodied;
 
-            // Eau (L) = (E_total / 1000) * WUE (L/kWh)
+            // Water (L) = (E_total / 1000) * WUE (L/kWh)
             let water_l = (e_total_wh / 1000.0) * wue;
 
             co2eq_samples.push(co2eq_g);
@@ -131,9 +131,9 @@ impl MonteCarloEngine {
             water_samples.push(water_l);
         }
 
-        // Binning AVANT le tri en place pour quantile_interval. On le fait
-        // d'abord parce que `bin_samples` n'a pas besoin d'un slice trié et
-        // que `quantile_interval` modifie le slice via sort_by.
+        // Binning BEFORE the in-place sort done by quantile_interval. It comes
+        // first because `bin_samples` does not need a sorted slice and
+        // `quantile_interval` mutates the slice via sort_by.
         let co2eq_bins = bin_samples(&co2eq_samples, DEFAULT_BIN_COUNT);
         let energy_bins = bin_samples(&energy_samples, DEFAULT_BIN_COUNT);
         let water_bins = bin_samples(&water_samples, DEFAULT_BIN_COUNT);
@@ -170,8 +170,8 @@ impl MonteCarloEngine {
     }
 }
 
-/// Implémentation du trait commun [`EmpreinteEngine`] pour Monte-Carlo
-/// AFNOR SPEC 2314 (méthodologie historique Sobr.ia).
+/// Implementation of the common [`EmpreinteEngine`] trait for the AFNOR
+/// SPEC 2314 Monte-Carlo engine (Sobr.ia's original methodology).
 impl EmpreinteEngine for MonteCarloEngine {
     fn method(&self) -> EmpreinteMethod {
         EmpreinteMethod::AfnorSobria
@@ -186,8 +186,8 @@ impl EmpreinteEngine for MonteCarloEngine {
     }
 }
 
-/// Convertit une liste de tirages en intervalle P5/P50/P95.
-/// La liste est triée en place (mutable) pour calculer les quantiles.
+/// Turns a list of draws into a P5/P50/P95 interval.
+/// The list is sorted in place (mutable) to compute the quantiles.
 fn quantile_interval(samples: &mut [f64]) -> EstimatorResult<UncertaintyInterval> {
     if samples.is_empty() {
         return Err(EstimatorError::Schema("samples vide".into()));
@@ -200,8 +200,8 @@ fn quantile_interval(samples: &mut [f64]) -> EstimatorResult<UncertaintyInterval
         .map_err(|e| EstimatorError::Validation(format!("interval: {e}")))
 }
 
-/// Renvoie le percentile à partir d'un tableau **trié**. Implémentation
-/// linéaire simple, suffisante pour N=10⁴.
+/// Returns the percentile of a **sorted** array. Simple linear
+/// implementation, good enough for N=10⁴.
 fn percentile(sorted: &[f64], p: f64) -> f64 {
     if sorted.is_empty() {
         return 0.0;
@@ -217,22 +217,22 @@ fn percentile(sorted: &[f64], p: f64) -> f64 {
     }
 }
 
-/// Construit un histogramme équi-width de `n_bins` bins à partir d'un slice
-/// de samples Monte-Carlo.
+/// Builds an equal-width histogram of `n_bins` bins from a slice
+/// of Monte-Carlo samples.
 ///
-/// Retourne `None` si :
-/// - `samples.len() < MIN_SAMPLES_FOR_BINS` (typiquement tests à N petit),
+/// Returns `None` if:
+/// - `samples.len() < MIN_SAMPLES_FOR_BINS` (typically tests with a small N),
 /// - `n_bins == 0`,
-/// - `min == max` (distribution dégénérée — toutes valeurs identiques),
-/// - une valeur n'est pas finie (NaN ou infinie).
+/// - `min == max` (degenerate distribution, all values identical),
+/// - a value is not finite (NaN or infinite).
 ///
-/// Sinon, retourne `Some(DistributionBins { min, max, counts })` où :
-/// - `min` = plus petite valeur observée,
-/// - `max` = plus grande valeur observée,
-/// - `counts[i]` = nombre de samples dans `[min + i·step, min + (i+1)·step)`,
-///   sauf le dernier bin qui inclut `max` (intervalle fermé à droite).
+/// Otherwise, returns `Some(DistributionBins { min, max, counts })` where:
+/// - `min` = smallest observed value,
+/// - `max` = largest observed value,
+/// - `counts[i]` = number of samples in `[min + i·step, min + (i+1)·step)`,
+///   except the last bin, which includes `max` (right-closed interval).
 ///
-/// Garantie : `counts.iter().sum::<u32>() as usize == samples.len()`.
+/// Guarantee: `counts.iter().sum::<u32>() as usize == samples.len()`.
 #[must_use]
 pub fn bin_samples(samples: &[f64], n_bins: usize) -> Option<DistributionBins> {
     if samples.len() < MIN_SAMPLES_FOR_BINS || n_bins == 0 {
@@ -257,8 +257,8 @@ pub fn bin_samples(samples: &[f64], n_bins: usize) -> Option<DistributionBins> {
     let step = (max - min) / n_bins as f64;
     let mut counts = vec![0_u32; n_bins];
     for &x in samples {
-        // Index = floor((x - min) / step), capé à n_bins - 1 (le `max` tombe
-        // exactement à la borne supérieure → on le range dans le dernier bin).
+        // Index = floor((x - min) / step), capped at n_bins - 1 (`max` falls
+        // exactly on the upper bound → it goes into the last bin).
         let idx = ((x - min) / step).floor() as usize;
         let idx = idx.min(n_bins - 1);
         counts[idx] = counts[idx].saturating_add(1);
@@ -266,8 +266,8 @@ pub fn bin_samples(samples: &[f64], n_bins: usize) -> Option<DistributionBins> {
     Some(DistributionBins { min, max, counts })
 }
 
-/// Construit la liste des hypothèses à partir des paramètres distributionnels.
-/// Une ligne par paramètre, valeur sérialisée en JSON.
+/// Builds the list of hypotheses from the distribution parameters.
+/// One line per parameter, value serialised as JSON.
 fn hypotheses_from_params(params: &EstimationParams) -> Vec<Hypothesis> {
     fn h(key: &str, dist: &crate::distributions::Distribution) -> Hypothesis {
         distribution_hypothesis(
@@ -310,7 +310,7 @@ mod tests {
         let res = engine.estimate(&req, &params).unwrap();
         assert_eq!(res.indicators.len(), 3);
         assert_eq!(res.seed, DEFAULT_SEED);
-        // Les 3 indicateurs ont des valeurs strictement positives
+        // All 3 indicators have strictly positive values
         for ind in &res.indicators {
             assert!(
                 ind.interval.p50 > 0.0,
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn doubling_tokens_approximately_doubles_co2eq() {
-        // PUE + IF + ε fixés pour ne mesurer que l'effet tokens
+        // PUE + IF + ε fixed so only the token effect is measured
         let params = EstimationParams::conservative_default()
             .with_pue(Distribution::Point { value: 1.3 })
             .with_if_electrical(Distribution::Point { value: 56.0 })
@@ -379,7 +379,7 @@ mod tests {
         let engine = MonteCarloEngine::new(42).with_n(1000);
         let res = engine.estimate(&sample_request(100, 500), &params).unwrap();
         for ind in &res.indicators {
-            // Avec uniquement des Point, tous les tirages sont identiques.
+            // With only Point distributions, every draw is identical.
             assert!(
                 (ind.interval.p95 - ind.interval.p5).abs() < 1e-9,
                 "indicateur {:?} pas dégénéré (p5={}, p95={})",
@@ -422,8 +422,8 @@ mod tests {
     }
 
     proptest! {
-        /// Pour tout couple (request valide, params conservateurs), le résultat
-        /// est valide (3 indicateurs, intervalles ordonnés, valeurs finies).
+        /// For every (valid request, conservative params) pair, the result
+        /// is valid (3 indicators, ordered intervals, finite values).
         #[test]
         fn prop_result_is_valid(
             tokens_in in 1u32..10_000,
@@ -446,12 +446,12 @@ mod tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // bin_samples + intégration dans estimate()
+    // bin_samples + integration into estimate()
     // ─────────────────────────────────────────────────────────────────────
 
     #[test]
     fn bin_samples_classic_case_sums_to_n() {
-        // Tirages uniformes dans [0, 1] via Xoshiro déterministe
+        // Uniform draws in [0, 1] via deterministic Xoshiro
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(7);
         let samples: Vec<f64> = (0..10_000)
             .map(|_| {
@@ -513,8 +513,8 @@ mod tests {
                 "counts.sum() doit égaler N pour {:?}",
                 ind.indicator
             );
-            // Cohérence avec l'intervalle quantile : min ≤ p5, p95 ≤ max
-            // (à epsilon près — quantile fait une interpolation linéaire).
+            // Consistency with the quantile interval: min ≤ p5, p95 ≤ max
+            // (within epsilon, since quantile interpolates linearly).
             assert!(
                 bins.min <= ind.interval.p5 + 1e-9,
                 "bins.min ({}) > p5 ({}) pour {:?}",
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn estimate_with_small_n_skips_bins() {
-        // N=5 < MIN_SAMPLES_FOR_BINS → bins == None pour tous les indicateurs
+        // N=5 < MIN_SAMPLES_FOR_BINS → bins == None for every indicator
         let engine = MonteCarloEngine::default().with_n(5);
         let params = EstimationParams::conservative_default();
         let res = engine.estimate(&sample_request(10, 20), &params).unwrap();
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn estimate_point_distributions_produces_no_bins() {
-        // Toutes les distributions sont Point → samples tous identiques → bins=None
+        // Every distribution is Point → all samples identical → bins=None
         let params = EstimationParams {
             epsilon_prefill_mj_per_token: Distribution::Point { value: 1.0 },
             epsilon_decode_mj_per_token: Distribution::Point { value: 2.0 },

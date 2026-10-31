@@ -1,11 +1,11 @@
-//! Validation croisée du moteur Monte-Carlo.
+//! Cross-validation of the Monte-Carlo engine.
 //!
-//! Voir `docs/archive/chantiers/C07-validation-croisee.md` et
+//! See `docs/archive/chantiers/C07-validation-croisee.md` and
 //! `docs/methodology/VALIDATION-CROISEE.md`.
 //!
-//! Deux niveaux :
-//! - [`PlausibilityCase`] : ordre de grandeur (plage large), toujours actif.
-//! - [`ReproductionCase`] : reproduction at ±X % of a target computed from the
+//! Two levels:
+//! - [`PlausibilityCase`]: order of magnitude (wide range), always on.
+//! - [`ReproductionCase`]: reproduction at ±X % of a target computed from the
 //!   presets, not a published figure (SOB-209).
 
 use chrono::Utc;
@@ -23,108 +23,108 @@ use crate::{
 
 pub mod cases;
 
-/// Cas de test "ordre de grandeur" (plage large).
+/// "Order of magnitude" test case (wide range).
 #[derive(Debug, Clone, Copy)]
 pub struct PlausibilityCase {
-    /// Identifiant stable du cas.
+    /// Stable case identifier.
     pub id: &'static str,
-    /// Description humaine.
+    /// Human-readable description.
     pub description: &'static str,
-    /// Modèle (preset registry).
+    /// Model (preset registry).
     pub model_id: &'static str,
-    /// Tokens d'entrée.
+    /// Input tokens.
     pub tokens_in: u32,
-    /// Tokens de sortie.
+    /// Output tokens.
     pub tokens_out: u32,
-    /// Facteur d'émission électrique (gCO₂eq/kWh).
+    /// Electricity emission factor (gCO₂eq/kWh).
     pub if_electrical_g_per_kwh: f64,
-    /// Plage attendue (min, max) en gCO₂eq pour le P50.
+    /// Expected (min, max) range for the P50, in gCO₂eq.
     pub expected_range_g_co2eq: (f64, f64),
-    /// Référence documentaire (paper, doc EcoLogits, etc.).
+    /// Documentary reference (paper, EcoLogits doc, etc.).
     pub reference: &'static str,
 }
 
 /// Reproduction case: ±X % of a target computed from the presets (SOB-209).
 #[derive(Debug, Clone, Copy)]
 pub struct ReproductionCase {
-    /// Identifiant stable.
+    /// Stable identifier.
     pub id: &'static str,
     /// Methodology checked; [`run_reproduction`] builds the matching engine.
     pub method: EmpreinteMethod,
     /// Source the case cites (paper, vendor doc or announcement); the target
     /// itself is computed from the presets (SOB-209).
     pub source_doi_or_url: &'static str,
-    /// Modèle visé.
+    /// Target model.
     pub model_id: &'static str,
-    /// Tokens d'entrée.
+    /// Input tokens.
     pub tokens_in: u32,
-    /// Tokens de sortie.
+    /// Output tokens.
     pub tokens_out: u32,
-    /// Facteur d'émission électrique utilisé dans la référence.
+    /// Electricity emission factor used in the reference.
     pub if_electrical_g_per_kwh: f64,
-    /// PUE utilisé dans la référence.
+    /// PUE used in the reference.
     pub pue: f64,
-    /// P50 cible (gCO₂eq).
+    /// Target P50 (gCO₂eq).
     pub expected_p50_g_co2eq: f64,
-    /// Tolérance relative (ex: 0.15 pour ±15 %).
+    /// Relative tolerance (e.g. 0.15 for ±15 %).
     pub tolerance: f64,
-    /// Si `true`, désactive la composante embodied dans notre estimateur
-    /// (Point 0). Utile pour comparaisons usage-only entre méthodologies
-    /// qui allouent l'embodied différemment.
+    /// If `true`, disables the embodied component in our estimator
+    /// (Point 0). Useful for usage-only comparisons between methodologies
+    /// that allocate embodied differently.
     pub disable_embodied: bool,
-    /// Notes méthodologiques.
+    /// Methodology notes.
     pub notes: &'static str,
-    /// Modalités d'input à ajouter à la requête (vision, doc,
-    /// audio). Vide par défaut (cas legacy textuels).
+    /// Input modalities to add to the request (vision, doc,
+    /// audio). Empty by default (legacy text cases).
     pub modalities: &'static [InputModality],
-    /// Overhead système à ajouter à la requête. Zéros par
-    /// défaut (cas legacy textuels).
+    /// System overhead to add to the request. Zeros by
+    /// default (legacy text cases).
     pub overhead: ContextOverhead,
 }
 
-/// Type d'un cas validé.
+/// Kind of a validated case.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ValidationKind {
-    /// Test d'ordre de grandeur.
+    /// Order-of-magnitude test.
     Plausibility,
-    /// Test de reproduction stricte.
+    /// Strict reproduction test.
     Reproduction,
 }
 
-/// Rapport d'un cas validé.
+/// Report for a validated case.
 #[derive(Debug, Clone, Serialize)]
 pub struct ValidationReport {
-    /// Identifiant du cas.
+    /// Case identifier.
     pub case_id: String,
-    /// Type de cas.
+    /// Case kind.
     pub kind: ValidationKind,
-    /// `true` si le test passe.
+    /// `true` if the test passes.
     pub passed: bool,
-    /// P50 calculé par le moteur (gCO₂eq).
+    /// P50 computed by the engine (gCO₂eq).
     pub computed_p50_g_co2eq: f64,
-    /// Valeur attendue (selon le type de cas) — bornée ou ponctuelle.
+    /// Expected value (depends on the case kind): a range or a point.
     pub expected: Expectation,
-    /// Message humain résumant le résultat.
+    /// Human-readable message summing up the result.
     pub message: String,
 }
 
-/// Valeur attendue.
+/// Expected value.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Expectation {
-    /// Plage [min, max] (plausibility).
+    /// [min, max] range (plausibility).
     Range {
-        /// Borne basse.
+        /// Lower bound.
         min: f64,
-        /// Borne haute.
+        /// Upper bound.
         max: f64,
     },
-    /// Valeur ponctuelle ± tolérance relative.
+    /// Point value ± relative tolerance.
     PointWithinTolerance {
-        /// Valeur cible.
+        /// Target value.
         target: f64,
-        /// Tolérance relative.
+        /// Relative tolerance.
         tolerance: f64,
     },
 }
@@ -142,8 +142,8 @@ pub(crate) fn request_for(model_id: &str, tokens_in: u32, tokens_out: u32) -> Es
     }
 }
 
-/// Construit un `EstimationRequest` pour un `ReproductionCase`
-/// avec ses modalités et overhead injectés (cas legacy : vides).
+/// Builds an `EstimationRequest` for a `ReproductionCase`,
+/// with its modalities and overhead injected (empty for legacy cases).
 fn request_for_reproduction(case: &ReproductionCase) -> EstimationRequest {
     EstimationRequest {
         modalities: case.modalities.to_vec(),
@@ -158,7 +158,7 @@ fn co2eq_p50(result: &EstimationResult) -> EstimatorResult<f64> {
         .ok_or_else(|| crate::error::EstimatorError::Other("CO2eq absent du résultat".into()))
 }
 
-/// Exécute un cas de plausibilité.
+/// Runs a plausibility case.
 pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationReport> {
     let params =
         EstimationParams::for_model(case.model_id)?.with_if_electrical(Distribution::Point {
@@ -190,11 +190,11 @@ pub fn run_plausibility(case: &PlausibilityCase) -> EstimatorResult<ValidationRe
     })
 }
 
-/// Exécute un cas de reproduction stricte.
+/// Runs a strict reproduction case.
 ///
-/// Le moteur utilisé est déterminé par `case.method` :
-/// - `EmpreinteMethod::AfnorSobria` → [`MonteCarloEngine`] (10⁴ tirages)
-/// - `EmpreinteMethod::EcoLogits`   → [`EcoLogitsEngine`] (déterministe)
+/// The engine is picked from `case.method`:
+/// - `EmpreinteMethod::AfnorSobria` → [`MonteCarloEngine`] (10⁴ draws)
+/// - `EmpreinteMethod::EcoLogits`   → [`EcoLogitsEngine`] (deterministic)
 pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationReport> {
     let mut params = EstimationParams::for_model(case.model_id)?
         .with_if_electrical(Distribution::Point {
@@ -202,9 +202,9 @@ pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationRe
         })
         .with_pue(Distribution::Point { value: case.pue });
     if case.disable_embodied {
-        // Comparaison usage-only : on neutralise notre amortissement
-        // embodied pour rester homogène avec la valeur cible (qui n'inclut
-        // pas l'embodied ou l'inclut via une formule différente).
+        // Usage-only comparison: we zero out our embodied amortisation
+        // to stay consistent with the target value (which leaves embodied
+        // out or includes it through a different formula).
         params = params.with_embodied(Distribution::Point { value: 0.0 });
     }
     let request = request_for_reproduction(case);
@@ -251,7 +251,7 @@ pub fn run_reproduction(case: &ReproductionCase) -> EstimatorResult<ValidationRe
     })
 }
 
-/// Exécute tous les cas de plausibilité connus.
+/// Runs all known plausibility cases.
 #[must_use]
 pub fn run_all_plausibility() -> Vec<ValidationReport> {
     cases::PLAUSIBILITY_CASES
@@ -260,7 +260,7 @@ pub fn run_all_plausibility() -> Vec<ValidationReport> {
         .collect()
 }
 
-/// Exécute tous les cas de reproduction connus.
+/// Runs all known reproduction cases.
 #[must_use]
 pub fn run_all_reproduction() -> Vec<ValidationReport> {
     cases::REPRODUCTION_CASES
@@ -304,12 +304,12 @@ mod tests {
         );
     }
 
-    /// Vérifie que chaque [`ReproductionCase`] passe sa tolérance contre
-    /// le moteur ciblé par `case.method`.
+    /// Checks that each [`ReproductionCase`] passes its tolerance against
+    /// the engine selected by `case.method`.
     ///
-    /// Pour les cas `EcoLogits` : le port Rust doit reproduire les
-    /// formules officielles à <1 % (port direct → l'écart attendu est
-    /// purement numérique float64).
+    /// For `EcoLogits` cases: the Rust port must reproduce the official
+    /// formulas within <1 % (direct port → the expected gap is purely
+    /// float64 numerical).
     #[test]
     fn all_reproduction_cases_pass() {
         for case in cases::REPRODUCTION_CASES {

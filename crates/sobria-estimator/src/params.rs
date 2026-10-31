@@ -1,7 +1,7 @@
-//! Paramètres distributionnels du modèle de calcul.
+//! Distribution parameters of the calculation model.
 //!
-//! Voir CDC §9 et ADR-0004 pour la formule de référence.
-//! Voir `docs/archive/chantiers/C05-estimator-monte-carlo.md` §4.
+//! See CDC §9 and ADR-0004 for the reference formula.
+//! See `docs/archive/chantiers/C05-estimator-monte-carlo.md` §4.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,43 +27,43 @@ pub(crate) const DEFAULT_WUE_L_PER_KWH: Distribution = Distribution::Uniform {
 /// datacenter is known, whatever the model's hosting (SOB-209).
 pub(crate) const FRANCE_MIX_G_PER_KWH: Distribution = Distribution::Point { value: 56.0 };
 
-/// Ensemble distributionnel des paramètres physiques d'une estimation.
+/// Distributions of the physical parameters of an estimation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct EstimationParams {
-    /// Énergie/token de prefill (input), en milli-joules par token.
+    /// Prefill (input) energy per token, in milli-joules per token.
     pub epsilon_prefill_mj_per_token: Distribution,
-    /// Énergie/token de decode (output), en milli-joules par token.
+    /// Decode (output) energy per token, in milli-joules per token.
     pub epsilon_decode_mj_per_token: Distribution,
-    /// PUE du datacenter (sans unité, typiquement entre 1.05 et 1.6).
+    /// Datacenter PUE (unitless, typically between 1.05 and 1.6).
     pub pue: Distribution,
-    /// Facteur d'émission électrique, en gCO₂eq/kWh.
+    /// Electricity emission factor, in gCO₂eq/kWh.
     pub if_electrical_g_per_kwh: Distribution,
-    /// Embodied carbon amorti par requête, en gCO₂eq.
+    /// Embodied carbon amortised per request, in gCO₂eq.
     pub embodied_g_per_request: Distribution,
-    /// Water Usage Effectiveness, en litres par kWh IT.
+    /// Water Usage Effectiveness, in litres per IT kWh.
     pub wue_l_per_kwh: Distribution,
 }
 
 impl EstimationParams {
-    /// Construit un set de paramètres conservateur "par défaut" — valeurs
-    /// raisonnables à défaut de données spécifiques. À utiliser uniquement
-    /// dans les tests et la démonstration.
+    /// Builds a conservative "default" parameter set — reasonable values
+    /// when no specific data is available. Use only in tests and the
+    /// demo.
     ///
-    /// Valeurs sourcées de manière indicative :
-    /// - ε_prefill / ε_decode : ordre de grandeur HF AI Energy Score 2026.
-    /// - PUE : datacenter moderne, plage 1.1-1.4.
-    /// - IF élec : mix France 2024 (ADEME ~56 g/kWh).
-    /// - Embodied / req : Gupta 2022 amorti sur ~1 G req.
-    /// - WUE : Mytton 2021 plage moyenne.
+    /// Indicative sources for the values:
+    /// - ε_prefill / ε_decode: order of magnitude from HF AI Energy Score 2026.
+    /// - PUE: modern datacenter, range 1.1-1.4.
+    /// - Electricity IF: France 2024 mix (ADEME ~56 g/kWh).
+    /// - Embodied / req: Gupta 2022, amortised over ~1 G req.
+    /// - WUE: Mytton 2021, mid range.
     #[must_use]
     pub fn conservative_default() -> Self {
         Self {
-            // 1 mJ/token médian, ±50 %
+            // 1 mJ/token median, ±50 %
             epsilon_prefill_mj_per_token: Distribution::LogNormal {
                 mu: (1.0_f64).ln(),
                 sigma: 0.25,
             },
-            // 2 mJ/token médian (decode plus coûteux que prefill)
+            // 2 mJ/token median (decode costs more than prefill)
             epsilon_decode_mj_per_token: Distribution::LogNormal {
                 mu: (2.0_f64).ln(),
                 sigma: 0.3,
@@ -78,7 +78,7 @@ impl EstimationParams {
         }
     }
 
-    /// Vérifie que toutes les distributions sont valides.
+    /// Checks that all distributions are valid.
     pub fn validate(&self) -> EstimatorResult<()> {
         self.epsilon_prefill_mj_per_token
             .validate()
@@ -101,35 +101,35 @@ impl EstimationParams {
         Ok(())
     }
 
-    /// Builder fluide : remplace `pue`.
+    /// Fluent builder: replaces `pue`.
     #[must_use]
     pub fn with_pue(mut self, d: Distribution) -> Self {
         self.pue = d;
         self
     }
 
-    /// Builder fluide : remplace `if_electrical_g_per_kwh`.
+    /// Fluent builder: replaces `if_electrical_g_per_kwh`.
     #[must_use]
     pub fn with_if_electrical(mut self, d: Distribution) -> Self {
         self.if_electrical_g_per_kwh = d;
         self
     }
 
-    /// Builder fluide : remplace `epsilon_decode_mj_per_token`.
+    /// Fluent builder: replaces `epsilon_decode_mj_per_token`.
     #[must_use]
     pub fn with_epsilon_decode(mut self, d: Distribution) -> Self {
         self.epsilon_decode_mj_per_token = d;
         self
     }
 
-    /// Builder fluide : remplace `embodied_g_per_request`.
+    /// Fluent builder: replaces `embodied_g_per_request`.
     #[must_use]
     pub fn with_embodied(mut self, d: Distribution) -> Self {
         self.embodied_g_per_request = d;
         self
     }
 
-    /// Builder fluide : remplace `wue_l_per_kwh`.
+    /// Fluent builder: replaces `wue_l_per_kwh`.
     #[must_use]
     pub fn with_wue(mut self, d: Distribution) -> Self {
         self.wue_l_per_kwh = d;
@@ -157,7 +157,7 @@ mod tests {
             p.if_electrical_g_per_kwh,
             Distribution::Point { value: 412.0 }
         );
-        // Les autres champs ne sont pas modifiés
+        // The other fields are left unchanged
         assert!(p.validate().is_ok());
     }
 

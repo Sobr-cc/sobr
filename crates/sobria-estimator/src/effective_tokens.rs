@@ -1,26 +1,26 @@
-//! Bridge entre [`sobria_core::InputModality`] +
-//! [`sobria_core::ContextOverhead`] et [`crate::model_presets::VisionPricing`].
+//! Bridge between [`sobria_core::InputModality`] +
+//! [`sobria_core::ContextOverhead`] and [`crate::model_presets::VisionPricing`].
 //!
-//! Calcule les **effective tokens** (input et output) à utiliser dans les
-//! formules d'énergie des engines. Sépare physiquement le côté **input**
-//! (prefill : user tokens + system + tools + memory + modalités) et le côté
-//! **output** (decode : output tokens + thinking pour reasoning models).
+//! Computes the **effective tokens** (input and output) used in the
+//! engines' energy formulas. Physically splits the **input** side
+//! (prefill: user tokens + system + tools + memory + modalities) from the
+//! **output** side (decode: output tokens + thinking for reasoning models).
 //!
 //! ## Disclaimer
 //!
-//! L'overhead système (`system_prompt_tokens`, etc.) est une **estimation
-//! ± 50 %** basée sur leaks publics et reverse-engineering. Le thinking
-//! multiplier `(P5, P95)` provient des system cards vendor. Voir
+//! The system overhead (`system_prompt_tokens`, etc.) is an **estimate
+//! ± 50 %** based on public leaks and reverse-engineering. The thinking
+//! multiplier `(P5, P95)` comes from vendor system cards. See
 //! [`crate::model_presets::ModelPreset::default_context_overhead_tokens`]
-//! et [`crate::model_presets::ModelPreset::thinking_token_multiplier`].
+//! and [`crate::model_presets::ModelPreset::thinking_token_multiplier`].
 
 use sobria_core::{ContextOverhead, EstimationRequest, InputModality};
 
 use crate::model_presets::ModelPreset;
 
-/// Calcule les tokens de la modalité, avec préférence au `vision_pricing`
-/// du preset s'il est disponible. Fallback générique pour Text / Document /
-/// AudioInput (preset-indépendant).
+/// Computes the modality's tokens, preferring the preset's `vision_pricing`
+/// when available. Generic fallback for Text / Document /
+/// AudioInput (preset-independent).
 #[must_use]
 pub fn modality_tokens(modality: &InputModality, preset_opt: Option<&ModelPreset>) -> u32 {
     let pricing = preset_opt.and_then(|p| p.vision_pricing.as_ref());
@@ -42,7 +42,7 @@ pub fn modality_tokens(modality: &InputModality, preset_opt: Option<&ModelPreset
     }
 }
 
-/// Somme des tokens de toutes les modalités d'une requête.
+/// Sum of the tokens of all modalities in a request.
 #[must_use]
 pub fn modalities_total(modalities: &[InputModality], preset_opt: Option<&ModelPreset>) -> u32 {
     modalities
@@ -51,12 +51,12 @@ pub fn modalities_total(modalities: &[InputModality], preset_opt: Option<&ModelP
         .fold(0u32, u32::saturating_add)
 }
 
-/// Calcule la valeur P50 du thinking_tokens à ajouter automatiquement quand
-/// le modèle est reasoning et que l'utilisateur n'a pas fourni de valeur
-/// explicite (`overhead.thinking_tokens_p50 == 0`).
+/// Computes the P50 thinking_tokens value to add automatically when
+/// the model is a reasoning model and the user gave no explicit
+/// value (`overhead.thinking_tokens_p50 == 0`).
 ///
-/// Formule : `output_tokens × geometric_mean(P5, P95)`.
-/// Géométrique car le ratio est log-normal (cf. system cards o3, R1, V4).
+/// Formula: `output_tokens × geometric_mean(P5, P95)`.
+/// Geometric because the ratio is log-normal (see the o3, R1, V4 system cards).
 #[must_use]
 pub fn auto_thinking_tokens(output_tokens: u32, preset_opt: Option<&ModelPreset>) -> u32 {
     let Some(preset) = preset_opt else {
@@ -73,7 +73,7 @@ pub fn auto_thinking_tokens(output_tokens: u32, preset_opt: Option<&ModelPreset>
     }
     let geomean = (p5 * p95).sqrt();
     let out = f64::from(output_tokens);
-    // Saturating cast — si débordement, on plafonne à u32::MAX
+    // Saturating cast — on overflow, cap at u32::MAX
     let result = out * geomean;
     if !result.is_finite() || result < 0.0 {
         0
@@ -84,15 +84,15 @@ pub fn auto_thinking_tokens(output_tokens: u32, preset_opt: Option<&ModelPreset>
     }
 }
 
-/// Couple `(effective_input_tokens, effective_output_tokens)` calculé à
-/// partir de la requête et du preset (si trouvable).
+/// Pair `(effective_input_tokens, effective_output_tokens)` computed from
+/// the request and the preset (if found).
 ///
 /// - `effective_in = tokens_in + overhead.total_input() + Σ modalities`
 /// - `effective_out = tokens_out_estimated + overhead.total_output()
 ///                    + auto_thinking_tokens(output, preset)`
 ///
-/// `auto_thinking_tokens` n'est ajouté que si `overhead.thinking_tokens_p50
-/// == 0` (sinon l'utilisateur a fourni sa propre valeur en mode Expert).
+/// `auto_thinking_tokens` is only added if `overhead.thinking_tokens_p50
+/// == 0` (otherwise the user gave their own value in Expert mode).
 #[must_use]
 pub fn effective_tokens(
     request: &EstimationRequest,
@@ -118,9 +118,9 @@ pub fn effective_tokens(
     (effective_in, effective_out)
 }
 
-/// Helper : recalcule un `ContextOverhead` à partir des valeurs par défaut
-/// du preset (système prompt, thinking auto). Utile pour l'UI M1 qui
-/// pré-remplit les champs au choix du modèle.
+/// Helper: rebuilds a `ContextOverhead` from the preset's default values
+/// (system prompt, auto thinking). Useful for the M1 UI, which
+/// pre-fills the fields when a model is picked.
 #[must_use]
 pub fn overhead_from_preset(preset: &ModelPreset, output_tokens: u32) -> ContextOverhead {
     ContextOverhead {
@@ -172,7 +172,7 @@ mod tests {
         }];
         let preset = find_preset("gpt-4o");
         let (eff_in, _) = effective_tokens(&req, preset);
-        // OpenAI 1024×1024 high : 85 + 170 × 2 × 2 = 765
+        // OpenAI 1024×1024 high: 85 + 170 × 2 × 2 = 765
         assert_eq!(eff_in, 100 + 765);
     }
 
@@ -182,7 +182,7 @@ mod tests {
         req.modalities = vec![InputModality::VisionLow { image_count: 2 }];
         let preset = find_preset("gpt-4o");
         let (eff_in, _) = effective_tokens(&req, preset);
-        // OpenAI low : 85 fixe × 2 = 170
+        // OpenAI low: fixed 85 × 2 = 170
         assert_eq!(eff_in, 100 + 170);
     }
 
@@ -196,11 +196,11 @@ mod tests {
 
     #[test]
     fn auto_thinking_added_for_reasoning_models() {
-        // o3 : reasoning, multiplier (5.0, 30.0) → geomean = sqrt(150) ≈ 12.247
+        // o3: reasoning, multiplier (5.0, 30.0) → geomean = sqrt(150) ≈ 12.247
         let req = base_request("o3", 100, 1000);
         let preset = find_preset("o3");
         let (_, eff_out) = effective_tokens(&req, preset);
-        // attendu : 1000 + 1000 × ≈12.247 = 13247
+        // expected: 1000 + 1000 × ≈12.247 = 13247
         assert!((13_200..=13_300).contains(&eff_out), "eff_out = {eff_out}");
     }
 
@@ -219,7 +219,7 @@ mod tests {
         let req = base_request("gpt-4o", 100, 1000);
         let preset = find_preset("gpt-4o");
         let (_, eff_out) = effective_tokens(&req, preset);
-        assert_eq!(eff_out, 1000); // pas de reasoning, pas de thinking auto
+        assert_eq!(eff_out, 1000); // no reasoning, no auto thinking
     }
 
     #[test]

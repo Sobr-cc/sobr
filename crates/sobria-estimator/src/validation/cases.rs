@@ -1,27 +1,27 @@
-//! Cas concrets de validation.
+//! Concrete validation cases.
 //!
-//! Deux familles :
-//! - [`PlausibilityCase`] : plages larges (3-5 ordres de grandeur),
-//!   toujours actifs en CI. Détectent les bugs catastrophiques (mauvais
-//!   sens d'une formule, oubli de × 1000, etc.).
-//! - [`ReproductionCase`] : reproduction **usage-only** d'une cible
-//!   publiée à ±20-25 %, recalculée depuis la méthodologie EcoLogits
+//! Two families:
+//! - [`PlausibilityCase`]: wide ranges (3-5 orders of magnitude),
+//!   always on in CI. They catch catastrophic bugs (a formula the wrong
+//!   way round, a missing × 1000, etc.).
+//! - [`ReproductionCase`]: **usage-only** reproduction of a published
+//!   target within ±20-25 %, recomputed from the EcoLogits methodology
 //!   2026-01 (Rincé & Banse 2025, DOI: 10.21105/joss.07471).
 //!
-//! Voir `docs/methodology/VALIDATION-CROISEE.md` et
-//! `notebook/validation.qmd` pour le statut détaillé de chaque cas et la
-//! justification des tolérances.
+//! See `docs/methodology/VALIDATION-CROISEE.md` and
+//! `notebook/validation.qmd` for the detailed status of each case and the
+//! rationale for the tolerances.
 
 use super::{PlausibilityCase, ReproductionCase};
 use crate::engine_trait::EmpreinteMethod;
 use sobria_core::{ContextOverhead, InputModality};
 
-/// Mix électrique France (ADEME 2024) — ~56 gCO₂eq/kWh.
+/// France electricity mix (ADEME 2024) — ~56 gCO₂eq/kWh.
 const IF_FR: f64 = 56.0;
-/// Mix électrique US-Virginie (Electricity Maps moyenne) — ~412 gCO₂eq/kWh.
+/// US-Virginia electricity mix (Electricity Maps average) — ~412 gCO₂eq/kWh.
 const IF_US_VA: f64 = 412.0;
 
-/// Helper : ContextOverhead à zéro (cas legacy texte).
+/// Helper: zero ContextOverhead (legacy text cases).
 const ZERO_OVERHEAD: ContextOverhead = ContextOverhead {
     system_prompt_tokens: 0,
     tools_definition_tokens: 0,
@@ -29,24 +29,24 @@ const ZERO_OVERHEAD: ContextOverhead = ContextOverhead {
     thinking_tokens_p50: 0,
 };
 
-/// Helper : pas de modalités (cas legacy texte).
+/// Helper: no modalities (legacy text cases).
 const NO_MODALITIES: &[InputModality] = &[];
 
-// ─── Constantes modalités pour les cas multimodaux ────────────────────────────
-/// 2 images 1024×1024 haute résolution.
+// ─── Modality constants for the multimodal cases ──────────────────────────────
+/// 2 high-resolution 1024×1024 images.
 const TWO_HIGH_IMAGES_1024: &[InputModality] = &[InputModality::VisionHigh {
     image_count: 2,
     avg_width: 1024,
     avg_height: 1024,
 }];
-/// PDF 5 pages.
+/// 5-page PDF.
 const PDF_5_PAGES: &[InputModality] = &[InputModality::Document { page_count: 5 }];
-/// 30 secondes d'audio.
+/// 30 seconds of audio.
 const AUDIO_30S: &[InputModality] = &[InputModality::AudioInput {
     duration_seconds: 30,
 }];
 
-/// Overhead Claude par défaut (2000 tokens system prompt typique claude.ai).
+/// Default Claude overhead (typical claude.ai system prompt of 2000 tokens).
 const CLAUDE_DEFAULT_OVERHEAD: ContextOverhead = ContextOverhead {
     system_prompt_tokens: 2000,
     tools_definition_tokens: 0,
@@ -54,7 +54,7 @@ const CLAUDE_DEFAULT_OVERHEAD: ContextOverhead = ContextOverhead {
     thinking_tokens_p50: 0,
 };
 
-/// Liste des cas de plausibilité (toujours actifs en CI).
+/// List of plausibility cases (always on in CI).
 pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
     PlausibilityCase {
         id: "gpt-4o-mini-fr-short",
@@ -63,9 +63,9 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
         tokens_in: 100,
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
-        // Petit modèle (8 G), mix décarboné, prompt court : on attend un
-        // P50 dans une plage très basse (les modèles fermés sont
-        // extrapolés donc plages élargies).
+        // Small model (8 G), low-carbon mix, short prompt: we expect a
+        // P50 in a very low range (closed models are extrapolated,
+        // hence wider ranges).
         expected_range_g_co2eq: (1e-5, 1e-2),
         reference: "Sobr.ia C06 model presets + ADEME 2024 (mix FR)",
     },
@@ -86,8 +86,8 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
         tokens_in: 200,
         tokens_out: 1000,
         if_electrical_g_per_kwh: IF_US_VA,
-        // Même modèle, même prompt — mais mix électrique ~7,4 × plus
-        // carboné. On élargit la plage haute en conséquence.
+        // Same model, same prompt — but an electricity mix ~7,4 × more
+        // carbon-intensive. We widen the upper bound accordingly.
         expected_range_g_co2eq: (1e-3, 1.0),
         reference: "Electricity Maps (Virginie ~412 g/kWh)",
     },
@@ -98,7 +98,7 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
         tokens_in: 500,
         tokens_out: 2000,
         if_electrical_g_per_kwh: IF_FR,
-        // Post-recalibration C24 : ~0.26 g attendus, plage élargie.
+        // After the C24 recalibration: ~0.26 g expected, widened range.
         expected_range_g_co2eq: (1e-2, 1.0),
         reference: "Sobr.ia C06 model presets (extrapolation ~200 G)",
     },
@@ -109,52 +109,52 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
         tokens_in: 100,
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
-        // Mistral Large 2 (123 G) : l'embodied amorti (≈ 0.031 g/req,
-        // soit 0.00025 × 123) **domine** sur un prompt court vu que le
-        // compute pèse moins que le hardware fab. La borne haute reflète
-        // ce phénomène — un observation utile pour l'UI (« sur les gros
-        // modèles, prompt court ≠ impact négligeable »).
+        // Mistral Large 2 (123 G): the amortised embodied (≈ 0.031 g/req,
+        // i.e. 0.00025 × 123) **dominates** on a short prompt, since the
+        // compute weighs less than hardware manufacturing. The upper bound
+        // reflects this — a useful observation for the UI ("on big
+        // models, short prompt ≠ negligible impact").
         expected_range_g_co2eq: (1e-4, 0.1),
         reference: "Mistral AI 2024 + ADEME ; embodied 123G ≈ 0.031 g/req dominant",
     },
     PlausibilityCase {
         id: "us-mix-is-more-carbon-intensive-than-fr",
-        // Ce cas n'est pas une vérification d'un chiffre absolu, mais
-        // d'une **propriété qualitative** essentielle : le mix US est
-        // plus carboné que le mix FR. Si notre moteur produit l'inverse,
-        // quelque chose est fondamentalement cassé.
+        // This case does not check an absolute figure, but an
+        // essential **qualitative property**: the US mix is more
+        // carbon-intensive than the FR mix. If our engine says otherwise,
+        // something is fundamentally broken.
         description: "Sanity : US-VA produit > 5× plus CO₂eq que FR à modèle/prompt égaux",
         model_id: "llama-3-1-8b",
         tokens_in: 100,
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_US_VA,
-        // On attend que le P50 soit nécessairement supérieur à la plage
-        // FR équivalente (gpt-4o-mini-fr-short = mêmes tokens, petit
-        // modèle, FR mix). On encadre largement pour éviter les faux
-        // positifs liés au Monte-Carlo.
+        // We expect the P50 to be necessarily above the equivalent FR
+        // range (gpt-4o-mini-fr-short = same tokens, small
+        // model, FR mix). The bounds are wide to avoid Monte-Carlo
+        // false positives.
         expected_range_g_co2eq: (1e-4, 1.0),
         reference: "Electricity Maps + ADEME — différentiel mix carboné",
     },
 ];
 
-/// Cas de reproduction stricte ciblant le moteur [`crate::engines::ecologits::EcoLogitsEngine`].
+/// Strict reproduction cases targeting [`crate::engines::ecologits::EcoLogitsEngine`].
 ///
-/// Ces cas valident que **notre port Rust** des formules EcoLogits
-/// (Rincé & Banse 2025, DOI: 10.21105/joss.07471, CC BY-SA 4.0) reproduit
-/// fidèlement les valeurs calculées indépendamment en Python (cf.
-/// `notebook/validation.qmd`). Comme `EcoLogitsEngine` est un port direct
-/// de leurs formules, l'écart est par construction proche de 0 — on
-/// retient une tolérance de 1 % pour absorber les imprécisions
-/// arithmétiques float64.
+/// These cases check that **our Rust port** of the EcoLogits formulas
+/// (Rincé & Banse 2025, DOI: 10.21105/joss.07471, CC BY-SA 4.0) faithfully
+/// reproduces the values computed independently in Python (see
+/// `notebook/validation.qmd`). Since `EcoLogitsEngine` is a direct port
+/// of their formulas, the gap is close to 0 by construction — we
+/// keep a 1 % tolerance to absorb float64 arithmetic
+/// inaccuracies.
 ///
-/// **Pourquoi usage-only ?** Dans cette première itération du port
-/// EcoLogits, on isole la composante usage (énergie × IF × PUE) pour
-/// vérifier d'abord cette partie. L'embodied EcoLogits (`I_server × ΔT/
-/// (B×ΔL)`) est implémenté dans le moteur mais sera couvert par des
-/// cas dédiés en v1.1+ (cf. `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`).
+/// **Why usage-only?** This first iteration of the EcoLogits port
+/// isolates the usage component (energy × IF × PUE) to check that
+/// part first. The EcoLogits embodied (`I_server × ΔT/
+/// (B×ΔL)`) is implemented in the engine but will get dedicated
+/// cases in v1.1+ (see `docs/archive/chantiers/C24-multi-methodologie-ecologits.md`).
 ///
-/// **Formule EcoLogits réimplémentée pour calculer les cibles** (cf.
-/// <https://ecologits.ai/latest/methodology/llm_inference/>, accédé 2026-05-13) :
+/// **EcoLogits formula reimplemented to compute the targets** (see
+/// <https://ecologits.ai/latest/methodology/llm_inference/>, accessed 2026-05-13):
 /// - `f_E(P, B=64) = 5.71e-7 × P + 4.05e-5` Wh/token GPU
 /// - `n_GPU = roundup_pow2(ceil(1.2 × P × 16 / 8 / 80))`
 /// - `f_L(P, B=64) = 6.78e-4 × P + 0.020 + 0.0194` s/token
@@ -162,8 +162,8 @@ pub const PLAUSIBILITY_CASES: &[PlausibilityCase] = &[
 /// - `E_request = PUE × (n_GPU × n_tokens_out × f_E + E_server_noGPU)`
 /// - `g_CO2eq_usage = E_request × IF_g_per_kWh / 1000`
 ///
-/// Le détail des calculs et la justification des tolérances sont
-/// documentés dans `notebook/validation.qmd`.
+/// The detailed calculations and the rationale for the tolerances are
+/// documented in `notebook/validation.qmd`.
 pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
     ReproductionCase {
         id: "ecologits-llama-70b-fr-short",
@@ -174,7 +174,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // EcoLogits :
+        // EcoLogits:
         //   M_model = 1.2 × 70 × 16 / 8 = 168 GB
         //   n_GPU = roundup_pow2(ceil(168/80)) = roundup_pow2(3) = 4
         //   E_GPU_total/tok = 4 × (5.71e-7 × 70 + 4.05e-5)
@@ -203,8 +203,8 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 2000,
         if_electrical_g_per_kwh: IF_US_VA,
         pue: 1.2,
-        // EcoLogits :
-        //   n_GPU = 4 (idem)
+        // EcoLogits:
+        //   n_GPU = 4 (same as above)
         //   E_GPU = 2000 × 3.22e-4 = 0.644 Wh
         //   ΔT = 2000 × 0.0869 = 173.8 s
         //   E_server_noGPU = 173.8 × 1200 × (4/8) / 64 / 3600 = 0.452 Wh
@@ -228,7 +228,7 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 1000,
         if_electrical_g_per_kwh: IF_US_VA,
         pue: 1.2,
-        // EcoLogits :
+        // EcoLogits:
         //   n_GPU = roundup_pow2(ceil(1.2×123×16/8/80)) = roundup_pow2(4) = 4
         //   E_GPU_total/tok = 4 × (5.71e-7 × 123 + 4.05e-5)
         //                   = 4 × 1.108e-4 = 4.43e-4 Wh
@@ -247,18 +247,18 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         overhead: ZERO_OVERHEAD,
     },
     // ════════════════════════════════════════════════════════════════════════
-    // Cas modalités + overhead + reasoning thinking auto
+    // Modality + overhead + auto reasoning-thinking cases
     //
-    // Ces 5 cas vérifient que le pipeline `effective_tokens` (cf.
-    // crates/sobria-estimator/src/effective_tokens.rs) injecte correctement :
-    //   - les tokens vision via preset.vision_pricing (Cas A)
-    //   - les tokens document génériques (Cas B)
-    //   - les tokens audio génériques (Cas C)
-    //   - le thinking tokens auto pour reasoning models (Cas D)
-    //   - l'overhead système (Cas E)
+    // These 5 cases check that the `effective_tokens` pipeline (see
+    // crates/sobria-estimator/src/effective_tokens.rs) correctly injects:
+    //   - vision tokens via preset.vision_pricing (Case A)
+    //   - generic document tokens (Case B)
+    //   - generic audio tokens (Case C)
+    //   - auto thinking tokens for reasoning models (Case D)
+    //   - the system overhead (Case E)
     //
-    // Méthodologie : Monte-Carlo AFNOR (P50 ~ geom-median des log-normaux).
-    // Tolérance 25 % par défaut (Monte-Carlo + extrapolation closed models).
+    // Methodology: AFNOR Monte-Carlo (P50 ~ geom-median of the log-normals).
+    // 25 % tolerance by default (Monte-Carlo + closed-model extrapolation).
     // ════════════════════════════════════════════════════════════════════════
     ReproductionCase {
         id: "c34-vision-gpt4o-2-high-images-fr",
@@ -269,8 +269,8 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // Calcul de référence :
-        //   Vision OpenAI : (85 + 170×2×2) × 2 = 1530 tokens
+        // Reference calculation:
+        //   OpenAI vision: (85 + 170×2×2) × 2 = 1530 tokens
         //   effective_in = 100 + 1530 = 1630 tokens
         //   e_compute = 1630 × 2000 + 500 × 5000 = 5.76 kJ/req
         //   e_total = 5.76 × 1.2 / 3.6 = 1.92 Wh = 1.92e-3 kWh
@@ -296,8 +296,8 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // Calcul de référence :
-        //   Document : 5 × 1100 = 5500 tokens (DOCUMENT_TOKENS_PER_PAGE)
+        // Reference calculation:
+        //   Document: 5 × 1100 = 5500 tokens (DOCUMENT_TOKENS_PER_PAGE)
         //   effective_in = 100 + 5500 = 5600 tokens
         //   e_compute = 5600 × 2000 + 500 × 5000 = 13.7 kJ
         //   e_total = 13.7 × 1.2 / 3.6 = 4.57 Wh
@@ -322,8 +322,8 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // Calcul de référence :
-        //   Audio : 30 × 10 = 300 tokens (AUDIO_TOKENS_PER_SECOND=10)
+        // Reference calculation:
+        //   Audio: 30 × 10 = 300 tokens (AUDIO_TOKENS_PER_SECOND=10)
         //   effective_in = 100 + 300 = 400 tokens
         //   e_compute = 400 × 2000 + 500 × 5000 = 3.3 kJ
         //   e_total = 3.3 × 1.2 / 3.6 = 1.1 Wh
@@ -347,11 +347,11 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 1000,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // Calcul de référence :
+        // Reference calculation:
         //   o3 reasoning_capable, multiplier (5, 30), geomean = √150 = 12.247
         //   auto_thinking = 1000 × 12.247 ≈ 12247 tokens
         //   effective_out = 1000 + 12247 = 13247 tokens
-        //   o3 params : ε_prefill_p50 = 4000, ε_decode_p50 = 10000, embodied = 0.10
+        //   o3 params: ε_prefill_p50 = 4000, ε_decode_p50 = 10000, embodied = 0.10
         //   e_compute = 200 × 4000 + 13247 × 10000 = 133.27 kJ
         //   e_total = 133.27 × 1.2 / 3.6 = 44.42 Wh
         //   usage = 44.42e-3 × 56 = 2.488 g
@@ -374,13 +374,13 @@ pub const REPRODUCTION_CASES: &[ReproductionCase] = &[
         tokens_out: 500,
         if_electrical_g_per_kwh: IF_FR,
         pue: 1.2,
-        // Calcul de référence :
-        //   Overhead Claude.ai : system = 2000 (typique leaked)
+        // Reference calculation:
+        //   Claude.ai overhead: system = 2000 (typical, leaked)
         //   effective_in = 100 + 2000 = 2100
         //   claude-3-7 reasoning_capable, multiplier (2, 50), geomean = √100 = 10
         //   auto_thinking = 500 × 10 = 5000 tokens
         //   effective_out = 500 + 5000 = 5500
-        //   claude-3-7 params : ε_prefill_p50 = 2000, ε_decode_p50 = 5000, embodied = 0.05
+        //   claude-3-7 params: ε_prefill_p50 = 2000, ε_decode_p50 = 5000, embodied = 0.05
         //   e_compute = 2100 × 2000 + 5500 × 5000 = 31.7 kJ
         //   e_total = 31.7 × 1.2 / 3.6 = 10.57 Wh
         //   usage = 10.57e-3 × 56 = 0.592 g

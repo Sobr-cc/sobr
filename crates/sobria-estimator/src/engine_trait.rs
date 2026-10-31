@@ -1,25 +1,25 @@
-//! Trait commun à toutes les méthodologies d'empreinte LLM embarquées
-//! dans Sobr.ia (ADR-0012).
+//! Common trait for every LLM footprint methodology built into
+//! Sobr.ia (ADR-0012).
 //!
-//! Sobr.ia v1.0+ propose un **catalogue de méthodologies scientifiques**
-//! sélectionnables par l'utilisateur :
+//! Sobr.ia v1.0+ offers a **catalogue of scientific methodologies**
+//! the user can choose from:
 //!
-//! - **AFNOR SPEC 2314 (Sobr.ia)** : formule linéaire-par-token + Monte-Carlo,
-//!   méthode propre alignée sur le référentiel français AFNOR SPEC 2314.
-//! - **EcoLogits 2026-01** : port direct des formules EcoLogits (Rincé &
+//! - **AFNOR SPEC 2314 (Sobr.ia)**: linear-per-token formula + Monte-Carlo,
+//!   Sobr.ia's own method, aligned on the French AFNOR SPEC 2314 framework.
+//! - **EcoLogits 2026-01**: direct port of the EcoLogits formulas (Rincé &
 //!   Banse 2025, [DOI:10.21105/joss.07471](https://doi.org/10.21105/joss.07471),
 //!   licence CC BY-SA 4.0).
-//! - *(v1.1+ prévu)* BoaVizta, HF AI Energy Score, Custom user engine.
+//! - *(planned for v1.1+)* BoaVizta, HF AI Energy Score, Custom user engine.
 //!
 //! ## UX
 //!
-//! L'utilisateur sélectionne **une** méthodologie par défaut dans
-//! `Settings → Méthodologies`. Il peut éventuellement activer d'autres
-//! méthodologies en référence : les résultats correspondants apparaissent
-//! dans un panneau "Voir aussi" à côté du résultat principal.
+//! The user picks **one** default methodology in
+//! `Settings → Méthodologies`. They can also turn on other
+//! methodologies as references: their results appear
+//! in a "Voir aussi" panel next to the main result.
 //!
-//! L'audit ledger trace systématiquement la méthodologie utilisée pour
-//! chaque estimation (champ `method` dans la table `audit_entries`).
+//! The audit ledger always records the methodology used for
+//! each estimate (`method` field in the `audit_entries` table).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -30,67 +30,67 @@ use sobria_core::{
 
 use crate::{distributions::Distribution, error::EstimatorResult, params::EstimationParams};
 
-/// Re-export du type énumératif défini dans `sobria-core::methodology`.
+/// Re-export of the enum type defined in `sobria-core::methodology`.
 ///
-/// On garde le type central dans `sobria-core` pour pouvoir l'utiliser
-/// dans `EstimationResult` (sérialisé dans l'audit ledger) et dans les
-/// préférences user, **sans** créer de dépendance circulaire vers
+/// The central type lives in `sobria-core` so it can be used
+/// in `EstimationResult` (serialised in the audit ledger) and in the
+/// user preferences **without** creating a circular dependency on
 /// `sobria-estimator`.
 pub use sobria_core::EmpreinteMethod;
 
-/// Statut de calibration d'une méthodologie au sein de Sobr.ia.
+/// Calibration status of a methodology within Sobr.ia.
 ///
-/// Distinct de [`crate::model_presets::CalibrationStatus`] (qui s'applique
-/// à un *modèle* dans un *preset*) — ici on parle du statut de la
-/// *méthodologie* elle-même.
+/// Distinct from [`crate::model_presets::CalibrationStatus`] (which applies
+/// to a *model* in a *preset*): here it is the status of the
+/// *methodology* itself.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MethodologyCalibration {
-    /// Méthodologie peer-reviewed, reproductible à <1 % de l'implémentation
-    /// de référence publiée (test cross-check automatique en CI).
+    /// Peer-reviewed methodology, reproduced within <1 % of the published
+    /// reference implementation (automatic cross-check test in CI).
     PeerReviewedReproduced,
-    /// Méthodologie publique de référence, implémentée par Sobr.ia avec
-    /// validation par plausibilité (ordres de grandeur) — la calibration
-    /// chiffrée est en cours.
+    /// Public reference methodology, implemented by Sobr.ia and checked
+    /// for plausibility (orders of magnitude); the numeric calibration
+    /// is in progress.
     PublicMethodCalibrationPending,
-    /// Méthodologie embarquée pour exploration / pédagogie, valeurs à
-    /// considérer comme indicatives uniquement.
+    /// Methodology built in for exploration / teaching; treat its values
+    /// as indicative only.
     Indicative,
 }
 
-/// Description statique d'une méthodologie embarquée.
+/// Static description of a built-in methodology.
 ///
-/// Renvoyée par [`AVAILABLE_METHODS`] au runtime pour afficher le
-/// catalogue dans `Settings → Méthodologies`.
+/// Returned by [`AVAILABLE_METHODS`] at runtime to show the
+/// catalogue in `Settings → Méthodologies`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct MethodologyInfo {
-    /// Identifiant stable.
+    /// Stable identifier.
     pub method: EmpreinteMethod,
-    /// Nom affiché en UI.
+    /// Name shown in the UI.
     pub display_name: &'static str,
-    /// Courte description (1-2 phrases) destinée à un public non-technique.
+    /// Short description (1-2 sentences) for a non-technical audience.
     pub short_description: &'static str,
-    /// DOI ou URL de référence académique / open-source.
+    /// DOI or URL of the academic / open-source reference.
     pub reference_url: &'static str,
-    /// Identifiant DOI normalisé si dispo (sinon `None`).
+    /// Normalised DOI identifier if available (otherwise `None`).
     pub doi: Option<&'static str>,
-    /// License de la méthodologie publiée.
+    /// License of the published methodology.
     pub license: &'static str,
-    /// Statut de calibration dans Sobr.ia.
+    /// Calibration status in Sobr.ia.
     pub calibration: MethodologyCalibration,
-    /// Année de publication de la méthodologie de référence.
+    /// Publication year of the reference methodology.
     pub year_published: u16,
-    /// Organisation qui maintient la méthodologie de référence.
+    /// Organisation that maintains the reference methodology.
     pub maintained_by: &'static str,
 }
 
 /// Every methodology Sobr.ia can run.
 ///
 /// To add one:
-/// 1. Étendre l'enum [`EmpreinteMethod`].
-/// 2. Ajouter l'entry ici.
-/// 3. Implémenter [`EmpreinteEngine`] dans `crates/sobria-estimator/src/engines/`.
-/// 4. Câbler dans la factory [`crate::engine_for`].
+/// 1. Extend the [`EmpreinteMethod`] enum.
+/// 2. Add the entry here.
+/// 3. Implement [`EmpreinteEngine`] in `crates/sobria-estimator/src/engines/`.
+/// 4. Wire it into the [`crate::engine_for`] factory.
 pub static AVAILABLE_METHODS: &[MethodologyInfo] = &[
     MethodologyInfo {
         method: EmpreinteMethod::AfnorSobria,
@@ -119,16 +119,16 @@ pub static AVAILABLE_METHODS: &[MethodologyInfo] = &[
     },
 ];
 
-/// Trait commun aux moteurs d'estimation d'empreinte.
+/// Common trait of the footprint estimation engines.
 ///
-/// Toute méthodologie embarquée dans Sobr.ia implémente ce trait, ce qui
-/// permet à la couche `sobria-app` d'invoquer indifféremment le moteur
-/// AFNOR ou EcoLogits selon la préférence utilisateur.
+/// Every methodology built into Sobr.ia implements this trait, so the
+/// `sobria-app` layer can call the AFNOR or EcoLogits engine
+/// interchangeably, depending on the user preference.
 pub trait EmpreinteEngine: Send + Sync {
-    /// Identifiant stable de la méthodologie.
+    /// Stable identifier of the methodology.
     fn method(&self) -> EmpreinteMethod;
 
-    /// Méta-info pour affichage UI / dossier candidature.
+    /// Metadata for UI display / the challenge application file.
     ///
     /// # Panics
     ///
@@ -137,11 +137,11 @@ pub trait EmpreinteEngine: Send + Sync {
         info_for(self.method())
     }
 
-    /// Lance l'estimation pour une requête + jeu de paramètres.
+    /// Runs the estimation for a request + a parameter set.
     ///
-    /// Les `EstimationParams` ne sont pas tous honorés par toutes les
-    /// méthodologies (EcoLogits a ses propres coefficients internes), cf.
-    /// la documentation de chaque implémentation.
+    /// Not every methodology honours every `EstimationParams` field
+    /// (EcoLogits has its own internal coefficients); see the
+    /// documentation of each implementation.
     fn estimate(
         &self,
         request: &EstimationRequest,
@@ -149,7 +149,7 @@ pub trait EmpreinteEngine: Send + Sync {
     ) -> EstimatorResult<EstimationResult>;
 }
 
-/// Récupère les infos d'une méthodologie par identifiant.
+/// Returns the info of a methodology by identifier.
 ///
 /// # Panics
 ///
@@ -204,9 +204,9 @@ mod tests {
 
     #[test]
     fn available_methods_covers_all_variants() {
-        // Chaque variant de l'enum doit avoir une entrée dans AVAILABLE_METHODS.
-        // Si on ajoute un variant à l'enum mais qu'on oublie le registry,
-        // ce test échoue.
+        // Every enum variant must have an entry in AVAILABLE_METHODS.
+        // If a variant is added to the enum but the registry is forgotten,
+        // this test fails.
         for &method in EmpreinteMethod::all() {
             assert!(
                 AVAILABLE_METHODS.iter().any(|m| m.method == method),

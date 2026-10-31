@@ -1,11 +1,11 @@
-//! Moteur **EcoLogits** — port direct des formules publiées dans :
+//! **EcoLogits** engine: a direct port of the formulas published in:
 //!
 //! - Rincé S., Banse A., *EcoLogits: Evaluating the Environmental Impacts
 //!   of Generative AI*, JOSS 10(111):7471, 2025.
 //!   [doi:10.21105/joss.07471](https://doi.org/10.21105/joss.07471)
-//! - Documentation officielle :
+//! - Official documentation:
 //!   <https://ecologits.ai/latest/methodology/llm_inference/>
-//! - Code source de référence (CC BY-SA 4.0) :
+//! - Reference source code (CC BY-SA 4.0):
 //!   <https://github.com/genai-impact/ecologits>
 //!
 //! ## License & attribution
@@ -17,18 +17,18 @@
 //! methodology card shown in the app (`/methodologies`); a fuller attribution
 //! document is SOB-209.
 //!
-//! ## Différences avec l'implémentation Python de référence
+//! ## Differences from the Python reference implementation
 //!
-//! Cette v1.0 du port :
-//! - **Est déterministe** : on n'échantillonne pas les coefficients
-//!   internes (`α`, `β`, `γ`) — on prend leurs valeurs ponctuelles
-//!   publiées. L'utilisateur qui veut une plage P5/P95 utilise plutôt
-//!   `AfnorSobria`. (Pour ECoLogits avec uncertainty, v1.1+.)
-//! - **Utilise B=64** (vLLM, batch typique cloud), constante.
-//! - **Utilise H100 80GB / serveur p5.48xlarge** comme référence.
-//! - **N'utilise** des `EstimationParams` que `pue` et `if_electrical_g_per_kwh`
-//!   et `wue_l_per_kwh` (les `epsilon_*` et `embodied_g_per_request` sont
-//!   *ignorés* car remplacés par les formules EcoLogits internes).
+//! This v1.0 of the port:
+//! - **Is deterministic**: it does not sample the internal coefficients
+//!   (`α`, `β`, `γ`) but takes their published point values. A user who
+//!   wants a P5/P95 range uses `AfnorSobria` instead. (EcoLogits with
+//!   uncertainty: v1.1+.)
+//! - **Uses B=64** (vLLM, typical cloud batch), as a constant.
+//! - **Uses an H100 80GB / p5.48xlarge server** as the reference.
+//! - **Uses only** `pue`, `if_electrical_g_per_kwh` and `wue_l_per_kwh` from
+//!   `EstimationParams` (`epsilon_*` and `embodied_g_per_request` are
+//!   *ignored*, replaced by the internal EcoLogits formulas).
 
 use chrono::Utc;
 use sobria_core::{EstimationRequest, EstimationResult, Hypothesis, UncertaintyInterval};
@@ -44,60 +44,60 @@ use crate::{
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constantes EcoLogits 2026-01
-// Source : <https://ecologits.ai/latest/methodology/llm_inference/>
-// Accédée et fixée à la version 2026-01 (cf. notebook/validation.qmd)
+// EcoLogits 2026-01 constants
+// Source: <https://ecologits.ai/latest/methodology/llm_inference/>
+// Accessed and pinned to version 2026-01 (see notebook/validation.qmd)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// `α` du fit f_E (énergie GPU par token de sortie, Wh).
+/// `α` of the f_E fit (GPU energy per output token, Wh).
 const ALPHA_E: f64 = 1.17e-6;
-/// `β` du fit f_E.
+/// `β` of the f_E fit.
 const BETA_E: f64 = -1.12e-2;
-/// `γ` du fit f_E.
+/// `γ` of the f_E fit.
 const GAMMA_E: f64 = 4.05e-5;
 
-/// `α` du fit f_L (latence par token, s).
+/// `α` of the f_L fit (latency per token, s).
 const ALPHA_L: f64 = 6.78e-4;
-/// `β` du fit f_L.
+/// `β` of the f_L fit.
 const BETA_L: f64 = 3.12e-4;
-/// `γ` du fit f_L.
+/// `γ` of the f_L fit.
 const GAMMA_L: f64 = 1.94e-2;
 
-/// Batch size de référence (vLLM continuous batching).
+/// Reference batch size (vLLM continuous batching).
 const BATCH_SIZE: f64 = 64.0;
 
-/// Puissance électrique du serveur de référence (hors GPUs), p5.48xlarge.
+/// Electrical power of the reference server (excluding GPUs), p5.48xlarge.
 const P_SERVER_W: f64 = 1200.0;
 
-/// Nombre de GPUs installés sur le serveur de référence.
+/// Number of GPUs installed in the reference server.
 const N_GPU_INSTALLED: f64 = 8.0;
 
-/// Mémoire VRAM par GPU (H100 80 Go).
+/// VRAM per GPU (H100 80 GB).
 const MEM_GPU_GB: f64 = 80.0;
 
-/// Bits par poids du modèle (FP16).
+/// Bits per model weight (FP16).
 const Q_BITS: f64 = 16.0;
 
-/// Overhead mémoire d'inférence (KV cache, activations, marges).
+/// Inference memory overhead (KV cache, activations, margins).
 const MEM_OVERHEAD: f64 = 1.2;
 
-/// Embodied carbon du serveur hors GPUs (Boavizta amorti sur 3 ans).
+/// Embodied carbon of the server excluding GPUs (Boavizta, amortised over 3 years).
 const I_SERVER_NO_GPU_KG: f64 = 5700.0;
 
-/// Embodied carbon d'un GPU H100 (Boavizta).
+/// Embodied carbon of one H100 GPU (Boavizta).
 const I_GPU_KG: f64 = 273.0;
 
-/// Durée de vie hardware (3 ans, en secondes).
+/// Hardware lifetime (3 years, in seconds).
 const HW_LIFETIME_SEC: f64 = 3.0 * 365.25 * 86_400.0;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Formules EcoLogits
+// EcoLogits formulas
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Nombre de GPUs requis pour servir un modèle de `p_billions` milliards
-/// de paramètres en FP16, arrondi à la puissance de 2 supérieure.
+/// Number of GPUs needed to serve a model of `p_billions` billion
+/// parameters in FP16, rounded up to the next power of 2.
 ///
-/// Formule : `n_GPU = next_pow2(ceil(1.2 × P × 16/8 / 80))`.
+/// Formula: `n_GPU = next_pow2(ceil(1.2 × P × 16/8 / 80))`.
 #[must_use]
 pub fn n_gpu(p_billions: f64) -> u32 {
     let m_model_gb = MEM_OVERHEAD * p_billions * Q_BITS / 8.0;
@@ -109,7 +109,7 @@ pub fn n_gpu(p_billions: f64) -> u32 {
     }
 }
 
-/// Énergie GPU par token de sortie, Wh, à batch B=64.
+/// GPU energy per output token, Wh, at batch B=64.
 ///
 /// `f_E(P, 64) = α × exp(β × 64) × P + γ`
 #[must_use]
@@ -117,7 +117,7 @@ pub fn f_energy_per_token_wh(p_billions: f64) -> f64 {
     ALPHA_E * (BETA_E * BATCH_SIZE).exp() * p_billions + GAMMA_E
 }
 
-/// Latence par token de sortie, secondes, à batch B=64.
+/// Latency per output token, seconds, at batch B=64.
 ///
 /// `f_L(P, 64) = α' × P + β' × 64 + γ'`
 #[must_use]
@@ -125,7 +125,7 @@ pub fn f_latency_per_token_sec(p_billions: f64) -> f64 {
     ALPHA_L * p_billions + BETA_L * BATCH_SIZE + GAMMA_L
 }
 
-/// Énergie totale d'une requête en kWh (usage seul, hors embodied).
+/// Total energy of one request in kWh (usage only, excluding embodied).
 #[must_use]
 pub fn request_energy_kwh(p_billions: f64, tokens_out: u32, pue: f64) -> f64 {
     let n_gpu_f = f64::from(n_gpu(p_billions));
@@ -139,51 +139,51 @@ pub fn request_energy_kwh(p_billions: f64, tokens_out: u32, pue: f64) -> f64 {
     e_request_wh / 1000.0
 }
 
-/// Embodied carbon amorti par requête (g CO₂eq).
+/// Amortised embodied carbon per request (g CO₂eq).
 ///
 /// `I_request_emb = (ΔT / (B × ΔL)) × I_server`
-/// avec `I_server = (n_GPU/N_installed) × I_server_noGPU + n_GPU × I_GPU`.
+/// with `I_server = (n_GPU/N_installed) × I_server_noGPU + n_GPU × I_GPU`.
 #[must_use]
 pub fn request_embodied_co2eq_g(p_billions: f64, tokens_out: u32) -> f64 {
     let n_gpu_f = f64::from(n_gpu(p_billions));
     let t_out = f64::from(tokens_out);
     let dt_sec = t_out * f_latency_per_token_sec(p_billions);
-    // kg CO2eq amorti pour la requête, puis × 1000 pour passer en g.
+    // kg CO2eq amortised for the request, then × 1000 to convert to g.
     let i_server_kg = (n_gpu_f / N_GPU_INSTALLED) * I_SERVER_NO_GPU_KG + n_gpu_f * I_GPU_KG;
     let alloc_ratio = dt_sec / (BATCH_SIZE * HW_LIFETIME_SEC);
     alloc_ratio * i_server_kg * 1000.0
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Moteur
+// Engine
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Moteur d'estimation EcoLogits (déterministe).
+/// EcoLogits estimation engine (deterministic).
 #[derive(Debug, Clone, Copy)]
 pub struct EcoLogitsEngine {
-    /// Seed conservé pour cohérence d'interface avec [`crate::engine::MonteCarloEngine`].
-    /// Non utilisé par les formules EcoLogits (déterministes), mais consigné
-    /// dans le résultat pour traçabilité.
+    /// Seed kept for interface consistency with [`crate::engine::MonteCarloEngine`].
+    /// Unused by the (deterministic) EcoLogits formulas, but recorded
+    /// in the result for traceability.
     seed: u64,
 }
 
 impl EcoLogitsEngine {
-    /// Construit un moteur EcoLogits avec un seed donné (utilisé seulement
-    /// pour traçabilité dans le ledger).
+    /// Builds an EcoLogits engine with the given seed (used only for
+    /// traceability in the ledger).
     #[must_use]
     pub fn new(seed: u64) -> Self {
         Self { seed }
     }
 
-    /// Retourne le seed configuré.
+    /// Returns the configured seed.
     #[must_use]
     pub fn seed(&self) -> u64 {
         self.seed
     }
 
-    /// Échantillonne une valeur représentative d'une distribution
-    /// (médiane) — utilisée pour PUE, IF, WUE qui peuvent être passés sous
-    /// forme distributionnelle dans `EstimationParams`.
+    /// Picks a representative value of a distribution (its median), used
+    /// for PUE, IF and WUE, which `EstimationParams` may give as
+    /// distributions.
     fn point_value(dist: Distribution) -> f64 {
         match dist {
             Distribution::Point { value } => value,
@@ -193,16 +193,16 @@ impl EcoLogitsEngine {
         }
     }
 
-    /// Lance l'estimation EcoLogits.
+    /// Runs the EcoLogits estimation.
     ///
-    /// `params.pue`, `params.if_electrical_g_per_kwh` et `params.wue_l_per_kwh`
-    /// sont utilisés (réduits à leur valeur centrale si distribution).
-    /// `params.epsilon_*` et `params.embodied_g_per_request` sont **ignorés**
-    /// car remplacés par les formules EcoLogits internes.
-    // Pipeline linéaire (validation → params → énergie → CO2 → eau →
-    // indicateurs/equivalents/hypothèses → résultat). Le gros du volume
-    // vient des littéraux `Hypothesis` explicites destinés à l'audit ;
-    // fragmenter en helpers ferait perdre la cohésion sans gagner en clarté.
+    /// `params.pue`, `params.if_electrical_g_per_kwh` and `params.wue_l_per_kwh`
+    /// are used (reduced to their central value when they are distributions).
+    /// `params.epsilon_*` and `params.embodied_g_per_request` are **ignored**,
+    /// replaced by the internal EcoLogits formulas.
+    // Linear pipeline (validation → params → energy → CO2 → water →
+    // indicators/equivalents/hypotheses → result). Most of the length comes
+    // from the explicit `Hypothesis` literals meant for the audit; splitting
+    // into helpers would lose cohesion without gaining clarity.
     #[allow(clippy::too_many_lines)]
     pub fn estimate(
         &self,
@@ -214,8 +214,8 @@ impl EcoLogitsEngine {
             .map_err(|e| EstimatorError::Validation(format!("request: {e}")))?;
         params.validate()?;
 
-        // Retrouver le modèle depuis le registry pour récupérer le nombre
-        // de paramètres en milliards.
+        // Look the model up in the registry to get its parameter count
+        // in billions.
         let preset = find_preset(&request.model_id).ok_or_else(|| {
             EstimatorError::Schema(format!(
                 "EcoLogits: modèle inconnu {:?} (registry Sobr.ia)",
@@ -228,13 +228,13 @@ impl EcoLogitsEngine {
         let if_elec = Self::point_value(params.if_electrical_g_per_kwh);
         let wue = Self::point_value(params.wue_l_per_kwh);
 
-        // Effective tokens. EcoLogits utilise principalement t_out
-        // pour ses formules f_energy_per_token / f_latency_per_token ; on y
-        // injecte donc l'effective_out (qui inclut thinking auto pour
-        // reasoning models). L'overhead côté input (system + tools + memory
-        // + modalités) ne contribue pas au modèle énergétique EcoLogits (qui
-        // facture par token de décode), c'est conservé par cohérence avec
-        // la méthodologie publiée.
+        // Effective tokens. EcoLogits mainly uses t_out in its
+        // f_energy_per_token / f_latency_per_token formulas, so we feed it
+        // effective_out (which includes auto thinking tokens for reasoning
+        // models). The input-side overhead (system + tools + memory
+        // + modalities) does not count in the EcoLogits energy model (which
+        // charges per decode token); this is kept for consistency with
+        // the published methodology.
         let (_effective_in, effective_out) =
             effective_tokens::effective_tokens(request, Some(preset));
 
@@ -243,10 +243,10 @@ impl EcoLogitsEngine {
         let energy_watt_hours = energy_kwh * 1000.0;
         let usage_co2_g = energy_kwh * if_elec;
 
-        // Embodied : par défaut, formule EcoLogits interne. Mais si
-        // l'utilisateur a explicitement passé `params.embodied = Point(0)`
-        // (override "usage-only"), on respecte ce choix. Cas typique :
-        // ReproductionCase usage-only et comparaisons croisées.
+        // Embodied: the internal EcoLogits formula by default. But if the
+        // user explicitly passed `params.embodied = Point(0)` (a "usage-only"
+        // override), we respect that choice. Typical case: usage-only
+        // ReproductionCase and cross-comparisons.
         let embodied_co2_g = match params.embodied_g_per_request {
             Distribution::Point { value: 0.0 } => 0.0,
             _ => request_embodied_co2eq_g(p_billions, effective_out),
@@ -255,10 +255,10 @@ impl EcoLogitsEngine {
         // Total CO2
         let total_co2_g = usage_co2_g + embodied_co2_g;
 
-        // Eau (formule équivalente à Sobr.ia : E_kWh × WUE)
+        // Water (same formula as Sobr.ia: E_kWh × WUE)
         let water_l = energy_kwh * wue;
 
-        // Sortie : ECoLogits est déterministe en v1 — P5 = P50 = P95.
+        // Output: EcoLogits is deterministic in v1, so P5 = P50 = P95.
         let degenerate = |v: f64| {
             UncertaintyInterval::point(v)
                 .map_err(|e| EstimatorError::Validation(format!("interval EcoLogits ({v}): {e}")))
@@ -271,8 +271,8 @@ impl EcoLogitsEngine {
         );
         let equivalents = equivalents::standard(total_co2_g, energy_watt_hours);
 
-        // Hypothèses : on documente les coefficients EcoLogits + les
-        // paramètres user (PUE / IF / WUE) effectivement utilisés.
+        // Hypotheses: record the EcoLogits coefficients + the user params
+        // (PUE / IF / WUE) actually used.
         let hypotheses = vec![
             Hypothesis {
                 key: "method".into(),
@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn llama_70b_fr_500_tokens_matches_reference() {
-        // Cible recalculée Python (notebook/validation.qmd) :
+        // Target recomputed in Python (notebook/validation.qmd):
         //   E_request = 0.329 Wh, usage_g (FR 56) = 0.01843 g.
         let eng = EcoLogitsEngine::default();
         let res = eng
@@ -463,8 +463,8 @@ mod tests {
         let g1 = r1.indicators[0].interval.p50;
         let g2 = r2.indicators[0].interval.p50;
         let ratio = g2 / g1;
-        // Pas exactement 2x à cause de l'overhead γ (terme constant
-        // par token, plus prefill-like). Mais entre 1.9 et 2.1.
+        // Not exactly 2x because of the γ overhead (constant term
+        // per token, more prefill-like). But between 1.9 and 2.1.
         assert!(
             (1.85..=2.15).contains(&ratio),
             "ratio attendu ~2.0, reçu {ratio}"
