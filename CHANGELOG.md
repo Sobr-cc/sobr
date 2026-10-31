@@ -5,22 +5,24 @@ Toutes les modifications notables sont documentées ici, conformément à [Keep 
 Format : `[X.Y.Z] - YYYY-MM-DD`
 Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
+> **New entries go to `changelog.d/`**, one fragment file per pull request
+> (see [`changelog.d/README.md`](changelog.d/README.md)). Do not add entries
+> here: `scripts/changelog-assemble.sh` moves the fragments into this file at
+> each release. This file keeps the history.
+
 ## [Non publié]
 
-### Changed — ADR-0024 amended: shared host, smaller cap, shared front end, portability (2026-10-31, SOB-218)
+### Fixed — two team server tests that failed in CI (2026-10-31, SOB-167)
 
-- **ADR-0024, Amendment 1** (decisions only; the facts of the host stay in the private
-  host contract):
-  - Sobr's starting cap is 10 GB of memory, 4 vCPU and 200 GB of disk (Thibault, SOB-213).
-    The sizing of §8 does not fit: the lab becomes one small Talos node plus the router
-    VM. The managed cloud does not open on this cap, and CI runners stay on GitHub's
-    runners until the cap rises.
-  - The EU front server is shared as a layer-4 relay on the host name, with no TLS
-    termination and its own tunnel, keys and routes per project; tunnels are dialed out
-    from the cluster. Backups live off the host: layers 1 and 2 and a copy in a third
-    place.
-  - The portability rule of SOB-211 becomes five numbered rules with their checks.
-    ADR-0024 stays Proposed until the open facts are confirmed.
+- **`sobria-team-aggregator`** (tests, no behavior change):
+  `admin_user_detail_route_respects_visibility_policy` read the user detail
+  with the default window (last 30 days), which stopped covering its fixed
+  `2026-05-16` estimation in June; it now passes a fixed `from`/`to` window,
+  and checks the default window with a recent estimation.
+  `embedded_dashboard_is_served` skips when the binary has no web-team
+  bundle, as in the Rust CI jobs (new `embedded_web::bundle_embedded()`); the
+  reason shows with `--nocapture`, and `SOBRIA_REQUIRE_EMBEDDED_UI=1` turns
+  the skip into a failure for a job that builds the bundle.
 
 ### Changed — sobria-bridge Deep cleanup (2026-10-31, SOB-24)
 
