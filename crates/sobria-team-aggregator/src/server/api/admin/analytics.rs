@@ -12,8 +12,8 @@
 //! 5), les sections sont vides et `k_anonymity.blocked = true` — un agrégat
 //! de très petite équipe revient à des données individuelles.
 //!
-//! Le paramètre `dim` (`user|model|method`) du brief reste accepté mais
-//! ignoré en C28.3 — on renvoie tout ce qui peut servir au dashboard.
+//! The `dim` parameter (`user|model|method`) is accepted and ignored: every
+//! section is returned.
 
 use axum::{
     extract::{Query, State},
@@ -48,7 +48,7 @@ pub struct AnalyticsQuery {
     /// `day` (défaut) | `week` | `month`.
     #[serde(default)]
     pub group_by: Option<String>,
-    /// `user | model | method` — accepté mais ignoré en C28.3.
+    /// `user | model | method`, accepted and ignored.
     #[allow(dead_code)]
     #[serde(default)]
     pub dim: Option<String>,

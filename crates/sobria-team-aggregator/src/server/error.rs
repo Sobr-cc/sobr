@@ -1,8 +1,4 @@
-//! Erreurs API typées → réponse HTTP JSON.
-//!
-//! Pour C28.2 on garde une enum simple ; on raffinera (codes machine,
-//! détails par champ) en C28.3 quand le dashboard admin consommera les
-//! erreurs.
+//! Typed API errors, turned into JSON HTTP responses.
 
 use axum::{
     http::StatusCode,

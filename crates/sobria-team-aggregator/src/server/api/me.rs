@@ -1,8 +1,5 @@
-//! GET /api/v1/me/usage — usage agrégé de l'utilisateur courant.
-//! GET/PUT /api/v1/me/sharing — consentement de partage identifié (ADR-0015).
-//!
-//! Pour C28.2 on retourne uniquement les totaux. Le breakdown
-//! journalier / mensuel + comparaison équipe arrivent avec C28.3 / C28.4.
+//! GET /api/v1/me/usage: usage totals of the current user.
+//! GET/PUT /api/v1/me/sharing: consent to identified sharing (ADR-0015).
 
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};

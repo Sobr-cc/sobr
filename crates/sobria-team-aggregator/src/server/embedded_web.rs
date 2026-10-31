@@ -13,7 +13,6 @@
 
 use axum::{
     body::Body,
-    extract::Path,
     http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
 };
@@ -51,13 +50,6 @@ pub async fn handler(uri: Uri) -> Response {
         return serve_or_fallback("index.html");
     }
     serve_or_fallback(path)
-}
-
-/// Catch-all SPA — utilisé pour les routes Svelte client-side comme
-/// `/admin/dashboard`. Si le path matche un fichier statique on le renvoie ;
-/// sinon on retombe sur `index.html`.
-pub async fn fallback(Path(path): Path<String>) -> Response {
-    serve_or_fallback(&path)
 }
 
 fn serve_or_fallback(path: &str) -> Response {

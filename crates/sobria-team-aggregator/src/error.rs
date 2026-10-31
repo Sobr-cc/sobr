@@ -1,9 +1,7 @@
-//! Erreurs typées du binaire `sobria-team-aggregator`.
+//! Typed errors of the `sobria-team-aggregator` library.
 //!
-//! Convention CLAUDE.md §4.1 : `thiserror` pour les erreurs publiques d'API,
-//! `anyhow` pour les chemins binaires (CLI). Les variantes ci-dessous couvrent
-//! le périmètre C28.1 — autres variantes (auth, JWT, exports) viendront avec
-//! les sous-chantiers suivants.
+//! CLAUDE.md §4.1: `thiserror` for library errors, `anyhow` for the CLI paths.
+//! HTTP errors are [`crate::server::error::ApiError`].
 
 use thiserror::Error;
 

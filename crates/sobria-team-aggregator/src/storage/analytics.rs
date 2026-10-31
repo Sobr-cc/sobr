@@ -6,8 +6,8 @@
 //!
 //! Granularité temporelle (`GroupBy`) :
 //! - `Day`   : `date(ts)`        → "YYYY-MM-DD"
-//! - `Week`  : `strftime('%Y-W%W', ts)` → "YYYY-WNN" (semaine ISO simplifiée,
-//!   Sunday-based — suffisant pour la viz, on raffine ISO 8601 en C28.4 si besoin).
+//! - `Week`  : `strftime('%Y-W%W', ts)` → "YYYY-WNN" (SQLite week number,
+//!   weeks start on Monday; not ISO 8601).
 //! - `Month` : `strftime('%Y-%m', ts)`  → "YYYY-MM"
 
 use chrono::{DateTime, Utc};

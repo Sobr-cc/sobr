@@ -1,18 +1,20 @@
-//! Schéma SQLite v1 du `sobria-team-aggregator`.
+//! SQLite schema of the `sobria-team-aggregator`.
 //!
-//! Voir `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2 pour le détail.
-//! La migration est idempotente (`CREATE TABLE IF NOT EXISTS`) et pilotée par
-//! la `PRAGMA user_version` SQLite. C28.1 installe la **totalité** des tables
-//! v1 ; les sous-chantiers suivants n'auront qu'à les peupler.
+//! Migrations are idempotent (`CREATE TABLE IF NOT EXISTS`) and driven by
+//! `PRAGMA user_version`: [`install`] runs each step above the current version.
+//! See `docs/archive/chantiers/C28-mode-equipe-self-hosted.md` §2.
 
 use rusqlite::Connection;
 
 use crate::error::AggregatorResult;
 
-/// Version de schéma cible.
+/// Target schema version.
 ///
-/// - v1 (C28.1) : tables auth + estimations.
-/// - v2 (C29.4) : alertes seuils (`alert_thresholds`, `alert_triggers`).
+/// - v1: auth tables and estimations.
+/// - v2: alert thresholds (`alert_thresholds`, `alert_triggers`).
+/// - v3: privacy (`users.share_identified`, `config.k_anonymity_min`).
+/// - v4: projects and visibility policy (`estimations.project`,
+///   `config.visibility_policy`).
 pub const SCHEMA_VERSION: u32 = 4;
 
 /// DDL complet v1.
@@ -166,14 +168,11 @@ CREATE INDEX IF NOT EXISTS idx_estimations_project ON estimations(project);
 INSERT OR IGNORE INTO config (key, value) VALUES ('visibility_policy', 'opt_in');
 ";
 
-/// Applique le schéma cible sur la connexion et pose `PRAGMA user_version`.
+/// Applies the target schema and sets `PRAGMA user_version`.
 ///
-/// Migrations idempotentes et progressives :
-///
-/// - `current == 0` (DB neuve) → applique `DDL_V1`, `DDL_V2_ALERTS`, `DDL_V3_PRIVACY`.
-/// - `current == 1` (DB C28) → applique `DDL_V2_ALERTS` puis `DDL_V3_PRIVACY`.
-/// - `current == 2` (DB C29) → applique uniquement `DDL_V3_PRIVACY` (C38).
-/// - `current >= SCHEMA_VERSION` → no-op (compat ascendante).
+/// Runs, in order, each step above the current `user_version`: `DDL_V1`,
+/// `DDL_V2_ALERTS`, `DDL_V3_PRIVACY`, `DDL_V4_PROJECTS`. At or above
+/// [`SCHEMA_VERSION`] it does nothing.
 pub fn install(conn: &Connection) -> AggregatorResult<()> {
     conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")?;
 

@@ -1,8 +1,5 @@
-//! Couche serveur HTTP du `sobria-team-aggregator`.
-//!
-//! C28.2 : routeur axum avec `/health` + `/api/v1/{enroll,login,refresh,
-//! estimations,me/usage}`. Les routes admin (`/api/v1/admin/*`) arrivent
-//! en C28.3, le dashboard statique en C28.4.
+//! HTTP layer of the `sobria-team-aggregator`: the axum router with
+//! `/health`, the `/api/v1` user and admin routes, and the embedded dashboard.
 
 pub mod api;
 pub mod auth;
@@ -20,10 +17,8 @@ use tower_http::trace::TraceLayer;
 
 use crate::storage::Storage;
 
-/// État partagé entre handlers. La `Storage` est encapsulée dans un
-/// `Mutex` parce que `rusqlite::Connection` n'est pas `Sync`. Pour les
-/// charges C28.2 (faible concurrence) ce n'est pas un goulot — on passera
-/// à un pool en C28.4 si les benchs le demandent.
+/// State shared by the handlers. `Storage` sits behind a `Mutex` because
+/// `rusqlite::Connection` is not `Sync`, so every request takes this one lock.
 #[derive(Clone)]
 pub struct ServerState {
     pub storage: Arc<Mutex<Storage>>,

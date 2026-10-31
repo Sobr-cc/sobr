@@ -1,15 +1,12 @@
-//! Couche persistance du `sobria-team-aggregator`.
+//! Persistence layer of the `sobria-team-aggregator`.
 //!
-//! [`Storage`] encapsule une `rusqlite::Connection` mono-thread (WAL +
-//! foreign_keys activés). Le multi-thread `Send` est garanti par axum via
-//! `Arc<Mutex<Storage>>` (la connexion n'est pas `Sync`). Pour les charges
-//! C28.2 ce verrou global suffit ; on passera à un pool en C28.4 si les
-//! benchs le demandent.
+//! [`Storage`] wraps one single-threaded `rusqlite::Connection` (WAL and
+//! foreign keys on). The server shares it as `Arc<Mutex<Storage>>`, since the
+//! connection is not `Sync`.
 //!
-//! Les helpers par entité vivent dans les submodules (`admins`,
-//! `enrollment_codes`, `users`, `tokens`, `estimations`) sous forme de
-//! fonctions libres prenant `&Connection`. La struct `Storage` ne porte
-//! que l'ouverture/migrations + l'accès au KV `config`.
+//! Per-table helpers live in the submodules as free functions taking
+//! `&Connection`. `Storage` itself only opens the database, runs the
+//! migrations and reads and writes the `config` key-value table.
 
 pub mod admins;
 pub mod analytics;

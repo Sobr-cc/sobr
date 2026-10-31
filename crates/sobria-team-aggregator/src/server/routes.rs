@@ -1,5 +1,4 @@
-//! Routes HTTP — pour C28.1 on n'expose que `/health`. Les routes auth /
-//! API REST arrivent en C28.2.
+//! Public route `/health`. The `/api/v1` routes live in [`super::api`].
 
 use axum::{routing::get, Json, Router};
 use serde::Serialize;

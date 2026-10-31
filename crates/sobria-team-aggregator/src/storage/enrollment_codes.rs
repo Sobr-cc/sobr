@@ -2,7 +2,7 @@
 //!
 //! Pattern d'usage :
 //!
-//! 1. Un admin appelle [`create_batch`] avec N codes 12 chiffres + un TTL.
+//! 1. Un admin appelle [`create_batch`](crate::commands::code::create_batch) avec N codes 12 chiffres + un TTL.
 //!    Chaque code est hashé Argon2id (cf. `crypto::password`) et inséré.
 //!    L'admin reçoit en clair UNE seule fois la liste (pour distribution).
 //! 2. À l'enroll, [`verify_active_code`] itère tous les codes encore valides
@@ -32,7 +32,7 @@ pub struct EnrollmentCodeRow {
     pub revoked_at: Option<DateTime<Utc>>,
 }
 
-/// Code en clair + métadonnées renvoyés par [`create_batch`] (à présenter
+/// Code en clair + métadonnées renvoyés par [`create_batch`](crate::commands::code::create_batch) (à présenter
 /// à l'admin UNE seule fois).
 #[derive(Debug, Clone)]
 pub struct CreatedCode {
