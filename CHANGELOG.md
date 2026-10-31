@@ -7,6 +7,32 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — ADR-0024, Kubernetes platform on Proxmox (2026-10-31, SOB-72)
+
+- **ADR-0024** (Proposed): Sobr runs on Kubernetes in Proxmox VMs, with
+  Talos Linux nodes managed from code.
+  - Cilium gives the network, network policies, addresses and the Gateway
+    API entry, and cert-manager gets the certificates. Knative Serving runs
+    functions that scale to zero.
+  - The managed cloud runs one Sobr server for all spaces, as ADR-0022
+    sets. A small EU virtual server in front forwards encrypted traffic and
+    holds no secret.
+  - Customer data is protected in four layers:
+    - a continuous encrypted copy of every database in a three-zone EU
+      object store, from which the server restores itself;
+    - etcd snapshots off the machine;
+    - Proxmox VM rollback;
+    - monthly restore tests and a full rebuild test.
+
+    An erasure log is replayed after any restore.
+  - Disk keys come from a key server on a small machine Thibault controls
+    elsewhere. CI runners are throwaway VMs on a firewalled network.
+  - The managed cloud opens, trial included, only once these protections,
+    erasure, export and the GDPR documents exist. A second failure domain
+    is needed before the public launch.
+  - It lists ten points for Thibault, the server facts to confirm, and
+    seventeen issues to create.
+
 ### Changed — smaller debug builds (2026-10-31, SOB-106)
 
 - **Cargo profiles**: `dev` and `test` keep line tables only for workspace
