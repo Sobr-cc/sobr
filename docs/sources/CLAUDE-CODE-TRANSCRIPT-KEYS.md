@@ -50,7 +50,7 @@
 
 ## One message on several lines
 
-Of 10,130 assistant message IDs in the sample, **7,920 appear on 2 to 32 lines** (one line per content block of the same API response), and the `usage` is **identical on every line of the same ID** (7,920 of 7,920). A reader that adds the usage of every line counts such a call two to three times. Dedupe by `message.id` inside a file and keep one `usage`. Across all 40 main files (13,521 `msg_` IDs) no `message.id` is in two files, so a resumed session does not copy messages on this machine; and none is shared between a subagent file and its parent (0 of 10,826). A compaction adds one `system` line with `compactMetadata` and one `user` summary line (`isCompactSummary`, text, skipped) and does not repeat earlier messages (30 of each in the 40 files). The evidence for resumed sessions is limited to the files on this machine; the reader should still keep one measurement per `message.id` and per session.
+Of 10,130 assistant message IDs in the sample, **7,920 appear on 2 to 32 lines** (one line per content block of the same API response), and the `usage` is **identical on every line of the same ID** (7,920 of 7,920). A reader that adds the usage of every line counts such a call two to three times. Dedupe by `message.id` and keep one `usage`. **The same `message.id` can also be in two files**: a session forked with `claude --resume <id> --fork-session` gets a new session ID and a new file that contains **all the lines of its parent** (same `uuid`, same `message.id`, same `usage`), with the new `sessionId` on every line (a test run on 2.1.314, on one short session: all 19 `uuid` values and both assistant `message.id` values of the parent were in the fork; SOB-163). Whether a fork of a long or compacted session, or on another version, copies everything is not known, so the reader deduplicates by `message.id` whatever the fork holds. So the deduplication must work across all the files of a user, not only inside one file. Without `--fork-session`, `--resume` keeps the same session ID and appends to the same file (same test, 2.1.314). On the files already on this machine (40 main files, 13,521 `msg_` IDs) no `message.id` is in two files, which only means that none of them was forked; and none is shared between a subagent file and its parent (0 of 10,826). A compaction adds one `system` line with `compactMetadata` and one `user` summary line (`isCompactSummary`, text, skipped) and does not repeat earlier messages (30 of each in the 40 files).
 
 ## Subagents
 
@@ -62,9 +62,10 @@ Cumulative per session: `modelUsage.<model>.{inputTokens, outputTokens, cacheRea
 
 ## Synthetic samples
 
-`docs/sources/samples/claude-code/` holds three files with the shapes above and made-up values only (no real prompt, path, name, email, URL or ID; IDs are `00000000-0000-4000-8000-...` and `msg_DEMO...`):
+`docs/sources/samples/claude-code/` holds four files with the shapes above and made-up values only (no real prompt, path, name, email, URL or ID; IDs are `00000000-0000-4000-8000-...` and `msg_DEMO...`):
 
 - `session-main.jsonl` (17 lines): a prompt, one API response written on three lines with the same `message.id` and `usage` (thinking, text, tool use), a tool result, a second response, an `attachment` line, the metadata lines, a compaction pair, a `<synthetic>` error message, an `api-request` and a `cost-state` line.
+- `session-forked.jsonl` (17 lines): the lines of `session-main.jsonl` copied as a fork writes them, with another `sessionId` and the same `uuid` and `message.id` values, to test the deduplication across files. Its `cost-state` line is copied from the parent as is; what a real fork writes there is not known.
 - `subagent-agent-demo01.jsonl` (3 lines): a subagent (`isSidechain: true`, an `agentId`, the `sessionId` of the main sample) with one response on two lines.
 - `session-unknown-shapes.jsonl` (4 lines): a line type that does not exist, a `usage` where a count is a string, an `assistant` line without `usage`, and one without `model`. They are invented to test that the reader fails closed.
 
@@ -74,4 +75,4 @@ A script checked that every line is valid JSON, that each of the 34 keys named i
 
 - What the extra requests counted by `cost-state` are (no `assistant` line, `querySource` is always `sdk`), and whether `cost-state` is written at every exit.
 - Whether keys differ between Claude Code versions: the survey mixed versions 2.1.270 to 2.1.314 and did not compare them. The golden files must be refreshed for each version Sobr supports.
-- Resumed sessions: the evidence comes from one machine and shows no copied message.
+- Forks: what happens to usage that the parent already holds is a rule for SOB-146 and ADR-0025 (which session owns a `message.id` that is in two files); this note only gives the fact. Only `--resume` and `--resume --fork-session` were tried; other ways to start from an old session are not covered.

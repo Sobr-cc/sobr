@@ -54,3 +54,5 @@ reqwest = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# SOB-188 — mock app for the tests (`tauri::test`); an empty feature, no new crate.
+tauri = { workspace = true, features = ["test"] }
