@@ -33,7 +33,7 @@ COPY web-team/ ./
 RUN npm run build
 
 # ── Stage 2 : binaire Rust ──────────────────────────────────────────────────
-# rust:1-slim = dernière stable (>= 1.79 requis par rust-version du workspace).
+# rust:1-slim = latest stable (>= 1.89 required by the workspace rust-version).
 # NB glibc : si le runtime affiche « GLIBC_x.y not found », épingler les deux
 # stages sur la MÊME release Debian (ex. rust:1-slim-trixie + debian:trixie-slim).
 FROM rust:1-slim AS rust-builder

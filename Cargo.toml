@@ -25,7 +25,7 @@ license = "MIT"
 repository = "https://github.com/<TBD>/sobria"
 homepage = "https://sobr.ia"
 readme = "README.md"
-rust-version = "1.79"
+rust-version = "1.89"
 keywords = ["llm", "carbon", "frugal-ai", "environnement", "ademe"]
 categories = ["science", "command-line-utilities", "visualization"]
 

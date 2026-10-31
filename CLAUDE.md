@@ -31,7 +31,7 @@
 | Couche | Technologie | Version cible |
 |--------|-------------|---------------|
 | Wrapper natif | Tauri | 2.x |
-| Backend | Rust | stable (≥ 1.79) |
+| Backend | Rust | stable (≥ 1.89) |
 | Frontend | SvelteKit + TypeScript | SvelteKit 2.x, TS 5.x |
 | Dataviz | Observable Plot + D3 | Plot 0.6+, D3 7.x |
 | DB transactionnelle | SQLite (WAL) via `rusqlite` | rusqlite ≥ 0.31 |
