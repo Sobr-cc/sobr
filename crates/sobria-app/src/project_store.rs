@@ -1,11 +1,11 @@
-//! Stockage des projets (M17 / C20).
+//! Project storage (M17 / C20).
 //!
-//! Un projet est une entité persistante nommée qui regroupe une période
-//! d'estimations dans le ledger d'audit, pour produire un **datasheet
-//! Gebru 2018** reproductible.
+//! A project is a named, persisted entity that groups a period of
+//! estimates in the audit ledger, to produce a reproducible **Gebru 2018
+//! datasheet**.
 //!
-//! Table `projects` dans `referentiel.sqlite` (à côté de `app_preferences`
-//! et `personal_goals`).
+//! `projects` table in `referentiel.sqlite` (next to `app_preferences`
+//! and `personal_goals`).
 
 use std::path::Path;
 
@@ -16,13 +16,13 @@ use tracing::{debug, info};
 
 use crate::error::AppError;
 
-/// Longueur max du `name`.
+/// Max length of `name`.
 pub const PROJECT_NAME_MAX: usize = 200;
-/// Longueur max de la `description`.
+/// Max length of `description`.
 pub const PROJECT_DESCRIPTION_MAX: usize = 5000;
-/// Nombre max de tags par projet.
+/// Max number of tags per project.
 pub const PROJECT_TAGS_MAX: usize = 10;
-/// Longueur max d'un tag.
+/// Max length of a tag.
 pub const PROJECT_TAG_MAX: usize = 50;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -58,7 +58,7 @@ pub struct ProjectStore {
 }
 
 impl ProjectStore {
-    /// Ouvre (ou crée) la table `projects` dans la base donnée.
+    /// Opens the given database and creates the `projects` table if needed.
     pub fn open(path: &Path) -> Result<Self, AppError> {
         let conn = Connection::open(path)?;
         conn.execute_batch(
@@ -138,8 +138,8 @@ impl ProjectStore {
         })
     }
 
-    /// Met à jour un projet existant. Les dates ne sont **pas** modifiables
-    /// (voir brief §1.1). Au moins un champ doit être fourni.
+    /// Updates an existing project. The dates can **not** be changed
+    /// (see brief §1.1). At least one field must be provided.
     pub fn update(&mut self, id: i64, update: ProjectUpdate) -> Result<Project, AppError> {
         if update.name.is_none() && update.description.is_none() && update.tags.is_none() {
             return Err(AppError::InvalidRequest(
@@ -178,7 +178,7 @@ impl ProjectStore {
         Ok(current)
     }
 
-    /// Supprime un projet. Idempotent — pas d'erreur si déjà absent.
+    /// Deletes a project. Idempotent — no error if already missing.
     pub fn delete(&mut self, id: i64) -> Result<(), AppError> {
         self.conn
             .execute("DELETE FROM projects WHERE id = ?1", params![id])?;
@@ -395,7 +395,7 @@ mod tests {
         assert_eq!(updated.name, "Étude renommée");
         assert_eq!(updated.description, p.description, "desc inchangée");
         assert_eq!(updated.tags, p.tags, "tags inchangés");
-        // updated_at doit avoir bougé
+        // updated_at must not go back
         assert!(updated.updated_at >= p.updated_at);
     }
 

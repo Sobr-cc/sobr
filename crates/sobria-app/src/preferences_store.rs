@@ -1,20 +1,20 @@
-//! Persistance des préférences utilisateur dans `referentiel.sqlite`.
+//! User preferences stored in `referentiel.sqlite`.
 //!
-//! Voir [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md)
-//! et `docs/archive/chantiers/C10-onboarding-personas.md` §2.
+//! See [ADR-0010](../../docs/adr/ADR-0010-personas-and-module-gating.md)
+//! and `docs/archive/chantiers/C10-onboarding-personas.md` §2.
 //!
-//! Schéma :
+//! Schema:
 //! ```sql
 //! CREATE TABLE IF NOT EXISTS app_preferences (
 //!     key         TEXT PRIMARY KEY,
-//!     value       TEXT NOT NULL,        -- JSON sérialisé
+//!     value       TEXT NOT NULL,        -- serialized JSON
 //!     updated_at  TEXT NOT NULL          -- RFC 3339 UTC
 //! );
 //! ```
 //!
-//! Quatre clés réservées en v1.0 : `persona`, `enabled_modules`,
-//! `onboarded`, `lang`. Toute autre clé est ignorée par les consommateurs
-//! (forward-compatibility).
+//! Reserved keys: `persona`, `enabled_modules`, `onboarded`, `lang`,
+//! `default_method`, `also_show_methods`, `default_datacenter_id` (the `KEY_*`
+//! constants). Consumers ignore any other key (forward compatibility).
 
 use std::path::Path;
 
@@ -25,58 +25,58 @@ use tracing::info;
 
 use crate::error::AppError;
 
-/// Clé de la table `app_preferences` qui stocke le persona courant.
+/// Key of the `app_preferences` table that stores the current persona.
 pub const KEY_PERSONA: &str = "persona";
-/// Clé qui stocke la liste JSON des modules activés.
+/// Key that stores the JSON list of enabled modules.
 pub const KEY_ENABLED_MODULES: &str = "enabled_modules";
-/// Clé qui stocke le flag d'onboarding (`"true"` / `"false"`).
+/// Key that stores the onboarding flag (`"true"` / `"false"`).
 pub const KEY_ONBOARDED: &str = "onboarded";
-/// Clé qui stocke la langue courante (`"fr"` / `"en"`).
+/// Key that stores the current language (`"fr"` / `"en"`).
 pub const KEY_LANG: &str = "lang";
-/// Clé qui stocke la méthodologie par défaut de l'utilisateur (C24).
+/// Key that stores the user's default methodology (C24).
 pub const KEY_DEFAULT_METHOD: &str = "default_method";
-/// Clé qui stocke la liste JSON des méthodologies affichées en référence (C24).
+/// Key that stores the JSON list of methodologies shown for reference (C24).
 pub const KEY_ALSO_SHOW_METHODS: &str = "also_show_methods";
-/// Clé qui stocke l'id du datacenter sélectionné par défaut (C25).
+/// Key that stores the id of the default selected datacenter (C25).
 pub const KEY_DEFAULT_DATACENTER: &str = "default_datacenter_id";
 
-/// Représentation interne des préférences avant traversée IPC.
+/// Internal form of the preferences before they cross IPC.
 ///
-/// Les `Option<_>` traduisent l'absence physique de la clé en SQLite
-/// (table vide ou clé non-écrite). Le caller (`logic::*`) applique
-/// alors les valeurs par défaut.
+/// Each `Option<_>` means the key is missing in SQLite
+/// (empty table or key never written). The caller (`logic::*`) then
+/// applies the defaults.
 #[derive(Debug, Clone, Default)]
 pub struct StoredPreferences {
-    /// Persona sélectionné lors de l'onboarding.
+    /// Persona chosen during onboarding.
     pub persona: Option<Persona>,
-    /// Modules activés (chevauche / dépasse le bundle persona).
+    /// Enabled modules (may overlap or go beyond the persona bundle).
     pub enabled_modules: Option<Vec<ModuleId>>,
-    /// Vrai si l'utilisateur a complété l'onboarding.
+    /// True once the user has completed onboarding.
     pub onboarded: Option<bool>,
-    /// Langue courante (`"fr"` ou `"en"`).
+    /// Current language (`"fr"` or `"en"`).
     pub lang: Option<String>,
-    /// Méthodologie utilisée par défaut pour les calculs (C24).
-    /// `None` → fallback `EmpreinteMethod::default_method()`
-    /// (= `AfnorSobria`, le référentiel français).
+    /// Default methodology for computations (C24).
+    /// `None` → falls back to `EmpreinteMethod::default_method()`
+    /// (= `AfnorSobria`, the French standard).
     pub default_method: Option<EmpreinteMethod>,
-    /// Méthodologies additionnelles affichées en panneau "Voir aussi"
-    /// à côté du résultat principal (C24). `None` → liste vide (aucune
-    /// référence comparée par défaut, l'utilisateur active manuellement).
+    /// Extra methodologies shown in the "Voir aussi" panel
+    /// next to the main result (C24). `None` → empty list (no
+    /// reference compared by default, the user turns them on manually).
     pub also_show_methods: Option<Vec<EmpreinteMethod>>,
-    /// Dernier datacenter sélectionné par l'utilisateur dans /estimate,
-    /// /comparer ou /simuler (C25). `None` = aucun choisi → l'estimation
-    /// utilise les `EstimationParams` par défaut.
+    /// Last datacenter the user selected in /estimate,
+    /// /comparer or /simuler (C25). `None` = none chosen → the estimate
+    /// uses the default `EstimationParams`.
     pub default_datacenter_id: Option<String>,
 }
 
-/// Magasin de préférences adossé à SQLite (`referentiel.sqlite`).
+/// Preferences store backed by SQLite (`referentiel.sqlite`).
 pub struct PreferencesStore {
     conn: Connection,
 }
 
 impl PreferencesStore {
-    /// Ouvre (ou crée) la base `referentiel.sqlite` et crée la table
-    /// `app_preferences` si elle n'existe pas.
+    /// Opens (or creates) the `referentiel.sqlite` database and creates the
+    /// `app_preferences` table if it does not exist.
     pub fn open(path: &Path) -> Result<Self, AppError> {
         let conn = Connection::open(path)?;
         conn.execute_batch(
@@ -93,7 +93,7 @@ impl PreferencesStore {
         Ok(Self { conn })
     }
 
-    /// Lit l'intégralité des 4 clés réservées en une seule passe.
+    /// Reads every reserved key (one query per key).
     pub fn read_all(&self) -> Result<StoredPreferences, AppError> {
         let persona = self
             .read_raw(KEY_PERSONA)?
@@ -131,18 +131,18 @@ impl PreferencesStore {
         })
     }
 
-    /// Écrit les préférences persistées en une seule transaction.
+    /// Writes the persisted preferences in a single transaction.
     ///
-    /// Sémantique des `Option` :
-    /// - `persona` : `None` supprime la clé (comportement historique, opt-in).
-    /// - Tous les autres champs `Option` : `None` **ne modifie pas** la clé
-    ///   existante. Utiliser les setters dédiés (`set_default_datacenter_id`,
-    ///   etc.) pour effacer une clé spécifique.
+    /// `Option` semantics:
+    /// - `persona`: `None` deletes the key (legacy behavior, opt-in).
+    /// - Every other `Option` field: `None` **leaves the existing key
+    ///   unchanged**. Use the dedicated setters (`set_default_datacenter_id`,
+    ///   etc.) to clear a specific key.
     pub fn write_all(&mut self, prefs: &StoredPreferences) -> Result<(), AppError> {
         let now = Utc::now().to_rfc3339();
         let tx = self.conn.transaction()?;
 
-        // persona : null → DELETE, sinon UPSERT JSON.
+        // persona: null → DELETE, otherwise JSON UPSERT.
         match &prefs.persona {
             Some(p) => {
                 let v = serde_json::to_string(p)?;
@@ -216,7 +216,7 @@ impl PreferencesStore {
         Ok(())
     }
 
-    /// Persiste l'id du datacenter par défaut (C25). `None` efface la clé.
+    /// Persists the default datacenter id (C25). `None` clears the key.
     pub fn set_default_datacenter_id(&mut self, id: Option<&str>) -> Result<(), AppError> {
         match id {
             Some(v) => self.write_raw(KEY_DEFAULT_DATACENTER, v),

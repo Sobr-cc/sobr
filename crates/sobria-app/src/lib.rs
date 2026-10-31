@@ -1,12 +1,12 @@
-//! # sobria-app — façade IPC Tauri
+//! # sobria-app — Tauri IPC facade
 //!
-//! Cette bibliothèque expose le **cœur métier** sous forme de fonctions
-//! testables, indépendamment du runtime Tauri. Le binaire `sobria-app`
-//! enregistre ces fonctions comme commandes IPC via `#[tauri::command]`,
-//! mais les fonctions internes (`logic::*`) sont **directement appelables
-//! depuis les tests** sans démarrer la fenêtre native.
+//! This library exposes the **business core** as testable functions,
+//! independent of the Tauri runtime. The `sobria-app` binary
+//! registers these functions as IPC commands through `#[tauri::command]`,
+//! but the inner functions (`logic::*`) can be **called directly
+//! from tests** without starting the native window.
 //!
-//! Voir `docs/archive/chantiers/C09-tauri-integration.md`.
+//! See `docs/archive/chantiers/C09-tauri-integration.md`.
 
 #![deny(unsafe_code)]
 #![warn(clippy::pedantic)]

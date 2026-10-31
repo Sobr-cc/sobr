@@ -1,22 +1,22 @@
-//! Sobr.ia — persistance Mode Équipe côté app desktop (C28.6).
+//! Sobr.ia — Team Mode persistence in the desktop app (C28.6).
 //!
-//! KV store dans `referentiel.sqlite` (table `team_settings`). Lecture/
-//! écriture sérielles via `Mutex<TeamSettingsStore>` dans `AppState`.
+//! KV store in `referentiel.sqlite` (`team_settings` table). Reads and
+//! writes are serialized through `Mutex<TeamSettingsStore>` in `AppState`.
 //!
-//! Clés persistées :
+//! Persisted keys:
 //!
-//! - `url`           : URL HTTPS du serveur self-hosted.
-//! - `mode`          : `'local' | 'team' | 'both'` (dispatch des estimations).
-//! - `user_id`       : ULID du user retourné par /enroll.
+//! - `url`           : HTTPS URL of the self-hosted server.
+//! - `mode`          : `'local' | 'team' | 'both'` (where estimates are sent).
+//! - `user_id`       : user ULID returned by /enroll.
 //! - `access_token`  : JWT 24h.
-//! - `refresh_token` : `<ulid>.<uuid>` (rotation à chaque /refresh).
-//! - `fingerprint`   : envoyé à /enroll (déterministe par device).
+//! - `refresh_token` : `<ulid>.<uuid>` (rotated on each /refresh).
+//! - `fingerprint`   : sent to /enroll (deterministic per device).
 //! - `enrolled_at`   : ISO timestamp.
-//! - `accept_invalid_certs` : `'1'` si l'utilisateur a accepté un cert
-//!   auto-signé. Le client reqwest lira cette clé au démarrage.
-//! - `last_seen_at`  : C29.1 — ISO timestamp du dernier ping / push réussi.
-//! - `estimations_sent` : C29.1 — compteur (string décimal) incrémenté à
-//!   chaque `team_push_estimation` ACKé par le serveur.
+//! - `accept_invalid_certs` : `'1'` if the user accepted a self-signed
+//!   cert. The reqwest client reads this key at startup.
+//! - `last_seen_at`  : C29.1 — ISO timestamp of the last successful ping / push.
+//! - `estimations_sent` : C29.1 — counter (decimal string) incremented on
+//!   each `team_push_estimation` the server ACKs.
 
 use std::path::Path;
 
@@ -43,7 +43,7 @@ pub const KEY_ACCEPT_INVALID_CERTS: &str = "accept_invalid_certs";
 pub const KEY_LAST_SEEN_AT: &str = "last_seen_at";
 pub const KEY_ESTIMATIONS_SENT: &str = "estimations_sent";
 
-/// Mode de dispatch des estimations.
+/// Where estimates are sent.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TeamMode {
@@ -73,10 +73,10 @@ impl TeamMode {
     }
 }
 
-// `TeamMode::Local` est la valeur par défaut canonique (cf. `TeamMode::parse`
-// fallback). Le `Default` est dérivé via la convention `#[default]` ci-dessous.
+// `TeamMode::Local` is the canonical default (see the `TeamMode::parse`
+// fallback). `Default` is derived with the `#[default]` attribute above.
 
-/// Vue d'ensemble du Mode Équipe exposée à l'UI Tauri.
+/// Team Mode overview exposed to the Tauri UI.
 #[derive(Debug, Clone, Serialize)]
 pub struct TeamStatus {
     pub enrolled: bool,
@@ -86,9 +86,9 @@ pub struct TeamStatus {
     pub fingerprint: Option<String>,
     pub enrolled_at: Option<String>,
     pub accept_invalid_certs: bool,
-    /// RFC 3339 du dernier ping/push réussi (C29.1).
+    /// RFC 3339 time of the last successful ping/push (C29.1).
     pub last_seen_at: Option<String>,
-    /// Nombre d'estimations ACKées par le serveur depuis l'enrôlement (C29.1).
+    /// Number of estimates the server ACKed since enrollment (C29.1).
     pub estimations_sent: u32,
 }
 
@@ -136,7 +136,7 @@ impl TeamSettingsStore {
         Ok(())
     }
 
-    /// Snapshot complet (utilisé par `team_status` IPC).
+    /// Full snapshot (used by the `team_status` IPC).
     pub fn snapshot(&self) -> Result<TeamStatus> {
         let url = self.get(KEY_URL)?;
         let user_id = self.get(KEY_USER_ID)?;
@@ -167,13 +167,13 @@ impl TeamSettingsStore {
         })
     }
 
-    /// Met à jour `last_seen_at` à l'instant courant (UTC RFC 3339).
+    /// Sets `last_seen_at` to the current time (UTC RFC 3339).
     pub fn mark_seen_now(&self) -> Result<()> {
         self.set(KEY_LAST_SEEN_AT, &Utc::now().to_rfc3339())
     }
 
-    /// Incrémente `estimations_sent` (compteur stocké en string décimal).
-    /// Réinitialise à `1` si la valeur est absente ou non parsable.
+    /// Increments `estimations_sent` (counter stored as a decimal string).
+    /// Resets to `1` if the value is missing or cannot be parsed.
     pub fn increment_estimations_sent(&self) -> Result<u32> {
         let current = self
             .get(KEY_ESTIMATIONS_SENT)?
@@ -185,8 +185,8 @@ impl TeamSettingsStore {
         Ok(next)
     }
 
-    /// Efface tokens + user_id + fingerprint + enrolled_at + telemetry locale
-    /// (last_seen_at, estimations_sent). Garde url + mode + cert.
+    /// Clears tokens + user_id + fingerprint + enrolled_at + local telemetry
+    /// (last_seen_at, estimations_sent). Keeps url + mode + cert.
     pub fn clear_session(&self) -> Result<()> {
         for k in [
             KEY_ACCESS_TOKEN,
@@ -241,7 +241,7 @@ mod tests {
         s.mark_seen_now().unwrap();
         let snap = s.snapshot().unwrap();
         let ts = snap.last_seen_at.expect("last_seen_at posé");
-        // Format RFC 3339 minimal — doit contenir un T et un fuseau.
+        // Minimal RFC 3339 check: the timestamp contains a T.
         assert!(ts.contains('T'), "format RFC 3339 attendu: {ts}");
     }
 
@@ -259,7 +259,7 @@ mod tests {
     fn increment_recovers_from_corrupt_value() {
         let s = TeamSettingsStore::open_in_memory().unwrap();
         s.set(KEY_ESTIMATIONS_SENT, "garbage").unwrap();
-        // Reprise depuis 0 si la valeur est invalide.
+        // Restarts from 0 if the value is invalid.
         assert_eq!(s.increment_estimations_sent().unwrap(), 1);
     }
 
