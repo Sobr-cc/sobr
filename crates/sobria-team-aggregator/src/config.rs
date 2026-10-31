@@ -1,30 +1,30 @@
-//! Chemins et constantes du binaire `sobria-team-aggregator`.
+//! Paths and constants of the `sobria-team-aggregator` binary.
 //!
-//! Le data dir contient `team.sqlite`, `cert.pem` et `key.pem`. Par défaut
-//! `./team-data/` (relatif au CWD). L'admin peut le remplacer via
+//! The data dir holds `team.sqlite`, `cert.pem` and `key.pem`. Defaults to
+//! `./team-data/` (relative to the CWD). The admin can override it with
 //! `--data-dir`.
 
 use std::path::{Path, PathBuf};
 
-/// Nom du fichier SQLite principal.
+/// Main SQLite file name.
 pub const DB_FILENAME: &str = "team.sqlite";
 
-/// Nom du fichier de certificat TLS (PEM).
+/// TLS certificate file name (PEM).
 pub const CERT_FILENAME: &str = "cert.pem";
 
-/// Nom du fichier de clé privée TLS (PEM).
+/// TLS private key file name (PEM).
 pub const KEY_FILENAME: &str = "key.pem";
 
-/// Port HTTPS par défaut.
+/// Default HTTPS port.
 pub const DEFAULT_PORT: u16 = 8443;
 
-/// Bind address par défaut (toutes les interfaces).
+/// Default bind address (all interfaces).
 pub const DEFAULT_BIND: &str = "0.0.0.0";
 
-/// Data dir par défaut (relatif au CWD au lancement).
+/// Default data dir (relative to the CWD at launch).
 pub const DEFAULT_DATA_DIR: &str = "./team-data";
 
-/// Bundle de chemins dérivés du data dir.
+/// Bundle of paths derived from the data dir.
 #[derive(Debug, Clone)]
 pub struct DataPaths {
     pub data_dir: PathBuf,
@@ -53,13 +53,13 @@ impl DataPaths {
         self.data_dir.join(KEY_FILENAME)
     }
 
-    /// `true` si au moins un artefact critique existe déjà.
+    /// `true` if at least one critical artifact already exists.
     #[must_use]
     pub fn already_initialized(&self) -> bool {
         self.db().exists() || self.cert().exists() || self.key().exists()
     }
 
-    /// Crée le dossier s'il n'existe pas.
+    /// Creates the directory if it does not exist.
     pub fn ensure_dir(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(&self.data_dir)
     }

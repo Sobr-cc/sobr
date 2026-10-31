@@ -32,33 +32,33 @@ pub(crate) fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
         })
 }
 
-/// Façade SQLite mono-connexion (cf. doc du module).
+/// Single-connection SQLite facade (see the module doc).
 pub struct Storage {
     conn: Connection,
 }
 
 impl Storage {
-    /// Ouvre `team.sqlite` (le crée si absent) et applique le schéma v1.
+    /// Opens `team.sqlite` (creates it if missing) and applies the schema.
     pub fn open(path: &Path) -> AggregatorResult<Self> {
         let conn = Connection::open(path)?;
         schema::install(&conn)?;
         Ok(Self { conn })
     }
 
-    /// Ouvre une base en mémoire (tests).
+    /// Opens an in-memory database (tests).
     pub fn open_in_memory() -> AggregatorResult<Self> {
         let conn = Connection::open_in_memory()?;
         schema::install(&conn)?;
         Ok(Self { conn })
     }
 
-    /// Accès partagé en lecture-écriture à la connexion pour les helpers
-    /// par entité (`users::insert(storage.connection(), …)`).
+    /// Shared read-write access to the connection for the per-entity
+    /// helpers (`users::insert(storage.connection(), …)`).
     pub fn connection(&self) -> &Connection {
         &self.conn
     }
 
-    /// Lit une valeur du KV `config`.
+    /// Reads a value from the `config` KV.
     pub fn get_config(&self, key: &str) -> AggregatorResult<Option<String>> {
         let value = self
             .conn
@@ -71,7 +71,7 @@ impl Storage {
         Ok(value)
     }
 
-    /// Pose une valeur du KV `config` (upsert).
+    /// Sets a value in the `config` KV (upsert).
     pub fn set_config(&self, key: &str, value: &str) -> AggregatorResult<()> {
         self.conn.execute(
             "INSERT INTO config (key, value) VALUES (?1, ?2)

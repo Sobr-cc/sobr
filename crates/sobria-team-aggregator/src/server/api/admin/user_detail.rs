@@ -1,10 +1,10 @@
-//! GET /api/v1/admin/users/:id/analytics — détail de consommation d'UN
-//! employé (C44), gouverné par la politique de visibilité (ADR-0016) :
+//! GET /api/v1/admin/users/:id/analytics — usage detail of ONE
+//! employee, governed by the visibility policy (ADR-0016):
 //!
-//! - `identified` : accessible pour tout employé.
-//! - `opt_in`     : accessible UNIQUEMENT si l'employé a activé son
-//!   partage identifié (ADR-0015 §3) — sinon 403 explicite.
-//! - `anonymous`  : toujours 403 (aucune identification, même volontaire).
+//! - `identified` : available for every employee.
+//! - `opt_in`     : available ONLY if the employee turned on identified
+//!   sharing (ADR-0015 §3) — otherwise an explicit 403.
+//! - `anonymous`  : always 403 (no identification, even voluntary).
 
 use axum::{
     extract::{Path, Query, State},
@@ -74,9 +74,9 @@ pub async fn handle(
     match pol {
         VisibilityPolicy::Identified => {},
         VisibilityPolicy::OptIn if share => {},
-        // 403 : l'UI web-team traduit selon la politique courante
-        // (opt-in non activé / anonyme strict) — `ApiError::Forbidden`
-        // est un variant unitaire, le contexte vit côté client.
+        // 403: the web-team UI words it by the current policy
+        // (opt-in not turned on / strict anonymous) — `ApiError::Forbidden`
+        // is a unit variant, the context lives on the client.
         VisibilityPolicy::OptIn | VisibilityPolicy::Anonymous => {
             return Err(ApiError::Forbidden);
         },

@@ -1,7 +1,7 @@
-//! Émission de refresh tokens (format `<token_id>.<secret>`).
+//! Issues refresh tokens (format `<token_id>.<secret>`).
 //!
-//! Voir `storage::tokens` pour le pattern selector + verifier.
-//! TTL 7 jours (cf. brief C28.2).
+//! See `storage::tokens` for the selector + verifier pattern.
+//! TTL 7 days (see brief C28.2).
 
 use chrono::{DateTime, Duration, Utc};
 use ulid::Ulid;
@@ -11,18 +11,18 @@ use crate::crypto::password;
 use crate::error::AggregatorResult;
 use crate::storage::{tokens, Storage};
 
-/// TTL des refresh tokens.
+/// Refresh token TTL.
 pub const REFRESH_TTL: Duration = Duration::days(7);
 
-/// Token émis (à renvoyer au client). Le `combined` est la valeur opaque
-/// à conserver côté client.
+/// Issued token (to send back to the client). `combined` is the opaque value
+/// the client keeps.
 #[derive(Debug, Clone)]
 pub struct IssuedRefreshToken {
     pub combined: String,
     pub expires_at: DateTime<Utc>,
 }
 
-/// Émet un refresh token pour un user OU admin (XOR garanti par le caller).
+/// Issues a refresh token for a user OR an admin (XOR guaranteed by the caller).
 pub fn issue(
     storage: &Storage,
     user_id: Option<&str>,

@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::error::AggregatorError;
 
-/// Erreur publique d'une route API.
+/// Public error of an API route.
 #[derive(Debug, Error)]
 pub enum ApiError {
     #[error("identifiants invalides")]
@@ -90,5 +90,5 @@ impl IntoResponse for ApiError {
     }
 }
 
-/// Alias pour les handlers axum.
+/// Alias for axum handlers.
 pub type ApiResult<T> = Result<T, ApiError>;

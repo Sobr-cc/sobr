@@ -1,9 +1,8 @@
-//! Commande CLI `config` (C38.x — ADR-0015).
+//! `config` CLI command (ADR-0015).
 //!
-//! Lecture/écriture validée des clés de configuration **runtime** stockées
-//! dans la table `config` (KV). Seules les clés de l'allow-list sont
-//! accessibles — les clés internes (`jwt_signing_key`, …) ne passent JAMAIS
-//! par cette commande.
+//! Validated read/write of the **runtime** config keys stored in the
+//! `config` table (KV). Only allow-listed keys are reachable — internal keys
+//! (`jwt_signing_key`, …) NEVER go through this command.
 
 use anyhow::{bail, Result};
 use chrono::Utc;
@@ -12,19 +11,19 @@ use crate::config::DataPaths;
 use crate::policy::{self, Attestation, VisibilityPolicy};
 use crate::storage::Storage;
 
-/// Nom CLI de la clé politique (traitée à part : valeur non entière,
-/// attestation exigée pour `identified` — ADR-0016).
+/// CLI name of the policy key (handled separately: non-integer value,
+/// attestation required for `identified` — ADR-0016).
 pub const POLICY_KEY_NAME: &str = "visibility_policy";
 
-/// Lit la politique effective + son attestation éventuelle.
+/// Reads the effective policy and its attestation, if any.
 pub fn get_policy(paths: &DataPaths) -> Result<(&'static str, Option<Attestation>)> {
     let storage = Storage::open(&paths.db())?;
     let pol = policy::load(&storage);
     Ok((pol.as_str(), policy::load_attestation(&storage)))
 }
 
-/// Écrit la politique. `identified` exige une attestation non vide ;
-/// les autres modes purgent l'attestation stockée.
+/// Writes the policy. `identified` requires a non-empty attestation;
+/// the other modes clear the stored attestation.
 pub fn set_policy(paths: &DataPaths, value: &str, attest: Option<&str>) -> Result<&'static str> {
     let pol = VisibilityPolicy::parse(value)?;
     let storage = Storage::open(&paths.db())?;
@@ -50,7 +49,7 @@ pub fn set_policy(paths: &DataPaths, value: &str, attest: Option<&str>) -> Resul
             )?;
         },
         _ => {
-            // Retour à un mode protecteur : l'attestation n'a plus d'objet.
+            // Back to a protective mode: the attestation no longer applies.
             storage.set_config(policy::ATTESTATION_KEY, "")?;
         },
     }
@@ -58,7 +57,7 @@ pub fn set_policy(paths: &DataPaths, value: &str, attest: Option<&str>) -> Resul
     Ok(pol.as_str())
 }
 
-/// Clé runtime exposée à l'opérateur : (nom, défaut, plancher, description).
+/// Runtime key exposed to the operator: (name, default, floor, description).
 pub struct RuntimeKey {
     pub key: &'static str,
     pub default: i64,
@@ -82,7 +81,7 @@ pub const RETENTION_DAYS: RuntimeKey = RuntimeKey {
     description: "Rétention des estimations en jours (purge quotidienne au-delà)",
 };
 
-/// Allow-list des clés opérateur (ADR-0015).
+/// Allow-list of operator keys (ADR-0015).
 pub const RUNTIME_KEYS: &[RuntimeKey] = &[K_ANONYMITY_MIN, RETENTION_DAYS];
 
 fn find_key(key: &str) -> Result<&'static RuntimeKey> {
@@ -101,7 +100,7 @@ fn find_key(key: &str) -> Result<&'static RuntimeKey> {
     )
 }
 
-/// Lit la valeur effective d'une clé (défaut si absente).
+/// Reads the effective value of a key (default if missing).
 pub fn get(paths: &DataPaths, key: &str) -> Result<i64> {
     let spec = find_key(key)?;
     let storage = Storage::open(&paths.db())?;
@@ -112,7 +111,7 @@ pub fn get(paths: &DataPaths, key: &str) -> Result<i64> {
     Ok(value.max(spec.floor))
 }
 
-/// Écrit une clé après validation (entier ≥ plancher).
+/// Writes a key after validation (integer ≥ floor).
 pub fn set(paths: &DataPaths, key: &str, value: &str) -> Result<i64> {
     let spec = find_key(key)?;
     let parsed: i64 = value
@@ -166,10 +165,10 @@ mod tests {
         let (pol, att) = get_policy(&p).unwrap();
         assert_eq!(pol, "opt_in");
         assert!(att.is_none());
-        // identified sans attestation → refus
+        // identified without attestation → rejected
         assert!(set_policy(&p, "identified", None).is_err());
         assert!(set_policy(&p, "identified", Some("  ")).is_err());
-        // avec attestation → ok, attestation stockée
+        // with attestation → ok, attestation stored
         assert_eq!(
             set_policy(&p, "identified", Some("CSE informé le 2026-06-12")).unwrap(),
             "identified"
@@ -177,11 +176,11 @@ mod tests {
         let (pol, att) = get_policy(&p).unwrap();
         assert_eq!(pol, "identified");
         assert_eq!(att.unwrap().text, "CSE informé le 2026-06-12");
-        // retour à opt_in → attestation purgée
+        // back to opt_in → attestation cleared
         set_policy(&p, "opt_in", None).unwrap();
         let (_, att) = get_policy(&p).unwrap();
         assert!(att.is_none());
-        // valeur inconnue → refus
+        // unknown value → rejected
         assert!(set_policy(&p, "nominatif", Some("x")).is_err());
     }
 

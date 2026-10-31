@@ -1,10 +1,10 @@
-//! Commande `sobria-team-aggregator serve` — lance le serveur HTTPS.
+//! `sobria-team-aggregator serve` command — starts the HTTPS server.
 //!
-//! Deux entrées :
+//! Two entry points:
 //!
-//! - [`run`] : bind sur `bind:port`, attend indéfiniment. Utilisé par la CLI.
-//! - [`run_with_listener`] : prend un `std::net::TcpListener` déjà bindé.
-//!   Utilisé par les tests d'intégration pour récupérer un port aléatoire.
+//! - [`run`]: binds `bind:port` and waits forever. Used by the CLI.
+//! - [`run_with_listener`]: takes an already bound `std::net::TcpListener`.
+//!   Used by the integration tests to get a random port.
 
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
@@ -16,7 +16,7 @@ use crate::config::DataPaths;
 use crate::server::{build_router, tls as server_tls, ServerState};
 use crate::storage::Storage;
 
-/// Vérifie que l'init a été lancée + construit l'état partagé + le TLS.
+/// Checks that init has run, then builds the shared state and the TLS config.
 fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     let jwt_signing_key = storage
@@ -37,7 +37,7 @@ fn prepare(paths: &DataPaths) -> Result<(ServerState, RustlsConfig)> {
     Ok((state, tls))
 }
 
-/// Lance le serveur en bindant `bind:port` (bloquant jusqu'à interruption).
+/// Starts the server bound to `bind:port` (blocks until interrupted).
 pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
     let (state, tls) = prepare(paths)?;
     spawn_retention_task(state.clone());
@@ -54,13 +54,13 @@ pub async fn run(paths: &DataPaths, bind: &str, port: u16) -> Result<()> {
     Ok(())
 }
 
-/// Variante test : utilise un listener déjà bindé (port arbitraire).
+/// Test variant: uses an already bound listener (any port).
 pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Result<()> {
     let (state, tls) = prepare(paths)?;
     spawn_retention_task(state.clone());
     let app = build_router(state);
 
-    // axum_server attend un `std::net::TcpListener` en non-blocking.
+    // axum_server expects a non-blocking `std::net::TcpListener`.
     listener
         .set_nonblocking(true)
         .context("set listener nonblocking")?;
@@ -74,12 +74,12 @@ pub async fn run_with_listener(listener: TcpListener, paths: &DataPaths) -> Resu
     Ok(())
 }
 
-// ─── Rétention des estimations (ADR-0015 « Conséquences ») ─────────────────
+// ─── Estimation retention (ADR-0015 "Conséquences") ────────────────────────
 
-/// Purge au boot puis toutes les 24 h les estimations plus vieilles que
-/// `config.retention_days` (défaut 730 j, plancher 30 — cf.
-/// `commands::config::RUNTIME_KEYS`). Best-effort : un échec est loggé,
-/// jamais fatal pour le serveur.
+/// Purges at boot, then every 24 h, the estimations older than
+/// `config.retention_days` (default 730 d, floor 30 — see
+/// `commands::config::RUNTIME_KEYS`). Best-effort: a failure is logged,
+/// never fatal to the server.
 fn spawn_retention_task(state: crate::server::ServerState) {
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(24 * 3600));
@@ -100,7 +100,7 @@ fn spawn_retention_task(state: crate::server::ServerState) {
     });
 }
 
-/// Lit `retention_days` (défaut/plancher via l'allow-list CLI) et purge.
+/// Reads `retention_days` (default/floor from the CLI allow-list) and purges.
 fn run_retention_purge(state: &crate::server::ServerState) -> anyhow::Result<(i64, u64)> {
     use crate::commands::config::RETENTION_DAYS;
 

@@ -1,10 +1,10 @@
-//! POST /api/v1/login — authentification admin OU user.
+//! POST /api/v1/login — admin OR user authentication.
 //!
-//! Pour user : `username = fingerprint` + `password` saisi à l'enrollment.
-//! Pour admin : `username` admin + password. Le rôle est explicitement passé
-//! pour éviter une confusion (un admin et un user ne peuvent pas partager
-//! un nom d'utilisateur en pratique car les fingerprints sont préfixés
-//! `chrome-*` / `firefox-*`, mais c'est plus propre de demander le rôle).
+//! For a user: `username = fingerprint` + the `password` set at enrollment.
+//! For an admin: admin `username` + password. The role is passed explicitly
+//! to avoid confusion (in practice an admin and a user cannot share a
+//! username because fingerprints are prefixed `chrome-*` / `firefox-*`,
+//! but asking for the role is cleaner).
 
 use axum::{extract::State, Json};
 use chrono::Utc;
@@ -88,7 +88,7 @@ pub async fn handle(
             }))
         },
         Role::User => {
-            // Pour les users on auth par fingerprint (= username) + password.
+            // Users authenticate with fingerprint (= username) + password.
             let user = users::find_by_fingerprint(storage.connection(), &req.username)?
                 .ok_or(ApiError::InvalidCredentials)?;
             if !verify_password(&user.password_hash, &req.password) {

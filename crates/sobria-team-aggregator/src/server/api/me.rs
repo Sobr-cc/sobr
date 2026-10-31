@@ -31,12 +31,12 @@ pub async fn handle(
     }))
 }
 
-/// Consentement de partage identifié (ADR-0015 §3). Le salarié est seul
-/// maître de ce flag : aucune route admin ne peut l'écrire.
+/// Identified-sharing consent (ADR-0015 §3). Only the employee controls
+/// this flag: no admin route can write it.
 ///
-/// `policy` (réponse uniquement, C44 — ADR-0016) : la politique de
-/// visibilité de l'organisation, pour que chaque salarié sache sous quel
-/// régime il travaille. Ignorée en écriture (PUT).
+/// `policy` (response only, ADR-0016): the organization's visibility
+/// policy, so every employee knows which regime they work under.
+/// Ignored on write (PUT).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SharingState {
     pub share_identified: bool,
@@ -44,7 +44,7 @@ pub struct SharingState {
     pub policy: Option<String>,
 }
 
-/// GET /api/v1/me/sharing — lit le consentement courant + la politique.
+/// GET /api/v1/me/sharing — reads the current consent + the policy.
 pub async fn sharing_get(
     State(state): State<ServerState>,
     user: AuthenticatedUser,
@@ -61,7 +61,7 @@ pub async fn sharing_get(
     }))
 }
 
-/// PUT /api/v1/me/sharing — écrit le consentement (idempotent).
+/// PUT /api/v1/me/sharing — writes the consent (idempotent).
 pub async fn sharing_put(
     State(state): State<ServerState>,
     user: AuthenticatedUser,

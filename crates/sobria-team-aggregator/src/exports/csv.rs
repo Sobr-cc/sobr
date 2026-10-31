@@ -1,16 +1,16 @@
-//! Export CSV brut RFC 4180 — une ligne par estimation.
+//! Raw RFC 4180 CSV export — one row per estimation.
 //!
-//! Format colonnes : `ts, user_fingerprint, user_display_name, method, model_id,
+//! Columns: `ts, user_fingerprint, user_display_name, method, model_id,
 //! tokens_in, tokens_out, gco2eq_p50_g, gco2eq_p5_g, gco2eq_p95_g, water_ml,
-//! energy_wh, region`. Anonymisation : `user_fingerprint` → `Employé #N`,
-//! `user_display_name` → vide quand le flag est posé.
+//! energy_wh, region`. Anonymization: `user_fingerprint` → `Employé #N`,
+//! `user_display_name` → empty when the flag is set.
 
 use std::collections::HashMap;
 
 use crate::error::{AggregatorError, AggregatorResult};
 use crate::storage::estimations::EstimationRow;
 
-/// Encode les rows en CSV (UTF-8, séparateur virgule, RFC 4180).
+/// Encodes the rows as CSV (UTF-8, comma separator, RFC 4180).
 pub fn build_csv(rows: &[EstimationRow], anonymize: bool) -> AggregatorResult<Vec<u8>> {
     let mut user_aliases: HashMap<&str, String> = HashMap::new();
     let mut wtr = csv::Writer::from_writer(vec![]);
@@ -158,7 +158,7 @@ mod tests {
     fn csv_p5_p95_optional_columns_are_empty_when_none() {
         let bytes = build_csv(&sample(), false).unwrap();
         let text = String::from_utf8(bytes).unwrap();
-        // 2e row : gco2eq_p5 = "0.5", gco2eq_p95 = "0.7"
+        // 2nd row: gco2eq_p5 = "0.5", gco2eq_p95 = "0.7"
         assert!(text.contains(",0.5,0.7,"));
     }
 }

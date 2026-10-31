@@ -1,16 +1,16 @@
-//! Alertes seuils (C29.4 — brief §C29.4).
+//! Threshold alerts (brief §C29.4).
 //!
-//! Permet à l'admin de définir des règles « si la conso de gCO₂eq d'un
-//! utilisateur (ou de toute l'équipe) sur une période (daily / weekly /
-//! monthly) dépasse `gco2eq_max`, notifier via webhook, email ou simple
-//! log_only ».
+//! Lets the admin define rules "if the gCO₂eq usage of a user (or of the
+//! whole team) over a period (daily / weekly / monthly) exceeds
+//! `gco2eq_max`, notify via webhook, email or plain
+//! log_only".
 //!
-//! Wiring : appelé depuis `server::api::estimations::handle` après chaque
-//! insertion réussie d'estimation. La logique est inline (timeout 5s sur
-//! webhook) pour rester simple ; en cas de charge plus élevée on passera
-//! à un job de fond.
+//! Wiring: called from `server::api::estimations::handle` after each
+//! successful estimation insert. The logic is inline (5s timeout on
+//! webhook) to stay simple; under higher load we will move to a
+//! background job.
 //!
-//! Voir ADR-0013 Phase 2 et `docs/archive/chantiers/C29-v0.7.1-polish-mode-equipe.md`.
+//! See ADR-0013 Phase 2 and `docs/archive/chantiers/C29-v0.7.1-polish-mode-equipe.md`.
 
 pub mod checker;
 pub mod notify;

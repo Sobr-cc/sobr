@@ -1,4 +1,4 @@
-//! GET /api/v1/admin/users — liste des employés enrôlés + totaux.
+//! GET /api/v1/admin/users — list of enrolled employees + totals.
 
 use axum::{extract::State, Json};
 use serde::Serialize;
@@ -23,9 +23,9 @@ pub async fn handle(
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
     let pol = crate::policy::load(&storage);
     let mut users = users::list_all_with_totals(storage.connection())?;
-    // ADR-0016 : `identified` → totaux pour tous ; `anonymous` → aucun
-    // total (même opt-in) ; `opt_in` → comportement ADR-0015 (déjà
-    // appliqué par le storage).
+    // ADR-0016: `identified` → totals for everyone; `anonymous` → no
+    // totals (even opt-in); `opt_in` → ADR-0015 behavior (already
+    // applied by the storage).
     match pol {
         crate::policy::VisibilityPolicy::Identified => {
             users = users::list_all_with_totals_unmasked(storage.connection())?;

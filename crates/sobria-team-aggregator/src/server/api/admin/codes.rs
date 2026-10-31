@@ -1,8 +1,8 @@
-//! POST /api/v1/admin/codes — crée N enrollment codes.
-//! DELETE /api/v1/admin/codes/:id — révoque un code par id.
+//! POST /api/v1/admin/codes — creates N enrollment codes.
+//! DELETE /api/v1/admin/codes/:id — revokes a code by id.
 //!
-//! Les codes ne sont affichés en clair QUE dans la réponse de POST.
-//! Argon2id PHC en base, plus rien de réversible ensuite.
+//! Codes are shown in clear ONLY in the POST response.
+//! Argon2id PHC in the database, nothing reversible afterwards.
 
 use axum::{
     extract::{Path, State},
@@ -18,7 +18,7 @@ use crate::server::error::{ApiError, ApiResult};
 use crate::server::ServerState;
 use crate::storage::enrollment_codes;
 
-/// Limites raisonnables pour éviter abus.
+/// Reasonable limits to prevent abuse.
 const MAX_CODES_PER_BATCH: u32 = 500;
 const MAX_TTL_DAYS: i64 = 365;
 

@@ -1,6 +1,6 @@
-//! POST /api/v1/estimations — un user authentifié pousse une estimation.
+//! POST /api/v1/estimations — an authenticated user pushes an estimation.
 //!
-//! Le body est l'`EstimatePayload v1` de l'extension v0.6.0 (camelCase) :
+//! The body is the `EstimatePayload v1` of extension v0.6.0 (camelCase):
 //!
 //! ```json
 //! {
@@ -13,9 +13,9 @@
 //! }
 //! ```
 //!
-//! On extrait les champs typés pour `estimations` (colonnes dédiées
-//! pour analytics) et on conserve le payload complet dans `raw_payload_json`
-//! pour audit / reproductibilité.
+//! We extract the typed fields into `estimations` (dedicated columns
+//! for analytics) and keep the full payload in `raw_payload_json`
+//! for audit / reproducibility.
 
 use axum::{extract::State, Json};
 use chrono::{DateTime, Utc};
@@ -38,12 +38,12 @@ pub struct EstimatePayload {
     #[serde(default)]
     pub model_display_name: Option<String>,
     pub ts: DateTime<Utc>,
-    /// Région optionnelle (l'extension actuelle n'envoie pas ce champ ;
-    /// on l'accepte pour compat future).
+    /// Optional region (the current extension does not send this field;
+    /// accepted for future compatibility).
     #[serde(default)]
     pub region: Option<String>,
-    /// Étiquette projet (C44) — taguée par conversation côté extension.
-    /// Normalisée : trim + 64 chars max, vide → None.
+    /// Project label — tagged per conversation by the extension.
+    /// Normalized: trim + 64 chars max, empty → None.
     #[serde(default)]
     pub project: Option<String>,
 }
@@ -71,8 +71,8 @@ pub async fn handle(
     user: AuthenticatedUser,
     Json(payload): Json<EstimatePayload>,
 ) -> ApiResult<Json<EstimateAck>> {
-    // Garde-fous métiers : pas de méthode arbitraire, pas de tokens négatifs
-    // (le type u32 protège déjà), pas de gCO₂eq aberrant.
+    // Business guards: no arbitrary method, no negative tokens
+    // (the u32 type already covers it), no absurd gCO₂eq.
     if EmpreinteMethod::from_str(&payload.estimate.method).is_none() {
         return Err(ApiError::BadRequest(format!(
             "methode inconnue: {}",
@@ -89,7 +89,7 @@ pub async fn handle(
         .lock()
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
 
-    // Préserve le payload complet pour audit + reproductibilité.
+    // Keep the full payload for audit + reproducibility.
     let raw = serde_json::to_string(&serde_json::json!({
         "estimate": {
             "method": payload.estimate.method,
@@ -108,8 +108,8 @@ pub async fn handle(
     .unwrap_or_else(|_| "{}".to_string());
 
     let id = Ulid::new().to_string();
-    // C44 — normalisation de l'étiquette projet : trim, 64 chars max,
-    // vide → None (NULL en base = « hors projet »).
+    // Project label normalization: trim, 64 chars max,
+    // empty → None (NULL in the database = "no project").
     let project_norm = payload
         .project
         .as_deref()
@@ -137,16 +137,16 @@ pub async fn handle(
     estimations::insert(storage.connection(), &new_estimation)?;
     let _ = users::touch_last_seen(storage.connection(), &user.claims.sub, now);
 
-    // C29.4 — vérification des seuils d'alerte applicables à ce user
-    // (incluant les seuils team). Les events détectés sont insérés en base
-    // sous le lock ; la notification asynchrone tourne ensuite hors lock.
+    // Check the alert thresholds that apply to this user
+    // (team thresholds included). Detected events are inserted in the database
+    // under the lock; the async notification then runs outside the lock.
     let events = alerts::check_thresholds_for_user(storage.connection(), &user.claims.sub, now)
         .map_err(|e| {
             tracing::warn!(error = %e, "alerts: check échoué — ack quand même");
             e
         })
         .unwrap_or_default();
-    // Snapshot SMTP avant de drop le lock.
+    // Snapshot the SMTP config before dropping the lock.
     let smtp_cfg = alerts::notify::read_smtp_config(&storage);
     drop(storage);
 

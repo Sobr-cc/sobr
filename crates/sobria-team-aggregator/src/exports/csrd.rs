@@ -1,16 +1,15 @@
-//! Export PDF CSRD/AFNOR SPEC 2314 — réutilise `sobria-export::generate_report`.
+//! CSRD/AFNOR SPEC 2314 PDF export — reuses `sobria-export::generate_report`.
 //!
-//! Stratégie : on convertit chaque estimation `team.estimations` en
-//! `AuditEntry` shim portant un `EstimationResult` minimal. La chaîne
-//! d'agrégation + le PDF (printpdf) de la crate `sobria-export` font le
-//! reste — ça garantit que le PDF équipe a la même forme que celui du
-//! desktop (cohérence visuelle CSRD).
+//! Approach: each `team.estimations` estimation becomes an `AuditEntry`
+//! shim carrying a minimal `EstimationResult`. The aggregation chain + the
+//! PDF (printpdf) of the `sobria-export` crate do the rest — so the team
+//! PDF has the same shape as the desktop one (CSRD visual consistency).
 //!
-//! Si l'estimation n'a pas de P5/P95 (le payload v0.6.0 extension est
-//! point-estimate), on les synthétise à `P50 × 0.85` / `P50 × 1.15`
-//! (largeur 30 % comme convention par défaut). Documenté dans le PDF
-//! via la méthodologie AFNOR ; la cohérence statistique reste préservée
-//! (somme des P50 = même valeur).
+//! If the estimation has no P5/P95 (the v0.6.0 extension payload is a
+//! point estimate), they are synthesized as `P50 × 0.85` / `P50 × 1.15`
+//! (30 % width as the default convention). Documented in the PDF through
+//! the AFNOR methodology; statistical consistency is preserved
+//! (sum of P50 = same value).
 
 use chrono::{DateTime, Utc};
 use sobria_audit::AuditEntry;
@@ -23,10 +22,10 @@ use sobria_export::{generate_report, ReportArtifacts, ReportRequest};
 use crate::error::AggregatorError;
 use crate::storage::estimations::EstimationRow;
 
-/// Largeur d'incertitude par défaut quand le payload ne fournit pas P5/P95.
+/// Default uncertainty width when the payload has no P5/P95.
 const DEFAULT_UNCERTAINTY_PCT: f64 = 0.15;
 
-/// Construit le PDF + le PROV-O sidecar du rapport agrégé équipe.
+/// Builds the PDF + PROV-O sidecar of the aggregated team report.
 pub fn build_report(
     rows: &[EstimationRow],
     organization_name: &str,
@@ -45,8 +44,8 @@ pub fn build_report(
         organization_name: organization_name.to_string(),
         locale: "fr".to_string(),
         app_version: env!("CARGO_PKG_VERSION").to_string(),
-        // L'extension/team-aggregator est point-estimate (pas Monte-Carlo) —
-        // on garde un seed canonique pour la traçabilité PROV-O.
+        // The extension/team-aggregator is a point estimate (no Monte-Carlo) —
+        // keep a canonical seed for PROV-O traceability.
         estimator_seed: 42,
         estimator_n: 1,
     };
@@ -84,7 +83,7 @@ fn estimation_result_from_row(row: &EstimationRow) -> EstimationResult {
     let energy_wh = row.energy_wh.max(0.0);
     let energy_interval = UncertaintyInterval::point(energy_wh).expect("energy fini ≥ 0");
 
-    // SQLite stocke l'eau en millilitres ; sobria-export attend des litres.
+    // SQLite stores water in millilitres; sobria-export expects litres.
     let water_l = (row.water_ml.max(0.0)) / 1000.0;
     let water_interval = UncertaintyInterval::point(water_l).expect("water fini ≥ 0");
 
@@ -176,7 +175,7 @@ mod tests {
         assert_eq!(r.audit_entries_count, 2);
         // P50 total = 0.4 + 0.6 = 1.0.
         assert!((r.summary.total_co2eq_g_p50 - 1.0).abs() < 1e-9);
-        // Le sidecar PROV-O référence le PDF par son sha256.
+        // The PROV-O sidecar references the PDF by its sha256.
         assert!(!r.pdf_sha256.is_empty());
         assert_eq!(r.pdf_sha256.len(), 64);
     }

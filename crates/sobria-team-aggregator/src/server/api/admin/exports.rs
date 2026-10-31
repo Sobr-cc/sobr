@@ -1,7 +1,7 @@
-//! Routes admin pour les exports CSRD / PROV-O / CSV (C28.5).
+//! Admin routes for the CSRD / PROV-O / CSV exports.
 //!
-//! Toutes sont en `POST` avec un body JSON `ExportRequest` (cohérent avec
-//! les futurs filtres avancés). La fenêtre par défaut : 30 derniers jours.
+//! All are `POST` with an `ExportRequest` JSON body (consistent with
+//! future advanced filters). Default window: last 30 days.
 
 use axum::{
     body::Body,
@@ -22,10 +22,10 @@ use crate::storage::estimations::{self, EstimationRow};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ExportInput {
-    /// RFC3339 ; défaut : `now - 30 jours`.
+    /// RFC3339; default: `now - 30 days`.
     #[serde(default)]
     pub from: Option<String>,
-    /// RFC3339 ; défaut : `now`.
+    /// RFC3339; default: `now`.
     #[serde(default)]
     pub to: Option<String>,
     #[serde(default)]
@@ -118,8 +118,8 @@ pub async fn handle_csv(
         .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))
 }
 
-/// Lit la fenêtre puis relâche le verrou global aussitôt : la génération
-/// (PDF surtout) ne doit pas bloquer l'ingestion des estimations.
+/// Reads the window then releases the global lock right away: generation
+/// (PDF above all) must not block estimation ingestion.
 fn rows_in_window(state: &ServerState, req: &ExportRequest) -> ApiResult<Vec<EstimationRow>> {
     let storage = state
         .storage

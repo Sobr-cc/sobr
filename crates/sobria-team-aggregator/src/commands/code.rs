@@ -1,10 +1,10 @@
-//! Commande CLI `sobria-team-aggregator code` (create/list/revoke).
+//! `sobria-team-aggregator code` CLI command (create/list/revoke).
 //!
-//! - `code create N --ttl-days 7 --admin admin` : génère N codes 12 chiffres
-//!   (OS RNG), les hashe Argon2id, les insère, et les affiche en clair UNE
-//!   seule fois (warning UX dans la sortie).
-//! - `code list` : table tabulée des codes existants (id, créé par, état).
-//! - `code revoke <id>` : pose `revoked_at` = `now`.
+//! - `code create N --ttl-days 7 --admin admin`: generates N 12-digit codes
+//!   (OS RNG), hashes them with Argon2id, inserts them, and prints them in
+//!   clear ONLY once (UX warning in the output).
+//! - `code list`: tabular view of the existing codes (id, created by, state).
+//! - `code revoke <id>`: sets `revoked_at` = `now`.
 
 use anyhow::{Context, Result};
 use chrono::{Duration, Utc};
@@ -14,10 +14,10 @@ use crate::config::DataPaths;
 use crate::crypto::secret::enrollment_code;
 use crate::storage::{admins, enrollment_codes, Storage};
 
-/// Codes nouvellement créés (clair + métadonnées).
+/// Newly created codes (clear text + metadata).
 pub use crate::storage::enrollment_codes::CreatedCode;
 
-/// Crée N codes pour `admin_username` (défaut `admin`), valides `ttl_days`.
+/// Creates N codes for `admin_username` (default `admin`), valid `ttl_days`.
 pub fn create_batch(
     paths: &DataPaths,
     count: u32,
@@ -53,13 +53,13 @@ pub fn create_batch(
     Ok(out)
 }
 
-/// Liste les codes (admin view).
+/// Lists the codes (admin view).
 pub fn list_all(paths: &DataPaths) -> Result<Vec<enrollment_codes::EnrollmentCodeRow>> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     Ok(enrollment_codes::list_all(storage.connection())?)
 }
 
-/// Révoque un code par id.
+/// Revokes a code by id.
 pub fn revoke(paths: &DataPaths, id: &str) -> Result<bool> {
     let storage = Storage::open(&paths.db()).context("open team.sqlite")?;
     Ok(enrollment_codes::revoke(
@@ -92,7 +92,7 @@ mod tests {
         }
         let clear_set: std::collections::HashSet<_> =
             codes.iter().map(|c| c.code.clone()).collect();
-        // Pas obligatoirement 5 distincts (RNG peut collisionner), mais ≥ 3.
+        // Not necessarily 5 distinct (the RNG may collide), but ≥ 3.
         assert!(clear_set.len() >= 3, "trop de collisions: {clear_set:?}");
 
         let listed = list_all(&paths).unwrap();

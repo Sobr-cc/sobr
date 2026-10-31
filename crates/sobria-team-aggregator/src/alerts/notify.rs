@@ -1,15 +1,15 @@
-//! Dispatch des notifications d'alerte (webhook / email / log_only).
+//! Dispatches alert notifications (webhook / email / log_only).
 //!
-//! Brief C29.4 §"Notifications" :
+//! Brief C29.4 §"Notifications":
 //!
 //! - **webhook**  : `reqwest::Client::post(url).json(payload).timeout(5s)`.
-//! - **email**    : SMTP via `lettre 0.11`. Configuration lue depuis la
-//!   table `config` (clés `smtp_url` + `smtp_from`). Si absente → fallback
-//!   automatique `log_only` (graceful degrade exigé par le brief).
-//! - **log_only** : `tracing::warn!` structuré.
+//! - **email**    : SMTP via `lettre 0.11`. Configuration read from the
+//!   `config` table (keys `smtp_url` + `smtp_from`). If missing → automatic
+//!   `log_only` fallback (graceful degrade required by the brief).
+//! - **log_only** : structured `tracing::warn!`.
 //!
-//! Cette fonction est **async** et tourne en dehors du lock SQLite. L'appelant
-//! met à jour `alert_triggers.notified_at` / `notify_error` après retour.
+//! This function is **async** and runs outside the SQLite lock. The caller
+//! updates `alert_triggers.notified_at` / `notify_error` once it returns.
 
 use std::time::Duration;
 
@@ -27,7 +27,7 @@ use crate::alerts::store::NotifyKind;
 
 const WEBHOOK_TIMEOUT_SECS: u64 = 5;
 
-/// Payload POSTé aux webhooks. Format documenté dans le brief.
+/// Payload POSTed to webhooks. Format documented in the brief.
 #[derive(Debug, Serialize)]
 pub struct WebhookPayload<'a> {
     pub threshold_id: &'a str,
@@ -41,17 +41,17 @@ pub struct WebhookPayload<'a> {
     pub triggered_at: String,
 }
 
-/// Résultat de l'envoi de notification.
+/// Result of sending a notification.
 #[derive(Debug)]
 pub struct NotifyOutcome {
-    /// `true` si la notification a réussi (peut être un fallback log_only).
+    /// `true` if the notification succeeded (may be a log_only fallback).
     pub ok: bool,
-    /// Message d'erreur si `ok = false`, ou trace ("fallback log_only", etc.).
+    /// Error message if `ok = false`, or a trace ("fallback log_only", etc.).
     pub error: Option<String>,
 }
 
-/// Notifie un événement d'alerte. Ne panique jamais — toute erreur réseau /
-/// SMTP est capturée dans `NotifyOutcome`.
+/// Notifies an alert event. Never panics — every network /
+/// SMTP error is captured in `NotifyOutcome`.
 pub async fn notify(event: &AlertEvent, smtp_config: Option<SmtpConfig>) -> NotifyOutcome {
     let kind = event.threshold.notify_kind;
     let target = event.threshold.notify_target.as_deref();
@@ -193,7 +193,7 @@ async fn send_email(
     };
     match transport.send(msg).await {
         Ok(_) => {
-            let _ = event; // event est suffixé pour l'API mais pas relogué côté succès
+            let _ = event; // event is part of the API but not logged again on success
             NotifyOutcome {
                 ok: true,
                 error: None,
@@ -206,17 +206,17 @@ async fn send_email(
     }
 }
 
-/// Configuration SMTP lue depuis la table `config`.
+/// SMTP configuration read from the `config` table.
 #[derive(Debug, Clone)]
 pub struct SmtpConfig {
-    /// URL au format `smtps://user:pass@host:port` ou `smtp://host:port`.
+    /// URL in the form `smtps://user:pass@host:port` or `smtp://host:port`.
     pub url: String,
-    /// Adresse `From` (ex. `sobria@example.org`).
+    /// `From` address (e.g. `sobria@example.org`).
     pub from: String,
 }
 
-/// Construit la configuration SMTP depuis le KV `config` (smtp_url + smtp_from).
-/// Renvoie `None` si l'une des deux clés est absente — signal de fallback log_only.
+/// Builds the SMTP configuration from the `config` KV (smtp_url + smtp_from).
+/// Returns `None` if either key is missing — the signal for the log_only fallback.
 pub fn read_smtp_config(storage: &crate::storage::Storage) -> Option<SmtpConfig> {
     let url = storage.get_config("smtp_url").ok().flatten()?;
     let from = storage.get_config("smtp_from").ok().flatten()?;
@@ -227,7 +227,7 @@ pub fn read_smtp_config(storage: &crate::storage::Storage) -> Option<SmtpConfig>
 }
 
 fn build_smtp_transport(smtp: &SmtpConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, String> {
-    // On parse l'URL manuellement pour permettre `smtp://host:port` (sans creds).
+    // Parse the URL by hand to allow `smtp://host:port` (no creds).
     let (scheme, rest) = smtp
         .url
         .split_once("://")

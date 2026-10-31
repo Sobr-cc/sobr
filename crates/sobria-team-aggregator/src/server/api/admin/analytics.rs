@@ -1,16 +1,16 @@
 //! GET /api/v1/admin/analytics?from&to&group_by=day|week|month
 //!
-//! Retourne 4 sections agrégées sur la fenêtre `[from, to]` :
-//! - `series`           : bucketing temporel selon `group_by` (défaut `day`).
-//! - `top_models`       : top 10 modèles par gCO₂eq décroissant.
-//! - `top_users`        : participants en partage opt-in + agrégat anonyme
-//!   (ADR-0015 §3 — plus jamais de classement nominatif par défaut).
+//! Returns 4 aggregated sections over the `[from, to]` window:
+//! - `series`           : time bucketing by `group_by` (default `day`).
+//! - `top_models`       : top 10 models by descending gCO₂eq.
+//! - `top_users`        : opt-in sharing participants + anonymous aggregate
+//!   (ADR-0015 §3 — never again a named ranking by default).
 //! - `method_breakdown` : afnor_sobria vs ecologits.
 //!
-//! **k-anonymat (ADR-0015 §2)** : si le nombre d'utilisateurs actifs dans
-//! la fenêtre est inférieur à `k = max(3, config.k_anonymity_min)` (défaut
-//! 5), les sections sont vides et `k_anonymity.blocked = true` — un agrégat
-//! de très petite équipe revient à des données individuelles.
+//! **k-anonymity (ADR-0015 §2)**: if the number of active users in
+//! the window is below `k = max(3, config.k_anonymity_min)` (default
+//! 5), the sections are empty and `k_anonymity.blocked = true` — an aggregate
+//! of a very small team amounts to individual data.
 //!
 //! The `dim` parameter (`user|model|method`) is accepted and ignored: every
 //! section is returned.
@@ -32,39 +32,39 @@ use crate::storage::analytics::{
     self, GroupBy, MethodBreakdown, ModelTop, ProjectBreakdown, TimeBucket, TopUsersShared,
 };
 
-/// Seuil k par défaut si `config.k_anonymity_min` est absent/illisible.
+/// Default k threshold if `config.k_anonymity_min` is missing/unreadable.
 const K_DEFAULT: u32 = K_ANONYMITY_MIN.default as u32;
-/// Plancher dur : aucune configuration ne peut descendre sous ce k.
+/// Hard floor: no configuration can go below this k.
 const K_FLOOR: u32 = K_ANONYMITY_MIN.floor as u32;
 
 #[derive(Debug, Deserialize)]
 pub struct AnalyticsQuery {
-    /// RFC3339 ; par défaut : `now - 30 jours`.
+    /// RFC3339; default: `now - 30 days`.
     #[serde(default)]
     pub from: Option<String>,
-    /// RFC3339 ; par défaut : `now`.
+    /// RFC3339; default: `now`.
     #[serde(default)]
     pub to: Option<String>,
-    /// `day` (défaut) | `week` | `month`.
+    /// `day` (default) | `week` | `month`.
     #[serde(default)]
     pub group_by: Option<String>,
     /// `user | model | method`, accepted and ignored.
     #[allow(dead_code)]
     #[serde(default)]
     pub dim: Option<String>,
-    /// Top N (défaut : 10, max 100).
+    /// Top N (default: 10, max 100).
     #[serde(default)]
     pub top: Option<u32>,
 }
 
-/// État du contrôle k-anonymat joint à chaque réponse (l'UI explique).
+/// k-anonymity check status attached to every response (the UI explains it).
 #[derive(Debug, Serialize)]
 pub struct KAnonymity {
-    /// Seuil appliqué (`max(K_FLOOR, config)`).
+    /// Applied threshold (`max(K_FLOOR, config)`).
     pub required: u32,
-    /// Utilisateurs actifs distincts dans la fenêtre.
+    /// Distinct active users in the window.
     pub active_users: u64,
-    /// `true` → sections vides, agrégats refusés.
+    /// `true` → empty sections, aggregates refused.
     pub blocked: bool,
 }
 
@@ -73,14 +73,14 @@ pub struct AnalyticsResponse {
     pub from: String,
     pub to: String,
     pub group_by: String,
-    /// Politique de visibilité effective (ADR-0016) — l'UI l'affiche.
+    /// Effective visibility policy (ADR-0016) — shown by the UI.
     pub policy: &'static str,
     pub k_anonymity: KAnonymity,
     pub series: Vec<TimeBucket>,
     pub top_models: Vec<ModelTop>,
     pub top_users: TopUsersShared,
-    /// Agrégats par projet (C44) — repli « autres projets » sous k
-    /// en modes anonymous/opt_in.
+    /// Per-project aggregates — folded into "other projects" below k
+    /// in anonymous/opt_in modes.
     pub projects: Vec<ProjectBreakdown>,
     pub method_breakdown: Vec<MethodBreakdown>,
 }
@@ -114,7 +114,7 @@ pub async fn handle(
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
     let conn = storage.connection();
 
-    // ── Politique de visibilité (ADR-0016) puis garde k (ADR-0015 §2). ──
+    // ── Visibility policy (ADR-0016) then k guard (ADR-0015 §2). ──
     let pol = policy::load(&storage);
     let k_required = storage
         .get_config(K_ANONYMITY_MIN.key)
@@ -124,8 +124,8 @@ pub async fn handle(
         .unwrap_or(K_DEFAULT)
         .max(K_FLOOR);
     let active_users = analytics::active_user_count(conn, from, to)?;
-    // En mode `identified`, le k-anonymat est sans objet (les données
-    // individuelles sont visibles par politique d'organisation).
+    // In `identified` mode, k-anonymity does not apply (individual data
+    // is visible by organization policy).
     let blocked = pol != VisibilityPolicy::Identified && active_users < u64::from(k_required);
     let project_k = match pol {
         VisibilityPolicy::Identified => None,
@@ -142,8 +142,8 @@ pub async fn handle(
         )
     } else {
         let top_users = match pol {
-            // Anonyme strict : aucune identification, même volontaire —
-            // tout le monde est agrégé dans le bloc anonyme.
+            // Strict anonymous: no identification, even voluntary —
+            // everyone is aggregated in the anonymous block.
             VisibilityPolicy::Anonymous => {
                 let mut t = analytics::top_users_shared(conn, from, to, top_n)?;
                 if !t.identified.is_empty() {

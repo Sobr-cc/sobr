@@ -1,9 +1,9 @@
-//! Routes admin `/api/v1/admin/alerts` (C29.4).
+//! Admin routes `/api/v1/admin/alerts`.
 //!
-//! - `POST   /alerts`          : créer un seuil
-//! - `GET    /alerts`          : lister les seuils (actifs et désactivés)
-//! - `DELETE /alerts/:id`      : soft delete (pose `disabled_at`)
-//! - `GET    /alerts/triggers` : historique des N derniers déclenchements
+//! - `POST   /alerts`          : create a threshold
+//! - `GET    /alerts`          : list thresholds (active and disabled)
+//! - `DELETE /alerts/:id`      : soft delete (sets `disabled_at`)
+//! - `GET    /alerts/triggers` : history of the last N triggers
 
 use axum::{
     extract::{Path, Query, State},
@@ -44,8 +44,8 @@ pub async fn handle_create(
     admin: AuthenticatedAdmin,
     Json(req): Json<CreateAlertRequest>,
 ) -> ApiResult<Json<CreatedAlertResponse>> {
-    // Validation côté handler (les checks de cohérence finale sont aussi dans
-    // `insert_threshold` pour défense en profondeur).
+    // Handler-side validation (the final consistency checks also live in
+    // `insert_threshold` for defense in depth).
     if !req.gco2eq_max.is_finite() || req.gco2eq_max <= 0.0 {
         return Err(ApiError::BadRequest("gco2eq_max doit être > 0".into()));
     }

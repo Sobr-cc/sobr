@@ -1,5 +1,5 @@
-//! POST /api/v1/enroll — un employé consomme un enrollment code pour
-//! créer son compte user et obtenir un couple access/refresh tokens.
+//! POST /api/v1/enroll — an employee redeems an enrollment code to
+//! create their user account and get an access/refresh token pair.
 
 use axum::{extract::State, Json};
 use chrono::Utc;
@@ -57,16 +57,16 @@ pub async fn handle(
         .lock()
         .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
 
-    // 1. fingerprint déjà enrôlé ? (single-device en v0.7.0)
+    // 1. fingerprint already enrolled? (single-device in v0.7.0)
     if users::find_by_fingerprint(storage.connection(), &req.fingerprint)?.is_some() {
         return Err(ApiError::FingerprintAlreadyEnrolled);
     }
 
-    // 2. code valide ?
+    // 2. valid code?
     let code_row = enrollment_codes::verify_active_code(storage.connection(), &req.code, now)?
         .ok_or(ApiError::InvalidEnrollmentCode)?;
 
-    // 3. crée le user
+    // 3. create the user
     let user_id = Ulid::new().to_string();
     let password_hash = password::hash_password(&req.password)?;
     users::insert(
@@ -79,14 +79,14 @@ pub async fn handle(
         now,
     )?;
 
-    // 4. consomme le code (single-use)
+    // 4. redeem the code (single-use)
     if !enrollment_codes::mark_used(storage.connection(), &code_row.id, &user_id, now)? {
-        // Course concurrente : un autre client a consommé le code entre la
-        // verif et le mark_used. On rejette ce nouvel utilisateur.
+        // Race: another client redeemed the code between the check and
+        // mark_used. Reject this new user.
         return Err(ApiError::InvalidEnrollmentCode);
     }
 
-    // 5. émet access + refresh tokens
+    // 5. issue access + refresh tokens
     let access_token = jwt::issue(&state.jwt_signing_key, &user_id, Role::User, now)?;
     let access_expires_at = (now + jwt::ACCESS_TTL).to_rfc3339();
     let issued = refresh::issue(&storage, Some(&user_id), None, now)?;

@@ -1,4 +1,4 @@
-//! Helpers SQL pour la table `users`.
+//! SQL helpers for the `users` table.
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -8,7 +8,7 @@ use crate::error::AggregatorResult;
 use crate::storage::estimations::UsageTotals;
 use crate::storage::parse_ts;
 
-/// Employé enrôlé. `password_hash` est un PHC Argon2id (cf. `crypto::password`).
+/// Enrolled employee. `password_hash` is an Argon2id PHC (see `crypto::password`).
 #[derive(Debug, Clone)]
 pub struct UserRow {
     pub id: String,
@@ -20,7 +20,7 @@ pub struct UserRow {
     pub last_seen_at: Option<DateTime<Utc>>,
 }
 
-/// Insère un nouvel utilisateur (le hash Argon2id doit être pré-calculé).
+/// Inserts a new user (the Argon2id hash must be computed beforehand).
 pub fn insert(
     conn: &Connection,
     id: &str,
@@ -46,7 +46,7 @@ pub fn insert(
     Ok(())
 }
 
-/// Cherche un user par id (ULID).
+/// Looks up a user by id (ULID).
 pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<UserRow>> {
     let row = conn
         .query_row(
@@ -60,7 +60,7 @@ pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<UserRo
     Ok(row)
 }
 
-/// Cherche un user par fingerprint (unicité garantie par le schéma).
+/// Looks up a user by fingerprint (uniqueness enforced by the schema).
 pub fn find_by_fingerprint(
     conn: &Connection,
     fingerprint: &str,
@@ -77,12 +77,12 @@ pub fn find_by_fingerprint(
     Ok(row)
 }
 
-/// Vue user pour la liste admin — vue de GESTION (ADR-0015).
+/// User row for the admin list: a MANAGEMENT view (ADR-0015).
 ///
-/// `totals` n'est renseigné que si l'employé a activé le partage identifié
-/// (`share_identified`). Sinon `None` : l'admin gère les comptes
-/// (enrôlement, dernier contact, révocation) sans visibilité de
-/// consommation individuelle.
+/// `totals` is set only if the employee turned on identified sharing
+/// (`share_identified`). Otherwise `None`: the admin manages accounts
+/// (enrollment, last contact, revocation) without seeing individual
+/// usage.
 #[derive(Debug, Clone, Serialize)]
 pub struct UserWithTotals {
     pub id: String,
@@ -91,22 +91,22 @@ pub struct UserWithTotals {
     pub enrollment_code_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub last_seen_at: Option<DateTime<Utc>>,
-    /// Consentement opt-in du salarié (ADR-0015 §3).
+    /// The employee's opt-in consent (ADR-0015 §3).
     pub share_identified: bool,
-    /// Totaux d'usage — `None` tant que `share_identified` est faux.
+    /// Usage totals: `None` while `share_identified` is false.
     pub totals: Option<UsageTotals>,
 }
 
-/// Liste tous les users avec leurs totaux (LEFT JOIN estimations).
-/// Tri par dernière activité décroissante (user actif en haut).
-/// Les totaux des comptes sans partage actif sont masqués (`None`) —
-/// l'application du masque est faite ICI, côté serveur, pas dans l'UI.
+/// Lists every user with their totals (LEFT JOIN estimations).
+/// Sorted by last activity, descending (active users first).
+/// Totals of accounts without sharing on are masked (`None`): the mask is
+/// applied HERE, server-side, not in the UI.
 pub fn list_all_with_totals(conn: &Connection) -> AggregatorResult<Vec<UserWithTotals>> {
     list_all_with_totals_inner(conn, true)
 }
 
-/// Variante NON masquée — réservée à la politique `identified`
-/// (ADR-0016) : totaux renseignés pour tous, opt-in ignoré.
+/// UNMASKED variant: reserved for the `identified` policy
+/// (ADR-0016); totals set for everyone, opt-in ignored.
 pub fn list_all_with_totals_unmasked(conn: &Connection) -> AggregatorResult<Vec<UserWithTotals>> {
     list_all_with_totals_inner(conn, false)
 }
@@ -160,7 +160,7 @@ fn list_all_with_totals_inner(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Lit le consentement de partage identifié (ADR-0015 §3).
+/// Reads the identified-sharing consent (ADR-0015 §3).
 pub fn share_identified(conn: &Connection, id: &str) -> AggregatorResult<bool> {
     let v: i64 = conn.query_row(
         "SELECT share_identified FROM users WHERE id = ?1",
@@ -170,7 +170,7 @@ pub fn share_identified(conn: &Connection, id: &str) -> AggregatorResult<bool> {
     Ok(v != 0)
 }
 
-/// Écrit le consentement de partage identifié (idempotent).
+/// Writes the identified-sharing consent (idempotent).
 pub fn set_share_identified(conn: &Connection, id: &str, share: bool) -> AggregatorResult<()> {
     conn.execute(
         "UPDATE users SET share_identified = ?1 WHERE id = ?2",
@@ -179,7 +179,7 @@ pub fn set_share_identified(conn: &Connection, id: &str, share: bool) -> Aggrega
     Ok(())
 }
 
-/// Met à jour `last_seen_at` (idempotent).
+/// Updates `last_seen_at` (idempotent).
 pub fn touch_last_seen(conn: &Connection, id: &str, now: DateTime<Utc>) -> AggregatorResult<()> {
     conn.execute(
         "UPDATE users SET last_seen_at = ?1 WHERE id = ?2",
@@ -254,7 +254,7 @@ mod tests {
         .unwrap();
         insert(s.connection(), "u-2", None, "fp-2", "h", None, Utc::now()).unwrap();
 
-        // u-1 a 2 estimations, u-2 aucune.
+        // u-1 has 2 estimations, u-2 none.
         for (id, g) in [("e-1", 0.4), ("e-2", 0.6)] {
             let est = estimations::NewEstimation {
                 id,
@@ -277,14 +277,14 @@ mod tests {
             estimations::insert(s.connection(), &est).unwrap();
         }
 
-        // Par défaut (pas d'opt-in) : totaux masqués pour tout le monde.
+        // By default (no opt-in): totals masked for everyone.
         let rows = list_all_with_totals(s.connection()).unwrap();
         assert_eq!(rows.len(), 2);
         assert!(rows
             .iter()
             .all(|r| !r.share_identified && r.totals.is_none()));
 
-        // u-1 active le partage → ses totaux apparaissent, pas ceux de u-2.
+        // u-1 turns on sharing → their totals appear, not u-2's.
         set_share_identified(s.connection(), "u-1", true).unwrap();
         let rows = list_all_with_totals(s.connection()).unwrap();
         let by_id: std::collections::HashMap<_, _> =
@@ -311,7 +311,7 @@ mod tests {
             Utc::now(),
         )
         .unwrap();
-        // Aucun opt-in : masqué → None, unmasked → Some.
+        // No opt-in: masked → None, unmasked → Some.
         assert!(list_all_with_totals(s.connection()).unwrap()[0]
             .totals
             .is_none());

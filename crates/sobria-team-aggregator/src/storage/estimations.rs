@@ -1,8 +1,8 @@
-//! Helpers SQL pour la table `estimations`.
+//! SQL helpers for the `estimations` table.
 //!
-//! Le payload reçu via POST /api/v1/estimations conserve son `raw_payload_json`
-//! d'origine (audit + reproductibilité), et les champs typés (méthode, modèle,
-//! gCO₂eq, etc.) sont extraits dans des colonnes dédiées pour les analytics.
+//! A payload received via POST /api/v1/estimations keeps its original
+//! `raw_payload_json` (audit + reproducibility), and the typed fields (method,
+//! model, gCO₂eq, etc.) are extracted into dedicated columns for analytics.
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AggregatorResult;
 use crate::storage::parse_ts;
 
-/// Une estimation typée à insérer.
+/// A typed estimation to insert.
 #[derive(Debug, Clone)]
 pub struct NewEstimation<'a> {
     pub id: &'a str,
@@ -27,13 +27,13 @@ pub struct NewEstimation<'a> {
     pub water_ml: f64,
     pub energy_wh: f64,
     pub region: Option<&'a str>,
-    /// Étiquette projet (C44) — taguée par conversation côté extension.
+    /// Project label (C44), tagged per conversation by the extension.
     pub project: Option<&'a str>,
     pub raw_payload_json: &'a str,
     pub received_at: DateTime<Utc>,
 }
 
-/// Totaux d'usage d'un user (cards "Mon usage perso" + /me/usage).
+/// Usage totals of a user ("Mon usage perso" cards + /me/usage).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UsageTotals {
     pub count: u64,
@@ -57,7 +57,7 @@ impl Default for UsageTotals {
     }
 }
 
-/// Insère une estimation dans la table.
+/// Inserts an estimation into the table.
 pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> {
     conn.execute(
         "INSERT INTO estimations
@@ -87,8 +87,8 @@ pub fn insert(conn: &Connection, e: &NewEstimation<'_>) -> AggregatorResult<()> 
     Ok(())
 }
 
-/// Row complet `estimations` (lecture pour exports — joint le user pour
-/// avoir fingerprint + display_name disponibles, anonymisables côté handler).
+/// Full `estimations` row (read for exports; joins the user so that
+/// fingerprint + display_name are available, anonymizable in the handler).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EstimationRow {
     pub id: String,
@@ -108,8 +108,8 @@ pub struct EstimationRow {
     pub region: Option<String>,
 }
 
-/// Liste les estimations dans la fenêtre `[from, to]` (incluses), avec le
-/// fingerprint + display_name du user joint. Utilisé par les exports.
+/// Lists the estimations in the `[from, to]` window (inclusive), with the
+/// joined user's fingerprint + display_name. Used by the exports.
 pub fn list_for_window(
     conn: &Connection,
     from: DateTime<Utc>,
@@ -148,9 +148,8 @@ pub fn list_for_window(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Totaux pour un utilisateur (toute période confondue).
-/// Purge les estimations plus anciennes que `cutoff` (rétention ADR-0015).
-/// Retourne le nombre de lignes supprimées.
+/// Purges estimations older than `cutoff` (ADR-0015 retention).
+/// Returns the number of deleted rows.
 pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorResult<u64> {
     let n = conn.execute(
         "DELETE FROM estimations WHERE ts < ?1",
@@ -159,6 +158,7 @@ pub fn purge_older_than(conn: &Connection, cutoff: DateTime<Utc>) -> AggregatorR
     Ok(n as u64)
 }
 
+/// Totals for a user (all time).
 pub fn totals_for_user(conn: &Connection, user_id: &str) -> AggregatorResult<UsageTotals> {
     let mut totals = UsageTotals::default();
     conn.query_row(

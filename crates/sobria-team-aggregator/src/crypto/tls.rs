@@ -1,8 +1,8 @@
-//! Génération d'un certificat TLS auto-signé via `rcgen` (backend ring).
+//! Self-signed TLS certificate generation through `rcgen` (ring backend).
 //!
-//! Le CN par défaut est `localhost`, et les SANs incluent `localhost`,
-//! `127.0.0.1`, `::1` + le hostname OS. Validité 10 ans (cf. brief C28.1).
-//! Pas d'OpenSSL : `rcgen = { default-features = false, features = ["crypto", "ring", "pem"] }`.
+//! The default CN is `localhost`, and the SANs include `localhost`,
+//! `127.0.0.1`, `::1` + the OS hostname. Valid 10 years (see brief C28.1).
+//! No OpenSSL: `rcgen = { default-features = false, features = ["crypto", "ring", "pem"] }`.
 
 use std::fs;
 use std::net::IpAddr;
@@ -12,15 +12,15 @@ use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, SanType};
 
 use crate::error::{AggregatorError, AggregatorResult};
 
-/// PEM bundle d'un certificat auto-signé.
+/// PEM bundle of a self-signed certificate.
 #[derive(Debug)]
 pub struct GeneratedCert {
     pub cert_pem: String,
     pub key_pem: String,
 }
 
-/// Génère un cert auto-signé pour `subject_alt_names` (le premier est aussi
-/// utilisé comme CN). Validité 10 ans, ECDSA-P256.
+/// Generates a self-signed cert for `subject_alt_names` (the first one is
+/// also used as CN). Valid 10 years, ECDSA-P256.
 pub fn generate_self_signed(
     subject_alt_names: &[String],
     hostname: Option<&str>,
@@ -53,7 +53,7 @@ pub fn generate_self_signed(
     dn.push(DnType::OrganizationName, "Sobr.ia Team Aggregator");
     params.distinguished_name = dn;
 
-    // Validité 10 ans.
+    // Valid 10 years.
     let now = time::OffsetDateTime::now_utc();
     params.not_before = now;
     params.not_after = now + time::Duration::days(365 * 10);
@@ -70,10 +70,10 @@ pub fn generate_self_signed(
     })
 }
 
-/// Écrit le bundle PEM sur disque (cert.pem + key.pem).
+/// Writes the PEM bundle to disk (cert.pem + key.pem).
 ///
-/// Sur les systèmes Unix, on tente un `chmod 600` sur la clé privée. Sur
-/// Windows, on s'en remet aux ACLs par défaut du data dir (documenté dans
+/// On Unix systems, a `chmod 600` is applied to the private key. On
+/// Windows, we rely on the data dir's default ACLs (documented in
 /// `docs/operations/team-aggregator.md`).
 pub fn write_cert_files(
     cert_path: &Path,
@@ -86,8 +86,8 @@ pub fn write_cert_files(
     Ok(())
 }
 
-/// Empreinte SHA-256 hex du certificat PEM (à des fins d'affichage / pinning).
-/// Calculé sur le PEM tel quel — c'est l'empreinte "transport" usuelle.
+/// Hex SHA-256 fingerprint of the PEM certificate (for display / pinning).
+/// Computed on the PEM as is — the usual "transport" fingerprint.
 #[must_use]
 pub fn cert_fingerprint_sha256(pem: &str) -> String {
     use sha2::{Digest, Sha256};
@@ -96,24 +96,24 @@ pub fn cert_fingerprint_sha256(pem: &str) -> String {
     format!("{:x}", h.finalize())
 }
 
-/// Résultat d'une rotation TLS (C29.3).
+/// Result of a TLS rotation.
 #[derive(Debug)]
 pub struct RegenOutcome {
-    /// Chemin du backup de l'ancien cert (`cert.pem.bak.<unix_ts>`).
+    /// Backup path of the old cert (`cert.pem.bak.<unix_ts>`).
     pub cert_backup_path: std::path::PathBuf,
-    /// Chemin du backup de l'ancienne clé (`key.pem.bak.<unix_ts>`).
+    /// Backup path of the old key (`key.pem.bak.<unix_ts>`).
     pub key_backup_path: std::path::PathBuf,
-    /// Empreinte SHA-256 hex du nouveau cert PEM.
+    /// Hex SHA-256 fingerprint of the new PEM cert.
     pub new_fingerprint: String,
 }
 
-/// Régénère `cert.pem` + `key.pem` à partir du data dir actuel.
+/// Regenerates `cert.pem` + `key.pem` in the current data dir.
 ///
-/// 1. Sauvegarde l'ancien cert et l'ancienne clé sous `*.bak.<unix_ts>`.
-/// 2. Génère un nouveau cert auto-signé (mêmes SANs `localhost`/`127.0.0.1`/
-///    `::1` + hostname OS), CN identique (`hostname` ou `localhost`).
-/// 3. Écrit les nouveaux fichiers via [`write_cert_files`].
-/// 4. Retourne l'empreinte SHA-256 du nouveau cert (à communiquer aux clients).
+/// 1. Backs up the old cert and key as `*.bak.<unix_ts>`.
+/// 2. Generates a new self-signed cert (same SANs `localhost`/`127.0.0.1`/
+///    `::1` + OS hostname), same CN (`hostname` or `localhost`).
+/// 3. Writes the new files through [`write_cert_files`].
+/// 4. Returns the SHA-256 fingerprint of the new cert (to share with clients).
 pub fn regen_self_signed(cert_path: &Path, key_path: &Path) -> AggregatorResult<RegenOutcome> {
     if !cert_path.exists() || !key_path.exists() {
         return Err(AggregatorError::Tls(format!(
@@ -231,10 +231,10 @@ mod tests {
         let out = regen_self_signed(&cert, &key).unwrap();
         assert!(out.cert_backup_path.exists(), "backup cert manquant");
         assert!(out.key_backup_path.exists(), "backup key manquant");
-        // Backups contiennent l'ancien contenu
+        // Backups hold the old content
         let cert_bak = std::fs::read_to_string(&out.cert_backup_path).unwrap();
         assert_eq!(cert_bak, cert_v1);
-        // Le nouveau cert est différent et a une empreinte unique
+        // The new cert differs and has a unique fingerprint
         let cert_v2 = std::fs::read_to_string(&cert).unwrap();
         assert_ne!(cert_v1, cert_v2);
         assert_eq!(out.new_fingerprint.len(), 64);

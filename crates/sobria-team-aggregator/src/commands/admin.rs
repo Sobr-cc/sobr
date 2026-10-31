@@ -1,8 +1,8 @@
-//! Commandes CLI `admin` (C29.2 — brief §C29.2).
+//! `admin` CLI commands (brief §C29.2).
 //!
-//! - [`reset_password`] : réinitialise le mot de passe d'un admin existant
-//!   (Argon2id PHC + révocation des tokens actifs).
-//! - [`list_admins`]    : énumère les admins (id, username, dates).
+//! - [`reset_password`]: resets the password of an existing admin
+//!   (Argon2id PHC + revocation of active tokens).
+//! - [`list_admins`]: lists the admins (id, username, dates).
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -11,7 +11,7 @@ use crate::config::DataPaths;
 use crate::crypto::password;
 use crate::storage::{admins, tokens, Storage};
 
-/// Vue condensée d'un admin pour la sortie CLI `admin list`.
+/// Short view of an admin for the `admin list` CLI output.
 #[derive(Debug, Clone)]
 pub struct AdminSummary {
     pub id: String,
@@ -20,7 +20,7 @@ pub struct AdminSummary {
     pub last_login_at: Option<DateTime<Utc>>,
 }
 
-/// Liste tous les admins du data dir donné (CLI `admin list`).
+/// Lists all admins of the given data dir (CLI `admin list`).
 pub fn list_admins(paths: &DataPaths) -> Result<Vec<AdminSummary>> {
     let storage = Storage::open(&paths.db())?;
     let rows = admins::list_all(storage.connection())?;
@@ -35,7 +35,7 @@ pub fn list_admins(paths: &DataPaths) -> Result<Vec<AdminSummary>> {
         .collect())
 }
 
-/// Résultat d'un reset-password : nb tokens révoqués + nouvel admin row.
+/// Result of a reset-password: revoked token count + new admin row.
 #[derive(Debug, Clone)]
 pub struct ResetOutcome {
     pub admin_id: String,
@@ -43,13 +43,13 @@ pub struct ResetOutcome {
     pub revoked_tokens: usize,
 }
 
-/// Réinitialise le mot de passe d'un admin (CLI `admin reset-password`).
+/// Resets an admin's password (CLI `admin reset-password`).
 ///
-/// Le mot de passe doit faire ≥ 8 caractères. Le hash Argon2id PHC remplace
-/// l'ancien et `last_login_at` est mis à NULL. Tous les tokens admin actifs
-/// sont révoqués (un nouvel `/login` est alors nécessaire).
+/// The password must be ≥ 8 characters. The new Argon2id PHC hash replaces
+/// the old one and `last_login_at` is set to NULL. All active admin tokens
+/// are revoked (a new `/login` is then required).
 ///
-/// Retourne `Err` si l'admin n'existe pas.
+/// Returns `Err` if the admin does not exist.
 pub fn reset_password(
     paths: &DataPaths,
     username: &str,
@@ -96,7 +96,7 @@ mod tests {
     fn reset_password_rewrites_hash_and_revokes_tokens() {
         let (_dir, paths) = setup();
 
-        // Pré-condition : ajoute 2 tokens admin actifs en base.
+        // Precondition: add 2 active admin tokens to the DB.
         let storage = Storage::open(&paths.db()).unwrap();
         let admin = admins::find_by_username(storage.connection(), "alice")
             .unwrap()
@@ -122,7 +122,7 @@ mod tests {
         assert_eq!(out.username, "alice");
         assert_eq!(out.revoked_tokens, 2);
 
-        // Vérifie le nouveau hash en relisant la base.
+        // Check the new hash by reading the DB again.
         let storage = Storage::open(&paths.db()).unwrap();
         let after = admins::find_by_username(storage.connection(), "alice")
             .unwrap()
@@ -134,7 +134,7 @@ mod tests {
         ));
         assert!(after.last_login_at.is_none());
 
-        // Et les tokens sont bien révoqués.
+        // And the tokens are revoked.
         let t1 = tokens::find_by_id(storage.connection(), "t-0")
             .unwrap()
             .unwrap();

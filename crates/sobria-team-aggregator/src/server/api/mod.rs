@@ -1,4 +1,4 @@
-//! Routes `/api/v1/*` agrégées dans un sous-routeur.
+//! `/api/v1/*` routes gathered in a sub-router.
 
 pub mod admin;
 pub mod enroll;
@@ -14,7 +14,7 @@ use axum::{
 
 use crate::server::ServerState;
 
-/// Sous-routeur monté sous `/api/v1` par [`crate::server::build_router`].
+/// Sub-router mounted under `/api/v1` by [`crate::server::build_router`].
 pub fn router() -> Router<ServerState> {
     Router::new()
         .route("/enroll", post(enroll::handle))

@@ -1,12 +1,12 @@
-//! Définition `clap` du binaire `sobria-team-aggregator`.
+//! `clap` definition of the `sobria-team-aggregator` binary.
 //!
-//! Sous-commandes :
+//! Subcommands:
 //!
-//! - `init`              (C28.1) — prépare un data dir.
-//! - `serve [--regen-cert]` (C28.1 + C29.3) — lance le serveur HTTPS,
-//!   avec option de rotation du cert auto-signé avant bind.
-//! - `code`              (C28.2) — crée / liste / révoque des enrollment codes.
-//! - `admin {list, reset-password}` (C29.2) — gestion des comptes admin.
+//! - `init` — prepares a data dir.
+//! - `serve [--regen-cert]` — starts the HTTPS server, optionally rotating
+//!   the self-signed cert before bind.
+//! - `code` — creates / lists / revokes enrollment codes.
+//! - `admin {list, reset-password}` — manages admin accounts.
 
 use std::path::PathBuf;
 
@@ -142,7 +142,7 @@ pub enum CodeAction {
     },
 }
 
-/// Entrée du binaire : parse les args et dispatche.
+/// Binary entry point: parses the args and dispatches.
 pub fn run() -> Result<()> {
     init_tracing();
 

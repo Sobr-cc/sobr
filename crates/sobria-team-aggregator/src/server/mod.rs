@@ -22,7 +22,7 @@ use crate::storage::Storage;
 #[derive(Clone)]
 pub struct ServerState {
     pub storage: Arc<Mutex<Storage>>,
-    /// Clé HS256 (hex, lue de `config.jwt_signing_key` à `serve` startup).
+    /// HS256 key (hex, read from `config.jwt_signing_key` at `serve` startup).
     pub jwt_signing_key: Arc<String>,
 }
 
@@ -35,13 +35,13 @@ impl ServerState {
     }
 }
 
-/// Construit l'application axum (routes + middleware tracing).
+/// Builds the axum application (routes + tracing middleware).
 ///
-/// Ordre de matching axum :
-/// 1. `/health` (routes statiques)
-/// 2. `/api/v1/*` (API REST)
+/// axum matching order:
+/// 1. `/health` (static routes)
+/// 2. `/api/v1/*` (REST API)
 /// 3. `/` → index.html
-/// 4. catch-all → static asset OU SPA fallback vers index.html
+/// 4. catch-all → static asset OR SPA fallback to index.html
 pub fn build_router(state: ServerState) -> Router {
     use axum::routing::get;
     Router::new()
@@ -54,12 +54,12 @@ pub fn build_router(state: ServerState) -> Router {
         .layer(extension_cors())
 }
 
-/// CORS pour le service worker de l'extension (MV3) : son `fetch` part
-/// d'une origine `chrome-extension://…` / `moz-extension://…` hors
-/// `host_permissions`, donc sans ces en-têtes Chrome bloque la réponse et
-/// l'envoi best-effort échoue en silence (extension/src/lib/team-client.ts).
-/// L'API est protégée par jeton Bearer (jamais de cookies) : on ne reflète
-/// que les schémas d'extensions navigateur, aucun site web n'est autorisé.
+/// CORS for the extension's (MV3) service worker: its `fetch` comes from a
+/// `chrome-extension://…` / `moz-extension://…` origin outside
+/// `host_permissions`, so without these headers Chrome blocks the response and
+/// the best-effort send fails silently (extension/src/lib/team-client.ts).
+/// The API is protected by a Bearer token (never cookies): we only reflect
+/// browser extension schemes, no website is allowed.
 fn extension_cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::predicate(|origin, _| {

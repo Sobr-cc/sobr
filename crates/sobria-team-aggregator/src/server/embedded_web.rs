@@ -1,15 +1,15 @@
-//! Sert le dashboard Svelte embarqué (`web-team/build/`) via `rust-embed`.
+//! Serves the embedded Svelte dashboard (`web-team/build/`) via `rust-embed`.
 //!
-//! Stratégie de routing :
+//! Routing strategy:
 //!
-//! 1. La route exacte demandée correspond à un fichier embed → on le renvoie
-//!    avec son MIME guess.
-//! 2. Sinon, si le path ressemble à un asset (contient un `.`), 404.
-//! 3. Sinon, SPA fallback : on renvoie `index.html` (le routeur client
-//!    SvelteKit prendra la suite).
+//! 1. The exact requested route matches an embedded file → return it
+//!    with its guessed MIME type.
+//! 2. Otherwise, if the path looks like an asset (contains a `.`), 404.
+//! 3. Otherwise, SPA fallback: return `index.html` (the SvelteKit client
+//!    router takes over).
 //!
-//! Si le bundle n'a pas été buildé (`web-team/build/index.html` absent),
-//! le handler renvoie un message explicatif au lieu d'un 404 silencieux.
+//! If the bundle was not built (`web-team/build/index.html` missing),
+//! the handler returns an explanatory message instead of a silent 404.
 
 use axum::{
     body::Body,
@@ -20,7 +20,7 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "../../web-team/build"]
-// Bundle absent (clone frais, CI Rust) → embed vide et `bundle_missing_response`.
+// Bundle missing (fresh clone, Rust CI) → empty embed and `bundle_missing_response`.
 #[allow_missing = true]
 #[include = "*.html"]
 #[include = "*.js"]
@@ -38,12 +38,12 @@ pub fn bundle_embedded() -> bool {
     WebAssets::get("index.html").is_some()
 }
 
-/// Handler de la racine `/`.
+/// Handler for the root `/`.
 pub async fn index() -> Response {
     serve_or_fallback("index.html")
 }
 
-/// Handler générique pour tout path `/*rest`.
+/// Generic handler for any `/*rest` path.
 pub async fn handler(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
     if path.is_empty() {
@@ -57,7 +57,7 @@ fn serve_or_fallback(path: &str) -> Response {
         Some(file) => respond_with_file(path, file.data.into_owned()),
         None => {
             if path.contains('.') {
-                // Path qui ressemble à un asset → on ne masque pas en 200.
+                // Path looks like an asset → do not mask it as a 200.
                 StatusCode::NOT_FOUND.into_response()
             } else {
                 // SPA fallback.
@@ -73,8 +73,8 @@ fn serve_or_fallback(path: &str) -> Response {
 fn respond_with_file(path: &str, bytes: Vec<u8>) -> Response {
     let mime = mime_guess::from_path(path).first_or_octet_stream();
     let cache = if path.contains("_app/immutable/") {
-        // SvelteKit produit des fichiers content-hashed sous _app/immutable/,
-        // donc cache 1 an.
+        // SvelteKit emits content-hashed files under _app/immutable/,
+        // so cache for 1 year.
         "public, max-age=31536000, immutable"
     } else {
         "no-cache"

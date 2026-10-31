@@ -1,4 +1,4 @@
-//! Routes admin `/api/v1/admin/*`. Toutes exigent `AuthenticatedAdmin`.
+//! Admin routes `/api/v1/admin/*`. All of them require `AuthenticatedAdmin`.
 
 pub mod alerts;
 pub mod analytics;
@@ -26,7 +26,7 @@ fn parse_date_or(raw: Option<&str>, default: DateTime<Utc>) -> ApiResult<DateTim
     }
 }
 
-/// Sous-routeur monté sous `/admin` par [`crate::server::api::router`].
+/// Sub-router mounted under `/admin` by [`crate::server::api::router`].
 pub fn router() -> Router<ServerState> {
     Router::new()
         .route("/users", get(users::handle))
@@ -37,7 +37,7 @@ pub fn router() -> Router<ServerState> {
         .route("/exports/csrd", post(exports::handle_csrd))
         .route("/exports/prov-o", post(exports::handle_provo))
         .route("/exports/csv", post(exports::handle_csv))
-        // C29.4 — alertes seuils
+        // threshold alerts
         .route("/alerts", get(alerts::handle_list).post(alerts::handle_create))
         .route("/alerts/:id", delete(alerts::handle_delete))
         .route("/alerts/triggers", get(alerts::handle_triggers))

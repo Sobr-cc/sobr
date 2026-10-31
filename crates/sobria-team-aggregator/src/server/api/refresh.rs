@@ -1,8 +1,8 @@
-//! POST /api/v1/refresh — rotation d'un refresh token.
+//! POST /api/v1/refresh — refresh token rotation.
 //!
-//! Pattern : vérifie l'ancien token (selector+verifier), révoque-le, émet un
-//! nouveau couple access+refresh. Le client doit remplacer ses deux tokens
-//! après chaque appel.
+//! Pattern: verify the old token (selector+verifier), revoke it, issue a
+//! new access+refresh pair. The client must replace both tokens
+//! after each call.
 
 use axum::{extract::State, Json};
 use chrono::Utc;
@@ -43,7 +43,7 @@ pub async fn handle(
     let row = tokens::verify_refresh_token(storage.connection(), &req.refresh_token, now)?
         .ok_or(ApiError::InvalidToken)?;
 
-    // Rotation : l'ancien est révoqué AVANT d'émettre le nouveau.
+    // Rotation: the old one is revoked BEFORE issuing the new one.
     tokens::revoke(storage.connection(), &row.id, now)?;
 
     let (role, sub, role_label) = match (row.user_id.as_deref(), row.admin_id.as_deref()) {

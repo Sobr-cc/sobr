@@ -1,12 +1,12 @@
-//! Génération de secrets cryptographiques (JWT signing key, etc.).
+//! Cryptographic secret generation (JWT signing key, etc.).
 //!
-//! On utilise l'OS RNG via `rand::rngs::OsRng` (même approche que C27 pour
-//! le secret de pairing). Les octets sont encodés en hex pour stockage texte
-//! dans la table `config` SQLite.
+//! Uses the OS RNG through `rand::rngs::OsRng` (same approach as C27 for
+//! the pairing secret). Bytes are hex-encoded for text storage in the
+//! SQLite `config` table.
 
 use rand::RngCore;
 
-/// Génère N octets aléatoires (OS RNG) encodés en hex lowercase.
+/// Generates N random bytes (OS RNG) encoded as lowercase hex.
 #[must_use]
 pub fn random_hex(n_bytes: usize) -> String {
     let mut buf = vec![0u8; n_bytes];
@@ -14,21 +14,21 @@ pub fn random_hex(n_bytes: usize) -> String {
     encode_hex(&buf)
 }
 
-/// Génère un secret JWT 32 octets (256 bits) en hex (64 chars).
+/// Generates a 32-byte (256-bit) JWT secret as hex (64 chars).
 #[must_use]
 pub fn jwt_signing_key() -> String {
     random_hex(32)
 }
 
-/// Code aléatoire 12 chiffres ASCII via OS RNG.
+/// Random 12-digit ASCII code from the OS RNG.
 ///
-/// Entropie ≈ 40 bits (10^12 = 2^39.86) — suffisant car les codes sont
-/// révoqués après usage et Argon2id rend tout brute force serveur lent.
+/// Entropy ≈ 40 bits (10^12 = 2^39.86) — enough because codes are revoked
+/// after use and Argon2id makes any server-side brute force slow.
 #[must_use]
 pub fn enrollment_code() -> String {
     let mut bytes = [0u8; 16];
     rand::rngs::OsRng.fill_bytes(&mut bytes);
-    // 16 octets → u128 ; on prend modulo 10^12 pour un nombre 12 chiffres.
+    // 16 bytes → u128; take modulo 10^12 for a 12-digit number.
     let mut acc: u128 = 0;
     for b in &bytes {
         acc = acc.wrapping_mul(31).wrapping_add(u128::from(*b));
