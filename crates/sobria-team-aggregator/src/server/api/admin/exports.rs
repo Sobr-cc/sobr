@@ -1,7 +1,7 @@
-//! Routes admin pour les exports CSRD / PROV-O / CSV (C28.5).
+//! Admin routes for the CSRD / PROV-O / CSV exports.
 //!
-//! Toutes sont en `POST` avec un body JSON `ExportRequest` (cohérent avec
-//! les futurs filtres avancés). La fenêtre par défaut : 30 derniers jours.
+//! All are `POST` with an `ExportRequest` JSON body (consistent with
+//! future advanced filters). Default window: last 30 days.
 
 use axum::{
     body::Body,
@@ -10,9 +10,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use serde::Deserialize;
 
+use super::parse_window;
 use crate::exports::{csrd, csv as team_csv, prov_o, ExportRequest};
 use crate::server::auth::middleware::AuthenticatedAdmin;
 use crate::server::error::{ApiError, ApiResult};
@@ -21,10 +22,10 @@ use crate::storage::estimations::{self, EstimationRow};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ExportInput {
-    /// RFC3339 ; défaut : `now - 30 jours`.
+    /// RFC3339; default: `now - 30 days`.
     #[serde(default)]
     pub from: Option<String>,
-    /// RFC3339 ; défaut : `now`.
+    /// RFC3339; default: `now`.
     #[serde(default)]
     pub to: Option<String>,
     #[serde(default)]
@@ -35,9 +36,7 @@ pub struct ExportInput {
 
 impl ExportInput {
     fn resolve(self) -> ApiResult<ExportRequest> {
-        let now = Utc::now();
-        let from = parse_or(self.from.as_deref(), || now - Duration::days(30))?;
-        let to = parse_or(self.to.as_deref(), || now)?;
+        let (from, to) = parse_window(self.from.as_deref(), self.to.as_deref(), Utc::now())?;
         if from >= to {
             return Err(ApiError::BadRequest("from doit être < to".into()));
         }
@@ -50,25 +49,13 @@ impl ExportInput {
     }
 }
 
-fn parse_or<F: FnOnce() -> chrono::DateTime<Utc>>(
-    raw: Option<&str>,
-    default_fn: F,
-) -> ApiResult<chrono::DateTime<Utc>> {
-    match raw {
-        None | Some("") => Ok(default_fn()),
-        Some(s) => chrono::DateTime::parse_from_rfc3339(s)
-            .map(|d| d.with_timezone(&Utc))
-            .map_err(|e| ApiError::BadRequest(format!("date RFC3339 invalide ({s}): {e}"))),
-    }
-}
-
 pub async fn handle_csrd(
     State(state): State<ServerState>,
     _admin: AuthenticatedAdmin,
     Json(input): Json<ExportInput>,
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
-    let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
+    let org = org_name(&req);
     let rows = rows_in_window(&state, &req)?;
     let artifacts = csrd::build_report(&rows, &org, req.from, req.to)?;
 
@@ -86,24 +73,20 @@ pub async fn handle_provo(
     Json(input): Json<ExportInput>,
 ) -> ApiResult<Response> {
     let req = input.resolve()?;
-    let org = req.entity_name.clone().unwrap_or_else(|| "Équipe".into());
+    let org = org_name(&req);
     let rows = rows_in_window(&state, &req)?;
     let v = prov_o::build_team_provo(&rows, &org, req.from, req.to, req.anonymize);
     let bytes = serde_json::to_vec_pretty(&v)
         .map_err(|e| ApiError::InternalMsg(format!("provo serialise: {e}")))?;
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/ld+json")
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"sobria-team-prov-{}-to-{}.jsonld\"",
-                req.from.format("%Y%m%d"),
-                req.to.format("%Y%m%d")
-            ),
-        )
-        .body(Body::from(bytes))
-        .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))
+    attachment(
+        "application/ld+json",
+        &format!(
+            "sobria-team-prov-{}-to-{}.jsonld",
+            req.from.format("%Y%m%d"),
+            req.to.format("%Y%m%d")
+        ),
+        bytes,
+    )
 }
 
 pub async fn handle_csv(
@@ -114,28 +97,39 @@ pub async fn handle_csv(
     let req = input.resolve()?;
     let rows = rows_in_window(&state, &req)?;
     let bytes = team_csv::build_csv(&rows, req.anonymize)?;
+    attachment(
+        "text/csv; charset=utf-8",
+        &format!(
+            "sobria-team-{}-to-{}.csv",
+            req.from.format("%Y%m%d"),
+            req.to.format("%Y%m%d")
+        ),
+        bytes,
+    )
+}
+
+/// Organization name of the CSRD and PROV-O exports.
+fn org_name(req: &ExportRequest) -> String {
+    req.entity_name.clone().unwrap_or_else(|| "Équipe".into())
+}
+
+/// 200 response serving `bytes` as the attachment `filename`.
+fn attachment(content_type: &'static str, filename: &str, bytes: Vec<u8>) -> ApiResult<Response> {
     Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
+        .header(header::CONTENT_TYPE, content_type)
         .header(
             header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"sobria-team-{}-to-{}.csv\"",
-                req.from.format("%Y%m%d"),
-                req.to.format("%Y%m%d")
-            ),
+            format!("attachment; filename=\"{filename}\""),
         )
         .body(Body::from(bytes))
         .map_err(|e| ApiError::InternalMsg(format!("response: {e}")))
 }
 
-/// Lit la fenêtre puis relâche le verrou global aussitôt : la génération
-/// (PDF surtout) ne doit pas bloquer l'ingestion des estimations.
+/// Reads the window then releases the global lock right away: generation
+/// (PDF above all) must not block estimation ingestion.
 fn rows_in_window(state: &ServerState, req: &ExportRequest) -> ApiResult<Vec<EstimationRow>> {
-    let storage = state
-        .storage
-        .lock()
-        .map_err(|_| ApiError::InternalMsg("storage mutex poisoned".into()))?;
+    let storage = state.lock_storage()?;
     Ok(estimations::list_for_window(
         storage.connection(),
         req.from,

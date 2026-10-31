@@ -1,10 +1,10 @@
-//! Flow d'intégration C28.3 + C38 (ADR-0015) : admin login → /admin/codes
-//! (POST + DELETE) → enroll users → estimations → /admin/users (totaux
-//! masqués par défaut, visibles après opt-in) → /admin/analytics (garde
-//! k-anonymat, classement opt-in + agrégat anonyme).
+//! C28.3 + C38 (ADR-0015) integration flow: admin login → /admin/codes
+//! (POST + DELETE) → enroll users → estimations → /admin/users (totals
+//! hidden by default, shown after opt-in) → /admin/analytics (k-anonymity
+//! guard, opt-in ranking + anonymous aggregate).
 //!
-//! Reprend le pattern du `ServerFixture` de `integration_api.rs` mais isolé
-//! pour pouvoir tester les routes admin sans pré-créer des codes via la CLI.
+//! Reuses the `ServerFixture` pattern of `integration_api.rs`, but separate
+//! so the admin routes can be tested without creating codes through the CLI.
 
 use std::net::TcpListener;
 use std::time::Duration;
@@ -88,7 +88,7 @@ impl Drop for AdminFixture {
 async fn admin_users_codes_and_analytics_end_to_end() {
     let fx = AdminFixture::start().await;
 
-    // 0. /admin/users requiert un admin → 401 sans Bearer
+    // 0. /admin/users requires an admin → 401 without Bearer
     let unauth = fx
         .client
         .get(format!("{}/api/v1/admin/users", fx.base_url))
@@ -97,10 +97,10 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         .unwrap();
     assert_eq!(unauth.status(), 401);
 
-    // 0bis. Un token user ne suffit pas (RequireAdmin → 403)
-    //       Pour vérifier ça il nous faut un user enrôlé → on attend la suite.
+    // 0bis. A user token is not enough (RequireAdmin → 403)
+    //       Checking it needs an enrolled user → see below.
 
-    // 1. POST /admin/codes — crée 3 codes 7 jours.
+    // 1. POST /admin/codes: create 3 codes valid 7 days.
     let create = fx
         .client
         .post(format!("{}/api/v1/admin/codes", fx.base_url))
@@ -121,7 +121,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     let code_to_use = codes[0]["code"].as_str().unwrap().to_string();
     let code_to_revoke_id = codes[1]["id"].as_str().unwrap().to_string();
 
-    // 2. DELETE /admin/codes/:id sur le 2e code.
+    // 2. DELETE /admin/codes/:id on the 2nd code.
     let revoke = fx
         .client
         .delete(format!(
@@ -136,7 +136,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     let revoke_body: serde_json::Value = revoke.json().await.unwrap();
     assert_eq!(revoke_body["revoked"], true);
 
-    // 3. Enroll 2 users avec le code restant + un autre code valide.
+    // 3. Enroll 2 users with the remaining code + another valid code.
     let enroll_resp = |code: &str, fp: &str, name: &str| {
         let code = code.to_string();
         let fp = fp.to_string();
@@ -162,7 +162,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     };
     let alice_access = enroll_resp(&code_to_use, "chrome-mac-alice", "Alice").await;
 
-    // 4. Le code révoqué ne doit pas pouvoir enroller.
+    // 4. The revoked code must not allow enrolling.
     let bad_code = codes[1]["code"].as_str().unwrap();
     let bad_enroll = fx
         .client
@@ -177,7 +177,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         .unwrap();
     assert_eq!(bad_enroll.status(), 401, "code révoqué doit être rejeté");
 
-    // 5. Un token USER ne doit pas pouvoir accéder à /admin/users (403).
+    // 5. A USER token must not reach /admin/users (403).
     let user_to_admin = fx
         .client
         .get(format!("{}/api/v1/admin/users", fx.base_url))
@@ -187,7 +187,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         .unwrap();
     assert_eq!(user_to_admin.status(), 403);
 
-    // 6. Alice envoie 3 estimations (2 llama, 1 gpt).
+    // 6. Alice sends 3 estimations (2 llama, 1 gpt).
     for (model, gco2eq) in [
         ("llama-3-1-70b", 0.4),
         ("llama-3-1-70b", 0.3),
@@ -215,8 +215,8 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         assert_eq!(r.status(), 200);
     }
 
-    // 7. /admin/users → Alice présente, totaux MASQUÉS par défaut
-    //    (ADR-0015 §3 : pas d'opt-in → pas de consommation visible).
+    // 7. /admin/users → Alice listed, totals HIDDEN by default
+    //    (ADR-0015 §3: no opt-in → no visible consumption).
     let users_resp = fx
         .client
         .get(format!("{}/api/v1/admin/users", fx.base_url))
@@ -238,7 +238,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         alice["totals"]
     );
 
-    // 7bis. Alice consent au partage identifié (PUT /me/sharing, son token).
+    // 7bis. Alice consents to identified sharing (PUT /me/sharing, her token).
     let sharing_before: serde_json::Value = fx
         .client
         .get(format!("{}/api/v1/me/sharing", fx.base_url))
@@ -261,7 +261,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
         .unwrap();
     assert_eq!(opt_in.status(), 200);
 
-    // Un token ADMIN ne peut pas écrire le consentement (route user-only).
+    // An ADMIN token cannot write the consent (user-only route).
     let admin_cannot = fx
         .client
         .put(format!("{}/api/v1/me/sharing", fx.base_url))
@@ -286,8 +286,8 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     assert_eq!(alice["share_identified"], true);
     assert_eq!(alice["totals"]["count"], 3);
 
-    // 8. /admin/analytics avec 1 seul user actif → BLOQUÉ par le k-anonymat
-    //    (ADR-0015 §2, k défaut = 5) : sections vides, raison explicite.
+    // 8. /admin/analytics with a single active user → BLOCKED by k-anonymity
+    //    (ADR-0015 §2, default k = 5): empty sections, explicit reason.
     let analytics_url = format!(
         "{}/api/v1/admin/analytics?from=2026-05-15T00:00:00Z&to=2026-05-17T00:00:00Z&group_by=day",
         fx.base_url
@@ -310,8 +310,8 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     assert!(a["top_users"]["identified"].as_array().unwrap().is_empty());
     assert_eq!(a["top_users"]["anonymous_users"], 0);
 
-    // 8bis. L'org abaisse k à 3 (config), bob + charlie rejoignent et
-    //       poussent chacun une estimation → 3 actifs ≥ k → débloqué.
+    // 8bis. The org lowers k to 3 (config), bob + charlie join and
+    //       each push one estimation → 3 active ≥ k → unblocked.
     {
         use sobria_team_aggregator::storage::Storage;
         let paths = DataPaths::new(fx._tempdir.path());
@@ -383,11 +383,11 @@ async fn admin_users_codes_and_analytics_end_to_end() {
 
     let top_models = a["top_models"].as_array().unwrap();
     assert_eq!(top_models.len(), 2);
-    // llama : 0.4+0.3+0.2 = 0.9 > gpt-4o : 0.5+0.1 = 0.6 → llama 1er.
+    // llama: 0.4+0.3+0.2 = 0.9 > gpt-4o: 0.5+0.1 = 0.6 → llama 1st.
     assert_eq!(top_models[0]["model_id"], "llama-3-1-70b");
     assert_eq!(top_models[1]["model_id"], "gpt-4o");
 
-    // Seule Alice (opt-in) apparaît nommément ; bob + charlie agrégés.
+    // Only Alice (opt-in) appears by name; bob + charlie are aggregated.
     let identified = a["top_users"]["identified"].as_array().unwrap();
     assert_eq!(identified.len(), 1);
     assert_eq!(identified[0]["user_id"], alice["id"]);
@@ -400,7 +400,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     assert_eq!(method_breakdown[0]["method"], "afnor_sobria");
     assert_eq!(method_breakdown[0]["count"], 5);
 
-    // 9. Bad query: group_by inconnu → 400.
+    // 9. Bad query: unknown group_by → 400.
     let bad = fx
         .client
         .get(format!(
@@ -414,7 +414,7 @@ async fn admin_users_codes_and_analytics_end_to_end() {
     assert_eq!(bad.status(), 400);
 }
 
-/// C44 — GET /admin/users/:id/analytics sous les 3 politiques ADR-0016.
+/// C44: GET /admin/users/:id/analytics under the 3 ADR-0016 policies.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn admin_user_detail_route_respects_visibility_policy() {
     use sobria_team_aggregator::policy::POLICY_KEY;
@@ -495,7 +495,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         fx.base_url, alice_id
     );
 
-    // opt_in (défaut) sans consentement → 403.
+    // opt_in (default) without consent → 403.
     let denied = fx
         .client
         .get(&detail_url)
@@ -505,7 +505,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .unwrap();
     assert_eq!(denied.status(), 403, "opt_in sans consentement → 403");
 
-    // Un token USER n'accède jamais à la route admin → 403.
+    // A USER token never reaches the admin route → 403.
     let user_denied = fx
         .client
         .get(&detail_url)
@@ -515,8 +515,8 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .unwrap();
     assert_eq!(user_denied.status(), 403);
 
-    // Alice consent → 200 avec totaux et la route matche bien `:id`
-    // (régression C44 : la syntaxe `{id}` d'axum 0.8 donnait un 404).
+    // Alice consents → 200 with totals, and the route does match `:id`
+    // (C44 regression: the axum 0.8 `{id}` syntax gave a 404).
     let opt_in = fx
         .client
         .put(format!("{}/api/v1/me/sharing", fx.base_url))
@@ -579,7 +579,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
     assert_eq!(default_window["totals"]["count"], 2);
     assert_eq!(default_window["top_models"][0]["count"], 1);
 
-    // anonymous → 403 même avec consentement individuel.
+    // anonymous → 403 even with individual consent.
     set_policy("anonymous");
     let anon = fx
         .client
@@ -590,7 +590,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .unwrap();
     assert_eq!(anon.status(), 403, "anonymous → toujours 403");
 
-    // identified → 200 même sans consentement individuel.
+    // identified → 200 even without individual consent.
     set_policy("identified");
     let revoke = fx
         .client
@@ -610,7 +610,7 @@ async fn admin_user_detail_route_respects_visibility_policy() {
         .unwrap();
     assert_eq!(identified.status(), 200, "identified → 200 sans opt-in");
 
-    // Employé inconnu → 400 explicite (pas un 404 de routing).
+    // Unknown employee → explicit 400 (not a routing 404).
     let unknown = fx
         .client
         .get(format!(
@@ -624,14 +624,14 @@ async fn admin_user_detail_route_respects_visibility_policy() {
     assert_eq!(unknown.status(), 400);
 }
 
-/// C43/C46 — le service worker MV3 de l'extension appelle l'API depuis une
-/// origine `chrome-extension://…` : le serveur doit répondre au preflight
-/// CORS, sinon Chrome bloque la réponse et l'envoi échoue en silence.
+/// C43/C46: the MV3 service worker of the extension calls the API from a
+/// `chrome-extension://…` origin: the server must answer the CORS preflight,
+/// otherwise Chrome blocks the response and the send fails silently.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cors_allows_extension_origins_only() {
     let fx = AdminFixture::start().await;
 
-    // Preflight depuis l'extension → autorisé, origine reflétée.
+    // Preflight from the extension → allowed, origin echoed.
     let preflight = fx
         .client
         .request(
@@ -663,7 +663,7 @@ async fn cors_allows_extension_origins_only() {
     assert!(allow_headers.contains("authorization"));
     assert!(allow_headers.contains("content-type"));
 
-    // Firefox aussi.
+    // Firefox too.
     let firefox = fx
         .client
         .request(
@@ -683,8 +683,8 @@ async fn cors_allows_extension_origins_only() {
         Some("moz-extension://uuid-here")
     );
 
-    // Un site web quelconque n'est PAS reflété (API à jeton, pas de raison
-    // d'ouvrir aux origines https).
+    // An arbitrary website is NOT echoed (token API, no reason to open it
+    // to https origins).
     let web = fx
         .client
         .get(format!("{}/health", fx.base_url))

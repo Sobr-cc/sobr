@@ -1,8 +1,8 @@
-//! Flow d'intégration C29.4 : admin crée un seuil → user envoie des
-//! estimations qui dépassent → vérifie qu'un trigger est enregistré +
-//! notifié via un webhook mock (wiremock).
+//! C29.4 integration flow: admin creates a threshold → user sends
+//! estimations that exceed it → checks that a trigger is recorded +
+//! notified through a mock webhook (wiremock).
 //!
-//! Pattern aligné sur `integration_admin.rs` (start fixture, login admin,
+//! Same pattern as `integration_admin.rs` (start fixture, login admin,
 //! enroll user, exercise routes).
 
 use std::net::TcpListener;
@@ -71,7 +71,7 @@ impl AlertsFixture {
         let tokens: serde_json::Value = resp.json().await.expect("admin tokens");
         let admin_access = tokens["access_token"].as_str().unwrap().to_string();
 
-        // Crée un code et enroll un user (Alice)
+        // Create a code and enroll a user (Alice)
         let codes = client
             .post(format!("{base_url}/api/v1/admin/codes"))
             .bearer_auth(&admin_access)
@@ -118,7 +118,7 @@ impl Drop for AlertsFixture {
 async fn alerts_create_list_delete_end_to_end() {
     let fx = AlertsFixture::start().await;
 
-    // 0. Liste vide initialement
+    // 0. List empty at first
     let list = fx
         .client
         .get(format!("{}/api/v1/admin/alerts", fx.base_url))
@@ -130,7 +130,7 @@ async fn alerts_create_list_delete_end_to_end() {
     let list_body: serde_json::Value = list.json().await.unwrap();
     assert!(list_body["thresholds"].as_array().unwrap().is_empty());
 
-    // 1. POST scope=user sans target_id → 400
+    // 1. POST scope=user without target_id → 400
     let bad = fx
         .client
         .post(format!("{}/api/v1/admin/alerts", fx.base_url))
@@ -165,7 +165,7 @@ async fn alerts_create_list_delete_end_to_end() {
     let id = created_body["id"].as_str().unwrap().to_string();
     assert_eq!(created_body["threshold"]["scope"], "team");
 
-    // 3. /admin/alerts liste le seuil
+    // 3. /admin/alerts lists the threshold
     let list = fx
         .client
         .get(format!("{}/api/v1/admin/alerts", fx.base_url))
@@ -188,7 +188,7 @@ async fn alerts_create_list_delete_end_to_end() {
     let db: serde_json::Value = del.json().await.unwrap();
     assert_eq!(db["disabled"], true);
 
-    // 5. DELETE idempotent → disabled=false (déjà désactivé)
+    // 5. DELETE idempotent → disabled=false (already disabled)
     let del2 = fx
         .client
         .delete(format!("{}/api/v1/admin/alerts/{id}", fx.base_url))
@@ -211,7 +211,7 @@ async fn alerts_fires_webhook_when_threshold_exceeded() {
         .mount(&webhook)
         .await;
 
-    // 1. Admin crée un seuil team-wide, daily, max 5g, webhook → mock URL
+    // 1. Admin creates a team-wide threshold, daily, max 5g, webhook → mock URL
     let webhook_url = format!("{}/sobria-webhook", webhook.uri());
     let create = fx
         .client
@@ -229,7 +229,7 @@ async fn alerts_fires_webhook_when_threshold_exceeded() {
         .unwrap();
     assert_eq!(create.status(), 200);
 
-    // 2. User pousse 10 estimations à 2g (total = 20g > 5g) — UTC now()
+    // 2. User pushes 10 estimations of 2g (total = 20g > 5g), UTC now()
     let now = chrono::Utc::now().to_rfc3339();
     for i in 0..10 {
         let r = fx
@@ -254,8 +254,8 @@ async fn alerts_fires_webhook_when_threshold_exceeded() {
         assert_eq!(r.status(), 200, "estimation {i} doit être ACKée");
     }
 
-    // 3. Attend que le tokio::spawn ait eu le temps d'envoyer (le webhook est
-    // fire-and-forget après ack).
+    // 3. Wait until the tokio::spawn has had time to send (the webhook is
+    // fire-and-forget after the ack).
     for _ in 0..50 {
         let triggers = fx
             .client
@@ -268,9 +268,9 @@ async fn alerts_fires_webhook_when_threshold_exceeded() {
         if !tb["triggers"].as_array().unwrap().is_empty() {
             let tr = &tb["triggers"][0];
             assert!(tr["observed_gco2eq"].as_f64().unwrap() > 5.0);
-            // Un seul trigger malgré 10 estimations dépassant le seuil
+            // A single trigger despite 10 estimations over the threshold
             assert_eq!(tb["triggers"].as_array().unwrap().len(), 1);
-            // Webhook reçu par le mock server
+            // Webhook received by the mock server
             webhook.verify().await;
             return;
         }

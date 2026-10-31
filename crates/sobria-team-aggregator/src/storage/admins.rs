@@ -1,11 +1,12 @@
-//! Helpers SQL pour la table `admins` (extrait de `mod.rs` au C28.2).
+//! SQL helpers for the `admins` table.
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::AggregatorResult;
+use crate::storage::{get_count, parse_ts};
 
-/// DTO d'admin tel que stocké en base.
+/// Admin DTO as stored in the database.
 #[derive(Debug, Clone)]
 pub struct AdminRow {
     pub id: String,
@@ -15,7 +16,7 @@ pub struct AdminRow {
     pub last_login_at: Option<DateTime<Utc>>,
 }
 
-/// Insère un nouvel admin (le hash Argon2id PHC doit être pré-calculé).
+/// Inserts a new admin (the Argon2id PHC hash must be computed beforehand).
 pub fn insert(
     conn: &Connection,
     id: &str,
@@ -31,13 +32,13 @@ pub fn insert(
     Ok(())
 }
 
-/// Nombre total d'admins.
+/// Total number of admins.
 pub fn count(conn: &Connection) -> AggregatorResult<u32> {
-    let n: i64 = conn.query_row("SELECT COUNT(*) FROM admins", [], |row| row.get(0))?;
-    Ok(n.max(0) as u32)
+    let n = conn.query_row("SELECT COUNT(*) FROM admins", [], |row| get_count(row, 0))?;
+    Ok(n as u32)
 }
 
-/// Cherche un admin par username.
+/// Looks up an admin by username.
 pub fn find_by_username(conn: &Connection, username: &str) -> AggregatorResult<Option<AdminRow>> {
     let row = conn
         .query_row(
@@ -50,7 +51,7 @@ pub fn find_by_username(conn: &Connection, username: &str) -> AggregatorResult<O
     Ok(row)
 }
 
-/// Cherche un admin par id (ULID).
+/// Looks up an admin by id (ULID).
 pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<AdminRow>> {
     let row = conn
         .query_row(
@@ -63,7 +64,7 @@ pub fn find_by_id(conn: &Connection, id: &str) -> AggregatorResult<Option<AdminR
     Ok(row)
 }
 
-/// Met à jour `last_login_at` (idempotent, écrit `now`).
+/// Updates `last_login_at` (idempotent, writes `now`).
 pub fn touch_last_login(conn: &Connection, id: &str, now: DateTime<Utc>) -> AggregatorResult<()> {
     conn.execute(
         "UPDATE admins SET last_login_at = ?1 WHERE id = ?2",
@@ -72,7 +73,7 @@ pub fn touch_last_login(conn: &Connection, id: &str, now: DateTime<Utc>) -> Aggr
     Ok(())
 }
 
-/// Liste tous les admins (utilisée par `admin list` CLI C29.2).
+/// Lists every admin (used by the `admin list` CLI).
 pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<AdminRow>> {
     let mut stmt = conn.prepare(
         "SELECT id, username, password_hash, created_at, last_login_at
@@ -83,9 +84,9 @@ pub fn list_all(conn: &Connection) -> AggregatorResult<Vec<AdminRow>> {
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Réécrit le hash de password d'un admin (`admin reset-password` C29.2).
-/// Pose aussi `last_login_at = NULL` pour invalider l'idée d'une session
-/// en cours. Retourne le nombre de lignes affectées (0 si username inconnu).
+/// Rewrites an admin's password hash (`admin reset-password`).
+/// Also sets `last_login_at = NULL` to drop the notion of an ongoing
+/// session. Returns the number of affected rows (0 if the username is unknown).
 pub fn set_password_hash(
     conn: &Connection,
     username: &str,
@@ -110,14 +111,6 @@ fn map_row(row: &rusqlite::Row) -> rusqlite::Result<AdminRow> {
         created_at: parse_ts(&created_at_s, 3)?,
         last_login_at: last_login_s.map(|s| parse_ts(&s, 4)).transpose()?,
     })
-}
-
-fn parse_ts(s: &str, col: usize) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(s)
-        .map(|d| d.with_timezone(&Utc))
-        .map_err(|e| {
-            rusqlite::Error::FromSqlConversionFailure(col, rusqlite::types::Type::Text, Box::new(e))
-        })
 }
 
 #[cfg(test)]
@@ -158,7 +151,7 @@ mod tests {
         touch_last_login(s.connection(), "a-1", now).unwrap();
         let row = find_by_id(s.connection(), "a-1").unwrap().unwrap();
         let stored = row.last_login_at.unwrap();
-        // Tolère <1 seconde de drift (sérialisation RFC3339).
+        // Allows <1 second of drift (RFC3339 serialization).
         assert!((stored - now).num_seconds().abs() < 2);
     }
 }
