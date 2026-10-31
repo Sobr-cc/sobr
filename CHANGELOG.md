@@ -25,6 +25,15 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   - 22 build issues (111 points), marking those that wait for a Deep cleanup.
   - Settles the condition of ADR-0019, decision 4. Nothing is built yet.
 
+### Changed — One golden update run rewrites every file (2026-10-31, SOB-137)
+
+- **`sobria-estimator`** (characterization tests): with `SOBRIA_UPDATE_GOLDEN=1`,
+  a test that checks several golden files now rewrites all the changed ones in
+  one run, then fails once, listing them (new `Goldens` collector in
+  `tests/characterization/golden.rs`). Before, it stopped at the first
+  rewritten file. `assert_golden` is unchanged for single-file tests. Test
+  code only: the estimator and the golden values are untouched.
+
 ### Removed — sobria-import skeleton crate (2026-10-30, SOB-67)
 
 - **`sobria-import`**: removed the empty skeleton crate (one constant, no
