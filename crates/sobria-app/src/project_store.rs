@@ -96,11 +96,8 @@ impl ProjectStore {
     pub fn get(&self, id: i64) -> Result<Option<Project>, AppError> {
         let p = self
             .conn
-            .query_row(
-                &format!("{SELECT_PROJECTS} WHERE id = ?1"),
-                params![id],
-                row_to_project,
-            )
+            .prepare_cached(&format!("{SELECT_PROJECTS} WHERE id = ?1"))?
+            .query_row(params![id], row_to_project)
             .optional()?;
         Ok(p)
     }

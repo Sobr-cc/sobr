@@ -154,7 +154,7 @@ impl TeamSettingsStore {
         let access = self.get(KEY_ACCESS_TOKEN)?;
         let fingerprint = self.get(KEY_FINGERPRINT)?;
         let enrolled_at = self.get(KEY_ENROLLED_AT)?;
-        let mode = TeamMode::parse(self.get(KEY_MODE)?.as_deref().unwrap_or_default());
+        let mode = TeamMode::parse(self.get(KEY_MODE)?.as_deref().unwrap_or("local"));
         let accept_invalid_certs = self
             .get(KEY_ACCEPT_INVALID_CERTS)?
             .as_deref()

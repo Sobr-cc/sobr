@@ -4,11 +4,12 @@ sobria-app Deep cleanup, part 1: stores, state and errors (2026-10-31, SOB-26)
   texts and the list of 307 tests are unchanged.
 - **Shared code:**
   - one `db::open_referentiel` opens `referentiel.sqlite` in WAL mode for
-    every store, so WAL no longer depends on which store opens first;
-  - one RFC 3339 column parser;
+    the preferences, goals, project and team settings stores (the extension
+    store follows in part 2);
+  - one RFC 3339 column parser, used by the project store;
   - JSON read and write helpers in the preferences store;
-  - cached SQL statements in the preferences, project and team settings
-    stores.
+  - cached SQL statements for the preferences and team settings keys and
+    the project reads.
 - **Removed:** the unused `sha2` dependency, single-statement transactions,
   and serde derives that no code used (one of them encoded `co2eq` as
   `co2_eq`).
