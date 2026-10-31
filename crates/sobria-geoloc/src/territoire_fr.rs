@@ -10,7 +10,7 @@
 //! **Aucune donnée n'est inventée ici.** Les types sont des miroirs locaux
 //! des structs définies dans `sobria-ingest::sources::territoire_fr` —
 //! duplication justifiée pour éviter une dépendance entre `sobria-geoloc`
-//! (léger) et `sobria-ingest` (lourd, polars + duckdb).
+//! (léger) et `sobria-ingest` (lourd, polars).
 
 use std::path::Path;
 
