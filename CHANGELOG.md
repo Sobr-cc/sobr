@@ -13,17 +13,19 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
   device only, the references that each source gives it. Two reports are one
   session only when a reference proves it, whether or not Claude Code uses one
   session ID in all its sources (to be confirmed by SOB-163).
-  - A source's report for a session and a day replaces its own previous
-    report. The numbers come whole from the most precise source that has
-    numbers (OpenTelemetry, transcript, extension). A better report arriving
-    later replaces the numbers and the older one stays in the history.
+  - A source's report for a session replaces its own previous report. The
+    numbers come whole from the most precise source whose report is complete
+    (OpenTelemetry, transcript, extension); a partial report never beats a
+    complete one. A better report arriving later replaces the numbers and
+    the older one stays in the history.
   - Billing names no session, so it never changes a session or a total: its
     figure is shown beside the total Sobr saw, with the gap.
   - A correction by the person belongs to the session and survives every
-    change of winner. 14 shared test cases, 3 worked examples, 9 build issues
+    change of winner. 16 shared test cases, 3 worked examples, 9 build issues
     (38 points), marking those that wait for a Deep cleanup.
   - Two points wait for Thibault (SOB-195): how billing enters the totals,
-    and where OpenTelemetry enters.
+    and where OpenTelemetry enters. A third question, what local context the
+    device keeps for rules, is SOB-198.
 - **ADR-0022, Amendment 1**: closes the references that left these points to
   SOB-146, and adds one item to its upload contract (a session merge).
 - Corrects one sentence of the ADR-0023 entry (SOB-144).

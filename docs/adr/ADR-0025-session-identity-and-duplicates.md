@@ -1,8 +1,8 @@
 # ADR-0025 — Session identity and duplicates across sources
 
 - **Status**: Proposed (2026-10-31). Two points wait for Thibault's answers
-  (SOB-195); the rest rests on the recommendations below. Merging the PR
-  is his approval.
+  (SOB-195); the rest rests on the recommendations below. Merging the PR is
+  his approval.
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-146)
@@ -15,39 +15,32 @@
 > and a set of **source references**: the IDs that each source uses for it.
 > The references never leave the device. Two reports belong to one session
 > only when a reference proves it; Sobr never guesses from times or sizes.
-> A source's report for a session and a day replaces its own previous
-> report, so a replay changes nothing. The numbers of a session come whole
-> from the most precise source that has numbers (OpenTelemetry, then the
-> transcript, then the browser extension), and the other reports are kept as
-> history and as context. A source that cannot name a session, such as
-> billing, never changes a session or a total: it is shown beside them, with
-> the gap. When a more precise source arrives later, it replaces the numbers
-> and the older report stays in the history. A correction by the person
-> belongs to the session, so it survives every change of winner. The merge
-> runs on the device; the server receives one winning report per session and
-> day.
+> A source's report for a session replaces its own previous report. The
+> numbers of a session come whole from the most precise source whose report
+> is complete (OpenTelemetry, then the transcript, then the browser
+> extension), and the other reports are kept as history and context. A
+> source that cannot name a session, such as billing, never changes a session
+> or a total: it is shown beside them, with the gap. When a more precise
+> source arrives later, it replaces the numbers and the older report stays in
+> the history. A correction by the person belongs to the session, so it
+> survives every change of winner. The merge runs on the device; the server
+> receives the winning report of each session.
 
 ## Points to decide
 
-Thibault answers these two points in the Decision issue SOB-195. Each
-choice rests on the matching part of the Decision section, which compares the
-options with their cost, effort and risk.
+Thibault answers these two points in the Decision issue SOB-195. Each rests
+on the matching section, which compares the options with their cost, effort
+and risk.
 
-1. **How billing enters the totals** (§6). Billing reports cover an actor or
-   a key per model and per hour or day, never a session. Recommended: show
-   the billed figure beside the total Sobr saw, with the gap and the ratio;
-   change no session and no total. Alternatives: let billing set the total
-   through a signed entry; or let billing replace the total and scale the
-   sessions.
-2. **Where OpenTelemetry enters** (§8). Recommended: a receiver in the
-   desktop app on the same machine, so the merge happens on the device.
-   Alternatives: the organization's collector forwarding to the server with
-   Claude Code's session ID in the upload; or the same with a keyed hash of
-   that ID. This changes the recommendation of the capture note (SOB-145,
-   section 3, option 2).
+1. **How billing enters the totals** (section 6). Recommended: show the
+   billed figure beside the total Sobr saw; change no session and no total.
+2. **Where OpenTelemetry enters** (section 8). Recommended: a receiver in the
+   desktop app on the same machine, so the merge happens on the device. This
+   changes the recommendation of the capture note (section 3, option 2).
 
 The other choices are mine to recommend and are justified where they are made.
-Whatever Thibault answers, the identity rule of §3 and the tests of §11 stay.
+Whatever Thibault answers, the identity rule of section 3 and the tests of
+section 11 stay.
 
 ## Context and problem statement
 
@@ -63,8 +56,9 @@ contexte fusionnés des sources".
 
 ### What each source can say
 
-The facts about Claude Code are in the capture note and link to the official
-pages. The billing facts below were read on the official pages on 2026-10-31.
+The facts about Claude Code are in the capture note (sections 1 to 4) and link
+to the official pages. The billing facts below were read on the official pages
+on 2026-10-31.
 
 | Source | Who can read it | What one report is | Names a session? |
 |--|--|--|--|
@@ -88,13 +82,16 @@ What the three Anthropic pages say about billing:
   does not rely on it.
 - The [Claude Code Analytics API](https://platform.claude.com/docs/en/manage-claude/claude-code-analytics-api)
   gives one record per actor and UTC day, with a count of sessions and, per
-  model, tokens and an estimated cost. It has no session ID, and "does not
-  include" usage on a Claude subscription plan.
+  model, tokens and an estimated cost. It has no session ID, and it does not
+  include usage on a Claude subscription plan.
 
 So billing is a total per actor or key, model and bucket. It cannot be tied to
 one session, and a person on a subscription, or on no organization, has none.
 The decision of October 30 assumed a session-level billing source; this ADR
 keeps its order of precision and applies each source at the grain it has.
+
+The extension and Claude Code are two tools. No official source ties a browser
+conversation to a Claude Code session, so today they never share a session.
 
 ### What is out of scope
 
@@ -104,6 +101,9 @@ keeps its order of precision and applies each source at the grain it has.
 - Billing per person. It needs the identities of the Organization and
   identity project, and ADR-0016 decides who may see a person's daily figure.
 - Whether an estimate made in the Understand pages counts as use (ADR-0022).
+- What local context the device keeps for rules (folder, repo, branch):
+  ADR-0022 section 6 uses it and the capture note says it is not stored
+  (SOB-198).
 
 ## Decision
 
@@ -111,18 +111,14 @@ keeps its order of precision and applies each source at the grain it has.
 
 **A session has one ID: a random UUID (version 4), born on the device when
 the first report arrives** (ADR-0022 section 9). It never changes. Next to it,
-the device keeps a set of **source references**: pairs of a source family and
-the key that the source gives the session.
+the device keeps its **source references**: pairs of a source family and the
+key that the source gives the session.
 
-- Family `claude-code`: the Claude Code session ID, as the transcript file
-  name and as the `session_id` of the status line and the hooks.
-- Family `claude-code-otel`: the `session.id` attribute of OpenTelemetry. It
-  is the same family as `claude-code` if SOB-163 finds the two IDs equal, and
-  a family of its own if not (section 3).
-- Family `extension`: the provider host and the conversation ID found in the
-  page address.
-
-Only the families `claude-code` and `extension` can create a session.
+| Family | Key | Creates a session? |
+|--|--|--|
+| `claude-code` | The Claude Code session ID: the transcript file name, and the `session_id` of the status line and the hooks | Yes |
+| `claude-code-otel` | The `session.id` attribute. It is the family `claude-code` if SOB-163 finds the two IDs equal | Only if it is the family `claude-code` |
+| `extension` | The provider host and the conversation ID found in the page address | Yes |
 
 References are local context. They stay in the device's session store, in the
 list of what never leaves a device (ADR-0022 section 10). The server knows a
@@ -136,17 +132,19 @@ session only by its Sobr ID.
 
 ### 2. What each source maps to
 
-| Source | Reference it gives | How the report becomes a measurement |
-|--|--|--|
-| `claude-code-log` | Claude Code session ID, from the file name. A subagent transcript (`<session>/subagents/`) carries its parent's ID | Cumulative totals per day and model, read at the end of the session or on import |
-| `claude-code-statusline` | `session_id`, and the transcript file name from `transcript_path` | No numbers: it supplies context and the live view. Its cost total and last-call tokens cannot stand alone (capture note, section 2) |
-| `claude-code-otel` | `session.id`: family `claude-code` if SOB-163 finds it equal to the other IDs, otherwise its own family, which creates no session | Counters turned into cumulative totals per day and model by the receiver |
-| `extension` | Provider host and conversation ID | The estimate for that conversation and day |
-| `billing` | None | Not a measurement. See section 6 |
+| Source | How it becomes a report |
+|--|--|
+| `claude-code-log` | Cumulative totals, read at the end of the session or on import. A subagent transcript (`<session>/subagents/`) is read as part of its parent |
+| `claude-code-statusline` | No token totals, so it cannot be a report with numbers: it supplies context and the live view. Its cost total is the live display (capture note, section 2) |
+| `claude-code-otel` | Counters turned into cumulative totals by the receiver |
+| `extension` | The estimate for that conversation |
+| `billing` | Not a report. See section 6 |
 
-A report is always a **cumulative total for a session, a source and a day,
-with one row per model**. An adapter that receives increments, such as the
-OpenTelemetry counters, adds them up before it reports.
+A **report** is a source's cumulative totals for one session, up to the time
+it was read, with one measurement (ADR-0022) per day and model. Its day is the
+calendar day, in the space's time zone, of the record it counts. A report is
+identified by (session, source). An adapter that receives increments, such as
+the OpenTelemetry counters, adds them up before it reports.
 
 ### 3. The linking rule
 
@@ -155,91 +153,101 @@ not. **That fact is to be confirmed by SOB-163**; the rule does not wait for it.
 
 1. A report arrives with a reference. If the device knows it, the report
    belongs to that session.
-2. If the device does not know it and its family can create a session
-   (`claude-code` or `extension`), a new session is born with the reference.
-3. If the device does not know it and its family cannot create a session, the
-   report is a **totals-only report** (section 6). It never creates a session.
-4. A report may carry two references that the source itself ties together. The
+2. If the device does not know it, a family that can create a session starts a
+   new one with the reference. Any other report is a **totals-only report**
+   (section 6) and never creates a session.
+3. A report may carry two references that the source itself ties together. The
    status line and the hooks carry `session_id` and `transcript_path`, and the
    file name of the transcript is its session ID. Both references are
-   recorded for one session. If they belong to two sessions, the sessions
+   recorded for one session. If they already name two sessions, the sessions
    are merged (section 9).
-5. Nothing else links reports. No match on time, model, size or folder.
+4. Nothing else links reports. No match on time, model, size or folder.
 
-**If SOB-163 finds one ID everywhere,** OpenTelemetry joins the family
-`claude-code`, and step 1 does all the work: the status line, the hooks, the
-transcript and OpenTelemetry meet on one reference.
+**Case I — one ID everywhere.** OpenTelemetry joins the family `claude-code`.
+Step 1 does all the work: the status line, the hooks, the transcript and
+OpenTelemetry meet on one reference.
 
-**If SOB-163 finds different IDs,** the status line, the hooks and the
-transcript still meet through step 4. OpenTelemetry stays in its own family and
-has no tie to them, so its reports name a session the device cannot match. By
-step 3 they are totals-only at the person's scope: their day total is a check
-against the sessions' sum and adds nothing. Sobr takes the transcript's
-numbers, one rank lower, and loses no use. Whether OpenTelemetry alone may
-create sessions on a machine that has no transcript reader is left to the
-amendment that follows SOB-163.
+**Case II — different IDs.** The status line, the hooks and the transcript
+still meet through step 3. OpenTelemetry stays in its own family and has no
+tie to them, so by step 2 its reports are totals-only: their total is a check
+kept on the device, and adds nothing. Sobr takes the transcript's numbers, one
+rank lower. Whether OpenTelemetry alone may create sessions on a machine with
+no transcript reader is left to the amendment that follows SOB-163.
 
 **A wrong link hides use and a missing link only loses precision,** so the rule
-prefers the missing link. Nothing in the totals can be counted twice by a link
-that was not made, because a report that cannot be linked adds nothing.
+prefers the missing link. A link that was not made never adds a report to a
+session that is not its own.
 
-Two more facts wait for SOB-163 and SOB-161: whether a resumed session keeps
-its ID or starts a new one that repeats earlier lines, and whether a subagent's
-requests carry the parent's ID in OpenTelemetry. The tests of section 11 pin
-both, so the importer never adds a subagent to a parent that already includes
-it. A session after `/clear` is a new session, per the Claude Code
-documentation.
+Two cases are the importer's, not the identity rule's, and break it if
+unchecked. A resumed session may start a new ID and repeat earlier lines; SOB-163
+covers resume and `/clear` (a session after `/clear` is a new session, per the
+Claude Code documentation). Whether a subagent's requests carry the parent's ID
+in OpenTelemetry is not in the capture note; build issue 4 checks it with a
+real run. The tests of section 11 pin both, so a subagent is never added to a
+parent that already includes it.
 
-### 4. One report per session, source and day
+### 4. One report per session and source
 
-A source's report for a session and a day, with its rows per model, is
-identified by (session, source, day). A new report for the same identity
-**replaces the previous one whole**. This covers three cases at once: the
-transcript read again after more turns, the extension's estimate sent to both
-the app and the server, and a replayed upload. Applying a report twice changes
-nothing.
+A new report for the same (session, source) **replaces the previous one
+whole**. This covers the transcript read again after more turns, an extension
+estimate that reaches the app twice (once live, once from the spool after the
+app was closed), and a replayed upload. Applying a report twice changes
+nothing. ADR-0022 section 10 already removes the extension's `both` mode, so
+one estimate no longer takes two paths.
 
-Cumulative totals do not shrink. A report lower than the stored one for the
-same identity is ignored and flagged, because the source was cut (for example a
-transcript cleaned after 30 days) and the stored report is the better record.
+Cumulative totals do not shrink. A report with fewer tokens than the stored one
+for the same source is ignored and flagged, because the source was cut (for
+example a transcript cleaned after 30 days) and the stored report is the better
+record.
 
 ### 5. Precedence: which report gives the numbers
 
-**For each session and day, the numbers come whole from one source: the
-most precise one that has numbers.** The order is:
+**For each session, the numbers come whole from one source: the most precise
+source whose report is complete.** The days of the session are the days of that
+report.
 
 | Rank | Source | Why |
 |--|--|--|
-| 1 | `claude-code-otel` | Official counters, per request, with cost |
+| 1 | `claude-code-otel` | Official counters with cost |
 | 2 | `claude-code-log` | Token counts from the transcript, unofficial, best effort |
 | 3 | `extension` | An estimate from tokens counted in the browser |
 | — | `claude-code-statusline` | No token totals: context and live view only |
 
-Billing sits above this table in precision but at another grain (section 6).
-The order is a table in the model crate, changed only by an amendment of this
-ADR. The energy, CO₂ and water of a session are computed from the winning
-report's tokens and model with the method and its version (ADR-0004), so a
-change of winner recomputes them and nothing else.
+The extension has no tie to Claude Code today (see Context), so for now its
+numbers are the only ones of its sessions. Its rank is kept because the
+decision of October 30 orders it so and a tie may appear; adding one needs an
+amendment with an official source.
+
+**A report is complete** when it starts no later than the earliest record of any
+report for the session plus a tolerance set in the crate, ends no earlier than
+the latest record minus that tolerance, and has a row for every model that
+another report has. The times are the device's and never leave it.
+OpenTelemetry started after the session began, or an app closed for an hour,
+gives a partial report: it does not beat a complete transcript. If no
+report is complete, the report with the most tokens wins and the session is
+flagged partial, so use is never dropped for the sake of precision.
+
+The order of precision is a table in the model crate, changed only by an
+amendment of this ADR. The energy, CO₂ and water of a session are computed from
+the winning report's tokens and model with the method and its version
+(ADR-0004), so a change of winner recomputes them and nothing else.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
-| **A — The numbers come whole from the best source that has numbers (chosen)** | A source with a gap in its fields loses to a lower one only when it has no report at all | Small | Low: one definition of every figure of a session |
-| B — Each field comes from the best source that has it (tokens from one, cost from another) | Fewer holes | Medium | A session mixes definitions: an official counter beside an estimate at list price, and totals that no source ever stated |
+| **A — The numbers come whole from the best complete source (chosen)** | A source with a gap loses to a lower one that has none | Small | Low: one definition of every figure of a session, and no day or model counted from two sources |
+| B — Each field comes from the best source that has it (tokens from one, cost from another) | Fewer holes | Medium | A session mixes definitions, and a turn near midnight can land on two days |
 
 While a session runs, the status line may show a live figure. It is marked
-live, and the session's numbers replace it when a report with numbers
-arrives.
+live, and the session's numbers replace it when a report with numbers arrives.
 
 ### 6. Sources that cannot name a session: billing
 
-A **totals-only source** reports a total for a scope, a model and a day, with
-no session. Billing is one, at the scope of an organization or a workspace.
-An unlinked OpenTelemetry stream is another, at the scope of a person
-(section 3).
+A **totals-only report** gives a total for a scope, a model and a day, with no
+session. Billing is one, at the scope of an organization or a workspace.
+OpenTelemetry in case II is another.
 
-**Rule: a totals-only source never creates a session, never changes a session
-and never changes a total of sessions.** It supplies its own figure for its
-scope and day, and the gap to what Sobr saw.
+**Rule: a totals-only report never creates a session, never changes a session
+and never changes a total of sessions.** It is shown beside them, with the gap.
 
 For billing, the server fetches the hourly buckets with the organization's
 Admin credential (the Z2 connection), cuts them into the calendar day of the
@@ -266,31 +274,32 @@ hours per request.
 
 ### 7. Merging context
 
-Context is what a report knows beyond its numbers: folder, repo, branch,
-source account, model, Claude Code version, terminal, provider host, and the
-conversation. **The context of a session is the union of the context of all its
-reports.**
+Context is what a report knows beyond its numbers: source account, model,
+Claude Code version, terminal, provider host, the conversation, and, while the
+device holds them, folder, repo and branch. **The context of a session is the
+union of the context of all its reports.**
 
 - When two reports give the same field, the more precise source wins.
 - A missing value never erases a known one.
-- Most context stays on the device (ADR-0022 section 10). What can leave is
-  already in the upload contract: the model, the provider host and the day.
+- Context stays on the device except what the upload contract already holds:
+  the model, the provider host and the day (ADR-0022 section 10).
+- How long the device keeps folder, repo and branch is open (SOB-198). This
+  ADR merges what is kept and adds nothing to it.
 
-The merge is repeated when a report arrives. A session therefore gains
-context from every source that sees it, and T3 shows the merged numbers and
-context.
+The merge is repeated when a report arrives, so a session gains context from
+every source that sees it, and T3 shows the merged numbers and context.
 
 ### 8. Where the merge runs, and what is uploaded
 
-**The merge runs on the device.** The device sees every source of the person.
-It uploads, in its daily batch, **the winning report of each session and
-day**, under the contract of ADR-0022 section 10. It uploads no reference and
-no losing report.
+**The merge runs on the device.** The device sees every source of the person
+on that machine. It uploads, in its daily batch, **the winning report of each
+session**, under the contract of ADR-0022 section 10. It uploads no reference
+and no losing report.
 
 The server applies the same precedence function from the model crate, so a
 late or repeated upload cannot count twice: a report replaces one of lower or
-equal rank for the same session and day, and is ignored if lower. The
-replaced report stays in the history (section 10).
+equal rank for the same session, and is ignored if lower. The replaced report
+stays in the history (section 10).
 
 This ADR adds one item to the contract: **a session merge**, carrying the
 retired session ID and the surviving one (section 9). Both are random IDs, so
@@ -314,26 +323,30 @@ accordingly if Thibault takes A.
 An attachment (project, task, "no project") belongs to the **session**, not to a
 report. It does not change when the winner changes or when a report arrives.
 
-- **Order of authority:** the person, then a rule, then a project link, then
-  the source (ADR-0022 sections 4 and 6). A later decision of a lower authority
-  never overrides a higher one.
+- **The person's choice is never overridden** by a rule, a project link or a
+  source. Between automatic attachments, ADR-0022 sections 6 and 8 apply as
+  written.
 - **Rules run on the merged context** (ADR-0022 section 6). A rule is run again
   when a session gains context, only on sessions still "to classify" and on
-  attachments that a rule or a source made. It never touches an attachment the
-  person chose.
-- **A correction made in T3 can become a rule applied to history.** The rule's
-  conditions (folder, repo, branch, source account, model) read the merged
-  context, so a session that gained its folder from a later report is matched
-  from then on.
+  attachments that a rule or a source made.
+- **A correction made in T3 can become a rule applied to history**
+  (ADR-0022 section 6). Its conditions read the merged context, so a session
+  that gained its folder from a later report is matched from then on.
 
-**Merging two sessions.** When step 2 of section 3 shows that two sessions are
-one, the older session survives. The newer ID is retired and recorded as
-merged into it, and its references and reports move to the survivor. For the
+**Merging two sessions.** When step 3 of section 3 shows that two sessions are
+one, the older session survives. This can happen when a source ties two
+references after each already has a session, for example a resumed session
+whose new ID a later report ties to the old one; SOB-163 tells whether that
+exists. A merge only happens inside one space, or between two sessions whose
+space is still pending. Two sessions in different spaces are not merged and
+the tie is flagged, because a session never moves from the personal space to an
+organization (ADR-0022 section 3). The newer ID is retired and recorded as
+merged into the survivor, and its references and reports move to it. For the
 attachment, the person's choice wins; if both were chosen by the person, the
-more recent choice wins. A merge before the session is uploaded changes
-nothing on the server. After the upload, the device sends the merge in its
-daily batch, and the server moves the reports and deletes the retired
-session. Totals count the session once on the next day's view.
+more recent choice wins. A merge before the session is uploaded changes nothing
+on the server. After the upload, the device sends the merge in its daily batch,
+and the server moves the reports and deletes the retired session. Like any
+attachment change, it can move a day's total, and the group of a member's use.
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
@@ -347,30 +360,31 @@ turned on after the first sessions, a transcript is imported days later,
 billing refreshes up to a day later.
 
 **The numbers are derived, never overwritten.** Each report is kept, the
-winner is the best-ranked one, and the session shows the winner's numbers. When
-a better report arrives, it becomes the winner and the previous winner is kept
-as **superseded**. When a report of lower rank arrives, nothing visible
-changes: it is kept as history and its context is merged.
+winner is the best-ranked complete one, and the session shows the winner's
+numbers. When a better report arrives, it becomes the winner and the previous
+winner is kept as **superseded**. When a report of lower rank arrives, nothing
+visible changes: it is kept as history and its context is merged.
 
-The history keeps for each report: the source, the day, the rows per model,
-the method and its version, and, for a superseded report, the day it was
-replaced. It keeps no clock time on the server. The device keeps its own clock
-times for the person's views. History follows the retention of ADR-0022
-section 10 (24 months). T3 shows "estimated 12,000 tokens from the extension,
-measured 15,300 by the transcript on Tuesday".
+The history keeps for each report: the source, its rows per day and model, the
+method and its version, and, for a superseded report, the day it was replaced.
+It keeps no clock time on the server. The device keeps its own clock times for
+the person's views. History follows the retention of ADR-0022 section 10
+(24 months). T3 shows "estimated 12,000 tokens from the extension, measured
+15,300 by the transcript on Tuesday".
 
 | Option | Cost | Effort | Risk |
 |--|--|--|--|
 | A — Overwrite the numbers and keep nothing | The least storage | Small | A total changes with no explanation, and a wrong replacement cannot be undone |
-| **B — Keep every report, derive the winner, mark replaced ones (chosen)** | One row per source and day, at most three per session and day | Small | Low |
+| **B — Keep every report, derive the winner, mark replaced ones (chosen)** | One report per source and session, at most three | Small | Low |
 | C — Freeze the first report | Totals never move | Small | The least precise number stays for good |
 
-A replacement changes a past day's total. ADR-0022 already accepts this for a
-late batch. A replacement never changes **who** contributed to a group on a
-day, so it can never make a group pass or fail the k check (ADR-0022 section 10).
-It can reveal the difference between two values to someone who saw both; the
-same trade-off as a withdrawal, and the same remedy: organization views show a
-day after the batches and the billing refresh of that day.
+A replacement changes past days' totals, as a late batch does (ADR-0022
+section 10). It can also move a record across midnight, because two sources may
+date the same record to different days, so a day group can gain or lose a
+contributor. That is the same trade-off as a late batch or a withdrawal, and the
+same remedy: organization views show a day after the batches and the billing
+refresh of that day. Within one report the days never overlap, so a replacement
+cannot count a record on two days.
 
 ### 11. Tests that prove no double counting
 
@@ -380,34 +394,43 @@ Property tests (`proptest`) cover the order of arrival.
 
 1. A report applied twice gives the numbers of applying it once.
 2. Two sources for one session, in both orders: the numbers are the winner's,
-   and the day total is the winner's, never the sum.
-3. Three sources, in all six orders: the same numbers and the same history.
+   and the day totals are the winner's, never the sum.
+3. Three reports (OpenTelemetry, transcript, status line), in all six orders:
+   the same numbers and the same history.
 4. A better source arrives later: the numbers change, the older report is
    superseded, and the day total moves by the difference only.
 5. A worse source arrives later: nothing visible changes; the context is
    merged.
-6. A lower cumulative report than the stored one is ignored and flagged.
+6. A report with fewer tokens than the stored one from the same source is
+   ignored and flagged.
 7. A status line alone adds nothing to any total.
 8. A subagent transcript and its parent give the parent's totals once.
-9. Two sessions merged after a late link: one session, the person's
-   attachment kept, the totals counted once, before and after the upload.
-10. Case I and case II of section 3, with the same inputs: totals equal in
-    both, except that case II uses rank 2 numbers where case I used rank 1.
-11. An unlinked totals-only stream adds nothing to the totals.
-12. Billing: a day with a gap, a day where Sobr saw more than the bill, a day
+9. A partial report (it starts late, or lacks a model that another report has)
+   does not beat a complete lower one. With no complete report, the one with
+   the most tokens wins and the session is flagged partial.
+10. A record near midnight dated to two different days by two sources is counted
+    once, on the day of the winner's report.
+11. Two sessions merged after a late link: in one space, one session, the
+    person's attachment kept, the totals counted once, before and after the
+    upload. In two spaces, no merge and a flag.
+12. Case I and case II of section 3, with the same inputs: equal totals, except
+    that case II uses rank 2 numbers where case I used rank 1.
+13. A totals-only report adds nothing to any total.
+14. Billing: a day with a gap, a day where Sobr saw more than the bill, a day
     with no billing, and a day not yet refreshed. No session and no total
     changes in any of them.
-13. The extension alone (no app): its one source follows rules 1 and 4 only.
-14. A correction and a rule: the person's attachment survives a change of
+15. The extension alone: an estimate that reaches the app twice counts once.
+16. A correction and a rule: the person's attachment survives a change of
     winner and a re-run of the rules.
 
 ## Examples
 
-**Three sources for one session, in any order.** Alice uses the app in her
+**Three reports for one session, in any order.** Alice uses the app in her
 personal space. On Monday, a Claude Code session S sends the status line
 (cost $0.80, last call 2,100 tokens: context only), then the transcript at the
 end (118,000 input and 31,000 output tokens: 149,000), then OpenTelemetry
-through the app's receiver (120,500 and 31,200: 151,700).
+through the app's receiver (120,500 and 31,200: 151,700). All three start and
+end together, so each is complete.
 
 1. The status line adds nothing. The transcript, rank 2, gives S 149,000
    tokens.
@@ -417,6 +440,9 @@ through the app's receiver (120,500 and 31,200: 151,700).
    first, the transcript would have been kept as history and nothing would have
    changed. Her correction of S to the task "Fix the RSS feed" stays the same
    through all three steps.
+4. Had the app been closed for the first hour, OpenTelemetry would start an
+   hour after the transcript. It would be partial, so the transcript would stay
+   the winner and the partial report would be kept as history.
 
 **Billing beside the total, in an organization.** Acme's space uses Europe/Paris
 as its time zone. For Monday, its members' winning reports sum to 4,200,000
@@ -431,20 +457,21 @@ day: billed 4,650,000.
 3. For Wednesday, `data_refreshed_at` is still before the end of the day. The
    billed figure is provisional and no gap is shown.
 
-**A late link and a replay.** Erin finds, with Claude Code, that the status line
+**A late tie and a replay.** Erin finds, with Claude Code, that the status line
 and the transcript use different IDs (case II). She works on Monday.
 
 1. The transcript is imported first: session B is born with the reference "log
    B". She attaches B to the project "Checkout".
 2. The status line later reports `session_id` A with the transcript path of B.
-   Step 2 of section 3 records A and B as references of one session; nothing is
+   Step 3 of section 3 records A and B as references of one session; nothing is
    merged, because A had no session of its own yet.
-3. Had A already had a session, the older would survive, Erin's attachment
-   would win, the two sets of reports would be joined, and the totals would
-   count the session once.
-4. Her browser extension, still in the old `both` mode, sends the same
-   conversation estimate to the app and to the server. The report has one
-   identity, (session, `extension`, day), so the second copy replaces the first
+3. Had A already had a session in the same space, the older would survive,
+   Erin's attachment would win, the two sets of reports would be joined, and the
+   totals would count the session once.
+4. Her browser extension sends an estimate for a conversation to the app while
+   it is closed, so the estimate waits in the spool. When the app opens, the
+   estimate arrives once from the spool and once live. Both carry the same
+   conversation reference, so they are one report; the second replaces the first
    and nothing is counted twice.
 
 ## Consequences
@@ -453,7 +480,8 @@ and the transcript use different IDs (case II). She works on Monday.
 
 - One rule answers "is this the same use?" for every source, with a proof or no
   link at all.
-- Totals can never be doubled by a source, an order of arrival or a replay.
+- Totals cannot be doubled by a source, an order of arrival, a replay or a
+  record near midnight.
 - Billing keeps its authority at the grain it has, without inventing a number
   for a session.
 - Nothing new leaves the device except a session merge, which holds two random
@@ -467,7 +495,11 @@ and the transcript use different IDs (case II). She works on Monday.
   it.
 - The merge needs the device: a member without the app and without the
   extension is not measured, except through billing.
-- A past day's total can change when a better report arrives.
+- One machine merges only the sources it sees. The same transcript read on two
+  machines of one personal space counts twice until the merge at first sync
+  compares references (ADR-0022, issue 15).
+- A past day's total can change when a better report arrives, and a record can
+  move to the next day.
 - The organization view has two figures to read.
 - The server and the device both run the precedence function. The crate holds
   one implementation and the same published cases.
@@ -489,11 +521,11 @@ The numbers refer to the issues of ADR-0022.
 
 | # | Issue | Area | Estimate | Waits for |
 |--|--|--|--|--|
-| 1 | Add source references, the report identity, the precedence function, the merge and the published cases to the model crate, with property tests | Model crate | 5 | ADR-0022 issue 1 |
+| 1 | Add source references, the report identity, completeness, the precedence function, the merge and the published cases to the model crate, with property tests | Model crate | 5 | ADR-0022 issue 1 |
 | 2 | Turn the Claude Code transcript import into cumulative reports with subagent folding, and pin the resumed-session case | Import crate, desktop backend | 5 | #1; SOB-161; **SOB-26** |
-| 3 | Make the status line and hooks report context and the live view only, with the two references of step 2 | Plugin (`claude-code` repo) | 3 | #1; SOB-164 |
-| 4 | Receive OpenTelemetry in the desktop app (local endpoint, allow-list, increments turned into totals) and ship the export settings | Desktop backend, plugin | 5 | #1; the answer to point 2; SOB-166 reframed; **SOB-26** |
-| 5 | Make the extension send one report per conversation and day, and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
+| 3 | Make the status line and hooks report context and the live view only, with the two references of step 3 | Plugin (`claude-code` repo) | 3 | #1; SOB-164 |
+| 4 | Receive OpenTelemetry in the desktop app (local endpoint, allow-list, increments turned into totals), check with a real run whether a subagent's requests carry the parent's ID, and ship the export settings | Desktop backend, plugin | 5 | #1; the answer to point 2; SOB-166 reframed; **SOB-26** |
+| 5 | Make the extension send one report per conversation and keep its conversation reference local (with ADR-0022 issue 9) | Browser extension, bridge | 3 | #1; ADR-0022 issue 9; **SOB-31**, **SOB-24**, **SOB-26** |
 | 6 | Keep winning reports and their history on the server, apply the precedence on upload, and accept a session merge | Server | 5 | #1; ADR-0022 issues 6 and 7; **SOB-25** |
 | 7 | Apply rules again when a session gains context, and merge two sessions with the person's attachment winning | Model crate, desktop backend | 3 | #1; ADR-0022 issue 5; **SOB-26** |
 | 8 | Fetch billing for an organization (Z2 connection, hourly buckets cut to the space's day, provisional until refreshed) and show the billed figure and the gap | Server, integrations | 8 | The answer to point 1; ADR-0022 issue 6; **SOB-25** |
@@ -506,7 +538,8 @@ The numbers refer to the issues of ADR-0022.
 - ADR-0004, ADR-0015, ADR-0016, ADR-0019, ADR-0022 (Amendment 1 closes its
   references to this ADR)
 - `docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md` (SOB-145), SOB-161, SOB-163,
-  SOB-166, SOB-118 (the `both` mode double count), SOB-87 (amendment by PR)
+  SOB-166, SOB-195 (the two points), SOB-198 (local context), SOB-118 (the
+  `both` mode double count), SOB-87 (amendment by PR)
 - Official pages read on 2026-10-31: [Usage and Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api),
   [Usage and Cost Analytics API](https://platform.claude.com/docs/en/manage-claude/usage-cost-analytics-api),
   [Claude Code Analytics API](https://platform.claude.com/docs/en/manage-claude/claude-code-analytics-api)

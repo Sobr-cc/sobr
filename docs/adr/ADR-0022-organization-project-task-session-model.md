@@ -5,6 +5,7 @@
 - **Date**: 2026-10-31
 - **Deciders**: Thibault (decision); CTO recommendation
 - **Technical context**: Data model and sessions project (SOB-143)
+- **Amendment 1** (Proposed 2026-10-31, SOB-146): sessions and measurements, settled by ADR-0025. See the section below.
 - **Related**: ADR-0003 (SQLite), ADR-0009 (medallion), ADR-0013 (pairing,
   team mode), ADR-0014 (cloud, personal space), ADR-0015 and ADR-0016
   (privacy, visibility), ADR-0019 (repos), ADR-0021 (one app)
@@ -76,7 +77,7 @@ the options with their cost, effort and risk.
 
 **What changes.**
 
-1. The tie between a session and its measurements is no longer provisional. A source's report for a session and a day, with a row per model, replaces its previous report whole. The numbers of a session come whole from the most precise source that has numbers, and the other reports stay as history and context.
+1. The tie between a session and its measurements is no longer provisional. A source's report for a session, with a measurement per day and model, replaces its previous report whole. The numbers of a session come whole from the most precise source whose report is complete, and the other reports stay as history and context. A measurement is one day and model of a report, not a turn.
 2. The upload contract of section 10 gains one item: a session merge, carrying the retired session ID and the surviving one. Source references (the IDs that each source gives a session) are local context and never leave the device.
 3. Billing reports are not measurements. The server stores a billed figure per space, model and day, shown beside the totals, outside the upload contract.
 4. The server needs no finer time than the day to match billing with sessions. The consequence that reserved this question for SOB-146 is closed.
@@ -214,7 +215,7 @@ several sources form one session, which may change it. Billing reports,
 which cover a workspace or a key per day rather than one person's use, are
 left to SOB-146.
 
-> Amendment 1 (2026-10-31): ADR-0025 settles both. Billing is not a measurement.
+> Amendment 1 (2026-10-31): ADR-0025 settles both. A measurement is one day and model of a source's report, not a turn. Billing is not a measurement.
 
 ### 2. Spaces, members and storage
 
@@ -587,6 +588,8 @@ reading totals or refreshing a sign-in, still show when a member opens the
 app; they carry no use data. The person's own views on the device are
 up to date at once; the organization's totals and new tasks appear the next
 day.
+
+> Amendment 1 (2026-10-31): the batch also holds session merges (ADR-0025).
 
 **How it is enforced:**
 
