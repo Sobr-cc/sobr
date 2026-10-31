@@ -7,6 +7,21 @@ Types : `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Non publié]
 
+### Added — Characterization tests of the browser extension (2026-10-31, SOB-158)
+
+- **`extension`**: Vitest tests in `tests/unit/` record what the code does
+  today, without changing it: the service worker (every message, local
+  storage, forwarding to the native bridge and to the team server), native
+  messaging, the team client (token refresh on 401, errors), team storage
+  (including the browser fingerprint) and storage; the three site adapters,
+  driven through their own `extractModelId` and `onSubmit` so the real alias
+  tables and selectors are used; and a comparison of the 34 presets with the
+  Rust registry (read from the estimator's `model_registry.json`). Line
+  coverage goes from 40 % to 74 % and function coverage from 53 % to 87 %.
+  Quirks found are pinned and filed: SOB-171 (four preset labels differ from
+  the Rust registry) and SOB-176 (labels resolved to the wrong model); the
+  double counting is SOB-118.
+
 ### Added — Claude Code usage capture note (2026-10-31, SOB-145)
 
 - **`docs/sources/CLAUDE-CODE-USAGE-CAPTURE.md`**: proposal for measuring
